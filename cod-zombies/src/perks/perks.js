@@ -925,6 +925,8 @@ function buildMuleKickMachine(def) {
   const brass = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xb08440, metalness: 0.8, roughness: 0.35 }));
   const gunmetal = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x26241f, metalness: 0.7, roughness: 0.5 }));
   const bone = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xe6dec6, roughness: 0.7 }));
+  const bone2 = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xeae3cf, roughness: 0.55 })); // lighter ivory horns
+  const rope = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 0.95 }));
   const dark = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x14110d, roughness: 0.85 }));
   const glow = new THREE.MeshBasicMaterial({ color: def.color });
 
@@ -950,7 +952,27 @@ function buildMuleKickMachine(def) {
 
   // wood front panel with a gold star + glowing bottle slots
   const woodPanel = box(W - 0.18, lowH * 0.62, 0.04, wood); woodPanel.position.set(0, lowH * 0.46, F + 0.005); g.add(woodPanel);
-  const star = new THREE.Mesh(new THREE.CircleGeometry(0.17, 5), brass); star.position.set(0, lowH * 0.46, F + 0.02); g.add(star);
+  // ornate gold frame around the wood panel
+  const fw = W - 0.15, fh = lowH * 0.66;
+  for (const [bw, bh, bx, by] of [[fw, 0.035, 0, fh / 2], [fw, 0.035, 0, -fh / 2], [0.035, fh, fw / 2, 0], [0.035, fh, -fw / 2, 0]]) {
+    const b = box(bw, bh, 0.05, brass); b.position.set(bx, lowH * 0.46 + by, F + 0.012); g.add(b);
+  }
+  // proper 5-pointed sheriff star (gold) on the panel
+  const starShape = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 ? 0.082 : 0.185;
+    const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+    const px = Math.cos(a) * r, py = Math.sin(a) * r;
+    i ? starShape.lineTo(px, py) : starShape.moveTo(px, py);
+  }
+  starShape.closePath();
+  const star = new THREE.Mesh(new THREE.ShapeGeometry(starShape), brass); star.position.set(0, lowH * 0.46, F + 0.02); g.add(star);
+  // gold studs at the star points
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    const stud = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), brass);
+    stud.position.set(Math.cos(a) * 0.165, lowH * 0.46 + Math.sin(a) * 0.165, F + 0.03); g.add(stud);
+  }
   const slotMats = [];
   for (let i = 0; i < 5; i++) {
     const m = new THREE.MeshBasicMaterial({ color: def.color });
@@ -984,6 +1006,19 @@ function buildMuleKickMachine(def) {
     }
   }
 
+  // a denser top fan of rifles bristling out behind the sign (concept gun-rack)
+  const placeGunR = (x, y, z, rx, ry, rz, s = 1) => { const gun = gunProp(gunmetal, wood); gun.position.set(x, y, z); gun.rotation.set(rx, ry, rz); gun.scale.setScalar(s); g.add(gun); };
+  for (let i = 0; i < 7; i++) {
+    const t = i - 3;
+    placeGunR(t * 0.06, crownTop + 0.02, -0.16, -0.85 + Math.abs(t) * 0.06, t * 0.42, 0, 1.05);
+  }
+  // extra crossed rifles high on the sides + a forward-jutting pistol
+  for (const sx of [-1, 1]) {
+    placeGunR(sx * (W / 2 - 0.02), lowH * 0.86, 0.0, 0, sx * 1.2, 0.7, 1.15);
+    placeGunR(sx * (W / 2 - 0.02), lowH * 0.86, 0.0, 0, sx * 1.2, -0.7, 1.15);
+    placeGunR(sx * (W / 2 + 0.0), lowH * 0.5, 0.16, 0, sx * 1.5, 0.1, 0.85);
+  }
+
   // round green orb sign on a brass post above the cabinet, ringed with bulbs
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.18, 10), brass); post.position.set(0, crownTop + 0.12, -0.02); g.add(post);
   const signY = crownTop + 0.42;
@@ -999,6 +1034,41 @@ function buildMuleKickMachine(def) {
     const m = new THREE.MeshBasicMaterial({ color: def.color });
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), m);
     bulb.position.set(Math.cos(a) * 0.27, Math.sin(a) * 0.27, 0.05); signGroup.add(bulb); bulbMats.push(m);
+  }
+
+  // rope coil lashing the topper to the post
+  for (let i = 0; i < 3; i++) {
+    const coil = new THREE.Mesh(new THREE.TorusGeometry(0.082, 0.018, 6, 16), rope);
+    coil.position.set(0, crownTop + 0.05 + i * 0.05, -0.02); coil.rotation.x = Math.PI / 2; g.add(coil);
+  }
+
+  // --- longhorn bull skull lashed above the orb (the Mule Kick signature) ---
+  const skull = new THREE.Group(); skull.position.set(0, signY + 0.05, -0.13); g.add(skull);
+  const brow = box(0.24, 0.13, 0.15, bone); brow.position.set(0, 0.06, 0); skull.add(brow);
+  const snout = box(0.15, 0.16, 0.13, bone); snout.position.set(0, -0.07, 0.01); skull.add(snout);
+  const nose = box(0.1, 0.08, 0.12, bone); nose.position.set(0, -0.17, 0.02); skull.add(nose);
+  for (const sx of [-1, 1]) { const cheek = box(0.06, 0.09, 0.1, bone); cheek.position.set(sx * 0.1, -0.03, 0.02); skull.add(cheek); }
+  for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 6), dark); eye.position.set(sx * 0.075, 0.0, 0.07); skull.add(eye); }
+  const boss = box(0.2, 0.06, 0.12, bone); boss.position.set(0, 0.12, 0); skull.add(boss); // bony ridge between horns
+  // wide curving horns (parametric tapered chain, mirrored for the left)
+  const makeHorn = () => {
+    const horn = new THREE.Group(); let hx = 0, hy = 0;
+    for (let i = 0; i < 5; i++) {
+      const len = 0.15 - i * 0.012, r0 = Math.max(0.036 - i * 0.0065, 0.008), r1 = Math.max(0.036 - (i + 1) * 0.0065, 0.005);
+      const phi = -0.12 + i * 0.27;
+      const seg = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 8), bone2);
+      seg.position.set(hx + Math.cos(phi) * len / 2, hy + Math.sin(phi) * len / 2, 0);
+      seg.rotation.z = phi - Math.PI / 2; horn.add(seg);
+      hx += Math.cos(phi) * len; hy += Math.sin(phi) * len;
+    }
+    return horn;
+  };
+  const hornR = makeHorn(); hornR.position.set(0.12, 0.12, 0); skull.add(hornR);
+  const hornL = makeHorn(); hornL.position.set(-0.12, 0.12, 0); hornL.scale.x = -1; skull.add(hornL);
+  // rope wrap binding the skull to the orb
+  for (let i = 0; i < 2; i++) {
+    const lash = new THREE.Mesh(new THREE.TorusGeometry(0.19 - i * 0.02, 0.02, 6, 18), rope);
+    lash.position.set(0, signY - 0.14 + i * 0.04, -0.04); lash.rotation.x = 0.35; g.add(lash);
   }
 
   const light = new THREE.PointLight(def.color, 0.75, 3.2, 2.0);
