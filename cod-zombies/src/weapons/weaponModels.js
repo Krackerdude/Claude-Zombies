@@ -604,6 +604,58 @@ function hk21() {
   return { group: g, muzzle: -0.8 };
 }
 
+// --- M72 LAW (BO) — bespoke disposable rocket tube. Dead simple silhouette: a
+//     two-tone telescoping tube (olive front / black extended rear), a yellow
+//     caution band, a raised top rib carrying flip-up irons (green front blade +
+//     rear peep), the rubber trigger bar on top, an upright safety lever and a
+//     folded strut underneath. Open bore + open rear. Shared materials. ---
+function m72() {
+  const g = new THREE.Group();
+  const olive = gunMetal(0x5e5b38, { metal: 0.18, rough: 0.78 });   // olive-drab outer tube
+  const oliveDk = gunMetal(0x47452c, { metal: 0.18, rough: 0.82 }); // collar / top rib
+  const black = gunDark(0x141519);                                  // telescoped rear tube
+  const dark = gunDark(0x0b0d10);                                   // bores / sights / trigger
+  const rubber = gunDark(0x1c1c20);                                 // trigger bar
+  const yellow = new THREE.MeshStandardMaterial({ color: 0xc9a51e, metalness: 0.1, roughness: 0.6 });
+  const green = ironSightGlow();
+
+  // === telescoping tube: olive front (muzzle) + black extended rear (shoulder) ===
+  g.add(at(tube(0.05, 0.05, 0.66, olive), 0, 0, -0.37));             // olive outer tube
+  g.add(at(tube(0.046, 0.046, 0.32, black), 0, 0, 0.12));           // black inner tube (extended rearward)
+  g.add(at(tube(0.053, 0.053, 0.05, oliveDk), 0, 0, -0.05));        // junction collar
+  g.add(at(tube(0.051, 0.051, 0.05, yellow), 0, 0, -0.5));          // yellow caution band
+
+  // open muzzle (front) + open breech (rear), dark recessed interiors
+  g.add(at(tube(0.052, 0.052, 0.022, dark), 0, 0, -0.7));           // muzzle rim
+  g.add(at(tube(0.044, 0.044, 0.05, dark), 0, 0, -0.685));          // muzzle bore
+  g.add(at(tube(0.048, 0.048, 0.02, dark), 0, 0, 0.28));            // rear rim
+  g.add(at(tube(0.04, 0.04, 0.06, dark), 0, 0, 0.27));              // rear bore
+
+  // === raised top rib (the reinforcing strip the sights + trigger ride on) ===
+  g.add(at(box(0.016, 0.012, 0.5, oliveDk), 0, 0.052, -0.3));
+
+  // === flip-up front sight (tall blade, green window) ===
+  g.add(at(box(0.02, 0.018, 0.026, dark), 0, 0.056, -0.62));        // base
+  g.add(at(box(0.012, 0.06, 0.012, dark), 0, 0.092, -0.62));        // blade
+  g.add(at(box(0.005, 0.04, 0.005, green), 0, 0.092, -0.622));      // green sight window
+
+  // === flip-up rear peep ===
+  g.add(at(box(0.022, 0.018, 0.026, dark), 0, 0.066, -0.1));        // base
+  g.add(at(box(0.02, 0.05, 0.01, dark), 0, 0.096, -0.1));           // peep blade
+  g.add(at(box(0.006, 0.006, 0.006, green), 0, 0.1, -0.1));         // green peep dot
+
+  // === rubber trigger bar on top (middle) ===
+  g.add(at(box(0.03, 0.022, 0.14, dark), 0, 0.062, -0.3));          // trigger housing
+  g.add(at(box(0.024, 0.014, 0.1, rubber), 0, 0.076, -0.3));        // pressable rubber bar
+
+  // === upright safety / cocking lever + folded carry strut underneath ===
+  g.add(at(box(0.012, 0.045, 0.016, dark), 0, 0.088, -0.42, 0, 0, -0.2));
+  g.add(at(box(0.008, 0.055, 0.008, dark), 0, -0.072, -0.16));      // strut drop
+  g.add(at(box(0.008, 0.008, 0.05, dark), 0, -0.096, -0.14));       // strut foot (bent back)
+
+  return { group: g, muzzle: -0.72 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -619,6 +671,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'OLYMPIA') return olympia();
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
+  if (weapon.data.name === 'M72 LAW') return m72();
   if (cat === 'wonder') return wonder(vm, weapon.data.projectileType === 'cone');
   const fn = BUILDERS[cat] || assaultRifle;
   return fn(vm);
