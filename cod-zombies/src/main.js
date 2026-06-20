@@ -3,6 +3,7 @@ import { Service } from './core/ServiceLocator.js';
 import { buildArena } from './scenes/ArenaScene.js';
 import { PlayerTag, Transform } from './ecs/components/index.js';
 import { UIManager } from './ui/UIManager.js';
+import { perkIconDataURL } from './perks/perks.js';
 import './ui/menu.css';
 
 /**
@@ -192,11 +193,19 @@ async function main() {
     const perkChips = new Map();
     events.on('perk:gained', ({ id, name, color }) => {
       if (!elPerks || perkChips.has(id)) return;
-      const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 3);
       const chip = document.createElement('div');
       chip.className = 'perk-chip';
-      chip.textContent = initials;
-      chip.style.background = '#' + color.toString(16).padStart(6, '0');
+      chip.style.backgroundColor = '#' + color.toString(16).padStart(6, '0');
+      // show the perk's actual emblem (matches the machine); fall back to initials
+      const url = perkIconDataURL(id);
+      if (url) {
+        chip.style.backgroundImage = `url(${url})`;
+        chip.style.backgroundSize = '82%';
+        chip.style.backgroundRepeat = 'no-repeat';
+        chip.style.backgroundPosition = 'center';
+      } else {
+        chip.textContent = name.split(' ').map((w) => w[0]).join('').slice(0, 3);
+      }
       elPerks.appendChild(chip);
       perkChips.set(id, chip);
     });
