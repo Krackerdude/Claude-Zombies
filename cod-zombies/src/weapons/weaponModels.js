@@ -267,74 +267,95 @@ function kvector() {
   return { group: g, muzzle: -0.58 };
 }
 
-// --- Galil (IMI Galil AR) — remaster to the shared standard. AK-derived: boxy
-//     receiver + dust cover, curved steel banana mag, long barrel with gas tube,
-//     vented handguard, slotted muzzle brake, hooded green front sight, big AK
-//     selector, and a folded tubular side-stock. ---
+// --- Galil (IMI Galil ARM, BO2) — rebuilt to the K-Vector/M1911 standard from
+//     reference. The Galil reads off four signatures: the AK-rounded receiver
+//     with a domed dust cover + milled side ribs, the long barrel with a gas
+//     tube riding parallel ABOVE it (joined by a gas block), the slotted muzzle
+//     brake, and the skeletal tubular side-folding stock. Curved steel banana
+//     mag, raked AK grip, big paddle selector + bent charging handle on the
+//     left, hooded green front post, green aperture peep at the rear. ---
 function galil() {
   const g = new THREE.Group();
-  const receiver = gunMetal(0x363b43);     // worn blued steel
-  const cover = gunMetal(0x3e434c);        // dust cover (catches light)
-  const metalDk = gunMetal(0x2a2d34);      // darker steel accents
-  const barrelMat = gunDark(0x131418);     // near-black barrel
-  const gasTube = gunMetal(0x30343c);
-  const handguard = gunMetalRidged(0x33373f); // vented handguard
+  const receiver = gunMetal(0x363b43);     // worn blued steel (catches the key)
+  const receiverDk = gunMetal(0x2a2d34);   // darker machined accents / blocks
+  const cover = gunMetal(0x3b4048);        // domed dust cover
+  const ribbed = gunMetalRidged(0x33373f); // milled receiver ribs + handguard
+  const barrelMat = gunDark(0x121317);     // near-black barrel
+  const gasMat = gunMetal(0x2e323a);       // gas tube
   const magMat = gunMetal(0x31353d);       // steel banana mag
   const grip = gunGrip();                  // stippled AK grip
   const brakeMat = gunMetalRidged(0x24272d);
   const dark = gunDark(0x111317);
-  const stockMat = gunDark(0x17191e);
+  const stockMat = gunMetal(0x2c3037);     // bare tubular folding stock
   const green = ironSightGlow();
 
-  // === receiver + dust cover ===
-  g.add(at(box(0.06, 0.085, 0.27, receiver), 0, 0.0, -0.13));          // receiver
-  g.add(at(box(0.056, 0.03, 0.25, cover), 0, 0.052, -0.13));           // dust cover
-  g.add(at(box(0.012, 0.05, 0.07, dark), 0.034, 0.012, -0.05));        // big AK selector lever
-  g.add(at(box(0.014, 0.016, 0.03, dark), 0.036, 0.034, -0.01));       // charging handle
+  // === receiver: boxy lower + AK rear hump + rounded (cylindrical) dust cover ===
+  g.add(at(box(0.058, 0.078, 0.27, receiver), 0, 0.0, -0.13));         // lower receiver
+  g.add(at(box(0.056, 0.052, 0.075, receiver), 0, 0.026, -0.02));      // raised rear hump
+  g.add(at(tube(0.027, 0.027, 0.25, cover, 16), 0, 0.05, -0.13));      // domed dust cover (rounded top)
+  g.add(at(tube(0.027, 0.027, 0.02, receiverDk, 16), 0, 0.05, -0.005));// cover rear cap
+  // milled lightening ribs down each side of the receiver
+  for (const sx of [-1, 1]) g.add(at(box(0.004, 0.05, 0.15, ribbed), sx * 0.03, -0.004, -0.12));
+  // two trunnion rivets on the side (AK-pattern fasteners)
+  for (const bz of [-0.05, -0.2]) g.add(at(tube(0.006, 0.006, 0.062, receiverDk, 6), 0, -0.018, bz, 0, 0, Math.PI / 2));
 
-  // === AK-style pistol grip (raked back) ===
+  // === selector paddle + bent charging handle (left side — the face we see) ===
+  g.add(at(box(0.012, 0.052, 0.075, dark), -0.033, 0.0, -0.05));       // big AK selector paddle
+  g.add(at(box(0.016, 0.022, 0.05, receiverDk), -0.034, 0.03, -0.085, 0.3)); // charging-handle arm (bent up)
+  g.add(at(tube(0.009, 0.009, 0.026, dark, 8), -0.046, 0.05, -0.075, 0, Math.PI / 2)); // cocking knob
+
+  // === AK-style pistol grip (raked back), stippled ===
   g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.1, 0.04, 0.3));
-  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.158, 0.058, 0.3));    // grip base
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.158, 0.058, 0.3));    // grip base cap
 
   // === trigger guard + trigger ===
-  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 8, 16), metalDk);
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 8, 16), receiverDk);
   g.add(at(guard, 0, -0.052, -0.035, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.047, -0.035));
 
-  // === curved steel banana magazine, ahead of the trigger ===
-  g.add(at(box(0.05, 0.03, 0.06, receiver), 0, -0.05, -0.1));          // mag well
-  g.add(at(box(0.042, 0.06, 0.05, magMat), 0, -0.08, -0.1, -0.12));
-  g.add(at(box(0.04, 0.06, 0.048, magMat), 0, -0.135, -0.125, -0.32));
-  g.add(at(box(0.038, 0.06, 0.046, magMat), 0, -0.188, -0.168, -0.52));
-  g.add(at(box(0.04, 0.014, 0.05, dark), 0, -0.216, -0.196, -0.52));   // mag base
+  // === curved steel banana magazine — segments rake forward as they drop ===
+  g.add(at(box(0.05, 0.032, 0.062, receiver), 0, -0.05, -0.105));      // mag well lip
+  g.add(at(box(0.044, 0.058, 0.056, magMat), 0, -0.086, -0.108, -0.12));
+  g.add(at(box(0.042, 0.058, 0.053, magMat), 0, -0.137, -0.124, -0.30));
+  g.add(at(box(0.040, 0.058, 0.050, magMat), 0, -0.186, -0.156, -0.46));
+  g.add(at(box(0.038, 0.052, 0.048, magMat), 0, -0.230, -0.200, -0.60));
+  g.add(at(box(0.042, 0.016, 0.05, dark), 0, -0.258, -0.228, -0.60));  // floorplate
+  // a couple of pressed ribs on the steel mag body
+  for (const mz of [-0.118, -0.16] ) g.add(at(box(0.046, 0.006, 0.05, receiverDk), 0, -0.108, mz, -0.18));
 
-  // === barrel + gas tube + vented handguard ===
-  g.add(at(box(0.05, 0.058, 0.14, handguard), 0, 0.022, -0.26));       // vented handguard
-  g.add(at(tube(0.013, 0.013, 0.4, barrelMat), 0, 0.018, -0.42));      // long barrel
-  g.add(at(tube(0.009, 0.009, 0.26, gasTube), 0, 0.052, -0.36));       // gas tube above
-  g.add(at(box(0.02, 0.022, 0.04, metalDk), 0, 0.04, -0.3));           // gas block
+  // === barrel + parallel gas tube above it, joined by a gas block ===
+  g.add(at(box(0.05, 0.06, 0.11, ribbed), 0, 0.03, -0.31));            // short ribbed handguard
+  g.add(at(tube(0.013, 0.013, 0.43, barrelMat), 0, 0.018, -0.45));     // long barrel
+  g.add(at(tube(0.0085, 0.0085, 0.26, gasMat), 0, 0.052, -0.42));      // gas tube riding above
+  g.add(at(box(0.024, 0.066, 0.042, receiverDk), 0, 0.035, -0.52));    // gas block (ties barrel+tube)
+  g.add(at(box(0.018, 0.04, 0.016, gasMat), 0, 0.052, -0.36));         // gas-tube rear collar
 
-  // === hooded green front sight near the muzzle ===
-  g.add(at(box(0.03, 0.03, 0.04, dark), 0, 0.04, -0.58));              // front sight base
-  for (const sx of [-1, 1]) g.add(at(box(0.008, 0.04, 0.012, dark), sx * 0.016, 0.06, -0.58)); // hood ears
-  g.add(at(box(0.01, 0.028, 0.01, dark), 0, 0.062, -0.58));            // front post
-  g.add(at(box(0.008, 0.008, 0.008, green), 0, 0.076, -0.582));        // front green dot
+  // === hooded green front sight, just ahead of the gas block ===
+  g.add(at(box(0.03, 0.026, 0.038, receiverDk), 0, 0.04, -0.57));      // sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.046, 0.012, dark), sx * 0.017, 0.066, -0.57)); // hood ears
+  g.add(at(box(0.04, 0.008, 0.012, dark), 0, 0.09, -0.57));            // hood crossbar
+  g.add(at(box(0.009, 0.03, 0.011, dark), 0, 0.062, -0.57));           // front post
+  g.add(at(box(0.008, 0.008, 0.008, green), 0, 0.077, -0.572));        // front green dot
 
-  // === rear sight on the dust cover ===
-  g.add(at(box(0.034, 0.02, 0.022, dark), 0, 0.075, -0.02));
-  g.add(at(box(0.008, 0.008, 0.008, green), -0.011, 0.084, -0.02));
-  g.add(at(box(0.008, 0.008, 0.008, green), 0.011, 0.084, -0.02));
+  // === rear aperture peep on the dust cover, twin green dots (BO2 look) ===
+  g.add(at(box(0.032, 0.024, 0.026, dark), 0, 0.078, -0.015));         // peep base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.004, 6, 14), dark), 0, 0.086, -0.008, 0, Math.PI / 2)); // aperture ring
+  g.add(at(box(0.008, 0.008, 0.008, green), -0.012, 0.086, -0.018));   // rear left dot
+  g.add(at(box(0.008, 0.008, 0.008, green), 0.012, 0.086, -0.018));    // rear right dot
 
-  // === slotted muzzle brake ===
-  g.add(at(tube(0.018, 0.018, 0.07, brakeMat), 0, 0.018, -0.66));
-  g.add(at(tube(0.02, 0.02, 0.012, dark), 0, 0.018, -0.7));            // brake cap
+  // === slotted muzzle brake (rings cut into the ridged sleeve) ===
+  g.add(at(tube(0.018, 0.018, 0.08, brakeMat), 0, 0.018, -0.70));
+  for (const sz of [-0.68, -0.71]) g.add(at(tube(0.0195, 0.0195, 0.006, dark, 12), 0, 0.018, sz)); // slot rings
+  g.add(at(tube(0.021, 0.021, 0.012, dark, 12), 0, 0.018, -0.745));    // brake cap
 
-  // === folded tubular side-stock (right) ===
-  g.add(at(tube(0.006, 0.006, 0.18, stockMat), 0.04, 0.05, 0.1, Math.PI / 2));
-  g.add(at(tube(0.006, 0.006, 0.18, stockMat), 0.04, -0.012, 0.1, Math.PI / 2));
-  g.add(at(box(0.014, 0.075, 0.016, stockMat), 0.04, 0.018, 0.188));   // buttplate
+  // === skeletal tubular side-folding stock, folded along the right ===
+  g.add(at(box(0.016, 0.05, 0.034, receiverDk), 0.03, 0.0, 0.03));     // hinge block
+  g.add(at(tube(0.006, 0.006, 0.2, stockMat), 0.046, 0.042, 0.12));    // top rail
+  g.add(at(tube(0.006, 0.006, 0.2, stockMat), 0.046, -0.012, 0.12));   // bottom rail
+  g.add(at(box(0.012, 0.058, 0.012, stockMat), 0.046, 0.015, 0.03));   // front strut
+  g.add(at(box(0.016, 0.072, 0.018, stockMat), 0.046, 0.015, 0.222));  // buttplate (closes the frame)
 
-  return { group: g, muzzle: -0.71 };
+  return { group: g, muzzle: -0.75 };
 }
 
 const BUILDERS = {
