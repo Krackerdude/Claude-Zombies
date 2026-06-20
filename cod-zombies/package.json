@@ -1,0 +1,21 @@
+{
+  "name": "cod-zombies",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "First-person zombies survival game — engine foundation",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node test/sim.mjs && node test/nav.mjs && node test/weapons.mjs && node test/gameplay.mjs && node test/boot.mjs"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
+    "three": "^0.171.0"
+  },
+  "devDependencies": {
+    "terser": "^5.48.0",
+    "vite": "^6.4.0"
+  }
+}

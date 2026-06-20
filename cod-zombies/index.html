@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Project Necropolis — Engine Sandbox</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@300;400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #06070a;
+        --fg: #c9d1d9;
+        --accent: #b3402a;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+      body { font-family: "Courier New", ui-monospace, monospace; color: var(--fg); }
+
+      #app { position: fixed; inset: 0; }
+      #game-canvas { display: block; width: 100%; height: 100%; }
+
+      /* Loading overlay */
+      #loader {
+        position: fixed; inset: 0; z-index: 50;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: radial-gradient(circle at 50% 40%, #14171d 0%, #06070a 70%);
+        transition: opacity 0.6s ease;
+      }
+      #loader.hidden { opacity: 0; pointer-events: none; }
+      #loader h1 {
+        letter-spacing: 0.5em; font-size: 1.4rem; text-transform: uppercase;
+        color: #8a8f98; margin-bottom: 2rem; text-indent: 0.5em;
+      }
+      #loader .bar { width: 280px; height: 3px; background: #1c2026; overflow: hidden; }
+      #loader .bar > i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width 0.2s ease; }
+      #loader .status { margin-top: 1rem; font-size: 0.75rem; color: #5a6068; letter-spacing: 0.2em; }
+
+      /* In-game HUD / debug */
+      #hud { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+      #crosshair {
+        position: absolute; left: 50%; top: 50%;
+        width: 4px; height: 4px; margin: -2px 0 0 -2px;
+        background: rgba(255,255,255,0.7); border-radius: 50%;
+      }
+      #debug {
+        position: absolute; top: 10px; left: 12px;
+        font-size: 12px; line-height: 1.5; color: #7fd482;
+        text-shadow: 0 1px 2px #000; white-space: pre;
+      }
+      #hint {
+        position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+        font-size: 12px; color: #8a8f98; letter-spacing: 0.15em; text-transform: uppercase;
+        background: rgba(0,0,0,0.5); padding: 8px 16px; border: 1px solid #1c2026;
+      }
+      #hint.hidden { display: none; }
+
+      /* gameplay HUD (round / health / points) */
+      #hud-stats {
+        position: absolute; top: 14px; right: 18px; text-align: right;
+        font-family: 'Anton', Impact, sans-serif; color: #d8d2c4;
+        text-shadow: 2px 0 rgba(226,58,46,0.5), -2px 0 rgba(47,184,176,0.35);
+      }
+      #hud-round { font-size: 3.4rem; line-height: 0.9; color: #e23a2e; }
+      #hud-round-sub { font-size: 0.8rem; letter-spacing: 0.4em; color: #7c7668; font-family: 'Oswald', sans-serif; }
+      #hud-zombies { margin-top: 6px; font-family: 'Oswald', sans-serif; font-size: 0.95rem; letter-spacing: 0.2em; color: #2fb8b0; }
+      #hud-points {
+        position: absolute; bottom: 22px; left: 22px;
+        font-family: 'Anton', Impact, sans-serif; font-size: 2rem; color: #e8c34a;
+        text-shadow: 0 2px 6px #000;
+      }
+      #hud-health {
+        position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+        width: 280px; height: 8px; background: rgba(0,0,0,0.6); border: 1px solid #3a3833;
+        clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 6px 100%);
+      }
+      #hud-health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #7a1512, #e23a2e); transition: width 0.18s; }
+      #hud-banner {
+        position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
+        font-family: 'Anton', Impact, sans-serif; font-size: clamp(2.5rem, 7vw, 6rem);
+        text-transform: uppercase; letter-spacing: 0.06em; color: #d8d2c4; opacity: 0;
+        text-shadow: 4px 0 rgba(226,58,46,0.7), -4px 0 rgba(47,184,176,0.5); transform: translate(-50%,-50%) skewX(-7deg);
+        pointer-events: none;
+      }
+      #hud-banner.show { animation: banner 2.6s ease forwards; }
+      @keyframes banner {
+        0% { opacity: 0; letter-spacing: 0.4em; }
+        15% { opacity: 1; letter-spacing: 0.06em; }
+        80% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+
+      #hud-powerups {
+        position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+        display: flex; gap: 8px; align-items: flex-end; pointer-events: none;
+      }
+      .pu-chip { display: flex; flex-direction: column; align-items: center; font-family: 'Oswald', sans-serif; color: #ffe07a; animation: puIn 0.25s ease; }
+      .pu-chip .pu-time { font-size: 0.85rem; font-weight: 700; text-shadow: 0 1px 3px #000; }
+      .pu-chip .pu-bar { width: 40px; height: 4px; margin: 3px 0; background: rgba(0,0,0,0.5); border: 1px solid #3a3833; }
+      .pu-chip .pu-bar > i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #39ff14, #ffd23a); }
+      .pu-chip .pu-icon {
+        width: 38px; height: 38px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+        font-family: 'Anton', Impact, sans-serif; font-size: 1.05rem; color: #1a1206;
+        background: radial-gradient(circle at 50% 35%, #ffe680, #d89a1e);
+        box-shadow: 0 0 12px rgba(70,255,120,0.6), inset 0 0 6px rgba(255,255,255,0.5); border: 1px solid #fff2c0;
+      }
+      @keyframes puIn { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      #powerup-announce {
+        position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%) skewX(-8deg);
+        font-family: 'Anton', Impact, sans-serif; font-size: clamp(2.2rem, 6vw, 5rem); text-transform: uppercase;
+        letter-spacing: 0.04em; opacity: 0; pointer-events: none; white-space: nowrap; color: #ffe07a;
+        text-shadow: 0 0 18px rgba(70,255,120,0.8), 4px 4px 0 #7a1512, -2px -2px 0 #2fb8b0;
+      }
+      #powerup-announce.show { animation: puAnnounce 2.4s cubic-bezier(.2,.8,.2,1) forwards; }
+      @keyframes puAnnounce {
+        0% { opacity: 0; transform: translate(-50%,-50%) skewX(-8deg) scale(0.4); }
+        12% { opacity: 1; transform: translate(-50%,-50%) skewX(-8deg) scale(1.15); }
+        22% { transform: translate(-50%,-50%) skewX(-8deg) scale(1); }
+        80% { opacity: 1; }
+        100% { opacity: 0; transform: translate(-50%,-50%) skewX(-8deg) scale(1.05); }
+      }
+      #fx-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+      #fx-flash.show { animation: fxFlash 0.7s ease forwards; }
+      @keyframes fxFlash { 0% { opacity: 0; } 8% { opacity: 0.95; } 100% { opacity: 0; } }
+      #fx-blood {
+        position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+        background: radial-gradient(120% 80% at 50% -10%, rgba(120,0,0,0.85), rgba(80,0,0,0.12) 55%, transparent 75%),
+                    radial-gradient(80% 60% at 50% 110%, rgba(100,0,0,0.6), transparent 70%);
+        box-shadow: inset 0 0 220px 60px rgba(90,0,0,0.8);
+      }
+      #fx-blood.show { opacity: 1; }
+      #app.shake { animation: shake 0.5s ease; }
+      @keyframes shake { 0%,100% { transform: translate(0,0); } 20% { transform: translate(-6px,4px); } 40% { transform: translate(5px,-5px); } 60% { transform: translate(-4px,-3px); } 80% { transform: translate(4px,4px); } }
+
+      #hud-lethal {
+        position: absolute; bottom: 22px; left: 24px;
+        font-family: 'Oswald', sans-serif; font-size: 1.1rem; color: #cfe3a6;
+        text-shadow: 0 1px 3px #000; letter-spacing: 0.05em; pointer-events: none;
+      }
+      #hud-lethal-count { font-weight: 700; color: #fff; }
+
+      #hud-perks {
+        position: absolute; bottom: 52px; left: 24px;
+        display: flex; gap: 7px; pointer-events: none;
+      }
+      .perk-chip {
+        width: 30px; height: 30px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.62rem;
+        color: #fff; text-shadow: 0 1px 2px #000; border: 2px solid rgba(255,255,255,0.7);
+        box-shadow: 0 0 10px rgba(0,0,0,0.6); animation: perkpop 0.35s ease-out;
+      }
+      @keyframes perkpop { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+      /* downed: drain color from the whole view */
+      #app.downed #game-canvas { filter: grayscale(1) contrast(1.05) brightness(0.8); }
+      #downed-overlay {
+        position: absolute; inset: -20%; pointer-events: none; opacity: 0; z-index: 50;
+        background: radial-gradient(ellipse at center, rgba(0,0,0,0) 38%, rgba(60,0,0,0.55) 78%, rgba(90,0,0,0.92) 100%);
+      }
+      #downed-overlay.show { animation: downbleed 10s ease-in forwards; }
+      @keyframes downbleed {
+        0%   { opacity: 0.5; filter: hue-rotate(0deg); }
+        100% { opacity: 1; filter: hue-rotate(-18deg) saturate(2.4) brightness(1.1); }
+      }
+
+      #lowhp-overlay {
+        position: absolute; inset: 0; pointer-events: none; z-index: 40; opacity: 0;
+        transition: opacity 0.35s ease-out;
+        background: radial-gradient(ellipse 80% 80% at center, rgba(0,0,0,0) 42%, rgba(105,0,0,0.34) 74%, rgba(140,0,0,0.7) 100%);
+      }
+
+      #crosshair.hidden { display: none; }
+      #hud-weapon { position: absolute; bottom: 18px; right: 24px; text-align: right; font-family: 'Oswald', sans-serif; color: #d8d2c4; }
+      #hud-weapon .wname { font-family: 'Anton', Impact, sans-serif; font-size: 1.5rem; letter-spacing: 0.07em; }
+      #hud-weapon .wcat { font-size: 0.66rem; letter-spacing: 0.34em; color: #7c7668; text-transform: uppercase; }
+      #hud-ammo { font-family: 'Anton', Impact, sans-serif; font-size: 2.4rem; line-height: 1; margin-top: 2px; }
+      #hud-ammo .mag { color: #f0ebdd; }
+      #hud-ammo .res { font-size: 1.1rem; color: #7c7668; }
+      #hud-ammo.low .mag { color: #e23a2e; }
+      #hud-ammo.reloading { animation: ammoBlink 0.55s steps(2, jump-none) infinite; }
+      @keyframes ammoBlink { 50% { opacity: 0.35; } }
+      #hitmarker {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        color: #f0ebdd; font: 700 1.4rem/1 sans-serif; opacity: 0; pointer-events: none;
+      }
+      #hitmarker.show { animation: hitmark 0.26s ease; }
+      #hitmarker.kill { color: #e23a2e; }
+      @keyframes hitmark {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); }
+        30% { opacity: 1; }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+      }
+      #reload-ring {
+        position: absolute; top: calc(50% + 26px); left: 50%;
+        transform: translate(-50%, -50%) rotate(-90deg);
+        width: 40px; height: 40px; opacity: 0; transition: opacity 0.12s; pointer-events: none;
+      }
+      #reload-ring.active { opacity: 1; }
+      #reload-ring circle { fill: none; stroke-width: 3; }
+      #reload-ring .ring-bg { stroke: rgba(0, 0, 0, 0.5); }
+      #reload-ring .ring-fg { stroke: #2fb8b0; stroke-linecap: round; stroke-dasharray: 100.53; stroke-dashoffset: 100.53; }
+      #prompt {
+        position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%);
+        font-family: 'Oswald', sans-serif; font-size: 1.1rem; letter-spacing: 0.12em;
+        color: #e8e2d4; text-shadow: 0 2px 6px #000; text-transform: uppercase;
+        opacity: 0; transition: opacity 0.1s; pointer-events: none; white-space: nowrap;
+      }
+      #prompt.show { opacity: 1; }
+      #prompt.denied { color: #e23a2e; }
+      #reload-prompt {
+        position: absolute; bottom: 92px; right: 24px;
+        font-family: 'Anton', Impact, sans-serif; font-size: 1rem; letter-spacing: 0.2em;
+        color: #e8c34a; text-transform: uppercase; opacity: 0; pointer-events: none;
+      }
+      #reload-prompt.show { opacity: 1; animation: rpblink 0.8s steps(2, jump-none) infinite; }
+      @keyframes rpblink { 50% { opacity: 0.4; } }
+      #scope { position: absolute; inset: 0; display: none; pointer-events: none; z-index: 22; }
+      #scope.show { display: block; }
+      #scope::before {
+        content: ''; position: absolute; inset: 0;
+        background: radial-gradient(circle at center, transparent 0 27vh, rgba(0,0,0,0.66) 27.4vh 30vh, #000 30.2vh);
+      }
+      #scope .ring { position: absolute; top: 50%; left: 50%; width: 54vh; height: 54vh; transform: translate(-50%,-50%); border: 2px solid rgba(0,0,0,0.85); border-radius: 50%; }
+      #scope .reticle-v { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(8,8,8,0.9); }
+      #scope .reticle-h { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(8,8,8,0.9); }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+    </div>
+
+    <div id="loader">
+      <h1>Necropolis</h1>
+      <div class="bar"><i id="loader-bar"></i></div>
+      <div class="status" id="loader-status">initializing…</div>
+    </div>
+
+    <div id="hud">
+      <div id="crosshair"></div>
+      <div id="debug"></div>
+      <div id="hud-stats">
+        <div id="hud-round">1</div>
+        <div id="hud-round-sub">ROUND</div>
+        <div id="hud-zombies">—</div>
+      </div>
+      <div id="hud-points">0</div>
+      <div id="hud-health"><div id="hud-health-fill"></div></div>
+      <div id="hud-lethal">✦ <span id="hud-lethal-count">4</span></div>
+      <div id="hud-perks"></div>
+      <div id="downed-overlay"></div>
+      <div id="lowhp-overlay"></div>
+      <div id="hud-powerups"></div>
+      <div id="powerup-announce"></div>
+      <div id="hud-banner"></div>
+      <div id="hitmarker">✕</div>
+      <svg id="reload-ring" viewBox="0 0 40 40">
+        <circle class="ring-bg" cx="20" cy="20" r="16"></circle>
+        <circle class="ring-fg" cx="20" cy="20" r="16"></circle>
+      </svg>
+      <div id="hud-weapon">
+        <div class="wname">—</div>
+        <div class="wcat"></div>
+        <div id="hud-ammo"><span class="mag">0</span><span class="res"> / 0</span></div>
+      </div>
+      <div id="reload-prompt">[R] Reload</div>
+      <div id="prompt"></div>
+      <div id="hint">WASD move · Shift sprint · C crouch · X prone (dive while sprinting) · Space jump · MOUSE1 fire · MOUSE2 ADS · R reload · F melee · G grenade · K light · 1-8 weapons · Q swap · hold E repair window</div>
+    </div>
+    <div id="scope"><div class="ring"></div><div class="reticle-v"></div><div class="reticle-h"></div></div>
+    <div id="fx-flash"></div>
+    <div id="fx-blood"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
