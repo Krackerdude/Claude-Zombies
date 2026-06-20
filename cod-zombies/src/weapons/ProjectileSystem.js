@@ -88,6 +88,8 @@ export class ProjectileSystem extends System {
       const v = p.velocity;
       damageZombie(ctx, directId, p.damage, { dir: { x: v?.x ?? 0, z: v?.z ?? 1 } });
     }
-    this.#events.emit('weapon:explosion', { x: pos.x, y: pos.y, z: pos.z });
+    // energy bolts get a coloured plasma burst (no fire/explosion); rockets boom
+    if (p.kind === 'energy') this.#events.emit('weapon:plasma', { x: pos.x, y: pos.y, z: pos.z, color: p.color });
+    else this.#events.emit('weapon:explosion', { x: pos.x, y: pos.y, z: pos.z });
   }
 }
