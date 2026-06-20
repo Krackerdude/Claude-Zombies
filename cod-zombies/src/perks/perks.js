@@ -83,25 +83,35 @@ function labelTexture(def) {
 }
 
 // glyph drawn for the bottle-cap emblem (theme symbol, white on clear)
+// Double Tap — crossed bullets over a starburst (the perk's signature emblem)
+function doubleTapIcon() {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
+  // starburst rays behind
+  x.fillStyle = '#fff'; x.save(); x.translate(128, 128);
+  for (let i = 0; i < 12; i++) { x.rotate(Math.PI / 6); x.beginPath(); x.moveTo(0, -44); x.lineTo(8, -100); x.lineTo(-8, -100); x.closePath(); x.fill(); }
+  x.restore();
+  // two crossed bullets (tips up, casings crossing low)
+  const bullet = () => {
+    x.fillStyle = '#fff'; x.fillRect(-13, -10, 26, 72);                 // casing
+    x.beginPath(); x.moveTo(-13, -10); x.lineTo(0, -38); x.lineTo(13, -10); x.closePath(); x.fill(); // tip
+    x.fillStyle = '#bdbdbd'; x.fillRect(-13, 52, 26, 12);               // rim
+  };
+  x.save(); x.translate(122, 120); x.rotate(-0.5); bullet(); x.restore();
+  x.save(); x.translate(134, 120); x.rotate(0.5); bullet(); x.restore();
+  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+}
+
 function glyphTexture(def) {
+  if (def.theme === 'cowboy') return doubleTapIcon(); // Double Tap uses the cowboy chassis
   const c = document.createElement('canvas');
   c.width = 128; c.height = 128;
   const x = c.getContext('2d');
   x.clearRect(0, 0, 128, 128);
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 9; x.lineCap = 'round';
   x.translate(64, 64);
-  if (def.theme === 'cowboy') {
-    // crossed bullets
-    for (const s of [-1, 1]) {
-      x.save(); x.rotate(s * Math.PI / 5);
-      x.fillRect(-7, -34, 14, 54);
-      x.beginPath(); x.moveTo(-7, -34); x.lineTo(0, -46); x.lineTo(7, -34); x.fill();
-      x.restore();
-    }
-  } else {
-    x.font = '900 58px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText(def.glyph, 0, 4);
-  }
+  x.font = '900 58px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(def.glyph, 0, 4);
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter;
   return t;
 }
@@ -166,6 +176,20 @@ export function buildPerkMachine(def) {
     case 'cowboy':
     default: return buildCowboyMachine(def);
   }
+}
+
+// The same emblem each machine shows, keyed by perk id — used by the HUD chips
+// so the on-screen icon matches the machine (no more text initials).
+const PERK_ICONS = {
+  quickRevive: reviveIcon, juggernog: juggIcon, speedCola: speedColaIcon,
+  staminUp: staminIcon, doubleTap: doubleTapIcon, muleKick: pistolIcon,
+  deadshot: reticleIcon, electricCherry: cherryIcon, phdFlopper: radIcon,
+};
+
+/** A transparent data-URL of a perk's white emblem, for DOM/HUD use. */
+export function perkIconDataURL(id) {
+  const fn = PERK_ICONS[id];
+  return fn ? fn().image.toDataURL() : null;
 }
 
 function buildCowboyMachine(def) {
@@ -291,11 +315,17 @@ function reviveIcon() {
   x.beginPath();
   x.moveTo(128, 46); x.lineTo(204, 86); x.lineTo(204, 150); x.lineTo(128, 212); x.lineTo(52, 150); x.lineTo(52, 86); x.closePath();
   x.stroke();
-  // rising figure: head + torso + upward chevron
-  x.beginPath(); x.arc(128, 112, 18, 0, 7); x.fill();
-  x.fillRect(112, 134, 32, 40);
-  x.lineWidth = 11; x.beginPath();
-  x.moveTo(104, 196); x.lineTo(128, 172); x.lineTo(152, 196); x.stroke();
+  // downed figure lying across the bottom (head left)
+  x.lineCap = 'round';
+  x.beginPath(); x.arc(80, 170, 14, 0, 7); x.fill();                    // head
+  x.lineWidth = 15; x.beginPath(); x.moveTo(92, 174); x.lineTo(150, 180); x.stroke(); // body
+  x.lineWidth = 11; x.beginPath(); x.moveTo(150, 180); x.lineTo(178, 170); x.stroke(); // legs
+  // helper kneeling over them, one arm reaching down
+  x.beginPath(); x.arc(150, 94, 15, 0, 7); x.fill();                    // head
+  x.lineWidth = 13;
+  x.beginPath(); x.moveTo(150, 108); x.lineTo(147, 150); x.stroke();    // torso
+  x.beginPath(); x.moveTo(147, 150); x.lineTo(172, 168); x.stroke();    // kneeling leg
+  x.beginPath(); x.moveTo(150, 120); x.lineTo(118, 152); x.stroke();    // arm reaching to the body
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
 }
 
@@ -526,9 +556,13 @@ function speedColaIcon() {
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round'; x.lineCap = 'round';
   // shield
   x.beginPath(); x.moveTo(128, 48); x.lineTo(200, 84); x.lineTo(200, 150); x.lineTo(128, 210); x.lineTo(56, 150); x.lineTo(56, 84); x.closePath(); x.stroke();
-  // fast-forward double chevron + bullet (speed reload)
-  x.lineWidth = 16;
-  for (const dx of [-22, 18]) { x.beginPath(); x.moveTo(96 + dx, 100); x.lineTo(128 + dx, 130); x.lineTo(96 + dx, 160); x.stroke(); }
+  // open hand (Speed Cola = fast hands / quick reload)
+  x.fillStyle = '#fff';
+  for (let i = 0; i < 4; i++) { const fx = 106 + i * 13; const trim = (i === 0 || i === 3) ? 8 : 0; x.fillRect(fx, 90 + trim, 10, 54 - trim); } // four fingers
+  x.beginPath(); x.moveTo(104, 134); x.lineTo(160, 134); x.lineTo(160, 166); x.quadraticCurveTo(132, 190, 104, 166); x.closePath(); x.fill(); // palm
+  x.save(); x.translate(106, 150); x.rotate(-0.9); x.fillRect(-30, -7, 34, 14); x.restore(); // thumb
+  // speed lines streaking off the wrist
+  x.lineWidth = 7; for (const yy of [120, 140]) { x.beginPath(); x.moveTo(58, yy); x.lineTo(88, yy); x.stroke(); }
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
 }
 
@@ -700,15 +734,17 @@ function staminIcon() {
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineJoin = 'round'; x.lineCap = 'round';
   // shield
   x.lineWidth = 12; x.beginPath(); x.moveTo(128, 50); x.lineTo(198, 84); x.lineTo(198, 148); x.lineTo(128, 206); x.lineTo(58, 148); x.lineTo(58, 84); x.closePath(); x.stroke();
+  // swoosh / motion track curving under the runner's feet
+  x.lineWidth = 11; x.beginPath(); x.ellipse(126, 168, 60, 20, -0.16, Math.PI * 0.02, Math.PI * 1.2); x.stroke();
   // running figure
-  x.beginPath(); x.arc(132, 96, 15, 0, 7); x.fill();
+  x.beginPath(); x.arc(132, 92, 15, 0, 7); x.fill();
   x.lineWidth = 13;
-  x.beginPath(); x.moveTo(118, 118); x.lineTo(140, 140); x.lineTo(122, 168); x.stroke(); // torso+leg
-  x.beginPath(); x.moveTo(140, 140); x.lineTo(164, 158); x.stroke(); // back leg
-  x.beginPath(); x.moveTo(126, 124); x.lineTo(104, 136); x.stroke(); // arm
-  x.beginPath(); x.moveTo(132, 128); x.lineTo(156, 120); x.stroke(); // arm 2
+  x.beginPath(); x.moveTo(120, 112); x.lineTo(142, 136); x.lineTo(124, 162); x.stroke(); // torso+front leg
+  x.beginPath(); x.moveTo(142, 136); x.lineTo(168, 154); x.stroke(); // back leg
+  x.beginPath(); x.moveTo(128, 118); x.lineTo(102, 130); x.stroke(); // front arm
+  x.beginPath(); x.moveTo(134, 122); x.lineTo(160, 112); x.stroke(); // back arm
   // motion lines
-  x.lineWidth = 6; for (const yy of [120, 138, 156]) { x.beginPath(); x.moveTo(70, yy); x.lineTo(96, yy); x.stroke(); }
+  x.lineWidth = 6; for (const yy of [108, 126]) { x.beginPath(); x.moveTo(62, yy); x.lineTo(90, yy); x.stroke(); }
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
 }
 
@@ -900,11 +936,17 @@ function pistolIcon() {
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round';
   // shield
   x.beginPath(); x.moveTo(128, 50); x.lineTo(198, 84); x.lineTo(198, 148); x.lineTo(128, 206); x.lineTo(58, 148); x.lineTo(58, 84); x.closePath(); x.stroke();
-  // pistol: slide + barrel + grip + trigger guard
-  x.fillRect(78, 104, 96, 22);            // slide
-  x.fillRect(150, 104, 24, 38);           // grip block
-  x.save(); x.translate(150, 140); x.rotate(0.35); x.fillRect(0, 0, 20, 44); x.restore(); // grip angled
-  x.beginPath(); x.arc(120, 140, 16, 0, Math.PI); x.lineWidth = 8; x.stroke(); // trigger guard
+  // a single side-on pistol silhouette, drawn at the current transform
+  const pistol = () => {
+    x.fillStyle = '#fff';
+    x.fillRect(-48, -11, 96, 22);                       // slide / barrel
+    x.save(); x.translate(20, 11); x.rotate(0.32); x.fillRect(-11, 0, 22, 42); x.restore(); // grip
+    x.lineWidth = 8; x.strokeStyle = '#fff';
+    x.beginPath(); x.arc(2, 22, 15, 0.15, Math.PI - 0.15); x.stroke(); // trigger guard
+  };
+  // TWO overlapping pistols (Mule Kick = carry a third weapon)
+  x.save(); x.translate(112, 110); x.rotate(-0.16); pistol(); x.restore();
+  x.save(); x.translate(140, 140); x.rotate(-0.16); x.scale(0.92, 0.92); pistol(); x.restore();
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
 }
 
@@ -1420,11 +1462,16 @@ function buildElectricMachine(def) {
 function reticleIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
+  // head + shoulders silhouette inside the sight (Deadshot = aim for the head)
+  x.fillStyle = '#fff';
+  x.beginPath(); x.arc(128, 116, 26, 0, 7); x.fill();                         // head
+  x.beginPath(); x.moveTo(94, 178); x.quadraticCurveTo(128, 146, 162, 178); x.lineTo(162, 192); x.lineTo(94, 192); x.closePath(); x.fill(); // shoulders
+  // crosshair ring + ticks + centre dot
   x.strokeStyle = '#fff'; x.lineWidth = 10;
-  x.beginPath(); x.arc(128, 128, 78, 0, 7); x.stroke();
-  x.beginPath(); x.arc(128, 128, 30, 0, 7); x.stroke();
-  for (const a of [0, 1, 2, 3]) { x.save(); x.translate(128, 128); x.rotate(a * Math.PI / 2); x.beginPath(); x.moveTo(0, -100); x.lineTo(0, -54); x.stroke(); x.restore(); }
-  x.fillStyle = '#fff'; x.beginPath(); x.arc(128, 128, 8, 0, 7); x.fill();
+  x.beginPath(); x.arc(128, 128, 82, 0, 7); x.stroke();
+  x.lineWidth = 8;
+  for (const a of [0, 1, 2, 3]) { x.save(); x.translate(128, 128); x.rotate(a * Math.PI / 2); x.beginPath(); x.moveTo(0, -104); x.lineTo(0, -66); x.stroke(); x.restore(); }
+  x.fillStyle = '#fff'; x.beginPath(); x.arc(128, 128, 7, 0, 7); x.fill();
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
 }
 
