@@ -778,16 +778,35 @@ function buildDiscoMachine(def) {
   // vertical brass speed-lines on the base front
   for (let i = 0; i < 5; i++) { const s = box(0.03, H * 0.16, 0.02, chrome); s.position.set(-0.3 + i * 0.15, H * 0.12, F + 0.005); g.add(s); }
 
-  // big round marquee sign w/ rotating sunburst + figure icon
-  const signY = H * 0.78;
-  const sun = new THREE.Mesh(new THREE.CircleGeometry(0.3, 28), new THREE.MeshBasicMaterial({ map: sunburstTexture() }));
+  // big round marquee sign: rotating sunburst with the perk emblem dead-centre.
+  // Sized to sit cleanly BETWEEN the nameplate and the dome band — the old wider
+  // disc overlapped both, which read as bars cutting across the sign.
+  const signY = H * 0.775;
+  const sun = new THREE.Mesh(new THREE.CircleGeometry(0.24, 32), new THREE.MeshBasicMaterial({ map: sunburstTexture() }));
   sun.position.set(0, signY, F + 0.02); g.add(sun);
-  const signGroup = new THREE.Group(); signGroup.position.set(0, signY, 0); g.add(signGroup);
+  // a second, counter-rotating sunburst layer for extra funk
+  const sun2 = new THREE.Mesh(new THREE.CircleGeometry(0.205, 32), new THREE.MeshBasicMaterial({ map: sunburstTexture(), transparent: true, opacity: 0.7 }));
+  sun2.position.set(0, signY, F + 0.025); g.add(sun2);
+  // clean chrome ring framing the whole swirl
+  const outerRing = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.018, 8, 30), chrome); outerRing.position.set(0, signY, F + 0.03); g.add(outerRing);
+
+  // emblem cluster, brought to the FRONT so the icon actually shows (it used to
+  // sit at z=0, buried inside the cabinet — invisible, pulse and all)
+  const signGroup = new THREE.Group(); signGroup.position.set(0, signY, F + 0.03); g.add(signGroup);
   const signMat = glow;
-  const signDisc = new THREE.Mesh(new THREE.CircleGeometry(0.18, 24), signMat); signDisc.position.z = 0.05; signGroup.add(signDisc);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 8, 26), chrome); ring.position.z = 0.06; signGroup.add(ring);
-  const icon = new THREE.Mesh(new THREE.CircleGeometry(0.15, 24), decalMat(new THREE.MeshBasicMaterial({ map: staminIcon() })));
-  icon.position.z = 0.07; signGroup.add(icon);
+  const signDisc = new THREE.Mesh(new THREE.CircleGeometry(0.13, 28), signMat); signDisc.position.z = 0.01; signGroup.add(signDisc);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.145, 0.02, 8, 28), chrome); ring.position.z = 0.02; signGroup.add(ring);
+  const icon = new THREE.Mesh(new THREE.CircleGeometry(0.115, 28), decalMat(new THREE.MeshBasicMaterial({ map: staminIcon() })));
+  icon.position.z = 0.03; signGroup.add(icon);
+
+  // twinkling sequins around the rim — disco sparkle
+  const sequins = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const m = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+    const sq = new THREE.Mesh(new THREE.CircleGeometry(0.013, 6), m);
+    sq.position.set(Math.cos(a) * 0.265, signY + Math.sin(a) * 0.265, F + 0.028); g.add(sq); sequins.push(m);
+  }
 
   // STAMIN-UP nameplate (dark-red marquee + glowing text)
   const plate = box(0.66, 0.16, 0.05, darkred); plate.position.set(0, H * 0.6, F + 0.01); g.add(plate);
@@ -830,7 +849,7 @@ function buildDiscoMachine(def) {
   }
   // glowing halo disc behind the sunburst (pulses)
   const haloMat = new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.5 });
-  const halo = new THREE.Mesh(new THREE.CircleGeometry(0.36, 30), haloMat); halo.position.set(0, signY, F - 0.01); g.add(halo);
+  const halo = new THREE.Mesh(new THREE.CircleGeometry(0.3, 30), haloMat); halo.position.set(0, signY, F - 0.01); g.add(halo);
   // chrome crest finial on the dome top
   const finial = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 5), chrome); finial.position.set(0, crownY + crownR + 0.06, 0); g.add(finial);
 
@@ -859,6 +878,9 @@ function buildDiscoMachine(def) {
     height: H, signMat, light,
     anim: (now) => {
       sun.rotation.z = now * 0.5; // rotating sunburst behind the sign
+      sun2.rotation.z = -now * 0.72; // counter-rotating layer
+      sun2.material.color.setHSL((now * 0.1) % 1, 0.55, 0.6); // funk hue drift
+      for (let i = 0; i < sequins.length; i++) sequins[i].opacity = Math.sin(now * 6 + i * 1.7) > 0.3 ? 0.95 : 0.18; // twinkle
       halo.scale.setScalar(1 + Math.sin(now * 4) * 0.06); haloMat.opacity = 0.4 + Math.sin(now * 4) * 0.18;
       for (let i = 0; i < tubeMats.length; i++) tubeMats[i].color.setHSL(((now * 0.3 + i * 0.13) % 1), 0.9, 0.6);
       for (let i = 0; i < diaMats.length; i++) diaMats[i].color.setHSL(((now * 0.4 + i * 0.08) % 1), 0.95, 0.55);
