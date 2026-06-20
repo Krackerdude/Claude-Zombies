@@ -14,7 +14,7 @@ import * as THREE from 'three';
  * sheen rather than a hard gradient.
  */
 
-let _env, _brushed, _stipple, _ridge, _wood, _checker;
+let _env, _brushed, _stipple, _ridge, _wood, _checker, _plasma;
 
 export function gunEnv() {
   if (_env) return _env;
@@ -192,6 +192,40 @@ export function ironSightGlow() {
   if (_cache.has('sight')) return _cache.get('sight');
   const m = new THREE.MeshStandardMaterial({ color: 0x35e84f, emissive: 0x22e83c, emissiveIntensity: 0.95, metalness: 0, roughness: 0.4 });
   _cache.set('sight', m);
+  return m;
+}
+
+/**
+ * Energy-chamber plasma. A swirly emissive map (random soft blobs) so the glow
+ * reads as churning plasma instead of a flat panel; the tone is the perk/weapon
+ * energy colour. Used for the Ray Gun's chamber and any future energy core.
+ */
+export function plasmaTexture() {
+  if (_plasma) return _plasma;
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#101010'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 70; i++) {
+    const px = Math.random() * 128, py = Math.random() * 128, r = 5 + Math.random() * 22;
+    const v = 120 + (Math.random() * 135 | 0);
+    const grd = x.createRadialGradient(px, py, 0, px, py, r);
+    grd.addColorStop(0, `rgba(${v},${v},${v},0.55)`); grd.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = grd; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+  }
+  _plasma = new THREE.CanvasTexture(c);
+  _plasma.wrapS = _plasma.wrapT = THREE.RepeatWrapping;
+  return _plasma;
+}
+
+/** Glowing energy-core material, tinted by colour (maps shared, cached per tone). */
+export function plasmaGlow(color = 0x46f060) {
+  const key = `plasma|${color}`;
+  if (_cache.has(key)) return _cache.get(key);
+  const m = new THREE.MeshStandardMaterial({
+    color: 0x0a0a0a, emissive: color, emissiveIntensity: 2.4, emissiveMap: plasmaTexture(),
+    metalness: 0.2, roughness: 0.4, transparent: true, opacity: 0.95,
+  });
+  _cache.set(key, m);
   return m;
 }
 

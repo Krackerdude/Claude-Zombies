@@ -423,6 +423,57 @@ export class WeaponFx {
     }
   }
 
+  /**
+   * Coloured radial plasma burst for energy hits (Ray Gun). No fire, smoke,
+   * debris or shake — a white core, an expanding tinted glow, a spherical spark
+   * spray and a coloured light pop, all in the bolt's energy colour.
+   */
+  spawnPlasma(point, color) {
+    const col = new THREE.Color(color);
+    const lightHex = col.clone().lerp(new THREE.Color(0xffffff), 0.5).getHex();
+    // white-hot core
+    {
+      const s = this.#take('fireball'); const m = s.mesh;
+      m.material.color.setHex(0xffffff); m.material.opacity = 1;
+      m.position.copy(point); m.scale.setScalar(0.7); m.visible = true;
+      this.#rec('fireball', s, 0.16, { o0: 1, fade: 'out', grow: 6 });
+    }
+    // expanding tinted glow lobes
+    for (let i = 0; i < 8; i++) {
+      const s = this.#take('fireball'); const m = s.mesh;
+      m.material.color.copy(col); m.material.opacity = 0.95;
+      const a = Math.random() * Math.PI * 2, rad = 0.15 + Math.random() * 0.5;
+      m.position.copy(point).add(_v.set(Math.cos(a) * rad, (Math.random() - 0.4) * rad, Math.sin(a) * rad));
+      m.scale.setScalar(0.5 + Math.random() * 0.7); m.visible = true;
+      this.#rec('fireball', s, 0.3 + Math.random() * 0.22, { o0: 0.9, fade: 'out', grow: 2.6 });
+    }
+    // spherical spark spray (all directions)
+    for (let i = 0; i < 24; i++) {
+      const s = this.#take('spark'); const m = s.mesh;
+      const a = Math.random() * Math.PI * 2, z = Math.random() * 2 - 1, r = Math.sqrt(1 - z * z);
+      const spd = 5 + Math.random() * 7;
+      m.material.color.copy(col); m.material.opacity = 1; m.scale.setScalar(0.07);
+      m.position.copy(point); m.visible = true;
+      this.#rec('spark', s, 0.22 + Math.random() * 0.24, { vx: Math.cos(a) * r * spd, vy: z * spd, vz: Math.sin(a) * r * spd, grav: 2.5, o0: 1, fade: 'out', grow: -0.5 });
+    }
+    // a few flame tendrils licking out, tinted
+    for (let i = 0; i < 5; i++) {
+      const s = this.#take('star'); const m = s.mesh;
+      m.material.color.copy(col); m.material.opacity = 1; m.material.rotation = Math.random() * 6;
+      const a = Math.random() * Math.PI * 2, rad = 0.25 + Math.random() * 0.45;
+      m.position.copy(point).add(_v.set(Math.cos(a) * rad, (Math.random() - 0.2) * rad, Math.sin(a) * rad));
+      m.scale.setScalar(0.45 + Math.random() * 0.5); m.visible = true;
+      this.#rec('star', s, 0.2 + Math.random() * 0.14, { o0: 1, fade: 'out', grow: 1.4 });
+    }
+    // coloured light pop
+    {
+      const s = this.#take('flash'); const L = s.mesh;
+      L.color.setHex(lightHex); L.position.copy(point).add(_v.set(0, 0.3, 0));
+      L.distance = 7; L.intensity = 8; L.visible = true;
+      this.#rec('flash', s, 0.26, { o0: 8 });
+    }
+  }
+
   /** Brass casing tossed from the ejection port. */
   spawnShell(pos, right, up) {
     const s = this.#take('shell'); const m = s.mesh;

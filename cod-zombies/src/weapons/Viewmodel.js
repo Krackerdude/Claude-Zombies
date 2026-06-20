@@ -38,6 +38,9 @@ export class Viewmodel {
   #flash;
   #muzzleZ = -0.5;
   #light;
+  #starTex;
+  #energyTex;
+  #energyFlash = false;
   #sway = new THREE.Vector2();
   #mvel = new THREE.Vector2(); // low-passed mouse velocity for smooth sway
   #bob = 0;
@@ -71,10 +74,11 @@ export class Viewmodel {
     this.#light = new THREE.PointLight(0xffd9a0, 0, 6, 2);
     this.#group.add(this.#light);
     this.#flash = new THREE.Group();
-    const starTex = makeFlashStar();
+    this.#starTex = makeFlashStar();
+    this.#energyTex = makeEnergyFlash();
     this.#muzzle = new THREE.Mesh(
       new THREE.PlaneGeometry(0.34, 0.34),
-      new THREE.MeshBasicMaterial({ map: starTex, color: 0xffffff, transparent: true, opacity: 0, depthTest: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+      new THREE.MeshBasicMaterial({ map: this.#starTex, color: 0xffffff, transparent: true, opacity: 0, depthTest: true, depthWrite: false, blending: THREE.AdditiveBlending }),
     );
     this.#muzzleCore = new THREE.Mesh(
       new THREE.PlaneGeometry(0.14, 0.14),
@@ -133,10 +137,15 @@ export class Viewmodel {
     this.#muzzleZ = muzzle;
     this.#group.add(group);
 
-    const flashColor = weapon.data.muzzleEffect === 'energy' ? 0x6cf2d8 : 0xffffff;
-    this.#muzzle.material.color.set(flashColor);
+    // energy weapons get a coloured plasma muzzle (tinted electric burst);
+    // everything else keeps the warm cartoon star
+    this.#energyFlash = weapon.data.muzzleEffect === 'energy';
+    const ecol = weapon.data.energyColor ?? 0x46f060;
+    this.#muzzle.material.map = this.#energyFlash ? this.#energyTex : this.#starTex;
+    this.#muzzle.material.color.set(this.#energyFlash ? ecol : 0xffffff);
+    this.#muzzle.material.needsUpdate = true;
     this.#flash.position.set(0, 0.0, this.#muzzleZ - 0.04);
-    this.#light.color.set(weapon.data.muzzleEffect === 'energy' ? 0x6cf2d8 : 0xffd9a0);
+    this.#light.color.set(this.#energyFlash ? ecol : 0xffd9a0);
     this.#light.position.set(0, 0.0, this.#muzzleZ);
   }
 
@@ -292,13 +301,14 @@ export class Viewmodel {
     const pop = lit > 0;
     this.#flash.visible = pop;
     if (pop) {
+      const e = this.#energyFlash;
       this.#muzzle.material.opacity = lit;
-      this.#muzzle.rotation.z = Math.random() * Math.PI;
-      this.#muzzle.scale.setScalar(0.85 + Math.random() * 0.6);
+      this.#muzzle.rotation.z = e ? this.#muzzle.rotation.z + 0.35 : Math.random() * Math.PI; // plasma swirls, star flickers
+      this.#muzzle.scale.setScalar(e ? 1.1 + Math.random() * 0.35 : 0.85 + Math.random() * 0.6);
       this.#muzzleCore.material.opacity = Math.min(1, lit * 1.3);
-      this.#muzzleCore.scale.setScalar(0.9 + Math.random() * 0.25);
+      this.#muzzleCore.scale.setScalar(e ? 1.1 + Math.random() * 0.2 : 0.9 + Math.random() * 0.25);
     }
-    this.#light.intensity = lit * 4.5;
+    this.#light.intensity = lit * (this.#energyFlash ? 5.5 : 4.5);
   }
 }
 
@@ -323,6 +333,25 @@ function makeFlashStar() {
   g.addColorStop(0.57, '#ff7a12'); g.addColorStop(0.85, '#e8550a');
   g.addColorStop(1.0, 'rgba(150,40,0,0)');
   x.fillStyle = g; x.fill();
+  return new THREE.CanvasTexture(c);
+}
+
+// Soft electric plasma burst: a white core with a few jagged tendrils, kept
+// near-white so it tints cleanly to any energy colour (multiplied by material).
+function makeEnergyFlash() {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d'); const cx = s / 2, cy = s / 2;
+  const g = x.createRadialGradient(cx, cy, 0, cx, cy, s * 0.5);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.32, 'rgba(255,255,255,0.85)');
+  g.addColorStop(0.62, 'rgba(230,255,240,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.beginPath(); x.arc(cx, cy, s * 0.5, 0, 7); x.fill();
+  x.strokeStyle = 'rgba(255,255,255,0.8)'; x.lineWidth = 3; x.lineCap = 'round';
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 + Math.random() * 0.5;
+    x.beginPath(); x.moveTo(cx, cy);
+    for (let k = 1; k <= 3; k++) { const r = (k / 3) * s * 0.46; const aa = a + (Math.random() - 0.5) * 0.6; x.lineTo(cx + Math.cos(aa) * r, cy + Math.sin(aa) * r); }
+    x.stroke();
+  }
   return new THREE.CanvasTexture(c);
 }
 

@@ -68,6 +68,8 @@ export class WeaponData {
     this.animationSet = o.animationSet ?? 'rifle';
     this.soundSet = o.soundSet ?? 'rifle';
     this.muzzleEffect = o.muzzleEffect ?? 'standard'; // standard | heavy | energy | none
+    this.energyColor = o.energyColor ?? 0x46f060; // plasma tint: chamber glow, muzzle, bolt, impact
+    this.ejectsBrass = o.ejectsBrass ?? true; // energy weapons set false (no casings)
     this.viewmodel = o.viewmodel ?? { length: 0.55, color: 0x20242b, accent: 0x111316 };
   }
 }

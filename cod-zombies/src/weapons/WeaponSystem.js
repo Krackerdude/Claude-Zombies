@@ -71,6 +71,21 @@ function makeRocket() {
   return g;
 }
 
+/** A glowing plasma bolt: a bright core orb + a softer halo shell, tinted. */
+function makeEnergyBolt(color) {
+  const g = new THREE.Group();
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(0.11, 12, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffffff }),
+  );
+  const halo = new THREE.Mesh(
+    new THREE.SphereGeometry(0.19, 12, 10),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }),
+  );
+  g.add(halo, core);
+  return g;
+}
+
 // body hitbox spheres relative to the zombie's feet: [centreY, radius]
 // (the head is a separate, dedicated sphere handled in #rayZombies)
 const HITBOXES = [[1.15, 0.34], [0.7, 0.34], [0.32, 0.26]];
@@ -154,6 +169,10 @@ export class WeaponSystem extends System {
       if (!this.#fx) return;
       this.#fx.spawnExplosion(_explo.set(e.x, e.y ?? 0.6, e.z), EXPLO.rocket);
       this.#events.emit('fx:shake', {});
+    });
+    // ray-gun / energy hit: a coloured radial plasma burst, no fire or shake
+    this.#events.on('weapon:plasma', (e) => {
+      if (this.#fx) this.#fx.spawnPlasma(_explo.set(e.x, e.y ?? 0.6, e.z), e.color ?? 0x46f060);
     });
     // blood spurt on each zombie caught in a blast (spurts outward from the hit)
     this.#events.on('fx:blood', (e) => {
@@ -593,12 +612,8 @@ export class WeaponSystem extends System {
   #spawnProjectile(weapon) {
     this.#basis();
     const energy = weapon.data.muzzleEffect === 'energy';
-    const mesh = energy
-      ? new THREE.Mesh(
-          new THREE.SphereGeometry(0.16, 10, 10),
-          new THREE.MeshStandardMaterial({ color: 0x0a3a33, emissive: 0x46f2cf, emissiveIntensity: 3 }),
-        )
-      : makeRocket();
+    const ecol = weapon.data.energyColor ?? 0x46f060;
+    const mesh = energy ? makeEnergyBolt(ecol) : makeRocket();
 
     const pos = new THREE.Vector3().copy(this.#camera.position).addScaledVector(_fwd, 0.6);
     const id = this.world.createEntity();
@@ -612,6 +627,7 @@ export class WeaponSystem extends System {
       splashRadius: weapon.data.splashRadius,
       splashDamage: weapon.data.splashDamage,
       kind: energy ? 'energy' : 'rocket',
+      color: ecol,
     }));
   }
 

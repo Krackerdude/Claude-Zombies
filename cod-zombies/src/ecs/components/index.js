@@ -146,13 +146,14 @@ export class ZombieTag {
 
 /** A flying projectile (rocket, ray-gun bolt). Moved by the ProjectileSystem. */
 export class ProjectileTag {
-  constructor({ velocity, damage, life = 4, splashRadius = 0, splashDamage = 0, kind = 'rocket' } = {}) {
+  constructor({ velocity, damage, life = 4, splashRadius = 0, splashDamage = 0, kind = 'rocket', color = 0x46f060 } = {}) {
     this.velocity = velocity; // THREE.Vector3 (m/s)
     this.damage = damage;
     this.life = life; // seconds before fizzling
     this.splashRadius = splashRadius;
     this.splashDamage = splashDamage;
     this.kind = kind;
+    this.color = color; // energy-bolt tint (plasma impact colour)
   }
 }
 

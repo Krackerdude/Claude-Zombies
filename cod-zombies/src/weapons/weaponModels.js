@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gunMetal, gunMetalRidged, gunGrip, gunDark, gunWood, ironSightGlow, scopeGlow } from './gunMaterials.js';
+import { gunMetal, gunMetalRidged, gunGrip, gunDark, gunWood, ironSightGlow, scopeGlow, plasmaGlow } from './gunMaterials.js';
 
 /**
  * Distinct first-person weapon models, assembled from primitives so each class
@@ -721,6 +721,89 @@ function deathMachine() {
   return { group: g, muzzle: -0.88 };
 }
 
+// Retro "Blast-O-Matic" gauge face: a red→green arc dial with ticks + needle.
+function blastGaugeTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d'); const cx = 64, cy = 64;
+  x.fillStyle = '#3a0c0e'; x.beginPath(); x.arc(cx, cy, 62, 0, 7); x.fill();
+  const cols = ['#d23b2e', '#e07a22', '#ecc22a', '#9fd23a', '#34c66a'];
+  for (let i = 0; i < cols.length; i++) {
+    x.strokeStyle = cols[i]; x.lineWidth = 13;
+    x.beginPath(); x.arc(cx, cy, 44, Math.PI + i * (Math.PI / cols.length), Math.PI + (i + 1) * (Math.PI / cols.length)); x.stroke();
+  }
+  x.strokeStyle = '#1a0405'; x.lineWidth = 2;
+  for (let i = 0; i <= 12; i++) { const a = Math.PI + i * (Math.PI / 12); x.beginPath(); x.moveTo(cx + Math.cos(a) * 37, cy + Math.sin(a) * 37); x.lineTo(cx + Math.cos(a) * 51, cy + Math.sin(a) * 51); x.stroke(); }
+  x.strokeStyle = '#120'; x.lineWidth = 3; const na = Math.PI + 0.75; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(na) * 42, cy + Math.sin(na) * 42); x.stroke();
+  x.fillStyle = '#b89038'; x.beginPath(); x.arc(cx, cy, 8, 0, 7); x.fill();
+  x.fillStyle = '#e7cda0'; x.font = 'italic 11px Georgia, serif'; x.textAlign = 'center'; x.fillText('Blast-O-Matic', cx, cy + 36);
+  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+}
+
+// --- Ray Gun (BO wonder weapon) — bespoke retro-raygun. A glowing plasma
+//     chamber (tinted by the weapon's energyColor) wrapped in brass rings, a red
+//     bulbous nose, a thin barrel to a flared studded muzzle cone + ball antenna,
+//     the big "Blast-O-Matic" gauge dial with back spikes, a flame top-fin, a
+//     loop sight, twin top carry-handles, and a ribbed grip. ---
+function rayGunModel(weapon) {
+  const color = weapon?.data?.energyColor ?? 0x46f060;
+  const g = new THREE.Group();
+  const red = gunMetal(0x7d1417, { metal: 0.7, rough: 0.3 });
+  const redDk = gunMetal(0x4f0d10, { metal: 0.6, rough: 0.42 });
+  const brass = gunMetal(0xb89038, { metal: 0.85, rough: 0.3 });
+  const barrelMat = gunDark(0x17191e);
+  const grip = gunGrip();
+  const dark = gunDark(0x0e0f12);
+  const plasma = plasmaGlow(color);
+  const cyl = (r1, r2, len, m, seg = 16) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m);
+
+  // === main rear body block ===
+  g.add(at(box(0.1, 0.12, 0.2, red), 0, 0.02, -0.02));
+  g.add(at(box(0.104, 0.04, 0.16, redDk), 0, 0.082, -0.02)); // top spine
+  // horizontal cooling slats across the top spine
+  for (let i = 0; i < 4; i++) g.add(at(box(0.092, 0.008, 0.014, dark), 0, 0.105, -0.06 + i * 0.026));
+
+  // === big "Blast-O-Matic" gauge dial on the visible (left) side, rear ===
+  g.add(at(cyl(0.115, 0.115, 0.05, red), 0, 0.06, 0.045, 0, 0, Math.PI / 2)); // dial body (axis x)
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.012, 8, 28), brass), -0.026, 0.06, 0.045, 0, Math.PI / 2, 0)); // brass rim
+  g.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.108, 28), new THREE.MeshBasicMaterial({ map: blastGaugeTexture() })), -0.028, 0.06, 0.045, 0, -Math.PI / 2, 0)); // dial face
+  g.add(at(cyl(0.016, 0.016, 0.06, brass, 12), 0, 0.06, 0.045, 0, 0, Math.PI / 2)); // hub
+  // back spikes radiating off the dial
+  for (let i = 0; i < 3; i++) { const a = -0.5 + i * 0.5; g.add(at(cyl(0.006, 0.002, 0.1, brass, 6), Math.sin(a) * 0.04, 0.06 + 0.13, 0.045 + Math.cos(a) * 0.02 - 0.06, a, 0, 0)); }
+
+  // === glowing plasma chamber wrapped in brass rings ===
+  g.add(at(tube(0.05, 0.05, 0.17, plasma), 0, 0.005, -0.22));      // plasma tube
+  for (const cz of [-0.16, -0.22, -0.28]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.053, 0.012, 8, 20), brass), 0, 0.005, cz, 0, 0, Math.PI / 2));
+
+  // === red bulbous nose + barrel + flared muzzle cone ===
+  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.056, 16, 12), red), 0, 0.005, -0.32));
+  g.add(at(tube(0.017, 0.017, 0.13, barrelMat), 0, 0.005, -0.42));  // barrel
+  for (const bz of [-0.39, -0.45]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.006, 8, 16), brass), 0, 0.005, bz, 0, 0, Math.PI / 2));
+  g.add(at(cyl(0.05, 0.03, 0.08, red), 0, 0.005, -0.52, Math.PI / 2)); // flared cone (axis z)
+  for (const cz of [-0.5, -0.54]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.006, 8, 16), brass), 0, 0.005, cz, 0, 0, Math.PI / 2));
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.007, 6, 5), brass), Math.cos(a) * 0.04, 0.005 + Math.sin(a) * 0.04, -0.53)); } // studs
+  g.add(at(tube(0.004, 0.004, 0.07, brass), 0, 0.005, -0.59));      // antenna rod
+  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), red), 0, 0.005, -0.63)); // ball tip
+
+  // === flame top-fin + loop sight ===
+  g.add(at(box(0.012, 0.07, 0.11, redDk), 0, 0.07, -0.3));          // fin blade
+  g.add(at(box(0.012, 0.03, 0.04, red), 0, 0.11, -0.26, 0.5));      // fin tip flick
+  g.add(at(tube(0.004, 0.004, 0.12, brass), 0, 0.11, -0.34, Math.PI / 2)); // sight stalk (axis y)
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.005, 8, 16), brass), 0, 0.18, -0.34, 0, Math.PI / 2, 0)); // loop
+
+  // === twin top carry-handle loops ===
+  for (const hz of [-0.06, 0.04]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.006, 8, 16, Math.PI), dark), 0, 0.105, hz));
+
+  // === ribbed grip + brass trigger guard + trigger ===
+  g.add(at(box(0.05, 0.15, 0.07, grip), 0, -0.1, 0.04, 0.18));
+  g.add(at(box(0.052, 0.02, 0.072, dark), 0, -0.172, 0.057, 0.18));
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 8, 16), brass), 0, -0.05, -0.04, 0, Math.PI / 2, 0));
+  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.045, -0.04));
+  // little glowing lightning emblem on the body side
+  g.add(at(box(0.026, 0.03, 0.004, scopeGlow(color)), -0.051, 0.03, -0.05));
+
+  return { group: g, muzzle: -0.62 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -737,6 +820,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
+  if (weapon.data.name === 'RAY GUN') return rayGunModel(weapon);
   if (weapon.data.name === 'DEATH MACHINE') return deathMachine();
   if (cat === 'wonder') return wonder(vm, weapon.data.projectileType === 'cone');
   const fn = BUILDERS[cat] || assaultRifle;
