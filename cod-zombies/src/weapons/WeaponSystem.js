@@ -35,6 +35,42 @@ const MELEE_TIME = 0.75;
 const MELEE_HIT_AT = 0.28; // seconds into the swing when the blade connects
 const MELEE_RANGE = 4.3;
 
+/**
+ * A LAW rocket whose NOSE points down local -Z (camera forward). The geometry
+ * is baked to that axis on purpose: the RenderSystem overwrites the object's
+ * quaternion from the Transform every frame, so a mesh-level rotation would be
+ * clobbered — which is exactly what left the old plain cylinder standing
+ * upright. With the axis baked in, the launch quaternion aims the nose along
+ * the flight path.
+ */
+function makeRocket() {
+  const g = new THREE.Group();
+  const body = new THREE.MeshStandardMaterial({ color: 0x3d4a35, metalness: 0.3, roughness: 0.6 });
+  const warhead = new THREE.MeshStandardMaterial({ color: 0x6e2f1c, metalness: 0.25, roughness: 0.55 });
+  const finMat = new THREE.MeshStandardMaterial({ color: 0x23281f, metalness: 0.4, roughness: 0.55 });
+  const nozzle = new THREE.MeshStandardMaterial({ color: 0x141619, metalness: 0.5, roughness: 0.5 });
+
+  const bodyGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.34, 12); bodyGeo.rotateX(Math.PI / 2);
+  g.add(new THREE.Mesh(bodyGeo, body));
+
+  const noseGeo = new THREE.ConeGeometry(0.058, 0.2, 12); noseGeo.rotateX(-Math.PI / 2); // tip -> -Z
+  const nose = new THREE.Mesh(noseGeo, warhead); nose.position.z = -0.27; g.add(nose);
+
+  const tailGeo = new THREE.CylinderGeometry(0.05, 0.038, 0.07, 12); tailGeo.rotateX(Math.PI / 2);
+  const tail = new THREE.Mesh(tailGeo, nozzle); tail.position.z = 0.2; g.add(tail);
+
+  for (let i = 0; i < 4; i++) {                       // four radial tail fins
+    const a = (i / 4) * Math.PI * 2;
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.06, 0.1), finMat);
+    fin.position.set(Math.cos(a) * 0.082, Math.sin(a) * 0.082, 0.18);
+    fin.rotation.z = a - Math.PI / 2;
+    g.add(fin);
+  }
+
+  g.traverse((n) => { if (n.isMesh) n.castShadow = true; });
+  return g;
+}
+
 // body hitbox spheres relative to the zombie's feet: [centreY, radius]
 // (the head is a separate, dedicated sphere handled in #rayZombies)
 const HITBOXES = [[1.15, 0.34], [0.7, 0.34], [0.32, 0.26]];
@@ -557,14 +593,12 @@ export class WeaponSystem extends System {
   #spawnProjectile(weapon) {
     this.#basis();
     const energy = weapon.data.muzzleEffect === 'energy';
-    const mesh = new THREE.Mesh(
-      energy ? new THREE.SphereGeometry(0.16, 10, 10) : new THREE.CylinderGeometry(0.07, 0.07, 0.5, 8),
-      energy
-        ? new THREE.MeshStandardMaterial({ color: 0x0a3a33, emissive: 0x46f2cf, emissiveIntensity: 3 })
-        : new THREE.MeshStandardMaterial({ color: 0x394b39, roughness: 0.7 }),
-    );
-    if (!energy) mesh.rotation.x = Math.PI / 2;
-    mesh.castShadow = !energy;
+    const mesh = energy
+      ? new THREE.Mesh(
+          new THREE.SphereGeometry(0.16, 10, 10),
+          new THREE.MeshStandardMaterial({ color: 0x0a3a33, emissive: 0x46f2cf, emissiveIntensity: 3 }),
+        )
+      : makeRocket();
 
     const pos = new THREE.Vector3().copy(this.#camera.position).addScaledVector(_fwd, 0.6);
     const id = this.world.createEntity();
