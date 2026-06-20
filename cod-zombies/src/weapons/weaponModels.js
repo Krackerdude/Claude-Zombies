@@ -519,6 +519,91 @@ function dsr() {
   return { group: g, muzzle: -0.88 };
 }
 
+// --- HK21 (BO-era, HK G3-pattern LMG) — bespoke, NO optic so it runs the
+//     classic HK irons: a rotary DRUM rear sight + a hooded RING front post
+//     (green). Signatures: slim stamped G3 receiver with the forward cocking
+//     tube + angled HK charging handle, a wide slotted handguard, a slotted
+//     flash hider, a folded bipod, a belt feed + ammo box (the LMG tell), and a
+//     fixed stock. Shared gunMetal set. ---
+function hk21() {
+  const g = new THREE.Group();
+  const receiver = gunMetal(0x2c3037);     // stamped steel
+  const receiverDk = gunMetal(0x23272e);   // darker accents
+  const barrelMat = gunDark(0x121317);     // near-black barrel
+  const handguard = gunMetalRidged(0x2e3239); // wide slotted handguard
+  const flashMat = gunMetalRidged(0x24272d);
+  const drum = gunMetalRidged(0x2a2e35);   // knurled rear-sight drum
+  const grip = gunGrip();
+  const stockMat = gunDark(0x1a1d22);      // polymer stock
+  const mag = gunDark(0x1c1f25);           // belt / ammo box
+  const brass = gunMetal(0xb08a3c, { metal: 0.8, rough: 0.34 }); // belt cartridges
+  const amber = gunMetal(0xc07a22, { metal: 0.4, rough: 0.6 });  // painted drum numbers
+  const dark = gunDark(0x0e1014);
+  const green = ironSightGlow();
+  const cyl = (r1, r2, len, m, seg = 14) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m); // axis = y
+
+  // === slim G3 receiver + raised top cover ===
+  g.add(at(box(0.056, 0.08, 0.34, receiver), 0, 0.0, -0.12));         // receiver
+  g.add(at(box(0.05, 0.022, 0.3, receiverDk), 0, 0.052, -0.12));      // top cover
+  g.add(at(box(0.01, 0.02, 0.03, dark), -0.03, -0.01, 0.0));          // SEF selector (left)
+
+  // === forward cocking tube (left of bore) + angled HK charging handle ===
+  g.add(at(tube(0.012, 0.012, 0.32, receiver), -0.02, 0.05, -0.42));  // cocking tube
+  g.add(at(box(0.012, 0.045, 0.016, dark), -0.034, 0.062, -0.56, 0, 0, -0.4)); // charging handle (cocked up-left)
+
+  // === barrel + slotted flash hider ===
+  g.add(at(tube(0.016, 0.016, 0.4, barrelMat), 0, 0.012, -0.5));      // barrel
+  g.add(at(tube(0.02, 0.02, 0.09, flashMat), 0, 0.012, -0.745));      // flash hider
+  for (const sz of [-0.72, -0.755, -0.79]) g.add(at(tube(0.021, 0.021, 0.006, dark, 12), 0, 0.012, sz)); // slot rings
+  g.add(at(tube(0.022, 0.017, 0.014, dark, 12), 0, 0.012, -0.795));   // open tip
+
+  // === wide slotted handguard (G3 SG1 style) ===
+  g.add(at(box(0.064, 0.05, 0.22, handguard), 0, 0.0, -0.44));        // handguard body
+  for (let i = 0; i < 4; i++) g.add(at(box(0.05, 0.014, 0.018, dark), 0, 0.026, -0.36 - i * 0.045)); // top cooling slots
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) g.add(at(box(0.006, 0.024, 0.05, dark), sx * 0.033, 0.0, -0.39 - i * 0.058)); // side slots
+
+  // === hooded RING front sight ===
+  g.add(at(box(0.024, 0.03, 0.03, dark), 0, 0.04, -0.62));            // sight base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.004, 8, 18), dark), 0, 0.062, -0.62)); // ring hood
+  g.add(at(box(0.006, 0.022, 0.008, dark), 0, 0.056, -0.62));         // front post
+  g.add(at(box(0.007, 0.007, 0.007, green), 0, 0.07, -0.622));        // front green dot
+
+  // === HK rotary DRUM rear sight (transverse, knurled, painted numbers) ===
+  g.add(at(cyl(0.024, 0.024, 0.032, drum), 0, 0.07, 0.0, 0, 0, Math.PI / 2));    // drum body (axis x)
+  g.add(at(cyl(0.0245, 0.0245, 0.01, amber), 0, 0.07, 0.0, 0, 0, Math.PI / 2));  // painted index band
+  g.add(at(box(0.014, 0.016, 0.016, dark), 0, 0.09, 0.0));            // aperture housing
+  g.add(at(box(0.007, 0.007, 0.007, green), 0, 0.098, 0.0));          // rear green dot
+
+  // === G3 pistol grip + trigger ===
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.1, 0.02, 0.28));
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.158, 0.04, 0.28));   // grip base
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 8, 16), receiverDk);
+  g.add(at(guard, 0, -0.05, -0.02, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.045, -0.02));         // trigger
+
+  // === belt feed + ammo box (LMG tell), feeding up the left into the receiver ===
+  g.add(at(box(0.062, 0.072, 0.088, mag), 0, -0.084, -0.05));         // ammo box
+  g.add(at(box(0.064, 0.01, 0.04, dark), 0, -0.052, -0.05));          // box latch
+  for (let i = 0; i < 5; i++) {                                        // brass belt climbing in
+    const t = i / 4;
+    g.add(at(box(0.011, 0.02, 0.013, brass), -0.04 + t * 0.02, -0.046 + t * 0.05, -0.05));
+  }
+
+  // === folded bipod under the front ===
+  g.add(at(box(0.02, 0.02, 0.03, dark), 0, -0.03, -0.52));            // bipod mount
+  for (const sx of [-1, 1]) {
+    g.add(at(tube(0.005, 0.005, 0.18, stockMat), sx * 0.012, -0.05, -0.43, 0, sx * 0.12, 0)); // leg, folded back
+    g.add(at(box(0.008, 0.022, 0.008, stockMat), sx * 0.03, -0.058, -0.35));                  // foot
+  }
+
+  // === fixed G3 stock + butt pad ===
+  g.add(at(box(0.05, 0.078, 0.2, stockMat), 0, 0.0, 0.16));           // stock body
+  g.add(at(box(0.046, 0.092, 0.022, dark), 0, 0.0, 0.258));           // butt pad
+  g.add(at(box(0.03, 0.016, 0.12, stockMat), 0, 0.05, 0.13));         // comb
+
+  return { group: g, muzzle: -0.8 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -533,6 +618,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
   if (weapon.data.name === 'DSR-50') return dsr();
+  if (weapon.data.name === 'HK21') return hk21();
   if (cat === 'wonder') return wonder(vm, weapon.data.projectileType === 'cone');
   const fn = BUILDERS[cat] || assaultRifle;
   return fn(vm);
