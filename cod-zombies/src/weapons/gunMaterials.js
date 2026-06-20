@@ -194,3 +194,16 @@ export function ironSightGlow() {
   _cache.set('sight', m);
   return m;
 }
+
+/**
+ * Illuminated-optic glow (scope reticle/turret markings, rail tritium dots).
+ * Same idea as ironSightGlow but parameterised — snipers run red, the rest of
+ * the kit runs green. Cached per colour.
+ */
+export function scopeGlow(color = 0xff2a1e) {
+  const key = `scopeglow|${color}`;
+  if (_cache.has(key)) return _cache.get(key);
+  const m = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.15, metalness: 0, roughness: 0.4 });
+  _cache.set(key, m);
+  return m;
+}

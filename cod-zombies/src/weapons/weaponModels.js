@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gunMetal, gunMetalRidged, gunGrip, gunDark, gunWood, ironSightGlow } from './gunMaterials.js';
+import { gunMetal, gunMetalRidged, gunGrip, gunDark, gunWood, ironSightGlow, scopeGlow } from './gunMaterials.js';
 
 /**
  * Distinct first-person weapon models, assembled from primitives so each class
@@ -427,6 +427,98 @@ function olympia() {
   return { group: g, muzzle: -0.78 };
 }
 
+// --- DSR-50 (BO3) — bespoke bullpup precision rifle. Signatures: a long
+//     SKELETONIZED top handguard (rectangular lightening cutouts), a big scope
+//     with RED illuminated turret + objective ring (snipers glow red, not
+//     green), a slotted boxy muzzle brake, a row of side ports, and an angular
+//     skeletonized stock with an adjustable cheek riser. Shared gunMetal set. ---
+function dsr() {
+  const g = new THREE.Group();
+  const body = gunMetal(0x2e333b, { metal: 0.62, rough: 0.45 }); // chassis steel
+  const bodyDk = gunMetal(0x23272e);                             // darker chassis accents
+  const rail = gunMetalRidged(0x2a2e35);                         // rails + skeleton
+  const barrelMat = gunDark(0x121317);                           // near-black barrel
+  const brakeMat = gunMetalRidged(0x24272d);                     // slotted brake
+  const scopeBody = gunDark(0x0e0f12);                           // black scope tube
+  const scopeMetal = gunMetal(0x2a2e35);                         // mounts + turrets
+  const grip = gunGrip();
+  const mag = gunDark(0x1a1d22);
+  const brass = gunMetal(0x5e5e44, { metal: 0.7, rough: 0.5 });  // side port rims
+  const dark = gunDark(0x0e1014);
+  const red = scopeGlow(0xff2a1e);                               // red optic illumination
+  const glass = new THREE.MeshStandardMaterial({ color: 0x0a0e12, metalness: 0.2, roughness: 0.14, envMap: undefined });
+  const cyl = (r1, r2, len, m, seg = 14) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m); // axis = y
+
+  // === chassis / receiver (long flat lower body) ===
+  g.add(at(box(0.058, 0.075, 0.52, body), 0, -0.01, -0.16));          // main chassis
+  g.add(at(box(0.05, 0.022, 0.46, bodyDk), 0, 0.03, -0.15));          // raised top deck
+  g.add(at(box(0.06, 0.092, 0.15, body), 0, 0.004, 0.04));            // rear bolt-action receiver
+  g.add(at(box(0.016, 0.022, 0.05, dark), 0.034, 0.018, 0.06, 0, 0, 0.3)); // bolt-handle arm (right)
+  g.add(at(cyl(0.011, 0.011, 0.03, dark, 8), 0.05, 0.03, 0.075, 0, 0, Math.PI / 2)); // bolt knob
+
+  // === barrel + slotted boxy muzzle brake ===
+  g.add(at(tube(0.019, 0.019, 0.36, barrelMat), 0, 0.005, -0.6));     // heavy barrel
+  g.add(at(box(0.046, 0.046, 0.11, brakeMat), 0, 0.005, -0.815));     // brake block
+  for (let i = 0; i < 3; i++) g.add(at(box(0.05, 0.05, 0.008, dark), 0, 0.005, -0.785 - i * 0.022)); // top slots
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.026, 0.07, dark), sx * 0.024, 0.005, -0.815)); // side vent
+  g.add(at(tube(0.024, 0.024, 0.012, dark), 0, 0.005, -0.872));       // muzzle cap
+  g.add(at(tube(0.011, 0.011, 0.016, dark), 0, 0.005, -0.876));       // bore
+
+  // === skeletonized top handguard: top rail on posts, gaps = the cutouts ===
+  g.add(at(box(0.046, 0.01, 0.44, rail), 0, 0.052, -0.52));           // top flat rail
+  g.add(at(box(0.046, 0.008, 0.44, bodyDk), 0, 0.012, -0.52));        // lower strap
+  for (let z = -0.32; z >= -0.72; z -= 0.058) {                        // vertical webs (leave rectangular gaps)
+    for (const sx of [-1, 1]) g.add(at(box(0.006, 0.05, 0.024, body), sx * 0.022, 0.032, z));
+  }
+
+  // === picatinny scope rail + folding backup sight with red dots ===
+  g.add(at(box(0.032, 0.014, 0.3, rail), 0, 0.05, -0.12));            // scope rail
+  g.add(at(box(0.03, 0.026, 0.02, dark), 0, 0.066, 0.02));            // rear BUIS block
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.006, 0.006, red), sx * 0.009, 0.074, 0.02)); // twin red dots
+  g.add(at(box(0.006, 0.006, 0.006, red), 0, 0.072, -0.21));          // front post red dot
+
+  // === three round side ports (lightening holes, brass rims) ===
+  for (let i = 0; i < 3; i++) {
+    g.add(at(cyl(0.012, 0.012, 0.006, brass, 12), -0.03, 0.004, -0.18 - i * 0.045, 0, 0, Math.PI / 2));
+    g.add(at(cyl(0.007, 0.007, 0.008, dark, 10), -0.031, 0.004, -0.18 - i * 0.045, 0, 0, Math.PI / 2)); // recessed hole
+  }
+
+  // === big scope (rear-centre on top), red illumination ===
+  g.add(at(box(0.04, 0.03, 0.022, scopeMetal), 0, 0.085, -0.26));     // front mount ring
+  g.add(at(box(0.04, 0.03, 0.022, scopeMetal), 0, 0.085, -0.04));     // rear mount ring
+  g.add(at(tube(0.028, 0.028, 0.28, scopeBody), 0, 0.108, -0.15));    // main tube
+  g.add(at(tube(0.038, 0.03, 0.07, scopeBody), 0, 0.108, -0.32));     // objective bell
+  g.add(at(tube(0.036, 0.036, 0.008, glass), 0, 0.108, -0.357));      // objective lens
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.037, 0.005, 8, 26), red), 0, 0.108, -0.354)); // red objective ring
+  g.add(at(tube(0.032, 0.03, 0.045, rail), 0, 0.108, -0.03));         // knurled magnification ring
+  g.add(at(tube(0.03, 0.03, 0.006, glass), 0, 0.108, 0.02));          // ocular lens
+  g.add(at(cyl(0.018, 0.018, 0.032, scopeMetal), 0, 0.142, -0.14));   // elevation turret
+  g.add(at(cyl(0.0195, 0.0195, 0.006, red, 14), 0, 0.132, -0.14));    // turret red index band
+  g.add(at(cyl(0.016, 0.016, 0.028, scopeMetal), 0.04, 0.108, -0.14, 0, 0, Math.PI / 2)); // windage turret (right)
+
+  // === pistol grip + trigger ===
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.1, 0.0, 0.25));
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.158, 0.012, 0.25));  // grip base
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 8, 16), body);
+  g.add(at(guard, 0, -0.05, -0.06, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.045, -0.06));         // trigger
+
+  // === chunky .50 magazine ahead of the grip ===
+  g.add(at(box(0.046, 0.05, 0.062, body), 0, -0.05, -0.14));          // mag well
+  g.add(at(box(0.04, 0.11, 0.05, mag), 0, -0.115, -0.14));            // mag body
+  g.add(at(box(0.044, 0.016, 0.052, dark), 0, -0.176, -0.14));        // floorplate
+
+  // === angular skeletonized stock + adjustable cheek + recoil pad ===
+  g.add(at(box(0.04, 0.02, 0.16, body), 0, 0.044, 0.18));             // top comb bar
+  g.add(at(box(0.044, 0.03, 0.1, bodyDk), 0, 0.066, 0.16));           // raised cheek riser
+  g.add(at(box(0.03, 0.02, 0.16, body), 0, -0.04, 0.18));             // lower bar (gap above = skeleton cutout)
+  g.add(at(box(0.03, 0.12, 0.025, body), 0, 0.0, 0.255));             // rear vertical (closes the frame)
+  g.add(at(box(0.046, 0.13, 0.022, mag), 0, 0.0, 0.268));             // recoil pad
+  g.add(at(cyl(0.012, 0.012, 0.04, dark, 10), 0.0, -0.07, 0.255, Math.PI / 2)); // monopod spike at the toe
+
+  return { group: g, muzzle: -0.88 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -440,6 +532,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
+  if (weapon.data.name === 'DSR-50') return dsr();
   if (cat === 'wonder') return wonder(vm, weapon.data.projectileType === 'cone');
   const fn = BUILDERS[cat] || assaultRifle;
   return fn(vm);
