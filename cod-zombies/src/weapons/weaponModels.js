@@ -271,7 +271,7 @@ function kvector() {
 //     reference. The Galil reads off four signatures: the AK-rounded receiver
 //     with a domed dust cover + milled side ribs, the long barrel with a gas
 //     tube riding parallel ABOVE it (joined by a gas block), the slotted muzzle
-//     brake, and the skeletal tubular side-folding stock. Curved steel banana
+//     brake, and the deployed skeletal tubular stock. Curved steel banana
 //     mag, raked AK grip, big paddle selector + bent charging handle on the
 //     left, hooded green front post, green aperture peep at the rear. ---
 function galil() {
@@ -348,12 +348,17 @@ function galil() {
   for (const sz of [-0.68, -0.71]) g.add(at(tube(0.0195, 0.0195, 0.006, dark, 12), 0, 0.018, sz)); // slot rings
   g.add(at(tube(0.021, 0.021, 0.012, dark, 12), 0, 0.018, -0.745));    // brake cap
 
-  // === skeletal tubular side-folding stock, folded along the right ===
-  g.add(at(box(0.016, 0.05, 0.034, receiverDk), 0.03, 0.0, 0.03));     // hinge block
-  g.add(at(tube(0.006, 0.006, 0.2, stockMat), 0.046, 0.042, 0.12));    // top rail
-  g.add(at(tube(0.006, 0.006, 0.2, stockMat), 0.046, -0.012, 0.12));   // bottom rail
-  g.add(at(box(0.012, 0.058, 0.012, stockMat), 0.046, 0.015, 0.03));   // front strut
-  g.add(at(box(0.016, 0.072, 0.018, stockMat), 0.046, 0.015, 0.222));  // buttplate (closes the frame)
+  // === deployed skeletal tubular stock — extends STRAIGHT BACK to the shoulder
+  //     so the gun has a proper rear (the folded-to-the-side version vanished
+  //     off-screen behind the hip offset). Hinge socket on the receiver, twin
+  //     tubes sweeping back to an open butt frame + rubber pad. ===
+  g.add(at(box(0.05, 0.072, 0.07, receiverDk), 0, 0.005, 0.05));       // stock socket closing the receiver rear
+  g.add(at(box(0.024, 0.05, 0.03, dark), 0, 0.005, 0.082));            // folding hinge knuckle
+  g.add(at(tube(0.007, 0.007, 0.19, stockMat), 0, 0.045, 0.16));       // top rail
+  g.add(at(tube(0.007, 0.007, 0.19, stockMat), 0, -0.035, 0.16));      // bottom rail
+  g.add(at(box(0.04, 0.016, 0.1, receiverDk), 0, 0.052, 0.125));       // top comb / cheek strap
+  g.add(at(box(0.014, 0.09, 0.018, stockMat), 0, 0.005, 0.252));       // vertical butt frame (closes the loop)
+  g.add(at(box(0.026, 0.092, 0.03, dark), 0, 0.005, 0.262));           // rubber butt pad
 
   return { group: g, muzzle: -0.75 };
 }
