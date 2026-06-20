@@ -766,7 +766,26 @@ function rayGunModel(weapon) {
   g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.009, 8, 26), brass), -0.04, 0.028, 0.05, 0, Math.PI / 2, 0)); // rim
   g.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.057, 28), new THREE.MeshBasicMaterial({ map: blastGaugeTexture() })), -0.042, 0.028, 0.05, 0, -Math.PI / 2, 0)); // face
   g.add(at(cyl(0.01, 0.01, 0.085, brass, 12), 0, 0.028, 0.05, 0, 0, Math.PI / 2)); // hub
+  // mirror the gold trim onto the far (+x) face
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.009, 8, 26), brass), 0.04, 0.028, 0.05, 0, Math.PI / 2, 0)); // rim
+  g.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.022, 16), brass), 0.0405, 0.028, 0.05, 0, Math.PI / 2, 0)); // hub cap
   for (let i = 0; i < 3; i++) { const a = -0.45 + i * 0.45; g.add(at(cyl(0.004, 0.0015, 0.06, brass, 6), Math.sin(a) * 0.025, 0.092, 0.05, a, 0, 0)); } // back spikes
+
+  // === three-prong rotor on the back (separate steel colour), tucked behind the
+  //     drum with a red cowl hanging over the top to half-cover it ===
+  const steel = gunMetal(0x6a6f77, { metal: 0.85, rough: 0.32 });
+  const rotor = new THREE.Group(); rotor.position.set(0, 0.02, 0.122);
+  rotor.add(at(cyl(0.014, 0.014, 0.04, steel, 12), 0, 0, 0, Math.PI / 2)); // hub (axis z)
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const blade = box(0.014, 0.058, 0.02, steel);
+    blade.position.set(Math.cos(a) * 0.032, Math.sin(a) * 0.032, 0);
+    blade.rotation.z = a; blade.rotation.x = 0.35; // angled prong
+    rotor.add(blade);
+  }
+  g.add(rotor);
+  g.add(at(box(0.062, 0.022, 0.075, redDk), 0, 0.06, 0.105, -0.25));  // cowl roof
+  g.add(at(box(0.062, 0.045, 0.016, redDk), 0, 0.045, 0.152, -0.25)); // cowl back lip (overhangs the rotor)
 
   // === glowing plasma chamber wrapped in brass rings ===
   g.add(at(tube(0.038, 0.038, 0.12, plasma), 0, 0.012, -0.16));
