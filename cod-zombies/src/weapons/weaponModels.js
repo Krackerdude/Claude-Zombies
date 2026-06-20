@@ -756,52 +756,49 @@ function rayGunModel(weapon) {
   const plasma = plasmaGlow(color);
   const cyl = (r1, r2, len, m, seg = 16) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m);
 
-  // === main rear body block ===
-  g.add(at(box(0.1, 0.12, 0.2, red), 0, 0.02, -0.02));
-  g.add(at(box(0.104, 0.04, 0.16, redDk), 0, 0.082, -0.02)); // top spine
-  // horizontal cooling slats across the top spine
-  for (let i = 0; i < 4; i++) g.add(at(box(0.092, 0.008, 0.014, dark), 0, 0.105, -0.06 + i * 0.026));
+  // === ROUND main body — a chunky horizontal cylinder is the bulk (pistol-sized) ===
+  g.add(at(cyl(0.05, 0.05, 0.15, red), 0, 0.012, -0.03, Math.PI / 2)); // body cylinder (axis z)
+  g.add(at(box(0.05, 0.026, 0.1, redDk), 0, 0.052, -0.02));            // small top spine
+  for (let i = 0; i < 4; i++) g.add(at(box(0.044, 0.006, 0.011, dark), 0, 0.067, -0.05 + i * 0.022)); // slats
 
-  // === big "Blast-O-Matic" gauge dial on the visible (left) side, rear ===
-  g.add(at(cyl(0.115, 0.115, 0.05, red), 0, 0.06, 0.045, 0, 0, Math.PI / 2)); // dial body (axis x)
-  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.012, 8, 28), brass), -0.026, 0.06, 0.045, 0, Math.PI / 2, 0)); // brass rim
-  g.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.108, 28), new THREE.MeshBasicMaterial({ map: blastGaugeTexture() })), -0.028, 0.06, 0.045, 0, -Math.PI / 2, 0)); // dial face
-  g.add(at(cyl(0.016, 0.016, 0.06, brass, 12), 0, 0.06, 0.045, 0, 0, Math.PI / 2)); // hub
-  // back spikes radiating off the dial
-  for (let i = 0; i < 3; i++) { const a = -0.5 + i * 0.5; g.add(at(cyl(0.006, 0.002, 0.1, brass, 6), Math.sin(a) * 0.04, 0.06 + 0.13, 0.045 + Math.cos(a) * 0.02 - 0.06, a, 0, 0)); }
+  // === round, FAT "Blast-O-Matic" gauge drum at the rear ===
+  g.add(at(cyl(0.062, 0.062, 0.075, red), 0, 0.028, 0.05, 0, 0, Math.PI / 2));   // drum (axis x), thick
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.009, 8, 26), brass), -0.04, 0.028, 0.05, 0, Math.PI / 2, 0)); // rim
+  g.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.057, 28), new THREE.MeshBasicMaterial({ map: blastGaugeTexture() })), -0.042, 0.028, 0.05, 0, -Math.PI / 2, 0)); // face
+  g.add(at(cyl(0.01, 0.01, 0.085, brass, 12), 0, 0.028, 0.05, 0, 0, Math.PI / 2)); // hub
+  for (let i = 0; i < 3; i++) { const a = -0.45 + i * 0.45; g.add(at(cyl(0.004, 0.0015, 0.06, brass, 6), Math.sin(a) * 0.025, 0.092, 0.05, a, 0, 0)); } // back spikes
 
   // === glowing plasma chamber wrapped in brass rings ===
-  g.add(at(tube(0.05, 0.05, 0.17, plasma), 0, 0.005, -0.22));      // plasma tube
-  for (const cz of [-0.16, -0.22, -0.28]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.053, 0.012, 8, 20), brass), 0, 0.005, cz, 0, 0, Math.PI / 2));
+  g.add(at(tube(0.038, 0.038, 0.12, plasma), 0, 0.012, -0.16));
+  for (const cz of [-0.115, -0.16, -0.205]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.041, 0.009, 8, 18), brass), 0, 0.012, cz, 0, 0, Math.PI / 2));
 
-  // === red bulbous nose + barrel + flared muzzle cone ===
-  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.056, 16, 12), red), 0, 0.005, -0.32));
-  g.add(at(tube(0.017, 0.017, 0.13, barrelMat), 0, 0.005, -0.42));  // barrel
-  for (const bz of [-0.39, -0.45]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.006, 8, 16), brass), 0, 0.005, bz, 0, 0, Math.PI / 2));
-  g.add(at(cyl(0.05, 0.03, 0.08, red), 0, 0.005, -0.52, Math.PI / 2)); // flared cone (axis z)
-  for (const cz of [-0.5, -0.54]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.006, 8, 16), brass), 0, 0.005, cz, 0, 0, Math.PI / 2));
-  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.007, 6, 5), brass), Math.cos(a) * 0.04, 0.005 + Math.sin(a) * 0.04, -0.53)); } // studs
-  g.add(at(tube(0.004, 0.004, 0.07, brass), 0, 0.005, -0.59));      // antenna rod
-  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), red), 0, 0.005, -0.63)); // ball tip
+  // === red bulb nose + barrel + flared cone + ball antenna ===
+  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.042, 14, 11), red), 0, 0.012, -0.235));
+  g.add(at(tube(0.012, 0.012, 0.085, barrelMat), 0, 0.012, -0.3));
+  for (const bz of [-0.275, -0.32]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.005, 8, 14), brass), 0, 0.012, bz, 0, 0, Math.PI / 2));
+  g.add(at(cyl(0.034, 0.022, 0.055, red), 0, 0.012, -0.37, Math.PI / 2)); // flared cone (axis z)
+  for (const cz of [-0.355, -0.388]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.005, 8, 14), brass), 0, 0.012, cz, 0, 0, Math.PI / 2));
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.005, 6, 5), brass), Math.cos(a) * 0.026, 0.012 + Math.sin(a) * 0.026, -0.375)); } // studs
+  g.add(at(tube(0.003, 0.003, 0.05, brass), 0, 0.012, -0.42));     // antenna rod
+  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 6), red), 0, 0.012, -0.45)); // ball tip
 
   // === flame top-fin + loop sight ===
-  g.add(at(box(0.012, 0.07, 0.11, redDk), 0, 0.07, -0.3));          // fin blade
-  g.add(at(box(0.012, 0.03, 0.04, red), 0, 0.11, -0.26, 0.5));      // fin tip flick
-  g.add(at(tube(0.004, 0.004, 0.12, brass), 0, 0.11, -0.34, Math.PI / 2)); // sight stalk (axis y)
-  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.005, 8, 16), brass), 0, 0.18, -0.34, 0, Math.PI / 2, 0)); // loop
+  g.add(at(box(0.01, 0.05, 0.08, redDk), 0, 0.058, -0.18));         // fin blade
+  g.add(at(box(0.01, 0.022, 0.03, red), 0, 0.09, -0.155, 0.5));     // fin tip flick
+  g.add(at(tube(0.003, 0.003, 0.08, brass), 0, 0.085, -0.2, Math.PI / 2)); // sight stalk
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.004, 8, 14), brass), 0, 0.13, -0.2, 0, Math.PI / 2, 0)); // loop
 
   // === twin top carry-handle loops ===
-  for (const hz of [-0.06, 0.04]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.006, 8, 16, Math.PI), dark), 0, 0.105, hz));
+  for (const hz of [-0.05, 0.02]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 14, Math.PI), dark), 0, 0.07, hz));
 
   // === ribbed grip + brass trigger guard + trigger ===
-  g.add(at(box(0.05, 0.15, 0.07, grip), 0, -0.1, 0.04, 0.18));
-  g.add(at(box(0.052, 0.02, 0.072, dark), 0, -0.172, 0.057, 0.18));
-  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 8, 16), brass), 0, -0.05, -0.04, 0, Math.PI / 2, 0));
-  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.045, -0.04));
-  // little glowing lightning emblem on the body side
-  g.add(at(box(0.026, 0.03, 0.004, scopeGlow(color)), -0.051, 0.03, -0.05));
+  g.add(at(box(0.042, 0.12, 0.055, grip), 0, -0.075, 0.02, 0.16));
+  g.add(at(box(0.044, 0.016, 0.057, dark), 0, -0.13, 0.034, 0.16));
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 14), brass), 0, -0.04, -0.025, 0, Math.PI / 2, 0));
+  g.add(at(box(0.009, 0.022, 0.008, dark), 0, -0.035, -0.025));
+  g.add(at(box(0.022, 0.024, 0.004, scopeGlow(color)), -0.042, 0.02, -0.04)); // lightning emblem
 
-  return { group: g, muzzle: -0.62 };
+  return { group: g, muzzle: -0.46 };
 }
 
 const BUILDERS = {
