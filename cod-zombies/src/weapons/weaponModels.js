@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gunMetal, gunMetalRidged, gunGrip, gunDark, ironSightGlow } from './gunMaterials.js';
+import { gunMetal, gunMetalRidged, gunGrip, gunDark, gunWood, ironSightGlow } from './gunMaterials.js';
 
 /**
  * Distinct first-person weapon models, assembled from primitives so each class
@@ -363,6 +363,70 @@ function galil() {
   return { group: g, muzzle: -0.75 };
 }
 
+// --- Olympia (BO3) — bespoke over/under sporting shotgun. NOT a side-by-side:
+//     two STACKED blued barrels with a ventilated top rib (slotted strip on
+//     posts), an ornate blued receiver with gold scroll trim + a gold trigger,
+//     and rich checkered-walnut forend + buttstock with a gold pinstripe and a
+//     rubber recoil pad. Built on the shared gunMetal/gunWood standards. ---
+function olympia() {
+  const g = new THREE.Group();
+  const blued = gunMetal(0x1c2029, { metal: 0.85, rough: 0.27 });  // deep-blued barrels
+  const breech = gunMetal(0x262b35, { metal: 0.8, rough: 0.33 });  // receiver steel (catches engraving light)
+  const gold = gunMetal(0xc99b34, { metal: 0.92, rough: 0.34 });   // scroll engraving + trigger
+  const wood = gunWood(0x8f4f30);                                  // warm figured walnut
+  const woodChk = gunWood(0x824327, { checker: true });            // checkered grip/forend panels
+  const bead = gunMetal(0xb89248, { metal: 0.8, rough: 0.3 });     // brass front bead
+  const pad = gunDark(0x0c0d0f);                                   // rubber recoil pad
+  const dark = gunDark(0x0e1014);
+
+  // === stacked (over/under) barrels ===
+  g.add(at(tube(0.016, 0.016, 0.6, blued), 0, 0.026, -0.46));         // upper barrel
+  g.add(at(tube(0.016, 0.016, 0.6, blued), 0, -0.006, -0.46));        // lower barrel
+  for (const by of [0.026, -0.006]) {                                  // muzzle caps + dark bores
+    g.add(at(tube(0.017, 0.017, 0.012, dark), 0, by, -0.758));
+    g.add(at(tube(0.0095, 0.0095, 0.014, dark), 0, by, -0.762));
+  }
+  // thin webs joining the barrels, with gaps (the side vents)
+  for (let z = -0.24; z >= -0.7; z -= 0.07) g.add(at(box(0.007, 0.022, 0.016, blued), 0, 0.01, z));
+
+  // === ventilated top rib: a flat sighting strip on little posts ===
+  g.add(at(box(0.015, 0.005, 0.57, blued), 0, 0.049, -0.46));         // rib strip
+  for (let z = -0.21; z >= -0.73; z -= 0.05) g.add(at(box(0.013, 0.012, 0.014, blued), 0, 0.043, z)); // vent posts
+  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), bead), 0, 0.054, -0.752)); // brass front bead
+
+  // === ornate blued receiver / breech block ===
+  g.add(at(box(0.062, 0.088, 0.17, breech), 0, 0.006, -0.095));       // receiver block
+  g.add(at(box(0.028, 0.024, 0.1, breech), 0, 0.052, -0.04));         // top tang
+  g.add(at(box(0.012, 0.014, 0.06, gold), 0, 0.064, -0.05));          // gold top-lever
+  // gold scroll trim: top + bottom border lines and a rosette on each side
+  for (const sx of [-1, 1]) {
+    g.add(at(box(0.004, 0.006, 0.14, gold), sx * 0.032, 0.042, -0.095)); // upper trim line
+    g.add(at(box(0.004, 0.006, 0.14, gold), sx * 0.032, -0.03, -0.095));  // lower trim line
+    g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), gold), sx * 0.033, 0.006, -0.1)); // engraved rosette
+    g.add(at(box(0.004, 0.03, 0.018, gold), sx * 0.032, 0.006, -0.05)); // small scroll flourish
+  }
+
+  // === trigger guard + gold trigger ===
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), breech);
+  g.add(at(guard, 0, -0.05, -0.05, 0, Math.PI / 2));
+  g.add(at(box(0.008, 0.022, 0.008, gold), 0, -0.045, -0.05));        // gold trigger
+
+  // === walnut forend, wrapping the underside of the barrels ===
+  g.add(at(box(0.054, 0.052, 0.2, wood), 0, -0.026, -0.4));           // forend body
+  g.add(at(box(0.04, 0.04, 0.06, wood), 0, -0.022, -0.52));           // tapered front tip
+  g.add(at(box(0.057, 0.03, 0.11, woodChk), 0, -0.034, -0.4));        // checkered panel
+  g.add(at(box(0.058, 0.003, 0.12, gold), 0, -0.012, -0.4));          // gold pinstripe border
+
+  // === walnut wrist + buttstock + recoil pad ===
+  g.add(at(box(0.046, 0.064, 0.12, wood), 0, -0.012, 0.03));          // wrist (grip)
+  g.add(at(box(0.05, 0.05, 0.07, woodChk), 0, -0.02, 0.03));          // checkered grip panel
+  g.add(at(box(0.052, 0.1, 0.18, wood), 0, 0.0, 0.17));               // buttstock body
+  g.add(at(box(0.048, 0.032, 0.13, wood), 0, 0.052, 0.14));           // raised comb / cheek
+  g.add(at(box(0.05, 0.108, 0.022, pad), 0, 0.0, 0.258));             // rubber recoil pad
+
+  return { group: g, muzzle: -0.78 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -375,6 +439,7 @@ export function buildWeaponModel(weapon) {
   const cat = weapon.data.category;
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
+  if (weapon.data.name === 'OLYMPIA') return olympia();
   if (cat === 'wonder') return wonder(vm, weapon.data.projectileType === 'cone');
   const fn = BUILDERS[cat] || assaultRifle;
   return fn(vm);
