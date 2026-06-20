@@ -1141,13 +1141,12 @@ function cherryIcon() {
 }
 
 function buildElectricMachine(def) {
-  const rust = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: 0.85, metalness: 0.4 }));
-  const darkM = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x26221c, roughness: 0.8, metalness: 0.5 }));
+  const body = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x23252b, roughness: 0.55, metalness: 0.55 })); // glossy near-black (concept-art body)
+  const darkM = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x16181d, roughness: 0.78, metalness: 0.5 }));
   const chrome = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xb6bbc0, metalness: 0.9, roughness: 0.3 }));
   const ceramic = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xe6e2d6, roughness: 0.5 }));
   const frost = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xdcecff, roughness: 0.6 }));
   const glow = new THREE.MeshBasicMaterial({ color: def.color });
-  const arcMat = new THREE.MeshBasicMaterial({ color: 0xbfe0ff, transparent: true });
 
   const g = new THREE.Group();
   const H = def.h, W = 0.96, D = 0.82, F = D / 2;
@@ -1156,7 +1155,7 @@ function buildElectricMachine(def) {
   const decalMat = (mat) => { mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.polygonOffsetUnits = -2; mat.transparent = true; return mat; };
 
   // heavy riveted cooler box on stubby feet
-  const cab = box(W, bodyH, D, rust); cab.position.y = 0.12 + bodyH / 2; cab.castShadow = true; g.add(cab);
+  const cab = box(W, bodyH, D, body); cab.position.y = 0.12 + bodyH / 2; cab.castShadow = true; g.add(cab);
   const lid = box(W + 0.04, 0.08, D + 0.04, chrome); lid.position.y = 0.12 + bodyH; g.add(lid);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const foot = box(0.1, 0.12, 0.1, darkM); foot.position.set(sx * (W / 2 - 0.08), 0.06, sz * (D / 2 - 0.08)); g.add(foot); }
   // rivets along the front edges
@@ -1211,15 +1210,47 @@ function buildElectricMachine(def) {
   const disc = new THREE.Mesh(new THREE.CircleGeometry(0.26, 30), signMat); disc.position.z = 0.03; signGroup.add(disc);
   const icon = new THREE.Mesh(new THREE.CircleGeometry(0.2, 26), decalMat(new THREE.MeshBasicMaterial({ map: cherryIcon() }))); icon.position.z = 0.05; signGroup.add(icon);
 
-  // crackling electric arcs around the sign
-  const arcs = [];
-  for (let i = 0; i < 5; i++) {
-    const bolt = box(0.012, 0.18 + Math.random() * 0.1, 0.012, arcMat.clone());
-    const a = Math.random() * Math.PI * 2;
-    bolt.position.set(Math.cos(a) * 0.3, signY + Math.sin(a) * 0.3, 0.02);
-    bolt.rotation.z = a + Math.PI / 2 + (Math.random() - 0.5);
-    g.add(bolt); arcs.push(bolt);
+  // energized halo behind the emblem (pulses with the lightning)
+  const halo = new THREE.Mesh(
+    new THREE.TorusGeometry(0.225, 0.022, 8, 30),
+    new THREE.MeshBasicMaterial({ color: 0xbfdcff, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }),
+  );
+  halo.position.z = 0.052; signGroup.add(halo);
+
+  // jagged lightning crackling inward into the centerpiece. Each bolt is a chain
+  // of thin additive segments whose jagged path + flicker are recomputed every
+  // frame, so it reads as live electricity striking the emblem rather than the
+  // old static radial lines.
+  const BOLTS = 7, SEGS = 5;
+  const bolts = [];
+  for (let i = 0; i < BOLTS; i++) {
+    const m = new THREE.MeshBasicMaterial({ color: 0xd6ecff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const grp = new THREE.Group(); const seg = [];
+    for (let s = 0; s < SEGS; s++) { const b = box(0.014, 1, 0.014, m); b.scale.y = 0.001; grp.add(b); seg.push(b); }
+    signGroup.add(grp);
+    bolts.push({ seg, mat: m, base: (i / BOLTS) * Math.PI * 2 });
   }
+  // recompute one bolt's jagged path from the rim toward the centre + set its glow
+  const reJag = (b, intensity) => {
+    b.mat.opacity = intensity;
+    if (intensity <= 0) { for (const s of b.seg) s.scale.y = 0.001; return; }
+    const ang = b.base + (Math.random() - 0.5) * 0.5;
+    const Rout = 0.34 + Math.random() * 0.05, Rin = 0.04 + Math.random() * 0.13;
+    const ox = Math.cos(ang) * Rout, oy = Math.sin(ang) * Rout;
+    const ex = Math.cos(ang) * Rin, ey = Math.sin(ang) * Rin;
+    const px = -Math.sin(ang), py = Math.cos(ang); // perpendicular jitter axis
+    let prevx = ox, prevy = oy; const N = b.seg.length;
+    for (let s = 0; s < N; s++) {
+      const t = (s + 1) / N;
+      let jx = ox + (ex - ox) * t, jy = oy + (ey - oy) * t;
+      if (s < N - 1) { const j = (Math.random() - 0.5) * 0.09 * (1 - t * 0.3); jx += px * j; jy += py * j; }
+      const dx = jx - prevx, dy = jy - prevy, len = Math.hypot(dx, dy) || 0.001;
+      const part = b.seg[s];
+      part.position.set((prevx + jx) / 2, (prevy + jy) / 2, 0.07);
+      part.scale.y = len; part.rotation.z = Math.atan2(dy, dx) - Math.PI / 2;
+      prevx = jx; prevy = jy;
+    }
+  };
 
   // glowing bottle-tube window behind glass (over the cherry-glow backing)
   const tubeMats = [];
@@ -1275,11 +1306,14 @@ function buildElectricMachine(def) {
       // electric stutter on the sign + light
       const flick = (Math.sin(now * 30) > 0.7 || Math.random() > 0.92) ? 0.4 : 1.0;
       light.intensity = 0.7 * flick;
-      for (let i = 0; i < arcs.length; i++) {
-        const on = Math.random() > 0.5;
-        arcs[i].material.opacity = on ? 0.9 : 0.0;
-        arcs[i].scale.y = 0.6 + Math.random() * 0.8;
+      // live lightning into the centerpiece: a random subset fires each frame
+      let crackle = 0;
+      for (let i = 0; i < bolts.length; i++) {
+        const fire = Math.random() > 0.5;
+        const a = fire ? 0.7 + Math.random() * 0.3 : 0;
+        reJag(bolts[i], a); crackle = Math.max(crackle, a);
       }
+      halo.material.opacity = 0.28 + crackle * 0.55;
       for (let i = 0; i < tubeMats.length; i++) tubeMats[i].color.setHex(def.color).multiplyScalar(0.5 + (0.5 + 0.5 * Math.sin(now * 4 - i * 0.6)) * 0.9);
       for (let i = 0; i < neonMats.length; i++) neonMats[i].color.setHex(def.color).multiplyScalar(0.7 * flick + 0.3);
     },
