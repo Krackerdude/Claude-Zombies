@@ -7,6 +7,9 @@ const ADS = new THREE.Vector3(0.0, -0.0715, -0.32);
 // SMGs carry their sights high on a top rail, so they sit lower at ADS to bring
 // that sight line down to centre (the K-Vector standard for the whole class).
 const ADS_SMG = new THREE.Vector3(0.0, -0.118, -0.32);
+// Assault rifles sit 15% lower than the generic ADS (the Galil standard for the
+// whole class), dropping the sight line a touch further down-centre.
+const ADS_AR = new THREE.Vector3(0.0, -0.0822, -0.32);
 const _off = new THREE.Vector3();
 const _world = new THREE.Vector3();
 const _q = new THREE.Quaternion();
@@ -178,7 +181,8 @@ export class Viewmodel {
     const swap = Math.sin(Math.min(1, weapon.reloadProgress) * Math.PI) * this.#reload; // 0->1->0
 
     const a = weapon.adsProgress * (1 - this.#reload); // can't ADS mid-reload
-    const adsPos = weapon.data.category === 'smg' ? ADS_SMG : ADS;
+    const cat = weapon.data.category;
+    const adsPos = cat === 'smg' ? ADS_SMG : cat === 'assaultRifle' ? ADS_AR : ADS;
     _off.lerpVectors(HIP, adsPos, a);
     _off.x += this.#sway.x + bobX - swap * 0.05;
     _off.y += this.#sway.y + bobY - this.#reload * 0.14 - swap * 0.03;
