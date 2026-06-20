@@ -656,6 +656,71 @@ function m72() {
   return { group: g, muzzle: -0.72 };
 }
 
+// --- Death Machine (M134 minigun) — bespoke and deliberately oversized: this
+//     should read as the most imposing thing in the kit. Six rotary barrels in
+//     a clamped cluster, a big muzzle collar, a heavy rotor housing with the
+//     electric-motor drum + top carry handle, an ammo can with a brass belt
+//     feeding in, and a centred rear grip. Handles/grips are kept centred or on
+//     top — nothing juts out to the left where the handless viewmodel has no
+//     hand to justify it. Shared gunMetal set. ---
+function deathMachine() {
+  const g = new THREE.Group();
+  const housing = gunMetal(0x2a2e35);
+  const housingDk = gunMetal(0x1f232a);
+  const barrelMat = gunMetal(0x3a3f47, { metal: 0.85, rough: 0.28 }); // blued, light-catching barrels
+  const clamp = gunMetal(0x2c3037);
+  const dark = gunDark(0x121317);
+  const brass = gunMetal(0xb08a3c, { metal: 0.8, rough: 0.35 });
+  const ammoBox = gunDark(0x1a1d22);
+  const handleMat = gunDark(0x16181d);
+  const grip = gunGrip();
+  const RB = 0.045; // barrel-cluster radius
+
+  // === six rotary barrels (the signature) ===
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const x = Math.cos(a) * RB, y = Math.sin(a) * RB;
+    g.add(at(tube(0.013, 0.013, 0.62, barrelMat), x, y, -0.55));     // barrel
+    g.add(at(tube(0.014, 0.014, 0.022, dark), x, y, -0.86));         // dark muzzle bore
+  }
+
+  // === clamp/spacer collars along the cluster + larger muzzle collar ===
+  for (const cz of [-0.32, -0.48, -0.64]) g.add(at(tube(0.061, 0.061, 0.024, clamp), 0, 0, cz));
+  g.add(at(tube(0.067, 0.067, 0.05, clamp), 0, 0, -0.83));           // muzzle clamp
+  g.add(at(tube(0.07, 0.07, 0.014, dark), 0, 0, -0.862));            // front rim
+
+  // === heavy rotor housing (the motor block) ===
+  g.add(at(box(0.14, 0.14, 0.26, housing), 0, 0, -0.1));             // main housing
+  g.add(at(tube(0.06, 0.06, 0.05, housingDk), 0, 0, -0.235));        // rotor front (barrels enter)
+  g.add(at(tube(0.05, 0.05, 0.04, dark), 0, 0, -0.25));              // rotor recess
+  g.add(at(box(0.12, 0.12, 0.07, housingDk), 0, 0, 0.05));           // rear cap
+  for (const sy of [-1, 1]) g.add(at(box(0.146, 0.02, 0.2, housingDk), 0, sy * 0.055, -0.1)); // top/bottom seam rails
+  g.add(at(tube(0.03, 0.03, 0.12, housingDk), 0, 0.085, 0.0));       // electric-motor drum on top
+
+  // === top carry handle (U-shape, centred — never on the left) ===
+  g.add(at(box(0.012, 0.05, 0.012, handleMat), -0.045, 0.1, -0.1));
+  g.add(at(box(0.012, 0.05, 0.012, handleMat), 0.045, 0.1, -0.1));
+  g.add(at(box(0.11, 0.014, 0.014, handleMat), 0, 0.123, -0.1));
+
+  // === ammo can (below front) + feed chute + brass belt climbing in ===
+  g.add(at(box(0.12, 0.1, 0.15, ammoBox), 0, -0.13, -0.08));         // ammo can
+  g.add(at(box(0.122, 0.012, 0.05, dark), 0, -0.085, -0.08));        // can latch
+  g.add(at(box(0.05, 0.07, 0.05, housingDk), 0.028, -0.05, -0.06));  // feed chute (right/far side)
+  for (let i = 0; i < 5; i++) {                                       // brass belt
+    const t = i / 4;
+    g.add(at(box(0.013, 0.024, 0.014, brass), 0.05, -0.085 + t * 0.06, -0.06));
+  }
+
+  // === centred rear grip + trigger ===
+  g.add(at(box(0.05, 0.13, 0.06, grip), 0, -0.11, 0.07, 0.16));
+  g.add(at(box(0.052, 0.02, 0.062, dark), 0, -0.176, 0.083, 0.16));  // grip base
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 8, 16), housingDk);
+  g.add(at(guard, 0, -0.055, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.012, 0.028, 0.01, dark), 0, -0.05, 0.02));          // trigger
+
+  return { group: g, muzzle: -0.88 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -672,6 +737,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
+  if (weapon.data.name === 'DEATH MACHINE') return deathMachine();
   if (cat === 'wonder') return wonder(vm, weapon.data.projectileType === 'cone');
   const fn = BUILDERS[cat] || assaultRifle;
   return fn(vm);
