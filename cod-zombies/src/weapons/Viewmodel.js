@@ -10,6 +10,11 @@ const ADS_SMG = new THREE.Vector3(0.0, -0.118, -0.32);
 // Assault rifles sit 15% lower than the generic ADS (the Galil standard for the
 // whole class), dropping the sight line a touch further down-centre.
 const ADS_AR = new THREE.Vector3(0.0, -0.0822, -0.32);
+// Death Machine is bespoke and oversized: drop its hip pose and pull it in
+// toward the player so the minigun doesn't crowd the screen, and sit its ADS
+// ~20% lower than the generic so the sight line reads down-centre.
+const HIP_DM = new THREE.Vector3(0.22, -0.23, -0.34);
+const ADS_DM = new THREE.Vector3(0.0, -0.0858, -0.32);
 const _off = new THREE.Vector3();
 const _world = new THREE.Vector3();
 const _q = new THREE.Quaternion();
@@ -214,8 +219,10 @@ export class Viewmodel {
 
     const a = weapon.adsProgress * (1 - this.#reload); // can't ADS mid-reload
     const cat = weapon.data.category;
-    const adsPos = cat === 'smg' ? ADS_SMG : cat === 'assaultRifle' ? ADS_AR : ADS;
-    _off.lerpVectors(HIP, adsPos, a);
+    const dm = weapon.data.name === 'DEATH MACHINE';
+    const hipPos = dm ? HIP_DM : HIP;
+    const adsPos = dm ? ADS_DM : cat === 'smg' ? ADS_SMG : cat === 'assaultRifle' ? ADS_AR : ADS;
+    _off.lerpVectors(hipPos, adsPos, a);
     _off.x += this.#sway.x + bobX - swap * 0.05;
     _off.y += this.#sway.y + bobY - this.#reload * 0.14 - swap * 0.03;
     _off.z += this.#kick * 0.06 - this.#reload * 0.04;

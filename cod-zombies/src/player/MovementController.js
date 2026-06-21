@@ -181,7 +181,10 @@ export class MovementController {
   #groundedResolve(intent) {
     const tag = this.#tag;
     const sprinting = intent.sprintHeld && intent.forward > 0 && tag.canSprint && !tag.noSprint;
-    const fast = this.#horizSpeed() >= PlayerConfig.walkSpeed * 0.7;
+    // Already-sprinting always counts as "fast": a one-frame velocity dip from
+    // grazing a wall/zombie (velocity reconciles to the blocked displacement in
+    // #applyMovement) shouldn't drop a crouch press from a slide into a crouch.
+    const fast = tag.state === MoveState.SPRINT || this.#horizSpeed() >= PlayerConfig.walkSpeed * 0.7;
 
     if (sprinting && intent.crouchEdge && fast) { this.#startSlide(true); return; }
     if (sprinting && intent.proneEdge && tag.diveLock <= 0) { this.#startDive(); return; }
