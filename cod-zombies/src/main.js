@@ -219,13 +219,14 @@ async function main() {
       const chip = document.createElement('div');
       chip.className = 'perk-chip';
       chip.style.backgroundColor = '#' + color.toString(16).padStart(6, '0');
-      // show the perk's actual emblem (matches the machine); fall back to initials
+      // the emblem sits in its OWN layer above the chip's darken/grit overlay so
+      // the art stays bright + readable while the colour field stays moody
       const url = perkIconDataURL(id);
       if (url) {
-        chip.style.backgroundImage = `url(${url})`;
-        chip.style.backgroundSize = '82%';
-        chip.style.backgroundRepeat = 'no-repeat';
-        chip.style.backgroundPosition = 'center';
+        const ic = document.createElement('div');
+        ic.className = 'perk-icon';
+        ic.style.backgroundImage = `url(${url})`;
+        chip.appendChild(ic);
       } else {
         chip.textContent = name.split(' ').map((w) => w[0]).join('').slice(0, 3);
       }

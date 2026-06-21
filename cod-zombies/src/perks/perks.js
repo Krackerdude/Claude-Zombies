@@ -106,6 +106,7 @@ function labelTexture(def) {
 function doubleTapIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
+  x.translate(128, 128); x.scale(1.12, 1.12); x.translate(-128, -128);
   // starburst rays behind
   x.fillStyle = '#fff'; x.save(); x.translate(128, 128);
   for (let i = 0; i < 12; i++) { x.rotate(Math.PI / 6); x.beginPath(); x.moveTo(0, -44); x.lineTo(8, -100); x.lineTo(-8, -100); x.closePath(); x.fill(); }
@@ -330,10 +331,8 @@ function reviveIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round';
-  // shield outline
-  x.beginPath();
-  x.moveTo(128, 46); x.lineTo(204, 86); x.lineTo(204, 150); x.lineTo(128, 212); x.lineTo(52, 150); x.lineTo(52, 86); x.closePath();
-  x.stroke();
+  // no inner frame (the chip is the crest) — scale the symbol up to fill it
+  x.translate(128, 128); x.scale(1.32, 1.32); x.translate(-128, -128);
   // downed figure lying across the bottom (head left)
   x.lineCap = 'round';
   x.beginPath(); x.arc(80, 170, 14, 0, 7); x.fill();                    // head
@@ -431,6 +430,7 @@ function buildDinerMachine(def) {
 function juggIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
+  x.translate(128, 128); x.scale(1.12, 1.12); x.translate(-128, -128);
   // white cross
   x.fillStyle = '#fff';
   x.fillRect(108, 56, 40, 144);
@@ -573,8 +573,7 @@ function speedColaIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round'; x.lineCap = 'round';
-  // shield
-  x.beginPath(); x.moveTo(128, 48); x.lineTo(200, 84); x.lineTo(200, 150); x.lineTo(128, 210); x.lineTo(56, 150); x.lineTo(56, 84); x.closePath(); x.stroke();
+  x.translate(128, 128); x.scale(1.3, 1.3); x.translate(-128, -128);
   // open hand (Speed Cola = fast hands / quick reload)
   x.fillStyle = '#fff';
   for (let i = 0; i < 4; i++) { const fx = 106 + i * 13; const trim = (i === 0 || i === 3) ? 8 : 0; x.fillRect(fx, 90 + trim, 10, 54 - trim); } // four fingers
@@ -751,8 +750,7 @@ function staminIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineJoin = 'round'; x.lineCap = 'round';
-  // shield
-  x.lineWidth = 12; x.beginPath(); x.moveTo(128, 50); x.lineTo(198, 84); x.lineTo(198, 148); x.lineTo(128, 206); x.lineTo(58, 148); x.lineTo(58, 84); x.closePath(); x.stroke();
+  x.translate(128, 128); x.scale(1.3, 1.3); x.translate(-128, -128);
   // swoosh / motion track curving under the runner's feet
   x.lineWidth = 11; x.beginPath(); x.ellipse(126, 168, 60, 20, -0.16, Math.PI * 0.02, Math.PI * 1.2); x.stroke();
   // running figure
@@ -953,8 +951,7 @@ function pistolIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round';
-  // shield
-  x.beginPath(); x.moveTo(128, 50); x.lineTo(198, 84); x.lineTo(198, 148); x.lineTo(128, 206); x.lineTo(58, 148); x.lineTo(58, 84); x.closePath(); x.stroke();
+  x.translate(128, 128); x.scale(1.3, 1.3); x.translate(-128, -128);
   // a single side-on pistol silhouette, drawn at the current transform
   const pistol = () => {
     x.fillStyle = '#fff';
@@ -1154,8 +1151,7 @@ function radIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round';
-  // shield
-  x.beginPath(); x.moveTo(128, 52); x.lineTo(196, 86); x.lineTo(196, 148); x.lineTo(128, 204); x.lineTo(60, 148); x.lineTo(60, 86); x.closePath(); x.stroke();
+  x.translate(128, 128); x.scale(1.34, 1.34); x.translate(-128, -128);
   // radiation trefoil
   x.translate(128, 128);
   x.fillStyle = '#fff';
@@ -1283,7 +1279,7 @@ function cherryIcon() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
   x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round'; x.lineCap = 'round';
-  x.beginPath(); x.moveTo(128, 52); x.lineTo(196, 86); x.lineTo(196, 148); x.lineTo(128, 204); x.lineTo(60, 148); x.lineTo(60, 86); x.closePath(); x.stroke();
+  x.translate(128, 128); x.scale(1.24, 1.24); x.translate(-128, -128);
   // cherries
   x.beginPath(); x.arc(108, 158, 24, 0, 7); x.fill();
   x.beginPath(); x.arc(152, 168, 20, 0, 7); x.fill();
