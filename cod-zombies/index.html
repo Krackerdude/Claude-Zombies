@@ -235,11 +235,20 @@
         <circle class="ring-fg" cx="20" cy="20" r="16"></circle>
       </svg>
 
-      <!-- bottom-right: stylized weapon widget -->
+      <!-- bottom-right: BO3-style weapon device — glowing ammo tube wired into a
+           mechanical pod that reads out the grenade count -->
       <div id="hud-weapon">
-        <div class="wpn-widget hud-tex">
-          <div class="wpn-ammo" id="hud-ammo"><span class="mag">0</span><span class="res">0</span></div>
-          <div class="wpn-nade"><span class="nade-icon"></span><span class="nade-n" id="hud-lethal-count">0</span></div>
+        <div class="wpn-widget">
+          <div class="wpn-tube hud-tex" id="hud-ammo">
+            <span class="tube-glow"></span>
+            <span class="mag">0</span><span class="res">0</span>
+          </div>
+          <div class="wpn-pod">
+            <span class="pod-lens"></span>
+            <span class="pod-ring"></span>
+            <i class="nade-glyph"></i>
+            <b class="nade-n" id="hud-lethal-count">0</b>
+          </div>
         </div>
         <div class="wpn-name">—</div>
       </div>
