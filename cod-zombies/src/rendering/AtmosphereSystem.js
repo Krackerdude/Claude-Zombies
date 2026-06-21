@@ -14,13 +14,15 @@ import { AtmosphereConfig } from '../config/index.js';
  */
 export class AtmosphereSystem extends System {
   #lights;
+  #cones;
   #cfg;
   #t = 0;
   #wasEnabled = true;
 
-  constructor(lights = [], cfg = AtmosphereConfig) {
+  constructor(lights = [], cfg = AtmosphereConfig, cones = []) {
     super();
     this.#cfg = cfg;
+    this.#cones = cones;
     this.#lights = lights.map((light, i) => {
       const f = light.userData.flicker || {};
       return {
@@ -40,10 +42,18 @@ export class AtmosphereSystem extends System {
         for (const e of this.#lights) e.light.intensity = e.base;
         this.#wasEnabled = false;
       }
+      for (const c of this.#cones) c.visible = false;
       return;
     }
     this.#wasEnabled = true;
     this.#t += dt;
+
+    // volumetric beams: gate on the config flag, advance their shimmer time
+    const conesOn = this.#cfg.lightCones !== false;
+    for (const c of this.#cones) {
+      c.visible = conesOn;
+      if (conesOn) c.userData.coneMat.uniforms.uTime.value = this.#t;
+    }
 
     const gSpeed = this.#cfg.flickerSpeed;
     const gDepth = this.#cfg.flickerDepth;

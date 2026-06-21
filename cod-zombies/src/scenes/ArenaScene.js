@@ -26,6 +26,10 @@ import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../render
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../rendering/AmbientParticles.js';
 import { DecalSystem } from '../rendering/DecalSystem.js';
+import { buildLightCone } from '../rendering/lightCone.js';
+import { EffectsDirector } from '../rendering/EffectsDirector.js';
+import { WeatherSystem } from '../rendering/WeatherSystem.js';
+import { AtmosphereConfig } from '../config/index.js';
 
 const B = 10; // building half-extent
 const T = 1; // wall thickness
@@ -74,17 +78,26 @@ export function buildArena(engine) {
   // opt into the AtmosphereSystem's flicker via userData.flicker; the warm
   // interior bulbs gutter like bad wiring, the cool fills breathe slowly.
   const flickerLights = [];
-  const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16, flicker = null) => {
+  const lightCones = [];
+  const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16, flicker = null, cone = false) => {
     const l = new THREE.PointLight(color, intensity, dist, 2);
     l.position.set(x, 3.2, z);
     if (flicker) { l.userData.flicker = flicker; flickerLights.push(l); }
     scene.add(l);
+    // dusty volumetric beam dropping from the bulb to the floor
+    if (cone) {
+      const h = 3.1;
+      const c = buildLightCone({ color, radius: 1.25, height: h, strength: 0.45 });
+      c.position.set(x, 3.2 - h / 2, z);
+      scene.add(c);
+      lightCones.push(c);
+    }
     return l;
   };
   const guttering = { depth: 1.0, speed: 1.0, drop: 0.9 }; // warm bulbs, bad wiring
   const breathing = { depth: 0.5, speed: 0.28, drop: 0 };  // cool fills, slow pulse
-  lamp(-5, -5, 0xffae5c, 6, 16, guttering); lamp(5, 5, 0xffae5c, 6, 16, guttering);
-  lamp(-5, 5, 0xff8a4c, 6, 16, guttering); lamp(5, -5, 0xff8a4c, 6, 16, guttering); // interior corners
+  lamp(-5, -5, 0xffae5c, 6, 16, guttering, true); lamp(5, 5, 0xffae5c, 6, 16, guttering, true);
+  lamp(-5, 5, 0xff8a4c, 6, 16, guttering, true); lamp(5, -5, 0xff8a4c, 6, 16, guttering, true); // interior corners
   lamp(0, 0, 0xc9d6ff, 4, 12, breathing); // cool center fill
   lamp(0, 16, 0x9fb4ff, 5, 20); lamp(0, -16, 0x9fb4ff, 5, 20); // exterior approaches
   lamp(16, 0, 0x9fb4ff, 5, 20); lamp(-16, 0, 0x9fb4ff, 5, 20);
@@ -175,13 +188,18 @@ export function buildArena(engine) {
 
   // dynamic-light atmosphere: gutter the warm bulbs, breathe the cool fills.
   // The shared normal maps join the tunable-texture set for anisotropy control.
-  engine.world.registerSystem(new AtmosphereSystem(flickerLights));
+  engine.world.registerSystem(new AtmosphereSystem(flickerLights, AtmosphereConfig, lightCones));
   sceneMgr.tunableTextures.push(...sharedNormalMaps());
 
   // ambient haze + persistent ground decals (blood pools, scorch). Both are
   // isolated, event-driven, and individually disable-able for performance.
   engine.world.registerSystem(new AmbientParticles());
   engine.world.registerSystem(new DecalSystem());
+  // drives the live, state-reactive post-FX (speed-lines, low-health vignette,
+  // round-dread palette, last-kill bullet-time)
+  engine.world.registerSystem(new EffectsDirector());
+  // rain, lightning + ground mist (Silent Hill weather)
+  engine.world.registerSystem(new WeatherSystem());
 
   // --- exterior spawn points (outside the building) ---
   const spawnPoints = [

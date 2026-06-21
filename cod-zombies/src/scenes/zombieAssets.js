@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { ps1Snap } from '../rendering/ps1.js';
+import { addRimLight } from '../rendering/rimLight.js';
+import { RimConfig } from '../config/index.js';
 
 /**
  * Procedural "PS2 horror" zombie skins. Each skin is a set of materials (flesh,
@@ -70,8 +72,11 @@ function clothTex([r, g, b], { tatters = true } = {}) {
   });
 }
 
-function snapMat(map, { rough = 1, metal = 0 } = {}) {
-  return ps1Snap(new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: metal }));
+function snapMat(map, { rough = 1, metal = 0, rim = true } = {}) {
+  const mat = ps1Snap(new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: metal }));
+  // cold moonlight rim along the silhouette so the dead pop out of the murk
+  if (rim && RimConfig.enabled) addRimLight(mat, { color: RimConfig.color, power: RimConfig.power, intensity: RimConfig.intensity });
+  return mat;
 }
 
 // civilian-zombie palettes — flesh tone + shirt + pants + shoe

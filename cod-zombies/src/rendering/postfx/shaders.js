@@ -69,6 +69,111 @@ export const DOF_FRAG = /* glsl */ `
   }
 `;
 
+/**
+ * Depth-cavity ambient occlusion. A stable, noise-light approximation: for a
+ * ring of neighbours, any that sit *in front* of the centre (within a metre
+ * range) count as occluders, darkening crevices, corners and the contact line
+ * where a body meets the floor. Multiplies the darkening straight into the
+ * scene colour, so no separate composite pass is needed.
+ */
+export const SSAO_FRAG = /* glsl */ `
+  #include <packing>
+  uniform sampler2D tDiffuse;
+  uniform sampler2D tDepth;
+  uniform vec2 uTexel;
+  uniform float uNear, uFar, uRadius, uIntensity, uBias, uPower;
+  varying vec2 vUv;
+
+  float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+
+  void main() {
+    vec3 col = texture2D(tDiffuse, vUv).rgb;
+    float dC = lin(vUv);
+    if (dC >= uFar * 0.9) { gl_FragColor = vec4(col, 1.0); return; } // sky
+    float pr = clamp(uRadius * 40.0 / dC, 3.0, 22.0); // ring radius in px, shrinks with distance
+    float occ = 0.0;
+    const int N = 8;
+    for (int i = 0; i < N; i++) {
+      float a = float(i) / float(N) * 6.2831853 + dC * 2.7; // depth-varied rotation
+      vec2 o = vec2(cos(a), sin(a)) * uTexel * pr;
+      float diff = dC - lin(vUv + o);          // >0 => neighbour is nearer (a crevice)
+      if (diff > uBias) occ += clamp(1.0 - (diff - uBias) / uRadius, 0.0, 1.0);
+    }
+    occ = pow(clamp(occ / float(N), 0.0, 1.0), uPower) * uIntensity;
+    gl_FragColor = vec4(col * clamp(1.0 - occ, 0.0, 1.0), 1.0);
+  }
+`;
+
+/**
+ * Ink / cel outlines (Persona 5 line-art). Sobel-ish edge detect on linear
+ * depth: silhouettes come from first-derivative depth gaps, interior creases
+ * from the second derivative (a depth "kink" with no gap). Thresholds scale with
+ * distance so far geometry doesn't fur up. Lays near-black ink into the colour.
+ */
+export const OUTLINE_FRAG = /* glsl */ `
+  #include <packing>
+  uniform sampler2D tDiffuse;
+  uniform sampler2D tDepth;
+  uniform vec2 uTexel;
+  uniform float uNear, uFar, uThickness, uDepthEdge, uNormalEdge, uStrength;
+  uniform vec3 uColor;
+  varying vec2 vUv;
+
+  float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+
+  void main() {
+    vec3 col = texture2D(tDiffuse, vUv).rgb;
+    vec2 t = uTexel * uThickness;
+    float c = lin(vUv);
+    float l = lin(vUv - vec2(t.x, 0.0)), r = lin(vUv + vec2(t.x, 0.0));
+    float u = lin(vUv - vec2(0.0, t.y)), d = lin(vUv + vec2(0.0, t.y));
+    float norm = max(c, 1.0);
+    float gap = (abs(c - l) + abs(c - r) + abs(c - u) + abs(c - d)) / norm;
+    float crease = (abs(l + r - 2.0 * c) + abs(u + d - 2.0 * c)) / norm;
+    float edge = max(smoothstep(0.0, 1.0, gap * uDepthEdge),
+                     smoothstep(0.0, 1.0, crease * uNormalEdge * 6.0));
+    edge = clamp(edge, 0.0, 1.0) * uStrength;
+    gl_FragColor = vec4(mix(col, uColor, edge), 1.0);
+  }
+`;
+
+/**
+ * Camera motion blur. Reconstructs each pixel's world point from depth, projects
+ * it through the previous frame's view-projection to find where it was on
+ * screen, and smears the colour along that screen velocity. Camera-only (no
+ * per-object velocity), which is exactly the sprint/turn smear we want.
+ */
+export const MOTIONBLUR_FRAG = /* glsl */ `
+  #define MAXS 16
+  uniform sampler2D tDiffuse;
+  uniform sampler2D tDepth;
+  uniform mat4 uInvViewProj;
+  uniform mat4 uPrevViewProj;
+  uniform float uStrength, uMax;
+  uniform int uSamples;
+  varying vec2 vUv;
+
+  void main() {
+    float d = texture2D(tDepth, vUv).x;
+    vec4 clip = vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+    vec4 wp = uInvViewProj * clip; wp /= wp.w;
+    vec4 pp = uPrevViewProj * vec4(wp.xyz, 1.0); pp /= pp.w;
+    vec2 prevUv = pp.xy * 0.5 + 0.5;
+    vec2 vel = (vUv - prevUv) * uStrength;
+    float vl = length(vel);
+    if (vl > uMax) vel *= uMax / vl;
+    vec3 col = texture2D(tDiffuse, vUv).rgb;
+    float w = 1.0;
+    for (int i = 1; i < MAXS; i++) {
+      if (i >= uSamples) break;
+      float s = float(i) / float(uSamples);
+      col += texture2D(tDiffuse, vUv - vel * s).rgb;
+      w += 1.0;
+    }
+    gl_FragColor = vec4(col / w, 1.0);
+  }
+`;
+
 /** Bright-pass: keep only the energy above the bloom threshold. */
 export const BRIGHT_FRAG = /* glsl */ `
   uniform sampler2D tDiffuse;
@@ -145,8 +250,10 @@ export const BLUR_FRAG = /* glsl */ `
 
 /**
  * Final composite + Persona-flavoured grade. In order: chromatic aberration,
- * bloom add, exposure/contrast/lift/gain/temperature/saturation, split-toning,
- * vignette, rolling scanlines, animated grain, then the single sRGB encode.
+ * speed-line radial burst, bloom + god-ray adds, exposure/contrast/lift/gain/
+ * temperature/saturation, split-toning, posterize+dither, vignette (with the
+ * reactive low-health throb), rolling scanlines, animated grain, then the single
+ * sRGB encode. `uSpeed`/`uReactive` are pushed live by the host each frame.
  */
 export const FINAL_FRAG = /* glsl */ `
   uniform sampler2D tDiffuse;
@@ -164,6 +271,12 @@ export const FINAL_FRAG = /* glsl */ `
   uniform float uAberr;
   uniform float uGrain;
   uniform float uScan, uScanDensity, uScanScroll;
+  uniform float uSpeed, uLines;     // kinetic burst (sprint/slide/kill/damage)
+  uniform float uReactive;          // low-health vignette throb
+  uniform float uPosterize, uDither;
+  uniform vec3 uHeat[4];            // explosion heat sources: xy uv, z strength
+  uniform int uHeatN;
+  uniform float uHeatStrength;
 
   varying vec2 vUv;
 
@@ -178,21 +291,45 @@ export const FINAL_FRAG = /* glsl */ `
     vec2 uv = vUv;
     vec2 toC = uv - 0.5;
 
+    // heat haze — shimmer the scene-sampling coordinate near active explosions
+    vec2 sUv = uv;
+    if (uHeatN > 0) {
+      for (int i = 0; i < 4; i++) {
+        if (i >= uHeatN) break;
+        float infl = uHeat[i].z * smoothstep(0.28, 0.0, distance(uv, uHeat[i].xy));
+        sUv.x += sin(uv.y * 42.0 + uTime * 9.0) * infl * 0.010 * uHeatStrength;
+        sUv.y += cos(uv.x * 42.0 + uTime * 8.0) * infl * 0.008 * uHeatStrength;
+      }
+    }
+
     // chromatic aberration — radial RGB split that ramps toward the edges
     vec3 col;
     if (uAberr > 0.0) {
       float amt = uAberr * 0.006 * dot(toC, toC) * 4.0;
-      col.r = texture2D(tDiffuse, uv - toC * amt).r;
-      col.g = texture2D(tDiffuse, uv).g;
-      col.b = texture2D(tDiffuse, uv + toC * amt).b;
+      col.r = texture2D(tDiffuse, sUv - toC * amt).r;
+      col.g = texture2D(tDiffuse, sUv).g;
+      col.b = texture2D(tDiffuse, sUv + toC * amt).b;
     } else {
-      col = texture2D(tDiffuse, uv).rgb;
+      col = texture2D(tDiffuse, sUv).rgb;
     }
 
-    // additive bloom
-    col += texture2D(tBloom, uv).rgb * uBloom;
+    // Persona kinetic burst — radial blur toward centre + dark motion streaks at
+    // the edges, driven live by sprint/slide/kill/damage intensity
+    if (uSpeed > 0.0) {
+      vec3 rb = col; float w = 1.0;
+      for (int i = 1; i <= 6; i++) {
+        rb += texture2D(tDiffuse, sUv - toC * (float(i) / 6.0) * 0.16 * uSpeed).rgb;
+        w += 1.0;
+      }
+      col = mix(col, rb / w, uSpeed * 0.7);
+      float ang = atan(toC.y, toC.x);
+      float streak = 0.5 + 0.5 * sin(ang * 90.0);
+      float edge = smoothstep(0.22, 0.6, length(toC));
+      col *= 1.0 - streak * edge * uSpeed * uLines * 0.6;
+    }
 
-    // god rays (tinted by the key light's colour)
+    // additive bloom + god rays (tinted by the key light's colour)
+    col += texture2D(tBloom, uv).rgb * uBloom;
     if (uGod > 0.0) col += texture2D(tGod, uv).rgb * uGodColor * uGod;
 
     // exposure → contrast (around mid grey) → lift/gain → temperature
@@ -211,10 +348,19 @@ export const FINAL_FRAG = /* glsl */ `
 
     col = max(col, 0.0);
 
-    // vignette
+    // graphic-novel posterize with a hash dither to break the colour bands
+    if (uPosterize > 0.0) {
+      float dth = hash(gl_FragCoord.xy) - 0.5;
+      col += dth * (uDither / uPosterize);
+      col = floor(col * uPosterize + 0.5) / uPosterize;
+    }
+
+    // vignette — base amount, deepened by the reactive (low-health) term
     float d = length(toC) * 1.41421;
     float vig = 1.0 - smoothstep(uVigSoft, 1.0, d);
-    col *= mix(1.0, vig, uVigAmt);
+    col *= mix(1.0, vig, clamp(uVigAmt + uReactive * 0.4, 0.0, 1.0));
+    // low-health blood creep from the edges
+    if (uReactive > 0.0) col = mix(col, col * vec3(1.0, 0.22, 0.18), uReactive * smoothstep(0.3, 1.0, d) * 0.7);
 
     // rolling scanlines
     if (uScan > 0.0) {
