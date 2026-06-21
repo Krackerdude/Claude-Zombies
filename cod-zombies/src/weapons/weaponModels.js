@@ -820,6 +820,93 @@ function rayGunModel(weapon) {
   return { group: g, muzzle: -0.46 };
 }
 
+// Yellow/black hazard stripe band for the Thundergun barrels.
+function hazardTexture() {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 32;
+  const x = c.getContext('2d');
+  x.fillStyle = '#d9a81c'; x.fillRect(0, 0, 64, 32);
+  x.fillStyle = '#161616';
+  for (let i = -32; i < 64; i += 22) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 11, 0); x.lineTo(i + 11 + 32, 32); x.lineTo(i + 32, 32); x.closePath(); x.fill(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.NearestFilter; return t;
+}
+
+// Glowing orange emitter grid (the Thundergun's "speaker" face).
+function emitterGridTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#180a00'; x.fillRect(0, 0, 128, 128);
+  x.fillStyle = '#ff8a1e';
+  for (let i = 0; i < 128; i += 16) for (let j = 0; j < 128; j += 16) x.fillRect(i + 2, j + 2, 12, 12);
+  // fade the corners so it reads as a round lit core
+  const grd = x.createRadialGradient(64, 64, 20, 64, 64, 70);
+  grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, 'rgba(10,4,0,0.9)');
+  x.fillStyle = grd; x.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; return t;
+}
+
+// --- Thundergun (BO wonder weapon) — bespoke dual-barrel wind cannon, sized
+//     like the minigun. Two big barrels with banding + hazard bands ending in
+//     glowing orange emitter mouths, a chunky rear mechanism housing, a side
+//     arc-gauge panel, braided hoses, a top handle and a frame grip. ---
+function thunderGunModel() {
+  const g = new THREE.Group();
+  const steel = gunMetal(0x676d75, { metal: 0.8, rough: 0.4 });
+  const steelDk = gunMetal(0x3c4046, { metal: 0.75, rough: 0.45 });
+  const dark = gunDark(0x15171b);
+  const brass = gunMetal(0xb89038, { metal: 0.85, rough: 0.3 });
+  const grip = gunGrip();
+  const emitGlow = plasmaGlow(0xff6a14);
+  const emitFace = new THREE.MeshBasicMaterial({ map: emitterGridTexture(), side: THREE.DoubleSide });
+  const hazardMat = new THREE.MeshStandardMaterial({ map: hazardTexture(), roughness: 0.6, metalness: 0.3 });
+  const cyl = (r1, r2, len, m, seg = 18) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m);
+  const ring = (r, tube, m) => new THREE.Mesh(new THREE.TorusGeometry(r, tube, 8, 22), m);
+
+  // === rear mechanism housing ===
+  g.add(at(cyl(0.11, 0.11, 0.2, steel), 0, 0, 0.0, Math.PI / 2));      // big drum (axis z)
+  g.add(at(cyl(0.114, 0.114, 0.05, hazardMat), 0, 0, -0.02, Math.PI / 2)); // hazard band
+  g.add(at(cyl(0.112, 0.112, 0.04, steelDk), 0, 0, 0.08, Math.PI / 2));    // rear collar
+  g.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.1, 24), steelDk), 0, 0, 0.101)); // rear cap
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 5), brass), Math.cos(a) * 0.09, Math.sin(a) * 0.09, 0.101)); } // bolts
+
+  // === two big barrels with banding, hazard bands + glowing emitter mouths ===
+  for (const sx of [-1, 1]) {
+    const bx = sx * 0.072;
+    g.add(at(cyl(0.062, 0.062, 0.42, steel), bx, 0, -0.28, Math.PI / 2)); // barrel z -0.07..-0.49
+    for (const bz of [-0.17, -0.27, -0.37]) g.add(at(ring(0.064, 0.011, steelDk), bx, 0, bz, 0, 0, Math.PI / 2)); // bands
+    g.add(at(cyl(0.064, 0.064, 0.05, hazardMat), bx, 0, -0.11, Math.PI / 2)); // hazard band
+    // flared emitter cowl + mouth rim + glowing orange grid face + glow cone
+    g.add(at(cyl(0.085, 0.066, 0.075, steel), bx, 0, -0.51, Math.PI / 2));
+    g.add(at(ring(0.084, 0.013, steelDk), bx, 0, -0.545, 0, 0, Math.PI / 2));
+    g.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.07, 22), emitFace), bx, 0, -0.485));
+    g.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.058, 0.11, 18, 1, true), emitGlow), bx, 0, -0.5, -Math.PI / 2));
+  }
+
+  // === side arc-gauge panel (left, the visible side) ===
+  g.add(at(box(0.02, 0.13, 0.13, steelDk), -0.115, -0.03, 0.0, 0, 0, 0.25)); // angled plate
+  g.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.05, 22), new THREE.MeshBasicMaterial({ map: blastGaugeTexture() })), -0.126, -0.0, 0.0, 0, -Math.PI / 2, 0.25));
+  g.add(at(cyl(0.018, 0.018, 0.03, dark, 12), -0.126, -0.07, 0.02, 0, 0, Math.PI / 2)); // knob
+
+  // === braided hoses from the rear to under the barrels ===
+  for (const sx of [-1, 1]) {
+    g.add(at(cyl(0.014, 0.014, 0.22, dark, 8), sx * 0.06, -0.085, -0.1, 0.5, sx * 0.2, 0));
+    g.add(at(cyl(0.014, 0.014, 0.12, dark, 8), sx * 0.075, -0.05, -0.32, Math.PI / 2 - 0.2, 0, 0));
+  }
+
+  // === top carry handle (squared loop) ===
+  g.add(at(box(0.012, 0.05, 0.012, dark), -0.05, 0.13, -0.05));
+  g.add(at(box(0.012, 0.05, 0.012, dark), 0.05, 0.13, -0.05));
+  g.add(at(box(0.12, 0.014, 0.014, dark), 0, 0.155, -0.05));
+
+  // === frame cradle + grip + trigger ===
+  g.add(at(box(0.26, 0.022, 0.05, steelDk), 0, -0.12, -0.12));        // cradle bar
+  g.add(at(box(0.05, 0.16, 0.06, grip), 0, -0.2, 0.0, 0.12));         // pistol grip
+  g.add(at(box(0.052, 0.022, 0.062, dark), 0, -0.285, 0.01, 0.12));   // grip base
+  g.add(at(ring(0.032, 0.007, steel), 0, -0.13, -0.06, 0, Math.PI / 2, 0)); // trigger guard
+  g.add(at(box(0.011, 0.03, 0.01, dark), 0, -0.125, -0.06));          // trigger
+
+  return { group: g, muzzle: -0.56 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -837,6 +924,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
   if (weapon.data.name === 'RAY GUN') return rayGunModel(weapon);
+  if (weapon.data.name === 'THUNDERGUN') return thunderGunModel();
   if (weapon.data.name === 'DEATH MACHINE') return deathMachine();
   if (cat === 'wonder') return wonder(vm, weapon.data.projectileType === 'cone');
   const fn = BUILDERS[cat] || assaultRifle;

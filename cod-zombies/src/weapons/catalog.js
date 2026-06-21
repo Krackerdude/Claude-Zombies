@@ -28,7 +28,8 @@ const defs = {
     Class: ConeWeapon, category: C.WONDER, name: 'THUNDERGUN',
     fireMode: 'semi', fireRate: 50, magazineSize: 2, ammoStockSize: 16,
     projectileType: 'cone', coneAngle: 0.62, range: 26, damage: 100000,
-    reloadTime: 3.4, adsFov: 60, viewmodel: { length: 0.7, color: 0x3a2a12, accent: 0x1a1206 },
+    reloadTime: 3.4, adsFov: 60, muzzleEffect: 'shockwave',
+    viewmodel: { length: 0.7, color: 0x3a2a12, accent: 0x1a1206 },
     cost: 0, boxOnly: true,
   },
 };

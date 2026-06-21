@@ -41,6 +41,11 @@ export class Viewmodel {
   #starTex;
   #energyTex;
   #energyFlash = false;
+  #shock;
+  #shockRings = [];
+  #shockT = 99;
+  #prevFired = 0;
+  #thunder = false;
   #sway = new THREE.Vector2();
   #mvel = new THREE.Vector2(); // low-passed mouse velocity for smooth sway
   #bob = 0;
@@ -87,6 +92,19 @@ export class Viewmodel {
     this.#flash.add(this.#muzzle, this.#muzzleCore);
     this.#flash.renderOrder = 10;
     this.#group.add(this.#flash);
+
+    // Thundergun shockwave: concentric rings that punch outward at extreme speed
+    this.#shock = new THREE.Group();
+    const ringTex = makeShockRing();
+    for (let i = 0; i < 4; i++) {
+      const r = new THREE.Mesh(
+        new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({ map: ringTex, color: 0xcfe6ff, transparent: true, opacity: 0, depthTest: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+      );
+      this.#shock.add(r); this.#shockRings.push(r);
+    }
+    this.#shock.renderOrder = 10; this.#shock.visible = false;
+    this.#group.add(this.#shock);
 
     // melee knife (its own object, shown only during a swipe)
     this.#knife = new THREE.Group();
@@ -147,6 +165,11 @@ export class Viewmodel {
     this.#flash.position.set(0, 0.0, this.#muzzleZ - 0.04);
     this.#light.color.set(this.#energyFlash ? ecol : 0xffd9a0);
     this.#light.position.set(0, 0.0, this.#muzzleZ);
+    // Thundergun: replace the flash with expanding shockwave rings at the muzzle
+    this.#thunder = weapon.data.muzzleEffect === 'shockwave';
+    this.#shock.position.set(0, 0.0, this.#muzzleZ - 0.02);
+    this.#shock.visible = this.#thunder;
+    this.#shockT = 99; this.#prevFired = 0;
   }
 
   /** Place + animate the model relative to the camera. */
@@ -298,7 +321,7 @@ export class Viewmodel {
     // muzzle flash decay — sharp on, quick off. Star spins + pops each frame
     // for that cartoon flicker; the core stays put and white-hot.
     const lit = Math.max(0, weapon.justFired / 0.05);
-    const pop = lit > 0;
+    const pop = lit > 0 && !this.#thunder;
     this.#flash.visible = pop;
     if (pop) {
       const e = this.#energyFlash;
@@ -308,8 +331,42 @@ export class Viewmodel {
       this.#muzzleCore.material.opacity = Math.min(1, lit * 1.3);
       this.#muzzleCore.scale.setScalar(e ? 1.1 + Math.random() * 0.2 : 0.9 + Math.random() * 0.25);
     }
-    this.#light.intensity = lit * (this.#energyFlash ? 5.5 : 4.5);
+
+    // Thundergun: a fresh shot launches concentric rings that blast outward fast,
+    // staggered, fading as they grow — a visible "thunderclap" pressure wave.
+    if (this.#thunder) {
+      if (weapon.justFired > this.#prevFired + 1e-4) this.#shockT = 0; // rising edge = new shot
+      this.#shockT += dt;
+      for (let i = 0; i < this.#shockRings.length; i++) {
+        const t = this.#shockT - i * 0.045;
+        const r = this.#shockRings[i];
+        if (t < 0 || t > 0.32) { r.material.opacity = 0; continue; }
+        const k = t / 0.32;
+        const size = 0.15 + k * k * 3.4;      // accelerating expansion (extreme speed)
+        r.scale.setScalar(size);
+        r.material.opacity = (1 - k) * 0.9;
+        r.position.z = -k * 0.25;             // drift forward as it goes
+      }
+      this.#light.intensity = this.#shockT < 0.12 ? (1 - this.#shockT / 0.12) * 7 : 0;
+      this.#light.color.set(0xbcd8ff);
+    } else {
+      this.#light.intensity = lit * (this.#energyFlash ? 5.5 : 4.5);
+    }
+    this.#prevFired = weapon.justFired;
   }
+}
+
+// A soft bright annulus — scaled up over time it reads as an expanding
+// shockwave/pressure ring for the Thundergun.
+function makeShockRing() {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d'); const cx = s / 2;
+  const g = x.createRadialGradient(cx, cx, 0, cx, cx, cx);
+  g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.72, 'rgba(255,255,255,0)');
+  g.addColorStop(0.86, 'rgba(200,228,255,0.85)'); g.addColorStop(0.95, 'rgba(255,255,255,1)');
+  g.addColorStop(1, 'rgba(200,228,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, s, s);
+  return new THREE.CanvasTexture(c);
 }
 
 // Spiky cartoon muzzle star: distinct white -> yellow -> orange bands (a faked
