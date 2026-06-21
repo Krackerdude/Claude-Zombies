@@ -55,11 +55,11 @@ export const PostFXConfig = {
   // position, masked to background (sky) pixels so geometry occludes the shafts.
   godrays: {
     enabled: true,
-    size: 0.18,          // uv radius of the light disc
-    density: 0.6,        // radial step scale (longer = reaches further)
-    weight: 0.5,         // per-sample contribution
-    decay: 0.95,         // falloff along the shaft
-    intensity: 0.55,     // additive strength in the final composite
+    size: 0.05,          // uv radius of the (aspect-corrected, circular) moon disc
+    density: 0.55,       // radial step scale (longer = reaches further)
+    weight: 0.4,         // per-sample contribution (blur is normalised, so bounded)
+    decay: 0.93,         // falloff along the shaft
+    intensity: 0.5,      // additive strength in the final composite
   },
 
   // --- colour grade: the Persona identity lives here ---

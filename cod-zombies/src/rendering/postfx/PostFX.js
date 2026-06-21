@@ -93,7 +93,8 @@ export class PostFX {
     });
 
     this.#mGodSrc = this.#shader(GODRAY_SOURCE_FRAG, {
-      tDepth: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) }, uSize: { value: 0.18 },
+      tDepth: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) },
+      uSize: { value: 0.06 }, uAspect: { value: 1 },
     });
     this.#mGodBlur = this.#shader(GODRAY_BLUR_FRAG, {
       tDiffuse: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) },
@@ -146,6 +147,7 @@ export class PostFX {
 
     this.#mFinal.uniforms.uResolution.value.set(w, h);
     this.#mDof.uniforms.uTexel.value.set(1 / w, 1 / h);
+    this.#mGodSrc.uniforms.uAspect.value = w / h;
   }
 
   /** Push config values into the live uniforms. Safe to call every settings change. */
