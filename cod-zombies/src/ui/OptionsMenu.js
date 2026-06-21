@@ -167,6 +167,18 @@ export class OptionsMenu {
       label: 'God Rays', sublabel: 'Light shafts from the moon past the rooftops',
       value: g.godRays !== false, onChange: (v) => set('godRays', v),
     }));
+    p.appendChild(toggle({
+      label: 'Ambient Occlusion', sublabel: 'Sinks corners + contact shadows into the dark',
+      value: g.ssao !== false, onChange: (v) => set('ssao', v),
+    }));
+    p.appendChild(toggle({
+      label: 'Ink Outlines', sublabel: 'Persona-style line-art on edges',
+      value: g.outline !== false, onChange: (v) => set('outline', v),
+    }));
+    p.appendChild(toggle({
+      label: 'Motion Blur', sublabel: 'Camera smear on fast turns / sprint',
+      value: g.motionBlur !== false, onChange: (v) => set('motionBlur', v),
+    }));
     p.appendChild(slider({
       label: 'Film Grain', min: 0, max: 1, step: 0.05, value: g.grain,
       format: (v) => Math.round(v * 100) + '%', onChange: (v) => set('grain', v),
@@ -189,6 +201,14 @@ export class OptionsMenu {
     p.appendChild(toggle({
       label: 'Ground Decals', sublabel: 'Persistent blood pools + scorch marks',
       value: g.decals !== false, onChange: (v) => set('decals', v),
+    }));
+    p.appendChild(toggle({
+      label: 'Light Beams', sublabel: 'Dusty volumetric cones under the lamps',
+      value: g.lightCones !== false, onChange: (v) => set('lightCones', v),
+    }));
+    p.appendChild(toggle({
+      label: 'Zombie Rim Light', sublabel: 'Cold moonlight edge on the dead',
+      value: g.rimLight !== false, onChange: (v) => set('rimLight', v),
     }));
   }
 

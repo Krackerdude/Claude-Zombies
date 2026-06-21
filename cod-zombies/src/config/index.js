@@ -77,6 +77,47 @@ export const PostFXConfig = {
     splitToning: 0.18,   // 0..1 how strongly the split tint is mixed in
   },
 
+  // --- ambient occlusion: a depth-cavity darkening that grounds geometry,
+  // sinks corners + where zombies meet the floor into shadow (readability) ---
+  ssao: {
+    enabled: true,
+    radius: 0.55,        // metres — depth gap that counts as a crevice
+    intensity: 1.15,     // darkening strength
+    bias: 0.025,         // ignore tiny depth diffs (no self-occlusion shimmer)
+    power: 1.6,          // contrast of the occlusion falloff
+  },
+
+  // --- ink / cel outlines: Persona 5 line-art on geometry edges (Sobel on
+  // depth + reconstructed normals) ---
+  outline: {
+    enabled: true,
+    color: [0.02, 0.02, 0.03], // near-black ink
+    thickness: 1.0,            // sample spread in pixels
+    depthEdge: 1.1,            // depth-discontinuity sensitivity
+    normalEdge: 0.7,           // normal-discontinuity sensitivity
+    strength: 0.9,             // how hard the ink is laid in
+  },
+
+  // --- camera motion blur: reproject the previous frame along per-pixel screen
+  // velocity (camera-only) for a smear on fast turns / sprints ---
+  motionBlur: {
+    enabled: true,
+    strength: 0.5,       // 0..1 smear amount
+    samples: 8,          // taps along the velocity vector
+    max: 0.04,           // clamp the per-pixel velocity (uv) so it never streaks wildly
+  },
+
+  // --- heat haze: localized refraction ripples around explosions / fire ---
+  heatHaze: { enabled: true, strength: 1.0 },
+
+  // --- Persona speed-lines + radial blur: a kinetic burst driven at runtime by
+  // sprint / slide / damage / kills (intensity is pushed live, not configured) ---
+  speedlines: { enabled: true, blur: 0.6, lines: 0.7 },
+
+  // --- graphic-novel colour reduction layered into the final grade ---
+  posterize: { enabled: true, levels: 24 },   // banded colour steps (higher = subtler)
+  dither: { enabled: true, amount: 0.6 },      // ordered dither to break the bands
+
   // --- screen-space horror flavour (overhauled from the old CSS overlay) ---
   vignette: { enabled: true, amount: 0.55, softness: 0.45 },
   aberration: { enabled: true, amount: 0.3 },   // radial RGB split, edge-weighted
@@ -93,6 +134,19 @@ export const AtmosphereConfig = {
   enabled: true,
   flickerSpeed: 9.0,   // base hertz of the noise drive
   flickerDepth: 0.16,  // fraction of base intensity the flicker can swing
+  lightCones: true,    // dusty volumetric beams under the practical lamps
+};
+
+/**
+ * Fresnel rim light baked into the zombie skins — a cold moonlight catch along
+ * the silhouette so the dead read against the murk. Cheap (a few fragment ALU);
+ * runtime-toggled by zeroing the registered rim uniforms.
+ */
+export const RimConfig = {
+  enabled: true,
+  color: 0x9fb4ff,     // cold blue-white edge
+  power: 2.6,          // falloff sharpness
+  intensity: 0.55,     // emissive strength of the rim
 };
 
 /**
@@ -122,6 +176,45 @@ export const DecalConfig = {
   max: 56,             // pooled decals; oldest recycled beyond this
   bloodLife: 38,       // seconds a blood pool persists before it has faded
   scorchLife: 55,      // seconds a scorch/burn persists
+};
+
+/**
+ * Silent-Hill weather. Rain is a GPU streak field that follows the player; the
+ * WeatherSystem also drives occasional lightning that strobes the fog + key
+ * light, and a low ground-mist band. All isolated + disable-able.
+ */
+export const WeatherConfig = {
+  rain: {
+    enabled: true,
+    count: 900,          // streak count in the volume around the player
+    area: 16,            // half-extent (metres) of the rain column
+    height: 14,          // column height
+    speed: 32,           // fall speed (m/s)
+    length: 0.5,         // streak length (m)
+    opacity: 0.32,
+    color: 0x9fb0c4,
+  },
+  lightning: {
+    enabled: true,
+    minGap: 7,           // seconds between strikes (min)
+    maxGap: 18,          // seconds between strikes (max)
+  },
+  mist: {
+    enabled: true,
+    count: 90,           // ground-mist sprite/point count
+    area: 18,
+    height: 1.2,         // motes hug the floor
+    opacity: 0.18,
+    color: 0x8a93a6,     // cool grey-blue ground fog
+  },
+};
+
+/**
+ * Cinematic time + framing. The slow-mo triggers when the last zombie of a
+ * round falls; the reactive vignette pulses with low health (driven live).
+ */
+export const CinematicConfig = {
+  slowmo: { enabled: true, scale: 0.35, duration: 1.1, ease: 0.12 }, // last-kill bullet-time
 };
 
 export const PhysicsConfig = {

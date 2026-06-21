@@ -22,8 +22,13 @@ export const defaultSettings = {
     bloom: true, // additive bloom on practicals / neon / muzzle highlights
     dof: true, // depth of field (near subject crisp, world melts to murk)
     godRays: true, // volumetric light shafts from the moon
+    ssao: true, // depth-cavity ambient occlusion
+    outline: true, // Persona ink / cel outlines
+    motionBlur: true, // camera motion blur on fast turns / sprint
     particles: true, // ambient dust / ash motes in the air
     decals: true, // persistent blood pools + scorch on the ground
+    lightCones: true, // dusty volumetric beams under the lamps
+    rimLight: true, // cold moonlight rim on the zombies
     // horror post FX — drive the pipeline when postfx is on, the CSS overlay when off
     grain: 0.14, // 0..1 animated film grain
     scanlines: true,

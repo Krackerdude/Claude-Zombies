@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { defaultSettings } from './defaults.js';
-import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig } from '../config/index.js';
+import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig, AtmosphereConfig, RimConfig } from '../config/index.js';
+import { setRimIntensity } from '../rendering/rimLight.js';
 import { Service } from '../core/ServiceLocator.js';
 
 const STORAGE_KEY = 'necropolis.settings.v2';
@@ -128,6 +129,9 @@ export class SettingsStore {
       PostFXConfig.aberration.amount = g.aberration;
       PostFXConfig.vignette.enabled = g.vignette > 0;
       PostFXConfig.vignette.amount = g.vignette;
+      PostFXConfig.ssao.enabled = g.ssao !== false;
+      PostFXConfig.outline.enabled = g.outline !== false;
+      PostFXConfig.motionBlur.enabled = g.motionBlur !== false;
       // exposure is applied by the renderer's tone-map during the world pass
       // (above), so it is deliberately NOT fed into the grade — that would
       // double it. grade.exposure stays at its neutral config default.
@@ -138,6 +142,8 @@ export class SettingsStore {
     // so toggling here takes effect immediately (independent of the composer).
     ParticleConfig.enabled = g.particles !== false;
     DecalConfig.enabled = g.decals !== false;
+    AtmosphereConfig.lightCones = g.lightCones !== false;
+    setRimIntensity(g.rimLight !== false ? RimConfig.intensity : 0);
 
     // CSS overlay: the fallback when the WebGL stack is off (or unavailable).
     // When the pipeline owns these effects, zero the CSS layer to avoid stacking.

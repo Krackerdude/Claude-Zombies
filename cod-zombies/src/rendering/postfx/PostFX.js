@@ -2,23 +2,23 @@ import * as THREE from 'three';
 import { PostFXConfig } from '../../config/index.js';
 import {
   FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLUR_FRAG, FINAL_FRAG,
-  GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG,
+  GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, SSAO_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
 } from './shaders.js';
 
 /**
  * Self-contained stylized post-processing pipeline. Deliberately hand-rolled
  * (no EffectComposer) so the viewmodel overlay can be composited *between*
- * stages: the world is graded/DOF'd/bloomed first, THEN the first-person gun is
- * drawn sharp on top, THEN the screen-space grade (grain/vignette/aberration/
- * scanlines) covers everything. That ordering keeps the gun crisp and unbloomed
- * while the world melts into PS2-horror murk behind it.
+ * stages: the world is processed first, THEN the first-person gun is drawn sharp
+ * on top, THEN the screen-space grade covers everything. That keeps the gun
+ * crisp/unbloomed while the world melts into PS2-horror murk behind it.
  *
- * Pipeline per frame (when enabled):
- *   world → rtScene(+depth) → [DOF] → rtWork → [+ gun overlay] → [bloom] → grade → screen
+ * Pipeline per frame (each stage gateable):
+ *   world → rtScene(+depth)
+ *        → [SSAO] → [outline] → [motion blur] → [DOF]   (all read the world depth)
+ *        → rtWork → [+ gun overlay] → [bloom] → [god rays] → grade → screen
  *
- * Everything is gateable for performance. `enabled = false` (or a non-WebGL
- * backend) makes RenderManager bypass this entirely and draw straight to screen,
- * so the overhaul can never regress the baseline path.
+ * `enabled = false` (or a non-WebGL backend) makes RenderManager bypass this
+ * entirely, so the overhaul can never regress the baseline path.
  */
 export class PostFX {
   enabled = false;
@@ -29,7 +29,9 @@ export class PostFX {
   #h = 1;
 
   // render targets
-  #rtScene = null;  // world colour + depth texture (DOF source)
+  #rtScene = null;  // world colour + depth texture (the chain's depth source)
+  #rtA = null;      // full-res ping for the world-processing chain
+  #rtB = null;      // full-res pong
   #rtWork = null;   // working colour buffer with a depth buffer for the gun
   #rtBloomA = null; // half-res bloom ping
   #rtBloomB = null; // half-res bloom pong
@@ -39,10 +41,18 @@ export class PostFX {
   #quadScene;
   #quadCam;
   #quad;
-  #black; // 1×1 black fallback for the bloom slot when disabled
+  #black; // 1×1 black fallback for the bloom/god slots when disabled
 
   // stage materials
-  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur;
+  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mSsao; #mOutline; #mMotion;
+
+  // motion-blur matrices
+  #curVP = new THREE.Matrix4();
+  #prevVP = new THREE.Matrix4();
+  #invVP = new THREE.Matrix4();
+  #prevInit = false;
+
+  #speedEnabled = true;
 
   constructor(renderer, params = PostFXConfig) {
     this.#renderer = renderer;
@@ -66,11 +76,8 @@ export class PostFX {
 
   #shader(frag, uniforms) {
     return new THREE.ShaderMaterial({
-      uniforms,
-      vertexShader: FULLSCREEN_VERT,
-      fragmentShader: frag,
-      depthTest: false,
-      depthWrite: false,
+      uniforms, vertexShader: FULLSCREEN_VERT, fragmentShader: frag,
+      depthTest: false, depthWrite: false,
     });
   }
 
@@ -84,13 +91,27 @@ export class PostFX {
       uBokeh: { value: 2.6 }, uAutofocus: { value: 1 },
     });
 
-    this.#mBright = this.#shader(BRIGHT_FRAG, {
-      tDiffuse: { value: null }, uThreshold: { value: 0.62 },
+    this.#mSsao = this.#shader(SSAO_FRAG, {
+      tDiffuse: { value: null }, tDepth: { value: null }, uTexel: { value: new THREE.Vector2() },
+      uNear: { value: 0.1 }, uFar: { value: 1000 },
+      uRadius: { value: 0.55 }, uIntensity: { value: 1.15 }, uBias: { value: 0.025 }, uPower: { value: 1.6 },
     });
 
-    this.#mBlur = this.#shader(BLUR_FRAG, {
-      tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() },
+    this.#mOutline = this.#shader(OUTLINE_FRAG, {
+      tDiffuse: { value: null }, tDepth: { value: null }, uTexel: { value: new THREE.Vector2() },
+      uNear: { value: 0.1 }, uFar: { value: 1000 },
+      uThickness: { value: 1 }, uDepthEdge: { value: 1.1 }, uNormalEdge: { value: 0.7 },
+      uStrength: { value: 0.9 }, uColor: { value: new THREE.Vector3(0.02, 0.02, 0.03) },
     });
+
+    this.#mMotion = this.#shader(MOTIONBLUR_FRAG, {
+      tDiffuse: { value: null }, tDepth: { value: null },
+      uInvViewProj: { value: new THREE.Matrix4() }, uPrevViewProj: { value: new THREE.Matrix4() },
+      uStrength: { value: 0.5 }, uMax: { value: 0.04 }, uSamples: { value: 8 },
+    });
+
+    this.#mBright = this.#shader(BRIGHT_FRAG, { tDiffuse: { value: null }, uThreshold: { value: 0.62 } });
+    this.#mBlur = this.#shader(BLUR_FRAG, { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() } });
 
     this.#mGodSrc = this.#shader(GODRAY_SOURCE_FRAG, {
       tDepth: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) },
@@ -112,6 +133,8 @@ export class PostFX {
       uVigAmt: { value: 0.55 }, uVigSoft: { value: 0.45 },
       uAberr: { value: 0.3 }, uGrain: { value: 0.14 },
       uScan: { value: 0.5 }, uScanDensity: { value: 2.4 }, uScanScroll: { value: 0.4 },
+      uSpeed: { value: 0 }, uLines: { value: 0.7 }, uReactive: { value: 0 },
+      uPosterize: { value: 0 }, uDither: { value: 0 },
     });
 
     this.applyParams(this.#params);
@@ -137,6 +160,9 @@ export class PostFX {
     depthTex.type = THREE.UnsignedIntType;
     this.#rtScene = new THREE.WebGLRenderTarget(w, h, { ...color(), depthTexture: depthTex });
     this.#rtWork = new THREE.WebGLRenderTarget(w, h, color());
+    const chainCol = { ...color(), depthBuffer: false };
+    this.#rtA = new THREE.WebGLRenderTarget(w, h, chainCol);
+    this.#rtB = new THREE.WebGLRenderTarget(w, h, chainCol);
 
     const hw = Math.max(1, Math.floor(w / 2));
     const hh = Math.max(1, Math.floor(h / 2));
@@ -145,8 +171,11 @@ export class PostFX {
     this.#rtBloomB = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtGod = new THREE.WebGLRenderTarget(hw, hh, bcol);
 
+    const texel = new THREE.Vector2(1 / w, 1 / h);
     this.#mFinal.uniforms.uResolution.value.set(w, h);
-    this.#mDof.uniforms.uTexel.value.set(1 / w, 1 / h);
+    this.#mDof.uniforms.uTexel.value.copy(texel);
+    this.#mSsao.uniforms.uTexel.value.copy(texel);
+    this.#mOutline.uniforms.uTexel.value.copy(texel);
     this.#mGodSrc.uniforms.uAspect.value = w / h;
   }
 
@@ -166,7 +195,7 @@ export class PostFX {
     f.uGain.value.fromArray(g.gain ?? [1, 1, 1]);
     f.uShadowTint.value.fromArray(g.shadowTint ?? [1, 1, 1]);
     f.uHighlightTint.value.fromArray(g.highlightTint ?? [1, 1, 1]);
-    if (g.enabled === false) { // grade off: neutral pass-through
+    if (g.enabled === false) {
       f.uContrast.value = 1; f.uSaturation.value = 1; f.uTemperature.value = 0;
       f.uExposure.value = 1; f.uGain.value.set(1, 1, 1); f.uLift.value.set(0, 0, 0);
     }
@@ -178,13 +207,21 @@ export class PostFX {
     const ab = params.aberration ?? {};
     f.uAberr.value = ab.enabled === false ? 0 : (ab.amount ?? 0.3);
 
-    const gr = params.grain ?? {};
-    f.uGrain.value = gr.enabled === false ? 0 : (gr.amount ?? 0.14);
+    const grn = params.grain ?? {};
+    f.uGrain.value = grn.enabled === false ? 0 : (grn.amount ?? 0.14);
 
     const sc = params.scanlines ?? {};
     f.uScan.value = sc.enabled === false ? 0 : (sc.amount ?? 0.5);
     f.uScanDensity.value = sc.density ?? 2.4;
     f.uScanScroll.value = sc.scroll ?? 0.4;
+
+    const post = params.posterize ?? {};
+    f.uPosterize.value = post.enabled === false ? 0 : (post.levels ?? 24);
+    const di = params.dither ?? {};
+    f.uDither.value = di.enabled === false ? 0 : (di.amount ?? 0.6);
+    f.uLines.value = params.speedlines?.lines ?? 0.7;
+    this.#speedEnabled = params.speedlines?.enabled !== false;
+    if (!this.#speedEnabled) f.uSpeed.value = 0;
 
     const dof = params.dof ?? {};
     const d = this.#mDof.uniforms;
@@ -193,6 +230,19 @@ export class PostFX {
     d.uFocusRange.value = dof.focusRange ?? 2.4;
     d.uMaxBlur.value = dof.maxBlur ?? 1;
     d.uBokeh.value = dof.bokehRadius ?? 2.6;
+
+    const ao = params.ssao ?? {}; const a = this.#mSsao.uniforms;
+    a.uRadius.value = ao.radius ?? 0.55; a.uIntensity.value = ao.intensity ?? 1.15;
+    a.uBias.value = ao.bias ?? 0.025; a.uPower.value = ao.power ?? 1.6;
+
+    const ol = params.outline ?? {}; const o = this.#mOutline.uniforms;
+    o.uThickness.value = ol.thickness ?? 1; o.uDepthEdge.value = ol.depthEdge ?? 1.1;
+    o.uNormalEdge.value = ol.normalEdge ?? 0.7; o.uStrength.value = ol.strength ?? 0.9;
+    o.uColor.value.fromArray(ol.color ?? [0.02, 0.02, 0.03]);
+
+    const mb = params.motionBlur ?? {}; const m = this.#mMotion.uniforms;
+    m.uStrength.value = mb.strength ?? 0.5; m.uMax.value = mb.max ?? 0.04;
+    m.uSamples.value = Math.max(2, mb.samples ?? 8);
 
     this.#mBright.uniforms.uThreshold.value = params.bloom?.threshold ?? 0.62;
 
@@ -203,45 +253,79 @@ export class PostFX {
     this.#mGodBlur.uniforms.uDecay.value = god.decay ?? 0.95;
   }
 
+  /** Persona kinetic burst intensity (0..1) — sprint/slide/kill/damage. */
+  setSpeedlines(v) { this.#mFinal.uniforms.uSpeed.value = this.#speedEnabled ? Math.max(0, Math.min(1, v)) : 0; }
+  /** Reactive low-health vignette throb (0..1). */
+  setReactive(v) { this.#mFinal.uniforms.uReactive.value = Math.max(0, Math.min(1, v)); }
+  /** Live grade override hook (state-driven palette). Partial { contrast, saturation, ... }. */
+  setGrade(o) {
+    const f = this.#mFinal.uniforms;
+    if (o.contrast != null) f.uContrast.value = o.contrast;
+    if (o.saturation != null) f.uSaturation.value = o.saturation;
+    if (o.temperature != null) f.uTemperature.value = o.temperature;
+    if (o.split != null) f.uSplit.value = o.split;
+    if (o.shadowTint) f.uShadowTint.value.fromArray(o.shadowTint);
+    if (o.highlightTint) f.uHighlightTint.value.fromArray(o.highlightTint);
+  }
+
   #blit(material, target) {
     this.#quad.material = material;
     this.#renderer.setRenderTarget(target ?? null);
     this.#renderer.render(this.#quadScene, this.#quadCam);
   }
 
-  /**
-   * Run the full pipeline. worldScene/worldCamera draw the world; the optional
-   * overlayScene/overlayCamera (the viewmodel) are composited sharp on top.
-   * `sun` (or null) is { x, y, strength, color:[r,g,b] } in screen-uv space,
-   * supplied by RenderManager from the key light — it drives the god rays.
-   */
   render(worldScene, worldCamera, overlayScene, overlayCamera, sun = null) {
     const r = this.#renderer;
     const p = this.#params;
     const prevAutoClear = r.autoClear;
     const prevTarget = r.getRenderTarget();
+    const near = worldCamera.near, far = worldCamera.far;
 
-    // keep camera-dependent uniforms current
-    this.#mDof.uniforms.uNear.value = worldCamera.near;
-    this.#mDof.uniforms.uFar.value = worldCamera.far;
-
-    // 1) world → rtScene (writes the depth texture DOF reads)
+    // 1) world → rtScene (writes the depth texture every chain stage reads)
     r.autoClear = true;
     r.setRenderTarget(this.#rtScene);
     r.render(worldScene, worldCamera);
+    const depth = this.#rtScene.depthTexture;
 
-    // 2) DOF (or straight copy) → rtWork
-    const dofOn = p.dof?.enabled !== false && p.dof?.maxBlur !== 0;
-    if (dofOn) {
-      this.#mDof.uniforms.tDiffuse.value = this.#rtScene.texture;
-      this.#mDof.uniforms.tDepth.value = this.#rtScene.depthTexture;
-      this.#blit(this.#mDof, this.#rtWork);
-    } else {
-      this.#mCopy.uniforms.tDiffuse.value = this.#rtScene.texture;
-      this.#blit(this.#mCopy, this.#rtWork);
+    // 2) world-processing chain, ping-ponging rtA/rtB
+    let srcTex = this.#rtScene.texture;
+    let ping = this.#rtA, pong = this.#rtB;
+    const run = (mat) => {
+      mat.uniforms.tDiffuse.value = srcTex;
+      if (mat.uniforms.tDepth) mat.uniforms.tDepth.value = depth;
+      this.#blit(mat, ping);
+      srcTex = ping.texture;
+      const t = ping; ping = pong; pong = t;
+    };
+
+    if (p.ssao?.enabled !== false && (p.ssao?.intensity ?? 0) > 0) {
+      this.#mSsao.uniforms.uNear.value = near; this.#mSsao.uniforms.uFar.value = far;
+      run(this.#mSsao);
+    }
+    if (p.outline?.enabled !== false && (p.outline?.strength ?? 0) > 0) {
+      this.#mOutline.uniforms.uNear.value = near; this.#mOutline.uniforms.uFar.value = far;
+      run(this.#mOutline);
     }
 
-    // 3) composite the viewmodel sharp on top of the graded world
+    // motion blur — track the camera's view-projection across frames
+    this.#curVP.multiplyMatrices(worldCamera.projectionMatrix, worldCamera.matrixWorldInverse);
+    if (p.motionBlur?.enabled !== false && (p.motionBlur?.strength ?? 0) > 0) {
+      this.#invVP.copy(this.#curVP).invert();
+      this.#mMotion.uniforms.uInvViewProj.value.copy(this.#invVP);
+      this.#mMotion.uniforms.uPrevViewProj.value.copy(this.#prevInit ? this.#prevVP : this.#curVP);
+      run(this.#mMotion);
+    }
+    this.#prevVP.copy(this.#curVP); this.#prevInit = true; // keep current so toggling never pops
+
+    const dofOn = p.dof?.enabled !== false && p.dof?.maxBlur !== 0;
+    if (dofOn) {
+      this.#mDof.uniforms.uNear.value = near; this.#mDof.uniforms.uFar.value = far;
+      run(this.#mDof);
+    }
+
+    // 3) land the processed world in the depth-backed work buffer, composite gun
+    this.#mCopy.uniforms.tDiffuse.value = srcTex;
+    this.#blit(this.#mCopy, this.#rtWork);
     if (overlayScene) {
       r.autoClear = false;
       r.setRenderTarget(this.#rtWork);
@@ -255,7 +339,6 @@ export class PostFX {
     if (p.bloom?.enabled !== false && (p.bloom?.intensity ?? 0) > 0) {
       this.#mBright.uniforms.tDiffuse.value = this.#rtWork.texture;
       this.#blit(this.#mBright, this.#rtBloomA);
-
       const hw = this.#rtBloomA.width, hh = this.#rtBloomA.height;
       const radius = p.bloom?.radius ?? 1;
       const iters = Math.max(1, p.bloom?.iterations ?? 3);
@@ -274,13 +357,12 @@ export class PostFX {
       this.#mFinal.uniforms.tBloom.value = this.#black;
     }
 
-    // 5) god rays — disc at the key light's screen position, masked to sky
-    //    depth, radial-blurred into shafts. Only when the light is on-screen.
+    // 5) god rays — disc at the key light's screen position, masked to sky depth
     let godI = 0;
     if (sun && p.godrays?.enabled !== false && (p.godrays?.intensity ?? 0) > 0) {
-      this.#mGodSrc.uniforms.tDepth.value = this.#rtScene.depthTexture;
+      this.#mGodSrc.uniforms.tDepth.value = depth;
       this.#mGodSrc.uniforms.uSun.value.set(sun.x, sun.y);
-      this.#blit(this.#mGodSrc, this.#rtBloomB); // reuse pong as the source buffer
+      this.#blit(this.#mGodSrc, this.#rtBloomB);
       this.#mGodBlur.uniforms.tDiffuse.value = this.#rtBloomB.texture;
       this.#mGodBlur.uniforms.uSun.value.set(sun.x, sun.y);
       this.#blit(this.#mGodBlur, this.#rtGod);
@@ -305,6 +387,8 @@ export class PostFX {
   #disposeTargets() {
     this.#rtScene?.depthTexture?.dispose();
     this.#rtScene?.dispose();
+    this.#rtA?.dispose();
+    this.#rtB?.dispose();
     this.#rtWork?.dispose();
     this.#rtBloomA?.dispose();
     this.#rtBloomB?.dispose();
@@ -315,6 +399,7 @@ export class PostFX {
     this.#disposeTargets();
     this.#black?.dispose();
     this.#quad.geometry.dispose();
-    for (const m of [this.#mCopy, this.#mDof, this.#mBright, this.#mBlur, this.#mFinal, this.#mGodSrc, this.#mGodBlur]) m?.dispose();
+    for (const m of [this.#mCopy, this.#mDof, this.#mBright, this.#mBlur, this.#mFinal,
+      this.#mGodSrc, this.#mGodBlur, this.#mSsao, this.#mOutline, this.#mMotion]) m?.dispose();
   }
 }
