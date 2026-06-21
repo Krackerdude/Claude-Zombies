@@ -16,8 +16,13 @@ export const defaultSettings = {
     exposure: 1.25, // tone-mapping exposure
     fog: 0.011, // FogExp2 density
     anisotropy: 8, // texture filtering
-    // horror post FX (CSS overlay) — subtle by default; this is flavor, not a filter
-    grain: 0.14, // 0..1 (static film grain, no longer a vibrating mess)
+    // stylized WebGL post-processing pipeline (PostFX). Master + heavy stages
+    // are individually toggleable for performance; off => CSS-overlay fallback.
+    postfx: true, // master switch for the whole composer
+    bloom: true, // additive bloom on practicals / neon / muzzle highlights
+    dof: true, // depth of field (near subject crisp, world melts to murk)
+    // horror post FX — drive the pipeline when postfx is on, the CSS overlay when off
+    grain: 0.14, // 0..1 animated film grain
     scanlines: true,
     aberration: 0.3, // 0..1 chromatic aberration
     vignette: 0.55, // 0..1

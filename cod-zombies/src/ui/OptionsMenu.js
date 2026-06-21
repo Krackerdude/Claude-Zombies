@@ -151,6 +151,18 @@ export class OptionsMenu {
     }));
 
     p.appendChild(sectionTitle('Post-Processing'));
+    p.appendChild(toggle({
+      label: 'Post-Processing', sublabel: 'Stylized composer (bloom, DOF, grade, grain)',
+      value: g.postfx !== false, onChange: (v) => set('postfx', v),
+    }));
+    p.appendChild(toggle({
+      label: 'Bloom', sublabel: 'Glow on lights, neon and muzzle flash',
+      value: g.bloom !== false, onChange: (v) => set('bloom', v),
+    }));
+    p.appendChild(toggle({
+      label: 'Depth of Field', sublabel: 'Soft focus falloff into the murk',
+      value: g.dof !== false, onChange: (v) => set('dof', v),
+    }));
     p.appendChild(slider({
       label: 'Film Grain', min: 0, max: 1, step: 0.05, value: g.grain,
       format: (v) => Math.round(v * 100) + '%', onChange: (v) => set('grain', v),

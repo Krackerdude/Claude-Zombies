@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { RenderConfig } from '../config/index.js';
+import { RenderConfig, PostFXConfig } from '../config/index.js';
+import { PostFX } from './postfx/PostFX.js';
 
 /**
  * Owns the THREE renderer and abstracts the WebGPU/WebGL backend choice behind
@@ -21,6 +22,8 @@ export class RenderManager {
   /** @type {THREE.PerspectiveCamera} — fixed at origin, own FOV, for the viewmodel */
   vmCamera = null;
   backend = 'none';
+  /** @type {PostFX | null} — stylized post-processing stack (WebGL only) */
+  postFX = null;
 
   #canvas;
   #onResize;
@@ -87,6 +90,17 @@ export class RenderManager {
       10,
     );
 
+    // Stylized post stack. The hand-rolled GLSL stages only run under WebGL; on
+    // WebGPU (node materials) we transparently fall back to the direct path.
+    if (this.backend === 'webgl') {
+      try {
+        this.postFX = new PostFX(this.renderer, PostFXConfig);
+      } catch (err) {
+        console.warn('[RenderManager] PostFX init failed; using direct render path.', err);
+        this.postFX = null;
+      }
+    }
+
     this.resize();
     this.#onResize = () => this.resize();
     window.addEventListener('resize', this.#onResize);
@@ -101,6 +115,10 @@ export class RenderManager {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     if (this.vmCamera) { this.vmCamera.aspect = w / h; this.vmCamera.updateProjectionMatrix(); }
+    if (this.postFX) {
+      const s = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      this.postFX.setSize(s.x, s.y);
+    }
   }
 
   setFov(deg) {
@@ -126,8 +144,16 @@ export class RenderManager {
   setOverlayScene(scene) { this.#overlayScene = scene; }
 
   render(scene, camera = this.camera) {
-    // Both WebGLRenderer.render and WebGPURenderer.render accept the same
-    // signature; WebGPURenderer internally schedules async work for us.
+    // Stylized path: the composer renders the world, grades it, then composites
+    // the viewmodel sharp on top (see PostFX). A master toggle or any non-WebGL
+    // backend transparently falls through to the direct path below.
+    if (this.postFX && this.postFX.enabled) {
+      this.postFX.render(scene, camera, this.#overlayScene, this.vmCamera || camera);
+      return;
+    }
+
+    // Direct path. Both WebGLRenderer.render and WebGPURenderer.render accept the
+    // same signature; WebGPURenderer internally schedules async work for us.
     this.renderer.render(scene, camera);
 
     if (this.#overlayScene) {
@@ -141,6 +167,7 @@ export class RenderManager {
 
   dispose() {
     window.removeEventListener('resize', this.#onResize);
+    this.postFX?.dispose();
     this.renderer?.dispose?.();
   }
 }

@@ -18,6 +18,71 @@ export const RenderConfig = {
   far: 1000,
 };
 
+/**
+ * Stylized post-processing stack. Pure data (no engine imports) so it stays a
+ * leaf module the renderer + settings can both read. Every stage is individually
+ * gateable for performance; `enabled:false` bypasses the whole composer and
+ * renders straight to the screen exactly like the pre-overhaul path.
+ *
+ * Target look: PS2 survival-horror atmosphere (RE / Silent Hill) with a
+ * Persona-flavoured grade — strong color identity, dramatic contrast, intentional
+ * grain/aberration. Effects serve mood + readability, not raw fidelity.
+ */
+export const PostFXConfig = {
+  enabled: true,
+
+  // --- depth of field: near subject stays crisp, the rest melts to murk ---
+  dof: {
+    enabled: true,
+    autofocus: true,     // focus on whatever sits under screen-centre
+    focusDistance: 4.0,  // metres — used when autofocus is off
+    focusRange: 2.4,     // metres of acceptably-sharp depth around focus
+    maxBlur: 1.0,        // 0..1 strength of the far/near melt
+    bokehRadius: 2.6,    // px disk radius at full CoC
+  },
+
+  // --- bloom: blooms the practicals, neon, muzzle highlights ---
+  bloom: {
+    enabled: true,
+    threshold: 0.62,     // luminance above which a pixel blooms
+    intensity: 0.85,     // additive strength of the bloom buffer
+    radius: 1.0,         // blur spread multiplier
+    iterations: 3,       // gaussian H/V passes (more = softer/wider)
+  },
+
+  // --- colour grade: the Persona identity lives here ---
+  grade: {
+    enabled: true,
+    exposure: 1.0,       // multiplied on top of the renderer's tone-map exposure
+    contrast: 1.12,      // S-curve contrast around mid grey
+    saturation: 1.14,    // global saturation push
+    temperature: 0.0,    // -1 cool .. +1 warm overall tint
+    lift: [0.02, 0.03, 0.05],   // shadows pushed cool/blue (RGB add)
+    gain: [1.04, 1.00, 0.96],   // highlights pulled warm (RGB mul)
+    // duotone-ish split toning: shadows toward teal, highlights toward amber
+    shadowTint: [0.20, 0.42, 0.55],
+    highlightTint: [1.00, 0.78, 0.45],
+    splitToning: 0.18,   // 0..1 how strongly the split tint is mixed in
+  },
+
+  // --- screen-space horror flavour (overhauled from the old CSS overlay) ---
+  vignette: { enabled: true, amount: 0.55, softness: 0.45 },
+  aberration: { enabled: true, amount: 0.3 },   // radial RGB split, edge-weighted
+  grain: { enabled: true, amount: 0.14, animated: true }, // animated film grain
+  scanlines: { enabled: true, amount: 0.5, density: 2.4, scroll: 0.4 }, // CRT roll
+};
+
+/**
+ * Dynamic-light atmosphere: subtle, deterministic flicker/pulse layered onto
+ * tagged practical lights so the scene breathes. Isolated + disable-able; the
+ * AtmosphereSystem only touches lights that opt in via userData.flicker.
+ */
+export const AtmosphereConfig = {
+  enabled: true,
+  flickerSpeed: 9.0,   // base hertz of the noise drive
+  flickerDepth: 0.16,  // fraction of base intensity the flicker can swing
+};
+
 export const PhysicsConfig = {
   gravity: { x: 0, y: -22.0, z: 0 }, // punchier than real gravity, feels better for FPS
   fixedStep: 1 / 60, // seconds
