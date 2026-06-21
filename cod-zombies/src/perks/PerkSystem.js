@@ -116,8 +116,8 @@ export class PerkSystem extends System {
         if ((m.x - pp.x) ** 2 + (m.z - pp.z) ** 2 <= 6.25) { // within 2.5m
           this.#changeGiven.add(m.id);
           player.points += 100;
+          // award only — the "+100" points floater communicates it; no popup
           this.#events.emit('score:changed', { points: player.points });
-          this.#events.emit('powerup:pickup', { name: 'LOST CHANGE +100' });
         }
       }
     }

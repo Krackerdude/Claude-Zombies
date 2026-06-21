@@ -102,14 +102,26 @@ async function main() {
     const elAmmo = document.getElementById('hud-ammo');
     const elMag = document.querySelector('#hud-ammo .mag');
     const elRes = document.querySelector('#hud-ammo .res');
+    const elDigits = document.querySelector('#hud-ammo .ammo-digits');
     const elHit = document.getElementById('hitmarker');
     const elScope = document.getElementById('scope');
     const elCross = document.getElementById('crosshair');
+
+    // scale the digits to fit the fixed-width tube, so the widget never resizes
+    const AMMO_FIT_W = 108; // tube content width (px)
+    const fitAmmo = () => {
+      if (!elDigits) return;
+      elDigits.style.transform = 'scale(1)';
+      const w = elDigits.scrollWidth;
+      const s = w > AMMO_FIT_W ? Math.max(0.5, AMMO_FIT_W / w) : 1;
+      elDigits.style.transform = `scale(${s})`;
+    };
 
     const elReloadPrompt = document.getElementById('reload-prompt');
     const setAmmo = (mag, reserve, reloading) => {
       if (elMag) elMag.textContent = mag;
       if (elRes) elRes.textContent = reserve;
+      fitAmmo();
       if (elAmmo) {
         elAmmo.classList.toggle('low', typeof mag === 'number' && mag <= 5);
         elAmmo.classList.toggle('reloading', !!reloading);

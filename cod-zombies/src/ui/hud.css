@@ -34,7 +34,7 @@
 
 #hud-bl {
   position: absolute; left: calc(30px + var(--hud-inset)); bottom: calc(78px + var(--hud-inset)); z-index: 21;
-  display: flex; flex-direction: column; gap: 24px; pointer-events: none;
+  display: flex; flex-direction: column; gap: 34px; pointer-events: none;
   transform: scale(var(--hud-scale)); transform-origin: bottom left;
 }
 
@@ -91,9 +91,9 @@
 }
 
 /* --- round counter (left) + perks (right), under the player widget --- */
-#hud-row { display: flex; align-items: flex-end; gap: 20px; }
+#hud-row { display: flex; align-items: flex-end; gap: 14px; }
 
-#hud-round-widget { position: relative; line-height: 0.8; }
+#hud-round-widget { position: relative; line-height: 0.8; margin-left: 12px; }
 #hud-round {
   font-family: 'Anton', Impact, sans-serif; font-size: 4.6rem; line-height: 0.8; letter-spacing: -0.01em;
   background: linear-gradient(180deg, #ff5236 2%, var(--hud-blood) 48%, var(--hud-blood-deep) 100%);
@@ -111,7 +111,7 @@
 }
 /* --- perks row --- (CoD-zombies shield badges: darker, gritty, flat-top /
    pointed-bottom crest; nudged right off the round number, tight together) */
-#hud-perks { display: flex; align-items: flex-end; gap: 4px; padding-bottom: 5px; margin-left: 16px; }
+#hud-perks { display: flex; align-items: flex-end; gap: 4px; padding-bottom: 5px; margin-left: 8px; }
 .perk-chip {
   position: relative; width: 42px; height: 47px;
   clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
@@ -156,8 +156,8 @@
 /* --- the glowing ammo tube (no overflow clip: digits + their glow run free;
    the moving glow/texture layers each round to the tube via border-radius) --- */
 .wpn-tube {
-  position: relative; display: flex; align-items: baseline; gap: 11px;
-  padding: 19px 42px 19px 30px;
+  position: relative; display: flex; align-items: center; justify-content: flex-start;
+  width: 152px; padding: 19px 16px 19px 30px; /* FIXED size — the digits scale to fit, not the tube */
   border-radius: 36px 16px 16px 36px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0) 26%),
@@ -176,7 +176,12 @@
 }
 @keyframes tubeScan { to { background-position: -220% 0, 0 0; } }
 @keyframes tubeBreath { 0%,100% { opacity: 0.75; } 50% { opacity: 1; } }
-.wpn-tube .mag, .wpn-tube .res { position: relative; z-index: 3; font-family: 'Anton', Impact, sans-serif; line-height: 0.8; }
+/* digits live in a wrapper that JS scales to fit the fixed tube (no widget jump) */
+.ammo-digits {
+  position: relative; z-index: 3; display: inline-flex; align-items: baseline; gap: 11px;
+  white-space: nowrap; transform-origin: left center;
+}
+.wpn-tube .mag, .wpn-tube .res { font-family: 'Anton', Impact, sans-serif; line-height: 0.8; }
 .wpn-tube .mag {
   font-size: 3.55rem; color: #eafffd;
   text-shadow: 0 0 12px rgba(var(--wpn-energy), 0.9), 0 0 28px rgba(var(--wpn-energy), 0.5), 0 2px 4px #000;
