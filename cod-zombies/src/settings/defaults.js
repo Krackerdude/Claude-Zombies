@@ -10,6 +10,8 @@ export const defaultSettings = {
     renderScale: 1.0, // internal resolution scale (web "resolution")
     windowMode: 'windowed', // windowed | fullscreen | borderless
     vsync: true,
+    hudScale: 1.0, // uniform scale of the corner HUD widgets
+    hudBounds: 26, // safe-area inset (px) pushing the HUD in off the screen edge
   },
   graphics: {
     shadows: 'high', // off | low | high
