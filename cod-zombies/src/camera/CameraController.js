@@ -53,17 +53,29 @@ export class CameraController extends System {
     });
   }
 
-  update(_dt) {
-    if (!this.#gameState.isPlaying || !this.#input.pointerLocked) return;
-    const id = this.world.first(PlayerTag);
+  update(dt) {
+    if (!this.#gameState.isPlaying) return;
+    const id = this.world.first(PlayerTag, Transform);
     if (id === undefined) return;
     const tag = this.world.get(id, PlayerTag);
+    const t = this.world.get(id, Transform);
 
-    const c = this.#settings.controls;
-    const sens = PlayerConfig.mouseSensitivity * c.sensitivity;
-    tag.yaw -= this.#input.mouseDX * sens;
-    tag.pitch -= this.#input.mouseDY * sens * (c.invertY ? -1 : 1);
-    tag.pitch = THREE.MathUtils.clamp(tag.pitch, -PlayerConfig.maxPitch, PlayerConfig.maxPitch);
+    // mouse look — only while the pointer is captured
+    if (this.#input.pointerLocked) {
+      const c = this.#settings.controls;
+      const sens = PlayerConfig.mouseSensitivity * c.sensitivity;
+      tag.yaw -= this.#input.mouseDX * sens;
+      tag.pitch -= this.#input.mouseDY * sens * (c.invertY ? -1 : 1);
+      tag.pitch = THREE.MathUtils.clamp(tag.pitch, -PlayerConfig.maxPitch, PlayerConfig.maxPitch);
+    }
+
+    // Resolve camera POSITION + ORIENTATION here, in the update phase, so that
+    // systems running later this frame read an up-to-date camera. Critically,
+    // weapon firing (WeaponSystem.update) derives the muzzle origin + aim from
+    // this camera; when it lived in lateUpdate the camera was a frame stale, so
+    // hitscan + tracers lagged the view while moving. FOV stays in lateUpdate
+    // because it depends on aim state the weapon sets later this same frame.
+    this.#positionCamera(tag, t, dt);
   }
 
   lateUpdate(dt) {
@@ -71,12 +83,14 @@ export class CameraController extends System {
       this.#menuDrift(dt);
       return;
     }
-
-    const id = this.world.first(PlayerTag, Transform);
+    const id = this.world.first(PlayerTag);
     if (id === undefined) return;
     const tag = this.world.get(id, PlayerTag);
-    const t = this.world.get(id, Transform);
+    this.#updateFov(tag, dt);
+  }
 
+  /** Camera eye position + look orientation (everything but FOV). */
+  #positionCamera(tag, t, dt) {
     const eyeTarget = (Stance[tag.stance] ?? Stance.stand).eye;
     const eyeRate = tag.getUpT > 0 ? PlayerConfig.eyeLerpRate * 0.45 : PlayerConfig.eyeLerpRate;
     this.#eye = damp(this.#eye, eyeTarget, eyeRate, dt);
@@ -91,15 +105,6 @@ export class CameraController extends System {
     _pos.y = feetY + this.#eye - this.#dip;
 
     const speed = Math.hypot(tag.velocity.x, tag.velocity.z);
-    let fovTarget = RenderConfig.fov;
-    if (tag.aiming && tag.adsFov > 0) {
-      fovTarget = tag.adsFov; // zoom; no sprint/slide kick while aiming
-    } else if (tag.state === MoveState.SLIDE || tag.state === MoveState.DIVE) {
-      fovTarget += PlayerConfig.slideFovKick;
-    } else if (tag.state === MoveState.SPRINT) {
-      fovTarget += PlayerConfig.sprintFovKick;
-    }
-
     // subtle camera bob with footfalls — grounded, less than the weapon bob,
     // and skipped while sliding/airborne (it isn't footsteps)
     const footing = tag.grounded && tag.state !== MoveState.SLIDE && tag.state !== MoveState.DIVE;
@@ -108,13 +113,6 @@ export class CameraController extends System {
     _pos.y += Math.abs(Math.sin(this.#bob)) * 0.022 * amp;
     _pos.x += Math.cos(this.#bob) * 0.012 * amp;
     this.#camera.position.copy(_pos);
-    // snap-zoom a touch faster than it relaxes, so ADS feels responsive
-    const fovRate = tag.aiming ? PlayerConfig.fovLerpRate * 1.8 : PlayerConfig.fovLerpRate;
-    this.#fov = damp(this.#fov, fovTarget, fovRate, dt);
-    if (Math.abs(this.#camera.fov - this.#fov) > 0.01) {
-      this.#camera.fov = this.#fov;
-      this.#camera.updateProjectionMatrix();
-    }
 
     const rollTarget = tag.state === MoveState.SLIDE ? 0.05 : 0;
     this.#roll = damp(this.#roll, rollTarget, 8, dt);
@@ -128,6 +126,26 @@ export class CameraController extends System {
 
     _euler.set(tag.pitch + tag.recoilPitch + this.#dmgPitch + (tag.viewLeanPitch || 0), tag.yaw + tag.recoilYaw, this.#roll + this.#dmgRoll + (tag.viewLeanRoll || 0));
     this.#camera.quaternion.setFromEuler(_euler);
+  }
+
+  /** FOV easing — sprint/slide kick + ADS zoom. Reads aim state the weapon set
+   *  earlier this frame, so it runs after the weapon, in lateUpdate. */
+  #updateFov(tag, dt) {
+    let fovTarget = RenderConfig.fov;
+    if (tag.aiming && tag.adsFov > 0) {
+      fovTarget = tag.adsFov; // zoom; no sprint/slide kick while aiming
+    } else if (tag.state === MoveState.SLIDE || tag.state === MoveState.DIVE) {
+      fovTarget += PlayerConfig.slideFovKick;
+    } else if (tag.state === MoveState.SPRINT) {
+      fovTarget += PlayerConfig.sprintFovKick;
+    }
+    // snap-zoom a touch faster than it relaxes, so ADS feels responsive
+    const fovRate = tag.aiming ? PlayerConfig.fovLerpRate * 1.8 : PlayerConfig.fovLerpRate;
+    this.#fov = damp(this.#fov, fovTarget, fovRate, dt);
+    if (Math.abs(this.#camera.fov - this.#fov) > 0.01) {
+      this.#camera.fov = this.#fov;
+      this.#camera.updateProjectionMatrix();
+    }
   }
 
   /** Slow, uneasy orbit + bob around the arena for the main menu backdrop. */
