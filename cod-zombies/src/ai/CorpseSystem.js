@@ -26,7 +26,8 @@ export class CorpseSystem extends System {
   init() {
     this.#events = this.world.services.get(Service.Events);
     // clear bodies when the run ends so they don't linger into the next one
-    this.#events.on('state:change', ({ state }) => { if (state !== 'playing') this.#clear(); });
+    // (only on return to menu — pause + scoreboard keep the frozen scene intact)
+    this.#events.on('state:change', ({ state }) => { if (state === 'menu') this.#clear(); });
   }
 
   #clear() { for (const id of [...this.world.query(CorpseTag)]) this.world.destroyEntity(id); }
