@@ -56,20 +56,7 @@
       }
       #hint.hidden { display: none; }
 
-      /* gameplay HUD (round / health / points) */
-      #hud-stats {
-        position: absolute; top: 14px; right: 18px; text-align: right;
-        font-family: 'Anton', Impact, sans-serif; color: #d8d2c4;
-        text-shadow: 2px 0 rgba(226,58,46,0.5), -2px 0 rgba(47,184,176,0.35);
-      }
-      #hud-round { font-size: 3.4rem; line-height: 0.9; color: #e23a2e; }
-      #hud-round-sub { font-size: 0.8rem; letter-spacing: 0.4em; color: #7c7668; font-family: 'Oswald', sans-serif; }
-      #hud-zombies { margin-top: 6px; font-family: 'Oswald', sans-serif; font-size: 0.95rem; letter-spacing: 0.2em; color: #2fb8b0; }
-      #hud-points {
-        position: absolute; bottom: 22px; left: 22px;
-        font-family: 'Anton', Impact, sans-serif; font-size: 2rem; color: #e8c34a;
-        text-shadow: 0 2px 6px #000;
-      }
+      /* gameplay HUD: round / points / perks / weapon widgets live in ui/hud.css */
       #hud-health {
         position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
         width: 280px; height: 8px; background: rgba(0,0,0,0.6); border: 1px solid #3a3833;
@@ -133,25 +120,7 @@
       #app.shake { animation: shake 0.5s ease; }
       @keyframes shake { 0%,100% { transform: translate(0,0); } 20% { transform: translate(-6px,4px); } 40% { transform: translate(5px,-5px); } 60% { transform: translate(-4px,-3px); } 80% { transform: translate(4px,4px); } }
 
-      #hud-lethal {
-        position: absolute; bottom: 22px; left: 24px;
-        font-family: 'Oswald', sans-serif; font-size: 1.1rem; color: #cfe3a6;
-        text-shadow: 0 1px 3px #000; letter-spacing: 0.05em; pointer-events: none;
-      }
-      #hud-lethal-count { font-weight: 700; color: #fff; }
-
-      #hud-perks {
-        position: absolute; bottom: 52px; left: 24px;
-        display: flex; gap: 7px; pointer-events: none;
-      }
-      .perk-chip {
-        width: 30px; height: 30px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.62rem;
-        color: #fff; text-shadow: 0 1px 2px #000; border: 2px solid rgba(255,255,255,0.7);
-        box-shadow: 0 0 10px rgba(0,0,0,0.6); animation: perkpop 0.35s ease-out;
-      }
-      @keyframes perkpop { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      #hud-perks-OLD-REMOVED {}
 
       /* downed: drain color from the whole view */
       #app.downed #game-canvas { filter: grayscale(1) contrast(1.05) brightness(0.8); }
@@ -172,15 +141,7 @@
       }
 
       #crosshair.hidden { display: none; }
-      #hud-weapon { position: absolute; bottom: 18px; right: 24px; text-align: right; font-family: 'Oswald', sans-serif; color: #d8d2c4; }
-      #hud-weapon .wname { font-family: 'Anton', Impact, sans-serif; font-size: 1.5rem; letter-spacing: 0.07em; }
-      #hud-weapon .wcat { font-size: 0.66rem; letter-spacing: 0.34em; color: #7c7668; text-transform: uppercase; }
-      #hud-ammo { font-family: 'Anton', Impact, sans-serif; font-size: 2.4rem; line-height: 1; margin-top: 2px; }
-      #hud-ammo .mag { color: #f0ebdd; }
-      #hud-ammo .res { font-size: 1.1rem; color: #7c7668; }
-      #hud-ammo.low .mag { color: #e23a2e; }
-      #hud-ammo.reloading { animation: ammoBlink 0.55s steps(2, jump-none) infinite; }
-      @keyframes ammoBlink { 50% { opacity: 0.35; } }
+      /* weapon widget + ammo styles live in ui/hud.css */
       #hitmarker {
         position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
         color: #f0ebdd; font: 700 1.4rem/1 sans-serif; opacity: 0; pointer-events: none;
@@ -241,15 +202,28 @@
     <div id="hud">
       <div id="crosshair"></div>
       <div id="debug"></div>
-      <div id="hud-stats">
-        <div id="hud-round">1</div>
-        <div id="hud-round-sub">ROUND</div>
-        <div id="hud-zombies">—</div>
+
+      <!-- bottom-left cluster: player/points, then round + perks (BO3 layout) -->
+      <div id="hud-bl">
+        <div id="hud-player">
+          <div id="hud-portrait" class="hud-tex"><div class="face"></div><div class="sheen"></div></div>
+          <div id="hud-points-wrap">
+            <div id="hud-points">0</div>
+            <div id="hud-points-label">Points</div>
+            <div id="hud-gains"></div>
+          </div>
+        </div>
+        <div id="hud-row">
+          <div id="hud-round-widget">
+            <div id="hud-round">1</div>
+            <div id="hud-round-sub">Round</div>
+            <div id="hud-zombies">—</div>
+          </div>
+          <div id="hud-perks"></div>
+        </div>
       </div>
-      <div id="hud-points">0</div>
+
       <div id="hud-health"><div id="hud-health-fill"></div></div>
-      <div id="hud-lethal">✦ <span id="hud-lethal-count">4</span></div>
-      <div id="hud-perks"></div>
       <div id="downed-overlay"></div>
       <div id="lowhp-overlay"></div>
       <div id="hud-powerups"></div>
@@ -260,15 +234,28 @@
         <circle class="ring-bg" cx="20" cy="20" r="16"></circle>
         <circle class="ring-fg" cx="20" cy="20" r="16"></circle>
       </svg>
+
+      <!-- bottom-right: stylized weapon widget -->
       <div id="hud-weapon">
-        <div class="wname">—</div>
-        <div class="wcat"></div>
-        <div id="hud-ammo"><span class="mag">0</span><span class="res"> / 0</span></div>
+        <div class="wpn-widget hud-tex">
+          <div class="wpn-ammo" id="hud-ammo"><span class="mag">0</span><span class="res">0</span></div>
+          <div class="wpn-nade"><span class="nade-icon"></span><span class="nade-n" id="hud-lethal-count">0</span></div>
+        </div>
+        <div class="wpn-name">—</div>
       </div>
+
       <div id="reload-prompt">[R] Reload</div>
       <div id="prompt"></div>
       <div id="hint">WASD move · Shift sprint · C crouch · X prone (dive while sprinting) · Space jump · MOUSE1 fire · MOUSE2 ADS · R reload · F melee · G grenade · K light · 1-8 weapons · Q swap · hold E repair window</div>
     </div>
+
+    <!-- SVG filter: roughens the round number into a painted/bloody edge -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <filter id="hud-paint" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.012 0.026" numOctaves="2" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </svg>
     <div id="scope"><div class="ring"></div><div class="reticle-v"></div><div class="reticle-h"></div></div>
     <div id="fx-flash"></div>
     <div id="fx-blood"></div>
