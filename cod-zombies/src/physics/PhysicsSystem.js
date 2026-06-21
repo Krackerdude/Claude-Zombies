@@ -19,7 +19,7 @@ export class PhysicsSystem extends System {
   }
 
   fixedUpdate(_dt) {
-    if (this.#gameState.current === 'paused') return; // freeze the world
+    if (!this.#gameState.isPlaying) return; // freeze the world (pause / scoreboard / menu)
     // Cache previous positions for render interpolation before integrating.
     // Only dynamic bodies — kinematic ones (the player) cache themselves in
     // their controller, before they move, so we must not clobber that here.
