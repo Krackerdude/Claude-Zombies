@@ -4,7 +4,9 @@ import { buildArena } from './scenes/ArenaScene.js';
 import { PlayerTag, Transform } from './ecs/components/index.js';
 import { UIManager } from './ui/UIManager.js';
 import { perkIconDataURL } from './perks/perks.js';
+import { portraitDataURL } from './ui/portrait.js';
 import './ui/menu.css';
+import './ui/hud.css';
 
 /**
  * Application bootstrap. This is the only place that touches the DOM chrome
@@ -44,7 +46,13 @@ async function main() {
     const elZombies = document.getElementById('hud-zombies');
     const elHealthFill = document.getElementById('hud-health-fill');
     const elPoints = document.getElementById('hud-points');
+    const elGains = document.getElementById('hud-gains');
+    const elRoundWidget = document.getElementById('hud-round-widget');
     const elBanner = document.getElementById('hud-banner');
+
+    // procedural survivor portrait in the player widget
+    const elFace = document.querySelector('#hud-portrait .face');
+    if (elFace) elFace.style.backgroundImage = `url(${portraitDataURL()})`;
 
     const banner = (text) => {
       if (!elBanner) return;
@@ -53,11 +61,14 @@ async function main() {
       void elBanner.offsetWidth;
       elBanner.classList.add('show');
     };
+    // restart a one-shot CSS animation by toggling its class
+    const replay = (el, cls) => { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
 
     events.on('round:changed', ({ round, state, count }) => {
       if (state === 'active') {
         if (elRound) elRound.textContent = String(round);
         if (elRoundSub) elRoundSub.textContent = 'ROUND';
+        replay(elRoundWidget, 'punch');
         banner(round === 1 ? 'THE DEAD RISE' : `ROUND ${round}`);
         if (elZombies) elZombies.textContent = `${count} INBOUND`;
       }
@@ -69,12 +80,33 @@ async function main() {
     events.on('player:health', ({ health, max }) => {
       if (elHealthFill) elHealthFill.style.width = `${Math.max(0, (health / max) * 100)}%`;
     });
-    events.on('score:changed', ({ points }) => { if (elPoints) elPoints.textContent = points.toLocaleString(); });
+
+    // points: live counter + BO3-style "+N" gain floaters that rise off the total.
+    // `primed` swallows the first update of a run (the starting bankroll) so it
+    // doesn't spawn a bogus floater.
+    let prevPoints = 0, pointsPrimed = false;
+    events.on('score:changed', ({ points }) => {
+      const delta = points - prevPoints;
+      prevPoints = points;
+      if (elPoints) elPoints.textContent = points.toLocaleString();
+      if (pointsPrimed && delta !== 0) {
+        if (elPoints) replay(elPoints, 'bump');
+        if (delta > 0 && elGains) {
+          const g = document.createElement('div');
+          g.className = 'gain';
+          g.textContent = `+${delta.toLocaleString()}`;
+          elGains.appendChild(g);
+          while (elGains.childElementCount > 5) elGains.removeChild(elGains.firstChild);
+          g.addEventListener('animationend', () => g.remove());
+        }
+      }
+      pointsPrimed = true;
+    });
+    events.on('run:reset', () => { prevPoints = 0; pointsPrimed = false; if (elGains) elGains.innerHTML = ''; });
     events.on('player:down', () => banner('YOU DIED'));
 
     // --- weapon HUD wiring ---
-    const elWName = document.querySelector('#hud-weapon .wname');
-    const elWCat = document.querySelector('#hud-weapon .wcat');
+    const elWName = document.querySelector('#hud-weapon .wpn-name');
     const elAmmo = document.getElementById('hud-ammo');
     const elMag = document.querySelector('#hud-ammo .mag');
     const elRes = document.querySelector('#hud-ammo .res');
@@ -85,7 +117,7 @@ async function main() {
     const elReloadPrompt = document.getElementById('reload-prompt');
     const setAmmo = (mag, reserve, reloading) => {
       if (elMag) elMag.textContent = mag;
-      if (elRes) elRes.textContent = ` / ${reserve}`;
+      if (elRes) elRes.textContent = reserve;
       if (elAmmo) {
         elAmmo.classList.toggle('low', typeof mag === 'number' && mag <= 5);
         elAmmo.classList.toggle('reloading', !!reloading);
@@ -94,9 +126,8 @@ async function main() {
       const hasReserve = reserve === '∞' || (typeof reserve === 'number' && reserve > 0);
       if (elReloadPrompt) elReloadPrompt.classList.toggle('show', mag === 0 && !reloading && hasReserve);
     };
-    events.on('weapon:changed', ({ name, category, mag, reserve }) => {
-      if (elWName) elWName.textContent = name;
-      if (elWCat) elWCat.textContent = category;
+    events.on('weapon:changed', ({ name, mag, reserve }) => {
+      if (elWName) { elWName.textContent = name; replay(elWName, 'swap'); }
       setAmmo(mag, reserve === Infinity ? '∞' : reserve, false);
     });
     events.on('weapon:ammo', ({ mag, reserve, reloading }) => setAmmo(mag, reserve, reloading));
