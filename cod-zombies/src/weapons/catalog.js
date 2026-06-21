@@ -21,7 +21,7 @@ const defs = {
   rayGun: {
     Class: ProjectileWeapon, category: C.WONDER, name: 'RAY GUN',
     damage: 1000, magazineSize: 20, fireRate: 140, projectileSpeed: 45,
-    splashRadius: 3.2, splashDamage: 600, adsFov: 58, cost: 0, boxOnly: true,
+    splashRadius: 6.4, splashDamage: 600, adsFov: 58, cost: 0, boxOnly: true,
     energyColor: 0x46f060, ejectsBrass: false, // green plasma, no casings
   },
   thundergun: {
