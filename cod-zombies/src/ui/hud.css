@@ -32,9 +32,13 @@
    inset that pushes every corner cluster in off the screen edge (BO3 bounds). */
 #hud { --hud-scale: 1; --hud-inset: 0px; }
 
+/* The cluster is bottom-anchored, so the round row sits at `bottom` and the
+   player widget floats above it by `gap`. To LOWER the round away from the
+   player without moving the player: drop `bottom` and add the same amount to
+   `gap` (round goes down, player stays put). */
 #hud-bl {
-  position: absolute; left: calc(30px + var(--hud-inset)); bottom: calc(78px + var(--hud-inset)); z-index: 21;
-  display: flex; flex-direction: column; gap: 34px; pointer-events: none;
+  position: absolute; left: calc(30px + var(--hud-inset)); bottom: calc(48px + var(--hud-inset)); z-index: 21;
+  display: flex; flex-direction: column; gap: 64px; pointer-events: none;
   transform: scale(var(--hud-scale)); transform-origin: bottom left;
 }
 
