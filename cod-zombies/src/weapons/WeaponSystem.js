@@ -422,9 +422,12 @@ export class WeaponSystem extends System {
         if (isFinite(ztca) && ztca <= wallDist) {
           _end.copy(o).addScaledVector(_dir, ztca);
           this.#fx.spawnBlood(_end, _dir);               // zombie: blood, no smoke/holes
-        } else if (wallDist < weapon.data.range) {
-          this.#surfaceImpact(o, _dir, wallDist);          // wall/prop: smoke + debris + hole
+        } else if (wallDist < weapon.data.range && this.#surfaceImpact(o, _dir, wallDist)) {
+          // #surfaceImpact hit a real surface and set _end to its exact point
         } else {
+          // clean miss — OR the xz wall-march flagged a wall the real ray flew
+          // over (e.g. firing upward past the rooftops). Either way the tracer
+          // streaks the full distance instead of dead-ending on a stale point.
           _end.copy(o).addScaledVector(_dir, weapon.data.range);
         }
         this.#fx.spawnTracer(_muz, _end);
@@ -434,7 +437,10 @@ export class WeaponSystem extends System {
   }
 
   /** Raycast the world to get a precise surface point/normal/colour, then spawn
-   *  the material-aware impact there. Falls back to the nav march distance. */
+   *  the material-aware impact there. Sets `_end` to the surface point and
+   *  returns true when it hits something solid; returns false when the ray
+   *  finds nothing real (so the caller can fly the tracer to full range rather
+   *  than trusting the approximate xz wall-march). */
   #surfaceImpact(o, dir, wallDist) {
     this.#fxRay.set(o, dir);
     this.#fxRay.far = wallDist + 0.6;
@@ -452,8 +458,9 @@ export class WeaponSystem extends System {
       const mc = pick.object.material && pick.object.material.color;
       _col.copy(mc || _col.setHex(0x9a9a9a));
       this.#fx.spawnImpact(_end, _nrm, _col);
+      return true;
     }
-    // if the only thing in the way was a zombie/dynamic prop, no surface impact
+    return false; // only a zombie/dynamic prop (or open sky) along the ray
   }
 
   #fxIgnored(obj) {
