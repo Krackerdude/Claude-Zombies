@@ -103,7 +103,7 @@ export class WeatherSystem extends System {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.#mistRel, 3));
     const mat = new THREE.PointsMaterial({
-      map: mistTexture(), color: m.color, size: 6.0, sizeAttenuation: true,
+      map: mistTexture(), color: m.color, size: m.size ?? 3.0, sizeAttenuation: true,
       transparent: true, opacity: m.opacity, depthWrite: false, blending: THREE.NormalBlending, fog: true,
     });
     this.#mist = new THREE.Points(geo, mat);
