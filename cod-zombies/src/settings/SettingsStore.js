@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { defaultSettings } from './defaults.js';
-import { RenderConfig, PostFXConfig } from '../config/index.js';
+import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig } from '../config/index.js';
 import { Service } from '../core/ServiceLocator.js';
 
 const STORAGE_KEY = 'necropolis.settings.v2';
@@ -120,6 +120,7 @@ export class SettingsStore {
       PostFXConfig.enabled = g.postfx !== false;
       PostFXConfig.bloom.enabled = g.bloom !== false;
       PostFXConfig.dof.enabled = g.dof !== false;
+      PostFXConfig.godrays.enabled = g.godRays !== false;
       PostFXConfig.grain.enabled = g.grain > 0;
       PostFXConfig.grain.amount = g.grain;
       PostFXConfig.scanlines.enabled = !!g.scanlines;
@@ -132,6 +133,11 @@ export class SettingsStore {
       // double it. grade.exposure stays at its neutral config default.
       render.postFX.applyParams(PostFXConfig);
     }
+
+    // Scene-level atmosphere systems read these config flags live each frame,
+    // so toggling here takes effect immediately (independent of the composer).
+    ParticleConfig.enabled = g.particles !== false;
+    DecalConfig.enabled = g.decals !== false;
 
     // CSS overlay: the fallback when the WebGL stack is off (or unavailable).
     // When the pipeline owns these effects, zero the CSS layer to avoid stacking.

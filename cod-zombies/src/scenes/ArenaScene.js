@@ -24,6 +24,8 @@ import { makeChalkTexture, makeGlowTexture } from '../util/chalk.js';
 import { PlayerTag, Transform } from '../ecs/components/index.js';
 import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../rendering/materials/surfaces.js';
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
+import { AmbientParticles } from '../rendering/AmbientParticles.js';
+import { DecalSystem } from '../rendering/DecalSystem.js';
 
 const B = 10; // building half-extent
 const T = 1; // wall thickness
@@ -64,6 +66,9 @@ export function buildArena(engine) {
   scene.add(sun);
   scene.add(sun.target);
   sceneMgr.sun = sun;
+  // hand the key light to the renderer so the god-ray stage knows where the
+  // "moon" sits on screen (safely ignored when post-processing is unavailable)
+  engine.services.get(Service.Render).setSunLight?.(sun);
 
   // warm practical lights so the interior + perimeter actually read. Lights can
   // opt into the AtmosphereSystem's flicker via userData.flicker; the warm
@@ -172,6 +177,11 @@ export function buildArena(engine) {
   // The shared normal maps join the tunable-texture set for anisotropy control.
   engine.world.registerSystem(new AtmosphereSystem(flickerLights));
   sceneMgr.tunableTextures.push(...sharedNormalMaps());
+
+  // ambient haze + persistent ground decals (blood pools, scorch). Both are
+  // isolated, event-driven, and individually disable-able for performance.
+  engine.world.registerSystem(new AmbientParticles());
+  engine.world.registerSystem(new DecalSystem());
 
   // --- exterior spawn points (outside the building) ---
   const spawnPoints = [

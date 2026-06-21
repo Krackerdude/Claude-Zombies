@@ -163,6 +163,10 @@ export class OptionsMenu {
       label: 'Depth of Field', sublabel: 'Soft focus falloff into the murk',
       value: g.dof !== false, onChange: (v) => set('dof', v),
     }));
+    p.appendChild(toggle({
+      label: 'God Rays', sublabel: 'Light shafts from the moon past the rooftops',
+      value: g.godRays !== false, onChange: (v) => set('godRays', v),
+    }));
     p.appendChild(slider({
       label: 'Film Grain', min: 0, max: 1, step: 0.05, value: g.grain,
       format: (v) => Math.round(v * 100) + '%', onChange: (v) => set('grain', v),
@@ -175,6 +179,16 @@ export class OptionsMenu {
     p.appendChild(slider({
       label: 'Vignette', min: 0, max: 1, step: 0.05, value: g.vignette,
       format: (v) => Math.round(v * 100) + '%', onChange: (v) => set('vignette', v),
+    }));
+
+    p.appendChild(sectionTitle('Atmosphere'));
+    p.appendChild(toggle({
+      label: 'Ambient Particles', sublabel: 'Dust + ash motes drifting in the air',
+      value: g.particles !== false, onChange: (v) => set('particles', v),
+    }));
+    p.appendChild(toggle({
+      label: 'Ground Decals', sublabel: 'Persistent blood pools + scorch marks',
+      value: g.decals !== false, onChange: (v) => set('decals', v),
     }));
   }
 

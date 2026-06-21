@@ -21,6 +21,9 @@ export const defaultSettings = {
     postfx: true, // master switch for the whole composer
     bloom: true, // additive bloom on practicals / neon / muzzle highlights
     dof: true, // depth of field (near subject crisp, world melts to murk)
+    godRays: true, // volumetric light shafts from the moon
+    particles: true, // ambient dust / ash motes in the air
+    decals: true, // persistent blood pools + scorch on the ground
     // horror post FX — drive the pipeline when postfx is on, the CSS overlay when off
     grain: 0.14, // 0..1 animated film grain
     scanlines: true,

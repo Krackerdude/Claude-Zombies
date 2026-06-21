@@ -82,6 +82,46 @@ export const BRIGHT_FRAG = /* glsl */ `
   }
 `;
 
+/**
+ * God-ray source: a soft light disc at the key light's screen position, but only
+ * where the scene depth is at the far plane (background / sky between the
+ * rooftops). Geometry therefore occludes the shafts, so they stream past wall
+ * edges and through window gaps instead of glowing over everything.
+ */
+export const GODRAY_SOURCE_FRAG = /* glsl */ `
+  uniform sampler2D tDepth;
+  uniform vec2 uSun;
+  uniform float uSize;
+  varying vec2 vUv;
+  void main() {
+    float d = texture2D(tDepth, vUv).x;
+    float sky = step(0.9999, d);                          // 1 where nothing drew
+    float disc = smoothstep(uSize, 0.0, distance(vUv, uSun));
+    gl_FragColor = vec4(vec3(disc * sky), 1.0);
+  }
+`;
+
+/** Radial blur of the source toward the light — the classic shaft accumulation. */
+export const GODRAY_BLUR_FRAG = /* glsl */ `
+  #define SAMPLES 24
+  uniform sampler2D tDiffuse;
+  uniform vec2 uSun;
+  uniform float uDensity, uWeight, uDecay;
+  varying vec2 vUv;
+  void main() {
+    vec2 delta = (vUv - uSun) * (uDensity / float(SAMPLES));
+    vec2 uv = vUv;
+    vec3 col = texture2D(tDiffuse, uv).rgb;
+    float illum = 1.0;
+    for (int i = 0; i < SAMPLES; i++) {
+      uv -= delta;
+      col += texture2D(tDiffuse, uv).rgb * illum * uWeight;
+      illum *= uDecay;
+    }
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
 /** Separable 9-tap gaussian (run once per axis, ping-ponged for wider blur). */
 export const BLUR_FRAG = /* glsl */ `
   uniform sampler2D tDiffuse;
@@ -106,6 +146,9 @@ export const FINAL_FRAG = /* glsl */ `
   uniform sampler2D tDiffuse;
   uniform sampler2D tBloom;
   uniform float uBloom;
+  uniform sampler2D tGod;
+  uniform float uGod;
+  uniform vec3 uGodColor;
   uniform vec2 uResolution;
   uniform float uTime;
 
@@ -142,6 +185,9 @@ export const FINAL_FRAG = /* glsl */ `
 
     // additive bloom
     col += texture2D(tBloom, uv).rgb * uBloom;
+
+    // god rays (tinted by the key light's colour)
+    if (uGod > 0.0) col += texture2D(tGod, uv).rgb * uGodColor * uGod;
 
     // exposure → contrast (around mid grey) → lift/gain → temperature
     col *= uExposure;
