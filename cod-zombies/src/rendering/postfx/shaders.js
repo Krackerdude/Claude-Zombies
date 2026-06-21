@@ -92,12 +92,15 @@ export const GODRAY_SOURCE_FRAG = /* glsl */ `
   uniform sampler2D tDepth;
   uniform vec2 uSun;
   uniform float uSize;
+  uniform float uAspect;   // width/height — keeps the disc circular, not an egg
   varying vec2 vUv;
   void main() {
     float d = texture2D(tDepth, vUv).x;
     float sky = step(0.9999, d);                          // 1 where nothing drew
-    float disc = smoothstep(uSize, 0.0, distance(vUv, uSun));
-    gl_FragColor = vec4(vec3(disc * sky), 1.0);
+    vec2 dd = vUv - uSun;
+    dd.x *= uAspect;                                       // aspect-correct to a circle
+    float disc = smoothstep(uSize, 0.0, length(dd));
+    gl_FragColor = vec4(vec3(disc * disc * sky), 1.0);    // tighter core (squared)
   }
 `;
 
@@ -113,12 +116,15 @@ export const GODRAY_BLUR_FRAG = /* glsl */ `
     vec2 uv = vUv;
     vec3 col = texture2D(tDiffuse, uv).rgb;
     float illum = 1.0;
+    float total = 1.0;
     for (int i = 0; i < SAMPLES; i++) {
       uv -= delta;
-      col += texture2D(tDiffuse, uv).rgb * illum * uWeight;
       illum *= uDecay;
+      col += texture2D(tDiffuse, uv).rgb * illum * uWeight;
+      total += illum * uWeight;
     }
-    gl_FragColor = vec4(col, 1.0);
+    // normalise to a weighted average so shafts stay bounded (no white blowout)
+    gl_FragColor = vec4(col / total, 1.0);
   }
 `;
 
