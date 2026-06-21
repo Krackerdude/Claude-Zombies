@@ -61,6 +61,13 @@ export class SettingsStore {
     const cap = Math.max(0.4, Math.min(this.display.renderScale, 1)) * window.devicePixelRatio;
     render.setPixelRatioCap(cap);
 
+    // HUD scale + safe-area bounds (read by hud.css via CSS variables)
+    const hud = document.getElementById('hud');
+    if (hud) {
+      hud.style.setProperty('--hud-scale', String(this.display.hudScale ?? 1));
+      hud.style.setProperty('--hud-inset', `${this.display.hudBounds ?? 0}px`);
+    }
+
     this.#applyWindowMode(this.display.windowMode);
     // FX overlay (grain etc.) read window mode indirectly; nothing else needed.
   }

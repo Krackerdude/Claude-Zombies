@@ -42,8 +42,6 @@ async function main() {
     // --- gameplay HUD wiring (round / health / points) ---
     const events = engine.services.get(Service.Events);
     const elRound = document.getElementById('hud-round');
-    const elRoundSub = document.getElementById('hud-round-sub');
-    const elZombies = document.getElementById('hud-zombies');
     const elHealthFill = document.getElementById('hud-health-fill');
     const elPoints = document.getElementById('hud-points');
     const elGains = document.getElementById('hud-gains');
@@ -64,18 +62,12 @@ async function main() {
     // restart a one-shot CSS animation by toggling its class
     const replay = (el, cls) => { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
 
-    events.on('round:changed', ({ round, state, count }) => {
+    events.on('round:changed', ({ round, state }) => {
       if (state === 'active') {
         if (elRound) elRound.textContent = String(round);
-        if (elRoundSub) elRoundSub.textContent = 'ROUND';
         replay(elRoundWidget, 'punch');
         banner(round === 1 ? 'THE DEAD RISE' : `ROUND ${round}`);
-        if (elZombies) elZombies.textContent = `${count} INBOUND`;
       }
-    });
-    events.on('round:cleared', () => { if (elRoundSub) elRoundSub.textContent = 'CLEARED'; });
-    events.on('zombies:changed', ({ remaining }) => {
-      if (elZombies) elZombies.textContent = `${remaining} LEFT`;
     });
     events.on('player:health', ({ health, max }) => {
       if (elHealthFill) elHealthFill.style.width = `${Math.max(0, (health / max) * 100)}%`;
@@ -227,13 +219,14 @@ async function main() {
       const chip = document.createElement('div');
       chip.className = 'perk-chip';
       chip.style.backgroundColor = '#' + color.toString(16).padStart(6, '0');
-      // show the perk's actual emblem (matches the machine); fall back to initials
+      // the emblem sits in its OWN layer above the chip's darken/grit overlay so
+      // the art stays bright + readable while the colour field stays moody
       const url = perkIconDataURL(id);
       if (url) {
-        chip.style.backgroundImage = `url(${url})`;
-        chip.style.backgroundSize = '82%';
-        chip.style.backgroundRepeat = 'no-repeat';
-        chip.style.backgroundPosition = 'center';
+        const ic = document.createElement('div');
+        ic.className = 'perk-icon';
+        ic.style.backgroundImage = `url(${url})`;
+        chip.appendChild(ic);
       } else {
         chip.textContent = name.split(' ').map((w) => w[0]).join('').slice(0, 3);
       }
@@ -329,6 +322,11 @@ async function main() {
 
     document.addEventListener('pointerlockchange', () => {
       hint.classList.toggle('hidden', input.pointerLocked);
+    });
+
+    // F1 toggles the developer debug overlay (hidden by default)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'F1') { e.preventDefault(); debug.classList.toggle('show'); }
     });
 
     // Expose for console poking during development.

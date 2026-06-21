@@ -235,6 +235,16 @@ export class OptionsMenu {
       format: (v) => v + '°', onChange: (v) => set('viewmodelFov', v),
     }));
 
+    p.appendChild(sectionTitle('HUD'));
+    p.appendChild(slider({
+      label: 'HUD Scale', sublabel: 'Size of the corner HUD widgets', min: 0.7, max: 1.4, step: 0.05, value: d.hudScale ?? 1,
+      format: (v) => Math.round(v * 100) + '%', onChange: (v) => set('hudScale', v),
+    }));
+    p.appendChild(slider({
+      label: 'HUD Bounds', sublabel: 'Safe-area padding from the screen edges', min: 0, max: 80, step: 2, value: d.hudBounds ?? 0,
+      format: (v) => v + 'px', onChange: (v) => set('hudBounds', v),
+    }));
+
     p.appendChild(sectionTitle('Resolution'));
     p.appendChild(slider({
       label: 'Render Scale', sublabel: 'Internal resolution (web)', min: 0.5, max: 1, step: 0.05, value: d.renderScale,

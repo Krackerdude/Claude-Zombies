@@ -48,7 +48,9 @@
         position: absolute; top: 10px; left: 12px;
         font-size: 12px; line-height: 1.5; color: #7fd482;
         text-shadow: 0 1px 2px #000; white-space: pre;
+        display: none; /* developer overlay — toggle with F1 */
       }
+      #debug.show { display: block; }
       #hint {
         position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
         font-size: 12px; color: #8a8f98; letter-spacing: 0.15em; text-transform: uppercase;
@@ -209,15 +211,12 @@
           <div id="hud-portrait" class="hud-tex"><div class="face"></div><div class="sheen"></div></div>
           <div id="hud-points-wrap">
             <div id="hud-points">0</div>
-            <div id="hud-points-label">Points</div>
             <div id="hud-gains"></div>
           </div>
         </div>
         <div id="hud-row">
           <div id="hud-round-widget">
             <div id="hud-round">1</div>
-            <div id="hud-round-sub">Round</div>
-            <div id="hud-zombies">—</div>
           </div>
           <div id="hud-perks"></div>
         </div>

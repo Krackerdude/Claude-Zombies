@@ -28,17 +28,22 @@
 .hud-tex::after { background: var(--hud-scan); opacity: 0.5; mix-blend-mode: soft-light; }
 
 /* =========================== bottom-left cluster ========================== */
+/* HUD-wide knobs (driven by Display settings): a uniform scale and a safe-area
+   inset that pushes every corner cluster in off the screen edge (BO3 bounds). */
+#hud { --hud-scale: 1; --hud-inset: 0px; }
+
 #hud-bl {
-  position: absolute; left: 26px; bottom: 56px; z-index: 21;
-  display: flex; flex-direction: column; gap: 12px; pointer-events: none;
+  position: absolute; left: calc(30px + var(--hud-inset)); bottom: calc(78px + var(--hud-inset)); z-index: 21;
+  display: flex; flex-direction: column; gap: 24px; pointer-events: none;
+  transform: scale(var(--hud-scale)); transform-origin: bottom left;
 }
 
 /* --- player widget: portrait left, points right (BO3) --- */
-#hud-player { display: flex; align-items: center; gap: 13px; }
+#hud-player { display: flex; align-items: center; gap: 16px; }
 
 #hud-portrait {
-  position: relative; width: 58px; height: 64px; flex: none;
-  border-radius: 7px; overflow: hidden;
+  position: relative; width: 72px; height: 80px; flex: none;
+  border-radius: 8px; overflow: hidden;
   background:
     linear-gradient(150deg, rgba(70,195,186,0.0) 30%, rgba(70,195,186,0.18)),
     radial-gradient(120% 120% at 35% 25%, #1a2630, #070b0e 78%);
@@ -59,7 +64,7 @@
 
 #hud-points-wrap { position: relative; display: flex; flex-direction: column; justify-content: center; }
 #hud-points {
-  font-family: 'Anton', Impact, sans-serif; font-size: 2.35rem; line-height: 0.92; letter-spacing: 0.01em;
+  font-family: 'Anton', Impact, sans-serif; font-size: 3rem; line-height: 0.92; letter-spacing: 0.01em;
   background: linear-gradient(178deg, #fff0c0 4%, var(--hud-amber) 46%, var(--hud-amber-deep) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 2px 5px rgba(0,0,0,0.85)) drop-shadow(0 0 10px rgba(243,198,78,0.28));
@@ -67,22 +72,17 @@
 }
 #hud-points.bump { animation: hudBump 0.28s cubic-bezier(.2,.9,.2,1); }
 @keyframes hudBump { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
-#hud-points-label {
-  font-family: 'Oswald', sans-serif; font-size: 0.52rem; letter-spacing: 0.42em; text-transform: uppercase;
-  color: #9a8a5c; margin-top: 1px; padding-left: 2px;
-}
 
 /* +X point-gain floaters, stacked rising from the counter (BO3) */
 #hud-gains {
-  position: absolute; left: calc(100% + 10px); bottom: 4px;
+  position: absolute; left: calc(100% + 12px); bottom: 6px;
   display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 1px;
 }
 .gain {
-  font-family: 'Anton', Impact, sans-serif; font-size: 1.15rem; line-height: 1; white-space: nowrap;
+  font-family: 'Anton', Impact, sans-serif; font-size: 1.4rem; line-height: 1; white-space: nowrap;
   color: #ffe9a6; text-shadow: 0 1px 3px #000, 0 0 8px rgba(243,198,78,0.5);
   animation: gainRise 1.05s ease-out forwards;
 }
-.gain.spend { color: #ff8d7a; text-shadow: 0 1px 3px #000, 0 0 8px rgba(210,36,28,0.5); }
 @keyframes gainRise {
   0% { opacity: 0; transform: translateY(6px) scale(0.8); }
   18% { opacity: 1; transform: translateY(0) scale(1); }
@@ -95,7 +95,7 @@
 
 #hud-round-widget { position: relative; line-height: 0.8; }
 #hud-round {
-  font-family: 'Anton', Impact, sans-serif; font-size: 3.5rem; line-height: 0.8; letter-spacing: -0.01em;
+  font-family: 'Anton', Impact, sans-serif; font-size: 4.6rem; line-height: 0.8; letter-spacing: -0.01em;
   background: linear-gradient(180deg, #ff5236 2%, var(--hud-blood) 48%, var(--hud-blood-deep) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: url(#hud-paint) drop-shadow(0 3px 5px rgba(0,0,0,0.9)) drop-shadow(0 0 14px rgba(210,36,28,0.4));
@@ -109,37 +109,34 @@
   45% { transform: scale(1.16) skewX(-3deg); filter: brightness(1.4); }
   100% { transform: scale(1) skewX(0); filter: brightness(1); }
 }
-#hud-round-sub {
-  font-family: 'Oswald', sans-serif; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.5em;
-  text-transform: uppercase; color: #8a4a44; margin-top: 3px; padding-left: 3px;
-}
-#hud-zombies {
-  font-family: 'Oswald', sans-serif; font-size: 0.74rem; letter-spacing: 0.22em; color: var(--hud-teal);
-  text-shadow: 0 1px 3px #000; margin-top: 2px; padding-left: 3px; opacity: 0.85;
-}
-
 /* --- perks row --- (CoD-zombies shield badges: darker, gritty, flat-top /
-   pointed-bottom crest instead of a circle; nudged right off the round number) */
-#hud-perks { display: flex; align-items: flex-end; gap: 8px; padding-bottom: 4px; margin-left: 9px; }
+   pointed-bottom crest; nudged right off the round number, tight together) */
+#hud-perks { display: flex; align-items: flex-end; gap: 4px; padding-bottom: 5px; margin-left: 16px; }
 .perk-chip {
-  position: relative; width: 33px; height: 37px;
+  position: relative; width: 42px; height: 47px;
   clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
-  background-size: 74%; background-repeat: no-repeat; background-position: center 40%;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.56rem; color: #f0f0f0;
+  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.62rem; color: #f0f0f0;
   text-shadow: 0 1px 2px #000; isolation: isolate;
   filter: drop-shadow(0 0 1px rgba(0,0,0,0.95)) drop-shadow(0 2px 4px rgba(0,0,0,0.72));
   animation: perkpop 0.4s cubic-bezier(.2,.9,.2,1);
 }
-.perk-chip::before { /* darken + faint top bezel edge — never flat */
-  content: ''; position: absolute; inset: 0; clip-path: inherit; pointer-events: none;
+.perk-chip::before { /* darken the colour field + faint top bezel edge — never flat */
+  content: ''; position: absolute; inset: 0; clip-path: inherit; pointer-events: none; z-index: 1;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0) 18%),
-    linear-gradient(180deg, rgba(6,8,10,0.34), rgba(4,6,8,0.62));
+    linear-gradient(180deg, rgba(6,8,10,0.30), rgba(4,6,8,0.56));
 }
-.perk-chip::after { /* gritty noise overlay */
-  content: ''; position: absolute; inset: 0; clip-path: inherit; pointer-events: none;
+.perk-chip::after { /* gritty noise over the field (below the emblem) */
+  content: ''; position: absolute; inset: 0; clip-path: inherit; pointer-events: none; z-index: 1;
   background: var(--hud-grunge); background-size: 56px 56px; opacity: 0.2; mix-blend-mode: overlay;
+}
+/* the emblem rides ABOVE the darken/grit so it stays bright + readable, scaled
+   up to fill the diamond crest */
+.perk-icon {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background-repeat: no-repeat; background-position: center 42%; background-size: 92%;
+  filter: brightness(1.3) contrast(1.08) drop-shadow(0 1px 1px rgba(0,0,0,0.85));
 }
 @keyframes perkpop { from { transform: scale(0.2) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 
@@ -150,8 +147,9 @@
    flare. --wpn-energy keeps the whole device on one tunable hue. */
 #hud-weapon {
   --wpn-energy: 79, 224, 214;   /* cold cyan core */
-  position: absolute; right: 30px; bottom: 42px; z-index: 21;
+  position: absolute; right: calc(34px + var(--hud-inset)); bottom: calc(44px + var(--hud-inset)); z-index: 21;
   display: flex; flex-direction: column; align-items: flex-end; gap: 9px; pointer-events: none;
+  transform: scale(var(--hud-scale)); transform-origin: bottom right;
 }
 .wpn-widget { display: flex; align-items: center; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.6)); }
 
@@ -247,8 +245,9 @@
 }
 @keyframes podSpin { to { transform: rotate(360deg); } }
 
-/* --- gun name under the device --- */
+/* --- gun name: left-aligned under the ammo tube, not snug to the edge --- */
 .wpn-name {
+  align-self: flex-start; margin-left: 30px;
   position: relative; padding: 2px 12px 3px; overflow: hidden;
   font-family: 'Anton', Impact, sans-serif; font-size: 1.4rem; letter-spacing: 0.16em; text-transform: uppercase;
   background: linear-gradient(180deg, #f0ece0, #b9b2a2);
@@ -260,3 +259,48 @@
 
 /* reload prompt re-anchored clear above the taller device */
 #hud #reload-prompt { bottom: 188px; right: 30px; }
+
+/* ===================== interact prompt + round banner ==================== */
+/* "[E] …" interaction prompt — a sheared, gritty panel with a teal accent edge
+   that reads instantly without shouting. (2-ID specificity beats the inline rule.) */
+#hud #prompt {
+  top: 60%; padding: 10px 24px; white-space: nowrap;
+  font-family: 'Oswald', sans-serif; font-size: 1.06rem; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: #eef3f4; text-shadow: 0 2px 5px #000;
+  clip-path: polygon(11px 0, 100% 0, calc(100% - 11px) 100%, 0 100%);
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(22,31,37,0.86), rgba(8,12,15,0.9));
+  background-size: 88px 88px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(120,210,225,0.5); border-bottom: 1px solid rgba(0,0,0,0.7);
+  box-shadow: 0 7px 22px rgba(0,0,0,0.62), inset 0 0 18px rgba(0,0,0,0.55), 0 0 16px rgba(70,195,186,0.14);
+  isolation: isolate;
+}
+#hud #prompt::after { /* hot accent stripe down the leading shear */
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, rgba(120,210,225,0.9), rgba(70,195,186,0.2));
+  box-shadow: 0 0 8px rgba(70,195,186,0.7);
+}
+#hud #prompt.show { animation: promptIn 0.16s ease; }
+@keyframes promptIn { 0% { opacity: 0; transform: translate(-50%,-50%) translateY(4px); } 100% { opacity: 1; transform: translate(-50%,-50%) translateY(0); } }
+#hud #prompt.denied { color: #ffb4ac; border-top-color: rgba(226,58,46,0.6); box-shadow: 0 7px 22px rgba(0,0,0,0.62), inset 0 0 18px rgba(60,0,0,0.5), 0 0 16px rgba(210,36,28,0.2); }
+#hud #prompt.denied::after { background: linear-gradient(180deg, #ff6a5a, rgba(210,36,28,0.3)); box-shadow: 0 0 8px rgba(226,58,46,0.7); }
+
+/* round banner — "THE DEAD RISE": painted, bloody, with a violent focus-in jolt */
+#hud #hud-banner {
+  top: 32%;
+  font-family: 'Anton', Impact, sans-serif; font-size: clamp(2.8rem, 8vw, 7rem);
+  text-transform: uppercase; letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #ff4226 0%, var(--hud-blood) 42%, var(--hud-blood-deep) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: url(#hud-paint) drop-shadow(0 4px 10px rgba(0,0,0,0.95)) drop-shadow(0 0 28px rgba(180,18,12,0.5));
+  text-shadow: none;
+}
+#hud #hud-banner.show { animation: bannerHorror 2.9s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes bannerHorror {
+  0%   { opacity: 0; letter-spacing: 0.5em; transform: translate(-50%,-50%) skewX(-8deg) scale(1.28); }
+  9%   { opacity: 1; letter-spacing: 0.02em; transform: translate(-50%,-50%) skewX(-8deg) scale(1); }
+  11%  { transform: translate(-50.7%,-50.4%) skewX(-8deg); }
+  13%  { transform: translate(-49.4%,-49.6%) skewX(-8deg); }
+  15%  { transform: translate(-50%,-50%) skewX(-8deg); }
+  76%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%,-50%) skewX(-8deg) scale(1.05); }
+}
