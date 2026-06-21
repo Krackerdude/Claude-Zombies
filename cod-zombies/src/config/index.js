@@ -50,6 +50,18 @@ export const PostFXConfig = {
     iterations: 3,       // gaussian H/V passes (more = softer/wider)
   },
 
+  // --- god rays: light shafts streaming from the moon past the rooftops ---
+  // Minimal + atmospheric. The source is a soft disc at the key light's screen
+  // position, masked to background (sky) pixels so geometry occludes the shafts.
+  godrays: {
+    enabled: true,
+    size: 0.18,          // uv radius of the light disc
+    density: 0.6,        // radial step scale (longer = reaches further)
+    weight: 0.5,         // per-sample contribution
+    decay: 0.95,         // falloff along the shaft
+    intensity: 0.55,     // additive strength in the final composite
+  },
+
   // --- colour grade: the Persona identity lives here ---
   grade: {
     enabled: true,
@@ -81,6 +93,35 @@ export const AtmosphereConfig = {
   enabled: true,
   flickerSpeed: 9.0,   // base hertz of the noise drive
   flickerDepth: 0.16,  // fraction of base intensity the flicker can swing
+};
+
+/**
+ * Ambient particulate that hangs in the air — slow dust motes / drifting embers
+ * lit by the fog. Recentred on the player so the volume always surrounds the
+ * camera. Pure atmosphere; isolated GPU Points, disable-able.
+ */
+export const ParticleConfig = {
+  enabled: true,
+  count: 220,          // mote count
+  volume: 16,          // half-extent of the cube the motes wander (metres)
+  rise: 0.12,          // upward drift (m/s)
+  drift: 0.22,         // lateral sway amplitude
+  size: 0.05,          // point size (metres)
+  opacity: 0.45,       // base alpha — kept faint so it reads as haze, not snow
+  color: 0xbfc8d8,     // cool ash/dust tint
+};
+
+/**
+ * Persistent ground decals stamped where the world remembers violence: blood
+ * pools under the fallen, scorch rings from explosions, energy burns from
+ * plasma. Pooled + recycled (oldest reused past `max`), each fading out over its
+ * lifetime. Complements WeaponFx (which owns the transient impact bursts).
+ */
+export const DecalConfig = {
+  enabled: true,
+  max: 56,             // pooled decals; oldest recycled beyond this
+  bloodLife: 38,       // seconds a blood pool persists before it has faded
+  scorchLife: 55,      // seconds a scorch/burn persists
 };
 
 export const PhysicsConfig = {

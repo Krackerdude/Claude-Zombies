@@ -24,10 +24,16 @@ export class RenderManager {
   backend = 'none';
   /** @type {PostFX | null} — stylized post-processing stack (WebGL only) */
   postFX = null;
+  /** @type {THREE.DirectionalLight | null} — key light, drives god rays */
+  sunLight = null;
 
   #canvas;
   #onResize;
   #overlayScene = null;
+  #sunDir = new THREE.Vector3();
+  #sunWorld = new THREE.Vector3();
+  #camFwd = new THREE.Vector3();
+  #sunInfo = { x: 0.5, y: 0.5, strength: 0, color: [1, 1, 1] };
 
   constructor(canvas) {
     this.#canvas = canvas;
@@ -143,12 +149,49 @@ export class RenderManager {
    *  self-occludes. */
   setOverlayScene(scene) { this.#overlayScene = scene; }
 
+  /** Register the scene's key/directional light so god rays know where the
+   *  "moon" is on screen. Pass null to disable god rays. */
+  setSunLight(light) { this.sunLight = light; }
+
+  /**
+   * Project the key light to a screen-space "sun" descriptor for the god-ray
+   * stage, or null when it's behind the camera. A directional light has no real
+   * position, so we place a far point along the to-source direction and project
+   * that. Strength fades as the light leaves the centre of view.
+   */
+  #computeSun(camera) {
+    const light = this.sunLight;
+    if (!light) return null;
+    // direction toward the source = from target back to the light
+    this.#sunDir.copy(light.position).sub(light.target.position).normalize();
+    this.#sunWorld.copy(camera.position).addScaledVector(this.#sunDir, 500);
+    this.#sunWorld.project(camera);
+    if (this.#sunWorld.z > 1) return null; // behind the camera
+
+    camera.getWorldDirection(this.#camFwd);
+    const facing = this.#camFwd.dot(this.#sunDir); // >0 => looking toward it
+    if (facing <= 0.05) return null;
+
+    const x = this.#sunWorld.x * 0.5 + 0.5;
+    const y = this.#sunWorld.y * 0.5 + 0.5;
+    // fade out as the source nears/leaves the frame edges and as we look away
+    const edge = Math.min(x, 1 - x, y, 1 - y);
+    const strength = Math.max(0, Math.min(1, facing)) * Math.min(1, Math.max(0, edge + 0.35));
+    if (strength <= 0.001) return null;
+
+    const c = light.color;
+    this.#sunInfo.x = x; this.#sunInfo.y = y; this.#sunInfo.strength = strength;
+    this.#sunInfo.color[0] = c.r; this.#sunInfo.color[1] = c.g; this.#sunInfo.color[2] = c.b;
+    return this.#sunInfo;
+  }
+
   render(scene, camera = this.camera) {
     // Stylized path: the composer renders the world, grades it, then composites
     // the viewmodel sharp on top (see PostFX). A master toggle or any non-WebGL
     // backend transparently falls through to the direct path below.
     if (this.postFX && this.postFX.enabled) {
-      this.postFX.render(scene, camera, this.#overlayScene, this.vmCamera || camera);
+      const sun = this.#computeSun(camera);
+      this.postFX.render(scene, camera, this.#overlayScene, this.vmCamera || camera, sun);
       return;
     }
 

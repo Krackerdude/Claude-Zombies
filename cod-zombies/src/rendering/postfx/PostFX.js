@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PostFXConfig } from '../../config/index.js';
 import {
   FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLUR_FRAG, FINAL_FRAG,
+  GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG,
 } from './shaders.js';
 
 /**
@@ -32,6 +33,7 @@ export class PostFX {
   #rtWork = null;   // working colour buffer with a depth buffer for the gun
   #rtBloomA = null; // half-res bloom ping
   #rtBloomB = null; // half-res bloom pong
+  #rtGod = null;    // half-res god-ray accumulation buffer
 
   // fullscreen quad
   #quadScene;
@@ -40,7 +42,7 @@ export class PostFX {
   #black; // 1×1 black fallback for the bloom slot when disabled
 
   // stage materials
-  #mCopy; #mDof; #mBright; #mBlur; #mFinal;
+  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur;
 
   constructor(renderer, params = PostFXConfig) {
     this.#renderer = renderer;
@@ -90,8 +92,17 @@ export class PostFX {
       tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() },
     });
 
+    this.#mGodSrc = this.#shader(GODRAY_SOURCE_FRAG, {
+      tDepth: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) }, uSize: { value: 0.18 },
+    });
+    this.#mGodBlur = this.#shader(GODRAY_BLUR_FRAG, {
+      tDiffuse: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) },
+      uDensity: { value: 0.6 }, uWeight: { value: 0.5 }, uDecay: { value: 0.95 },
+    });
+
     this.#mFinal = this.#shader(FINAL_FRAG, {
       tDiffuse: { value: null }, tBloom: { value: this.#black }, uBloom: { value: 0 },
+      tGod: { value: this.#black }, uGod: { value: 0 }, uGodColor: { value: new THREE.Vector3(1, 1, 1) },
       uResolution: { value: new THREE.Vector2() }, uTime: { value: 0 },
       uExposure: { value: 1 }, uContrast: { value: 1.12 }, uSaturation: { value: 1.14 },
       uTemperature: { value: 0 }, uSplit: { value: 0.18 },
@@ -131,6 +142,7 @@ export class PostFX {
     const bcol = { ...color(), depthBuffer: false };
     this.#rtBloomA = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtBloomB = new THREE.WebGLRenderTarget(hw, hh, bcol);
+    this.#rtGod = new THREE.WebGLRenderTarget(hw, hh, bcol);
 
     this.#mFinal.uniforms.uResolution.value.set(w, h);
     this.#mDof.uniforms.uTexel.value.set(1 / w, 1 / h);
@@ -181,6 +193,12 @@ export class PostFX {
     d.uBokeh.value = dof.bokehRadius ?? 2.6;
 
     this.#mBright.uniforms.uThreshold.value = params.bloom?.threshold ?? 0.62;
+
+    const god = params.godrays ?? {};
+    this.#mGodSrc.uniforms.uSize.value = god.size ?? 0.18;
+    this.#mGodBlur.uniforms.uDensity.value = god.density ?? 0.6;
+    this.#mGodBlur.uniforms.uWeight.value = god.weight ?? 0.5;
+    this.#mGodBlur.uniforms.uDecay.value = god.decay ?? 0.95;
   }
 
   #blit(material, target) {
@@ -192,8 +210,10 @@ export class PostFX {
   /**
    * Run the full pipeline. worldScene/worldCamera draw the world; the optional
    * overlayScene/overlayCamera (the viewmodel) are composited sharp on top.
+   * `sun` (or null) is { x, y, strength, color:[r,g,b] } in screen-uv space,
+   * supplied by RenderManager from the key light — it drives the god rays.
    */
-  render(worldScene, worldCamera, overlayScene, overlayCamera) {
+  render(worldScene, worldCamera, overlayScene, overlayCamera, sun = null) {
     const r = this.#renderer;
     const p = this.#params;
     const prevAutoClear = r.autoClear;
@@ -252,9 +272,27 @@ export class PostFX {
       this.#mFinal.uniforms.tBloom.value = this.#black;
     }
 
-    // 5) final composite + grade → screen
+    // 5) god rays — disc at the key light's screen position, masked to sky
+    //    depth, radial-blurred into shafts. Only when the light is on-screen.
+    let godI = 0;
+    if (sun && p.godrays?.enabled !== false && (p.godrays?.intensity ?? 0) > 0) {
+      this.#mGodSrc.uniforms.tDepth.value = this.#rtScene.depthTexture;
+      this.#mGodSrc.uniforms.uSun.value.set(sun.x, sun.y);
+      this.#blit(this.#mGodSrc, this.#rtBloomB); // reuse pong as the source buffer
+      this.#mGodBlur.uniforms.tDiffuse.value = this.#rtBloomB.texture;
+      this.#mGodBlur.uniforms.uSun.value.set(sun.x, sun.y);
+      this.#blit(this.#mGodBlur, this.#rtGod);
+      this.#mFinal.uniforms.tGod.value = this.#rtGod.texture;
+      this.#mFinal.uniforms.uGodColor.value.set(sun.color[0], sun.color[1], sun.color[2]);
+      godI = (p.godrays?.intensity ?? 0.55) * sun.strength;
+    } else {
+      this.#mFinal.uniforms.tGod.value = this.#black;
+    }
+
+    // 6) final composite + grade → screen
     this.#mFinal.uniforms.tDiffuse.value = this.#rtWork.texture;
     this.#mFinal.uniforms.uBloom.value = bloomI;
+    this.#mFinal.uniforms.uGod.value = godI;
     this.#mFinal.uniforms.uTime.value = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
     this.#blit(this.#mFinal, null);
 
@@ -268,12 +306,13 @@ export class PostFX {
     this.#rtWork?.dispose();
     this.#rtBloomA?.dispose();
     this.#rtBloomB?.dispose();
+    this.#rtGod?.dispose();
   }
 
   dispose() {
     this.#disposeTargets();
     this.#black?.dispose();
     this.#quad.geometry.dispose();
-    for (const m of [this.#mCopy, this.#mDof, this.#mBright, this.#mBlur, this.#mFinal]) m?.dispose();
+    for (const m of [this.#mCopy, this.#mDof, this.#mBright, this.#mBlur, this.#mFinal, this.#mGodSrc, this.#mGodBlur]) m?.dispose();
   }
 }
