@@ -201,10 +201,11 @@ export const WeatherConfig = {
   },
   mist: {
     enabled: true,
-    count: 90,           // ground-mist sprite/point count
+    count: 40,           // ground-mist puff count (kept sparse so it reads as haze)
     area: 18,
-    height: 1.2,         // motes hug the floor
-    opacity: 0.18,
+    height: 1.0,         // motes hug the floor
+    size: 3.0,           // world-space puff size
+    opacity: 0.06,       // very faint — overlapping puffs build up fast
     color: 0x8a93a6,     // cool grey-blue ground fog
   },
 };
