@@ -91,7 +91,7 @@
 }
 
 /* --- round counter (left) + perks (right), under the player widget --- */
-#hud-row { display: flex; align-items: flex-end; gap: 16px; }
+#hud-row { display: flex; align-items: flex-end; gap: 20px; }
 
 #hud-round-widget { position: relative; line-height: 0.8; }
 #hud-round {
@@ -118,21 +118,28 @@
   text-shadow: 0 1px 3px #000; margin-top: 2px; padding-left: 3px; opacity: 0.85;
 }
 
-/* --- perks row --- */
-#hud-perks { display: flex; align-items: flex-end; gap: 8px; padding-bottom: 4px; }
+/* --- perks row --- (CoD-zombies shield badges: darker, gritty, flat-top /
+   pointed-bottom crest instead of a circle; nudged right off the round number) */
+#hud-perks { display: flex; align-items: flex-end; gap: 8px; padding-bottom: 4px; margin-left: 9px; }
 .perk-chip {
-  position: relative; width: 34px; height: 34px; border-radius: 50%;
-  background-size: 80%; background-repeat: no-repeat; background-position: center;
+  position: relative; width: 33px; height: 37px;
+  clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
+  background-size: 74%; background-repeat: no-repeat; background-position: center 40%;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.6rem; color: #fff;
-  text-shadow: 0 1px 2px #000;
-  border: 2px solid rgba(255,255,255,0.55);
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.7), 0 2px 9px rgba(0,0,0,0.65), inset 0 0 8px rgba(0,0,0,0.45);
+  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.56rem; color: #f0f0f0;
+  text-shadow: 0 1px 2px #000; isolation: isolate;
+  filter: drop-shadow(0 0 1px rgba(0,0,0,0.95)) drop-shadow(0 2px 4px rgba(0,0,0,0.72));
   animation: perkpop 0.4s cubic-bezier(.2,.9,.2,1);
 }
-.perk-chip::after { /* glassy top sheen, never flat */
-  content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(70% 55% at 50% 22%, rgba(255,255,255,0.4), rgba(255,255,255,0) 70%);
+.perk-chip::before { /* darken + faint top bezel edge — never flat */
+  content: ''; position: absolute; inset: 0; clip-path: inherit; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0) 18%),
+    linear-gradient(180deg, rgba(6,8,10,0.34), rgba(4,6,8,0.62));
+}
+.perk-chip::after { /* gritty noise overlay */
+  content: ''; position: absolute; inset: 0; clip-path: inherit; pointer-events: none;
+  background: var(--hud-grunge); background-size: 56px 56px; opacity: 0.2; mix-blend-mode: overlay;
 }
 @keyframes perkpop { from { transform: scale(0.2) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 
