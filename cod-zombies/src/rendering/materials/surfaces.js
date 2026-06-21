@@ -45,13 +45,15 @@ export function plankWood(color = 0x5a4632) {
   }));
 }
 
-/** Floor — keeps its diffuse grid map, adds concrete tooth relief on top. */
+/** Floor — keeps its diffuse grid map, adds a rain-slicked sheen: low roughness
+ *  so the lamps + lightning streak across it, with a ripple normal for the wet
+ *  break-up (the Silent Hill street look). */
 export function concreteFloor(map, repeat = [12, 12]) {
   _concreteNormal = normal(_concreteNormal, { size: 256, freq: 10, strength: 0.7, kind: 'noise' });
   _concreteNormal.repeat.set(repeat[0], repeat[1]);
   return ps1Snap(new THREE.MeshStandardMaterial({
-    map, roughness: 0.96, metalness: 0.0,
-    normalMap: _concreteNormal, normalScale: new THREE.Vector2(0.5, 0.5),
+    map, roughness: 0.42, metalness: 0.1,
+    normalMap: _concreteNormal, normalScale: new THREE.Vector2(0.85, 0.85),
   }));
 }
 

@@ -16,6 +16,7 @@ const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 
  */
 export class EffectsDirector extends System {
   #fx = null;
+  #render = null;
   #events;
   #time;
   #gameState;
@@ -29,6 +30,7 @@ export class EffectsDirector extends System {
 
   init() {
     const render = this.world.services.get(Service.Render);
+    this.#render = render || null;
     this.#fx = render?.postFX || null;
     this.#events = this.world.services.get(Service.Events);
     this.#time = this.world.services.get(Service.Time);
@@ -37,6 +39,8 @@ export class EffectsDirector extends System {
 
     this.#events.on('zombie:killed', () => { this.#burst = Math.min(1, this.#burst + 0.5); });
     this.#events.on('player:damaged', () => { this.#burst = Math.min(1, this.#burst + 0.7); });
+    // explosions push a heat-haze shimmer (projected to screen by RenderManager)
+    this.#events.on('weapon:explosion', ({ x, y, z }) => this.#render?.addHeat?.(x, y, z));
     this.#events.on('round:changed', ({ round, state }) => {
       if (round) this.#round = round;
       this.#roundActive = state === 'active';

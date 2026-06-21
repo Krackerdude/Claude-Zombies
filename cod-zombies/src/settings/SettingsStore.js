@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { defaultSettings } from './defaults.js';
-import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig, AtmosphereConfig, RimConfig } from '../config/index.js';
+import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig, AtmosphereConfig, RimConfig, WeatherConfig } from '../config/index.js';
 import { setRimIntensity } from '../rendering/rimLight.js';
 import { Service } from '../core/ServiceLocator.js';
 
@@ -144,6 +144,9 @@ export class SettingsStore {
     DecalConfig.enabled = g.decals !== false;
     AtmosphereConfig.lightCones = g.lightCones !== false;
     setRimIntensity(g.rimLight !== false ? RimConfig.intensity : 0);
+    WeatherConfig.rain.enabled = g.rain !== false;
+    WeatherConfig.mist.enabled = g.rain !== false;
+    WeatherConfig.lightning.enabled = g.lightning !== false;
 
     // CSS overlay: the fallback when the WebGL stack is off (or unavailable).
     // When the pipeline owns these effects, zero the CSS layer to avoid stacking.

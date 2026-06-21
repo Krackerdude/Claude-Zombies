@@ -29,6 +29,8 @@ export const defaultSettings = {
     decals: true, // persistent blood pools + scorch on the ground
     lightCones: true, // dusty volumetric beams under the lamps
     rimLight: true, // cold moonlight rim on the zombies
+    rain: true, // rain + ground mist
+    lightning: true, // periodic lightning flashes
     // horror post FX — drive the pipeline when postfx is on, the CSS overlay when off
     grain: 0.14, // 0..1 animated film grain
     scanlines: true,

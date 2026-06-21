@@ -274,6 +274,9 @@ export const FINAL_FRAG = /* glsl */ `
   uniform float uSpeed, uLines;     // kinetic burst (sprint/slide/kill/damage)
   uniform float uReactive;          // low-health vignette throb
   uniform float uPosterize, uDither;
+  uniform vec3 uHeat[4];            // explosion heat sources: xy uv, z strength
+  uniform int uHeatN;
+  uniform float uHeatStrength;
 
   varying vec2 vUv;
 
@@ -288,15 +291,26 @@ export const FINAL_FRAG = /* glsl */ `
     vec2 uv = vUv;
     vec2 toC = uv - 0.5;
 
+    // heat haze — shimmer the scene-sampling coordinate near active explosions
+    vec2 sUv = uv;
+    if (uHeatN > 0) {
+      for (int i = 0; i < 4; i++) {
+        if (i >= uHeatN) break;
+        float infl = uHeat[i].z * smoothstep(0.28, 0.0, distance(uv, uHeat[i].xy));
+        sUv.x += sin(uv.y * 42.0 + uTime * 9.0) * infl * 0.010 * uHeatStrength;
+        sUv.y += cos(uv.x * 42.0 + uTime * 8.0) * infl * 0.008 * uHeatStrength;
+      }
+    }
+
     // chromatic aberration — radial RGB split that ramps toward the edges
     vec3 col;
     if (uAberr > 0.0) {
       float amt = uAberr * 0.006 * dot(toC, toC) * 4.0;
-      col.r = texture2D(tDiffuse, uv - toC * amt).r;
-      col.g = texture2D(tDiffuse, uv).g;
-      col.b = texture2D(tDiffuse, uv + toC * amt).b;
+      col.r = texture2D(tDiffuse, sUv - toC * amt).r;
+      col.g = texture2D(tDiffuse, sUv).g;
+      col.b = texture2D(tDiffuse, sUv + toC * amt).b;
     } else {
-      col = texture2D(tDiffuse, uv).rgb;
+      col = texture2D(tDiffuse, sUv).rgb;
     }
 
     // Persona kinetic burst — radial blur toward centre + dark motion streaks at
@@ -304,7 +318,7 @@ export const FINAL_FRAG = /* glsl */ `
     if (uSpeed > 0.0) {
       vec3 rb = col; float w = 1.0;
       for (int i = 1; i <= 6; i++) {
-        rb += texture2D(tDiffuse, uv - toC * (float(i) / 6.0) * 0.16 * uSpeed).rgb;
+        rb += texture2D(tDiffuse, sUv - toC * (float(i) / 6.0) * 0.16 * uSpeed).rgb;
         w += 1.0;
       }
       col = mix(col, rb / w, uSpeed * 0.7);

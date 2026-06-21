@@ -210,6 +210,14 @@ export class OptionsMenu {
       label: 'Zombie Rim Light', sublabel: 'Cold moonlight edge on the dead',
       value: g.rimLight !== false, onChange: (v) => set('rimLight', v),
     }));
+    p.appendChild(toggle({
+      label: 'Rain + Mist', sublabel: 'Rain streaks and low ground fog',
+      value: g.rain !== false, onChange: (v) => set('rain', v),
+    }));
+    p.appendChild(toggle({
+      label: 'Lightning', sublabel: 'Periodic storm flashes',
+      value: g.lightning !== false, onChange: (v) => set('lightning', v),
+    }));
   }
 
   #buildDisplay() {

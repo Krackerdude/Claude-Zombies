@@ -17,10 +17,15 @@ import { brickWall, plankWood, concreteFloor, paintedMetal, sharedNormalMaps } f
 import { AtmosphereSystem } from '../src/rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../src/rendering/AmbientParticles.js';
 import { DecalSystem } from '../src/rendering/DecalSystem.js';
+import { WeatherSystem } from '../src/rendering/WeatherSystem.js';
+import { EffectsDirector } from '../src/rendering/EffectsDirector.js';
 import { World } from '../src/ecs/World.js';
 import { ServiceLocator, Service } from '../src/core/ServiceLocator.js';
 import { EventBus } from '../src/core/EventBus.js';
-import { ParticleConfig, DecalConfig } from '../src/config/index.js';
+import { GameState, AppState } from '../src/core/GameState.js';
+import { Time } from '../src/core/Time.js';
+import { PlayerTag, Transform } from '../src/ecs/components/index.js';
+import { ParticleConfig, DecalConfig, WeatherConfig } from '../src/config/index.js';
 
 function makeWorld() {
   const locator = new ServiceLocator();
@@ -162,6 +167,70 @@ guard('toggling ParticleConfig.enabled hides/shows the cloud next frame', () => 
   if (pts.visible) throw new Error('cloud still visible after disable');
   ParticleConfig.enabled = true; world.update(1 / 60);
   if (!pts.visible) throw new Error('cloud not restored after enable');
+});
+
+console.log('\n[6] WeatherSystem rain + mist stay bounded and toggle live');
+guard('rain streaks wrap within the column and the cloud toggles', () => {
+  WeatherConfig.rain.enabled = true; WeatherConfig.mist.enabled = true;
+  const { world, scene } = makeWorld();
+  const pid = world.createEntity();
+  world.add(pid, new PlayerTag());
+  world.add(pid, new Transform(new THREE.Vector3(0, 1, 0)));
+  world.registerSystem(new WeatherSystem());
+  const rain = scene.children.find((o) => o.isLineSegments);
+  const mist = scene.children.find((o) => o.isPoints);
+  if (!rain || !mist) throw new Error('rain/mist not added to the scene');
+  for (let i = 0; i < 300; i++) world.update(1 / 60);
+  const rv = rain.geometry.attributes.position.array;
+  const H = WeatherConfig.rain.height + WeatherConfig.rain.length + 0.001;
+  for (let k = 1; k < rv.length; k += 3) {
+    if (!Number.isFinite(rv[k]) || rv[k] < -0.001 || rv[k] > H) throw new Error(`rain drop left the column (y=${rv[k].toFixed(2)})`);
+  }
+  WeatherConfig.rain.enabled = false; world.update(1 / 60);
+  if (rain.visible) throw new Error('rain still visible after disable');
+  WeatherConfig.rain.enabled = true;
+});
+
+console.log('\n[7] EffectsDirector drives bullet-time + the low-health vignette');
+function directorWorld() {
+  const locator = new ServiceLocator();
+  const events = new EventBus();
+  const time = new Time();
+  const gameState = new GameState(events);
+  const fx = { reactive: [], speed: [], grade: [], setReactive(v) { this.reactive.push(v); }, setSpeedlines(v) { this.speed.push(v); }, setGrade(o) { this.grade.push(o); }, setHeat() {} };
+  locator.register(Service.Events, events);
+  locator.register(Service.Render, { postFX: fx });
+  locator.register(Service.Time, time);
+  locator.register(Service.GameState, gameState);
+  locator.register(Service.Scene, { scene: new THREE.Scene(), add() {} });
+  const world = new World(locator);
+  gameState.set(AppState.PLAYING);
+  return { world, events, time, fx };
+}
+guard('last zombie of a round triggers slow-mo that recovers', () => {
+  const { world, events, time } = directorWorld();
+  world.registerSystem(new EffectsDirector());
+  time.unscaledDeltaTime = 1 / 60;
+  events.emit('round:changed', { round: 1, state: 'active' });
+  events.emit('zombies:changed', { remaining: 3 });
+  events.emit('zombies:changed', { remaining: 0 }); // the last one falls
+  world.update(1 / 60);
+  if (time.timeScale >= 1) throw new Error(`slow-mo did not engage (timeScale=${time.timeScale})`);
+  for (let i = 0; i < 200; i++) world.update(1 / 60); // ride it out
+  if (Math.abs(time.timeScale - 1) > 1e-6) throw new Error(`time did not return to full speed (${time.timeScale})`);
+});
+guard('low health raises the reactive vignette, full health clears it', () => {
+  const { world, fx } = directorWorld();
+  world.registerSystem(new EffectsDirector());
+  const pid = world.createEntity();
+  const tag = new PlayerTag();
+  world.add(pid, tag);
+  tag.health = 20; tag.maxHealth = 100;
+  world.update(1 / 60);
+  if ((fx.reactive.at(-1) ?? 0) <= 0) throw new Error('reactive vignette stayed off at low health');
+  tag.health = 100;
+  world.update(1 / 60);
+  if (Math.abs(fx.reactive.at(-1)) > 1e-6) throw new Error('reactive vignette did not clear at full health');
 });
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : failures + ' FAILURES'}\n`);

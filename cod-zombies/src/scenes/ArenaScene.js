@@ -28,6 +28,7 @@ import { AmbientParticles } from '../rendering/AmbientParticles.js';
 import { DecalSystem } from '../rendering/DecalSystem.js';
 import { buildLightCone } from '../rendering/lightCone.js';
 import { EffectsDirector } from '../rendering/EffectsDirector.js';
+import { WeatherSystem } from '../rendering/WeatherSystem.js';
 import { AtmosphereConfig } from '../config/index.js';
 
 const B = 10; // building half-extent
@@ -197,6 +198,8 @@ export function buildArena(engine) {
   // drives the live, state-reactive post-FX (speed-lines, low-health vignette,
   // round-dread palette, last-kill bullet-time)
   engine.world.registerSystem(new EffectsDirector());
+  // rain, lightning + ground mist (Silent Hill weather)
+  engine.world.registerSystem(new WeatherSystem());
 
   // --- exterior spawn points (outside the building) ---
   const spawnPoints = [

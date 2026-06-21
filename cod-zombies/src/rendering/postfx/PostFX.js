@@ -135,6 +135,8 @@ export class PostFX {
       uScan: { value: 0.5 }, uScanDensity: { value: 2.4 }, uScanScroll: { value: 0.4 },
       uSpeed: { value: 0 }, uLines: { value: 0.7 }, uReactive: { value: 0 },
       uPosterize: { value: 0 }, uDither: { value: 0 },
+      uHeat: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
+      uHeatN: { value: 0 }, uHeatStrength: { value: 1 },
     });
 
     this.applyParams(this.#params);
@@ -251,6 +253,16 @@ export class PostFX {
     this.#mGodBlur.uniforms.uDensity.value = god.density ?? 0.6;
     this.#mGodBlur.uniforms.uWeight.value = god.weight ?? 0.5;
     this.#mGodBlur.uniforms.uDecay.value = god.decay ?? 0.95;
+  }
+
+  /** Active heat-haze sources: array of { x, y, strength } in screen uv (≤4). */
+  setHeat(sources) {
+    const u = this.#mFinal.uniforms;
+    const heatOn = this.#params.heatHaze?.enabled !== false;
+    const n = heatOn ? Math.min(4, sources.length) : 0;
+    for (let i = 0; i < n; i++) u.uHeat.value[i].set(sources[i].x, sources[i].y, sources[i].strength);
+    u.uHeatN.value = n;
+    u.uHeatStrength.value = this.#params.heatHaze?.strength ?? 1;
   }
 
   /** Persona kinetic burst intensity (0..1) — sprint/slide/kill/damage. */

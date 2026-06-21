@@ -34,6 +34,8 @@ export class RenderManager {
   #sunWorld = new THREE.Vector3();
   #camFwd = new THREE.Vector3();
   #sunInfo = { x: 0.5, y: 0.5, strength: 0, color: [1, 1, 1] };
+  #heats = []; // { pos:Vector3, ms } — active heat-haze sources (explosions)
+  #heatV = new THREE.Vector3();
 
   constructor(canvas) {
     this.#canvas = canvas;
@@ -153,6 +155,32 @@ export class RenderManager {
    *  "moon" is on screen. Pass null to disable god rays. */
   setSunLight(light) { this.sunLight = light; }
 
+  /** Register a world-space heat source (explosion) for the heat-haze shimmer. */
+  addHeat(x, y, z) {
+    this.#heats.push({ pos: new THREE.Vector3(x, y, z), ms: (typeof performance !== 'undefined' ? performance.now() : Date.now()) });
+    if (this.#heats.length > 16) this.#heats.shift();
+  }
+
+  /** Project the live heat sources to screen-uv with a fading strength. */
+  #computeHeat(camera) {
+    const out = [];
+    if (!this.#heats.length) return out;
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const life = 850;
+    for (let i = this.#heats.length - 1; i >= 0; i--) {
+      const h = this.#heats[i];
+      const age = now - h.ms;
+      if (age > life) { this.#heats.splice(i, 1); continue; }
+      this.#heatV.copy(h.pos).project(camera);
+      if (this.#heatV.z > 1) continue; // behind the camera
+      const x = this.#heatV.x * 0.5 + 0.5, y = this.#heatV.y * 0.5 + 0.5;
+      if (x < -0.2 || x > 1.2 || y < -0.2 || y > 1.2) continue;
+      out.push({ x, y, strength: 1 - age / life });
+      if (out.length >= 4) break;
+    }
+    return out;
+  }
+
   /**
    * Project the key light to a screen-space "sun" descriptor for the god-ray
    * stage, or null when it's behind the camera. A directional light has no real
@@ -191,6 +219,7 @@ export class RenderManager {
     // backend transparently falls through to the direct path below.
     if (this.postFX && this.postFX.enabled) {
       const sun = this.#computeSun(camera);
+      this.postFX.setHeat?.(this.#computeHeat(camera));
       this.postFX.render(scene, camera, this.#overlayScene, this.vmCamera || camera, sun);
       return;
     }
