@@ -20,6 +20,25 @@ export const PERKS = {
 
 function hex(n) { return `#${n.toString(16).padStart(6, '0')}`; }
 
+/**
+ * Electric Cherry's metal finish — the reference every machine's metal now
+ * shares. Two profiles, both lifted straight from the EC build: `body` is its
+ * glossy enamelled-steel cabinet, `chrome` is its bright polished trim. sheen()
+ * stamps just the metalness/roughness onto a material, leaving its colour/map
+ * intact, so each metal keeps its own tint but gains the same sheen. Wood,
+ * ceramic, cream, bone, glass and fabric never call this — they stay matte.
+ */
+const EC_SHEEN = {
+  body: { metalness: 0.55, roughness: 0.55 },
+  chrome: { metalness: 0.9, roughness: 0.3 },
+};
+function sheen(mat, finish = 'body') {
+  const p = EC_SHEEN[finish];
+  mat.metalness = p.metalness;
+  mat.roughness = p.roughness;
+  return mat;
+}
+
 function nameTexture(name, colorHex) {
   const c = document.createElement('canvas');
   c.width = 64; c.height = 256;
@@ -197,11 +216,11 @@ function buildCowboyMachine(def) {
   const woodTex = woodTexture(def.theme === 'metal' ? '#4a3526' : '#6e4a28');
   const wood = ps1Snap(new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.85, metalness: 0.05 }));
   const woodDark = ps1Snap(new THREE.MeshStandardMaterial({ map: woodTex, color: 0x9a7048, roughness: 0.9 }));
-  const brass = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xb08440, metalness: 0.85, roughness: 0.35 }));
-  const iron = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x2a2622, metalness: 0.7, roughness: 0.6 }));
+  const brass = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xb08440 }), 'chrome'));
+  const iron = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x2a2622 })));
   const dark = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x16130f, roughness: 0.85 }));
   const glass = new THREE.MeshStandardMaterial({ color: 0x222018, transparent: true, opacity: 0.32, roughness: 0.1, metalness: 0.4 });
-  const tint = ps1Snap(new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.6, metalness: 0.2 }));
+  const tint = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: def.color })));
   const accent = ps1Snap(new THREE.MeshStandardMaterial({ color: def.accent ?? 0xffffff, roughness: 0.5 }));
 
   const g = new THREE.Group();
@@ -348,8 +367,8 @@ function coolerDecal(colorHex) {
 }
 
 function buildDinerMachine(def) {
-  const teal = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x35718f, roughness: 0.5, metalness: 0.35 }));
-  const chrome = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xccd6dc, metalness: 0.9, roughness: 0.22 }));
+  const teal = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x35718f })));
+  const chrome = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xccd6dc }), 'chrome'));
   const white = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xeef3f4, roughness: 0.55 }));
   const dark = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x111a1f, roughness: 0.8 }));
   const glow = new THREE.MeshBasicMaterial({ color: def.color });
@@ -465,9 +484,9 @@ function pinupDecal() {
 }
 
 function buildPinupMachine(def) {
-  const red = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x97271f, roughness: 0.5, metalness: 0.25 }));
+  const red = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x97271f })));
   const cream = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xe7dcc2, roughness: 0.6 }));
-  const chrome = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xc9c2b2, metalness: 0.85, roughness: 0.3 }));
+  const chrome = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xc9c2b2 }), 'chrome'));
   const dark = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x161210, roughness: 0.8 }));
   const glow = new THREE.MeshBasicMaterial({ color: def.color });
   const priceMat = new THREE.MeshBasicMaterial({ color: def.color });
@@ -610,9 +629,9 @@ function salsaDancer() {
 }
 
 function buildSalsaMachine(def) {
-  const green = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x2f9e3a, roughness: 0.5, metalness: 0.2 }));
+  const green = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x2f9e3a })));
   const cream = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xede7cf, roughness: 0.6 }));
-  const chrome = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xc9cdc6, metalness: 0.85, roughness: 0.3 }));
+  const chrome = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xc9cdc6 }), 'chrome'));
   const dark = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x10160f, roughness: 0.8 }));
   const glow = new THREE.MeshBasicMaterial({ color: def.color });
 
@@ -771,9 +790,9 @@ function sunburstTexture() {
 }
 
 function buildDiscoMachine(def) {
-  const gold = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xb88a36, metalness: 0.7, roughness: 0.35 }));
-  const chrome = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xd0c7a8, metalness: 0.9, roughness: 0.25 }));
-  const darkred = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x5e1714, roughness: 0.6 }));
+  const gold = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xb88a36 }), 'chrome'));
+  const chrome = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xd0c7a8 }), 'chrome'));
+  const darkred = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x5e1714 })));
   const dark = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x161009, roughness: 0.8 }));
   const glow = new THREE.MeshBasicMaterial({ color: def.color });
 
@@ -890,7 +909,7 @@ function buildDiscoMachine(def) {
   const finial = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 5), chrome); finial.position.set(0, crownY + crownR + 0.06, 0); g.add(finial);
 
   // vertical funk stripe panels flanking the front + base skirt
-  const stripeMat = ps1Snap(new THREE.MeshStandardMaterial({ map: discoStripes(), roughness: 0.5, metalness: 0.3 }));
+  const stripeMat = ps1Snap(sheen(new THREE.MeshStandardMaterial({ map: discoStripes() })));
   for (const sx of [-1, 1]) { const sp = box(0.1, H * 0.4, 0.02, stripeMat); sp.position.set(sx * (W / 2 - 0.08), H * 0.5, F + 0.005); g.add(sp); }
   const skirt = box(W + 0.13, 0.12, D + 0.13, stripeMat); skirt.position.y = 0.2; g.add(skirt);
 
@@ -963,9 +982,9 @@ function gunProp(gunmetal, wood) {
 function buildMuleKickMachine(def) {
   const cream = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xcabf9a, roughness: 0.7 }));
   const wood = ps1Snap(new THREE.MeshStandardMaterial({ map: woodTexture('#6e4a28'), roughness: 0.85 }));
-  const green = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x2f7a3a, roughness: 0.6, metalness: 0.2 }));
-  const brass = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xb08440, metalness: 0.8, roughness: 0.35 }));
-  const gunmetal = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x26241f, metalness: 0.7, roughness: 0.5 }));
+  const green = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x2f7a3a })));
+  const brass = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xb08440 }), 'chrome'));
+  const gunmetal = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x26241f })));
   const bone = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xe6dec6, roughness: 0.7 }));
   const bone2 = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xeae3cf, roughness: 0.55 })); // lighter ivory horns
   const rope = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 0.95 }));
@@ -1168,8 +1187,8 @@ function floppPanel() {
 }
 
 function buildAtomicMachine(def) {
-  const purple = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x7d3a9e, roughness: 0.35, metalness: 0.4 }));
-  const chrome = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xc2b8cc, metalness: 0.9, roughness: 0.25 }));
+  const purple = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x7d3a9e })));
+  const chrome = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xc2b8cc }), 'chrome'));
   const dark = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x241133, roughness: 0.7 }));
   const glow = new THREE.MeshBasicMaterial({ color: def.color });
   const orange = new THREE.MeshBasicMaterial({ map: floppPanel() });
@@ -1515,9 +1534,9 @@ function guitarMesh(metal, flameMat) {
 }
 
 function buildDeadshotMachine(def) {
-  const metal = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x3a3a42, metalness: 0.8, roughness: 0.4 }));
-  const chrome = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xc2c6cc, metalness: 0.95, roughness: 0.2 }));
-  const red = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xa01f1a, roughness: 0.5, metalness: 0.3 }));
+  const metal = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0x3a3a42 })));
+  const chrome = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xc2c6cc }), 'chrome'));
+  const red = ps1Snap(sheen(new THREE.MeshStandardMaterial({ color: 0xa01f1a })));
   const bone = ps1Snap(new THREE.MeshStandardMaterial({ color: 0xddd6c4, roughness: 0.7 }));
   const glass = new THREE.MeshStandardMaterial({ color: 0xcfd6da, transparent: true, opacity: 0.3, roughness: 0.05, metalness: 0.3 });
   const glow = new THREE.MeshBasicMaterial({ color: def.color });
