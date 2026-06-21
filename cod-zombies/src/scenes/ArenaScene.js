@@ -22,7 +22,8 @@ import { BarrierFxSystem } from './BarrierFxSystem.js';
 import { weaponCost, weaponCategory } from '../weapons/catalog.js';
 import { makeChalkTexture, makeGlowTexture } from '../util/chalk.js';
 import { PlayerTag, Transform } from '../ecs/components/index.js';
-import { ps1Snap } from '../rendering/ps1.js';
+import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../rendering/materials/surfaces.js';
+import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 
 const B = 10; // building half-extent
 const T = 1; // wall thickness
@@ -64,34 +65,46 @@ export function buildArena(engine) {
   scene.add(sun.target);
   sceneMgr.sun = sun;
 
-  // warm practical lights so the interior + perimeter actually read
-  const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16) => {
+  // warm practical lights so the interior + perimeter actually read. Lights can
+  // opt into the AtmosphereSystem's flicker via userData.flicker; the warm
+  // interior bulbs gutter like bad wiring, the cool fills breathe slowly.
+  const flickerLights = [];
+  const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16, flicker = null) => {
     const l = new THREE.PointLight(color, intensity, dist, 2);
     l.position.set(x, 3.2, z);
+    if (flicker) { l.userData.flicker = flicker; flickerLights.push(l); }
     scene.add(l);
     return l;
   };
-  lamp(-5, -5); lamp(5, 5); lamp(-5, 5, 0xff8a4c); lamp(5, -5, 0xff8a4c); // interior corners
-  lamp(0, 0, 0xc9d6ff, 4, 12); // cool center fill
+  const guttering = { depth: 1.0, speed: 1.0, drop: 0.9 }; // warm bulbs, bad wiring
+  const breathing = { depth: 0.5, speed: 0.28, drop: 0 };  // cool fills, slow pulse
+  lamp(-5, -5, 0xffae5c, 6, 16, guttering); lamp(5, 5, 0xffae5c, 6, 16, guttering);
+  lamp(-5, 5, 0xff8a4c, 6, 16, guttering); lamp(5, -5, 0xff8a4c, 6, 16, guttering); // interior corners
+  lamp(0, 0, 0xc9d6ff, 4, 12, breathing); // cool center fill
   lamp(0, 16, 0x9fb4ff, 5, 20); lamp(0, -16, 0x9fb4ff, 5, 20); // exterior approaches
   lamp(16, 0, 0x9fb4ff, 5, 20); lamp(-16, 0, 0x9fb4ff, 5, 20);
 
   // --- floor ---
   const gridTex = makeGridTexture();
   gridTex.repeat.set(44, 44);
-  sceneMgr.tunableTextures = [gridTex];
   const floor = new THREE.Mesh(
     new THREE.BoxGeometry(44, 1, 44),
-    ps1Snap(new THREE.MeshStandardMaterial({ map: gridTex, roughness: 0.96, metalness: 0 })),
+    concreteFloor(gridTex, [22, 22]),
   );
   floor.position.y = -0.5;
   floor.receiveShadow = true;
   scene.add(floor);
   engine.services.get(Service.Physics).createStaticBox({ x: 0, y: -0.5, z: 0 }, { x: 22, y: 0.5, z: 22 });
 
+  // register the procedural normal maps (built lazily by the materials below)
+  // for anisotropy tuning alongside the floor grid.
+  sceneMgr.tunableTextures = [gridTex];
+
   // --- nav graph (generated from the layout below) ---
   const nav = new NavGraph(BOUNDS);
-  const wallMat = ps1Snap(new THREE.MeshStandardMaterial({ color: 0x2a323d, roughness: 0.9 }));
+  const wallMat = brickWall(0x2a323d, [6, 3]);
+  // one shared plank material for every boarded window (all the same stock)
+  const plankMat = plankWood(0x5a4632);
 
   const wall = (minX, minZ, maxX, maxZ, h = 3) => {
     const sx = maxX - minX, sz = maxZ - minZ;
@@ -133,7 +146,7 @@ export function buildArena(engine) {
     for (let i = 0; i < barrier.maxBoards; i++) {
       const plank = new THREE.Mesh(
         new THREE.BoxGeometry(w, 0.2, d),
-        ps1Snap(new THREE.MeshStandardMaterial({ color: planksColor, roughness: 1 })),
+        plankMat,
       );
       plank.position.set(cx, 0.5 + i * 0.32, cz);
       plank.userData.homeY = plank.position.y;
@@ -154,6 +167,11 @@ export function buildArena(engine) {
 
   // planks rise out of the ground and snap into place when repaired
   engine.world.registerSystem(new BarrierFxSystem(barrierPlanks, events));
+
+  // dynamic-light atmosphere: gutter the warm bulbs, breathe the cool fills.
+  // The shared normal maps join the tunable-texture set for anisotropy control.
+  engine.world.registerSystem(new AtmosphereSystem(flickerLights));
+  sceneMgr.tunableTextures.push(...sharedNormalMaps());
 
   // --- exterior spawn points (outside the building) ---
   const spawnPoints = [

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { defaultSettings } from './defaults.js';
-import { RenderConfig } from '../config/index.js';
+import { RenderConfig, PostFXConfig } from '../config/index.js';
 import { Service } from '../core/ServiceLocator.js';
 
 const STORAGE_KEY = 'necropolis.settings.v2';
@@ -111,13 +111,38 @@ export class SettingsStore {
       }
     }
 
-    // Broadcast the CSS FX values for the overlay.
-    this.#events.emit('settings:fx', {
-      grain: this.graphics.grain,
-      scanlines: this.graphics.scanlines,
-      aberration: this.graphics.aberration,
-      vignette: this.graphics.vignette,
-    });
+    // Drive the stylized WebGL post stack when present. The horror FX (grain,
+    // scanlines, aberration, vignette) move into the pipeline here; the CSS
+    // overlay is suppressed below so they never double up.
+    const g = this.graphics;
+    const postOn = render.postFX && g.postfx !== false;
+    if (render.postFX) {
+      PostFXConfig.enabled = g.postfx !== false;
+      PostFXConfig.bloom.enabled = g.bloom !== false;
+      PostFXConfig.dof.enabled = g.dof !== false;
+      PostFXConfig.grain.enabled = g.grain > 0;
+      PostFXConfig.grain.amount = g.grain;
+      PostFXConfig.scanlines.enabled = !!g.scanlines;
+      PostFXConfig.aberration.enabled = g.aberration > 0;
+      PostFXConfig.aberration.amount = g.aberration;
+      PostFXConfig.vignette.enabled = g.vignette > 0;
+      PostFXConfig.vignette.amount = g.vignette;
+      // exposure is applied by the renderer's tone-map during the world pass
+      // (above), so it is deliberately NOT fed into the grade — that would
+      // double it. grade.exposure stays at its neutral config default.
+      render.postFX.applyParams(PostFXConfig);
+    }
+
+    // CSS overlay: the fallback when the WebGL stack is off (or unavailable).
+    // When the pipeline owns these effects, zero the CSS layer to avoid stacking.
+    this.#events.emit('settings:fx', postOn
+      ? { grain: 0, scanlines: false, aberration: 0, vignette: 0 }
+      : {
+          grain: this.graphics.grain,
+          scanlines: this.graphics.scanlines,
+          aberration: this.graphics.aberration,
+          vignette: this.graphics.vignette,
+        });
   }
 
   #applyControls() {
