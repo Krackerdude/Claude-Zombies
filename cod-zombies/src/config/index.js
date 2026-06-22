@@ -45,7 +45,7 @@ export const PostFXConfig = {
   bloom: {
     enabled: true,
     threshold: 0.62,     // luminance above which a pixel blooms
-    intensity: 0.85,     // additive strength of the bloom buffer
+    intensity: 1.0,      // additive strength of the bloom buffer
     radius: 1.0,         // blur spread multiplier
     iterations: 3,       // gaussian H/V passes (more = softer/wider)
   },
@@ -59,17 +59,17 @@ export const PostFXConfig = {
     density: 0.55,       // radial step scale (longer = reaches further)
     weight: 0.4,         // per-sample contribution (blur is normalised, so bounded)
     decay: 0.93,         // falloff along the shaft
-    intensity: 0.5,      // additive strength in the final composite
+    intensity: 1.0,      // additive strength in the final composite
   },
 
   // --- colour grade: the Persona identity lives here ---
   grade: {
     enabled: true,
     exposure: 1.0,       // multiplied on top of the renderer's tone-map exposure
-    contrast: 1.12,      // S-curve contrast around mid grey
-    gamma: 1.0,          // midtone/shadow lift (1 = neutral). The "Shadow Brightness"
+    contrast: 1.01,      // S-curve contrast around mid grey (gentle — posterize carries the punch)
+    gamma: 0.9,          // midtone/shadow lift (1 = neutral). The "Shadow Brightness"
                          // slider drives this: >1 opens the dark range without washing black.
-    saturation: 1.14,    // global saturation push
+    saturation: 1.45,    // global saturation push
     temperature: 0.0,    // -1 cool .. +1 warm overall tint
     lift: [0.0, 0.0, 0.0],       // neutral — a blue-biased lift here was the light-blue
                                  // wash on the whole frame (use Shadow Brightness instead)
@@ -78,7 +78,7 @@ export const PostFXConfig = {
     // This is the Tartarus colour identity — now driven by the "Split Tone" slider.
     shadowTint: [0.20, 0.42, 0.55],
     highlightTint: [1.00, 0.78, 0.45],
-    splitToning: 0.1,    // 0..1 how strongly the split tint is mixed in
+    splitToning: 1.0,    // 0..1 how strongly the split tint is mixed in
   },
 
   // --- ambient occlusion: a depth-cavity darkening that grounds geometry,
@@ -86,7 +86,7 @@ export const PostFXConfig = {
   ssao: {
     enabled: true,
     radius: 0.55,        // metres — depth gap that counts as a crevice
-    intensity: 1.15,     // darkening strength
+    intensity: 1.55,     // darkening strength
     bias: 0.025,         // ignore tiny depth diffs (no self-occlusion shimmer)
     power: 1.6,          // contrast of the occlusion falloff
   },
@@ -106,7 +106,7 @@ export const PostFXConfig = {
   // velocity (camera-only) for a smear on fast turns / sprints ---
   motionBlur: {
     enabled: true,
-    strength: 0.5,       // 0..1 smear amount
+    strength: 0.35,      // 0..1 smear amount
     samples: 8,          // taps along the velocity vector
     max: 0.04,           // clamp the per-pixel velocity (uv) so it never streaks wildly
   },
@@ -120,13 +120,13 @@ export const PostFXConfig = {
 
   // --- graphic-novel colour reduction layered into the final grade ---
   posterize: { enabled: true, levels: 24 },   // banded colour steps (higher = subtler)
-  dither: { enabled: true, amount: 0.22 },     // ordered dither to break the bands
+  dither: { enabled: true, amount: 1.0 },      // ordered dither to break the bands
 
   // --- screen-space horror flavour (overhauled from the old CSS overlay) ---
-  vignette: { enabled: true, amount: 0.55, softness: 0.45 },
-  aberration: { enabled: true, amount: 0.3 },   // radial RGB split, edge-weighted
-  grain: { enabled: true, amount: 0.14, animated: true }, // animated film grain
-  scanlines: { enabled: true, amount: 0.5, density: 2.4, scroll: 0.4 }, // CRT roll
+  vignette: { enabled: true, amount: 0.5, softness: 0.45 },
+  aberration: { enabled: true, amount: 1.0 },   // radial RGB split, edge-weighted
+  grain: { enabled: true, amount: 0.0, animated: true }, // off by default (posterize+dither cover it)
+  scanlines: { enabled: true, amount: 1.0, density: 2.4, scroll: 0.4 }, // CRT roll
 };
 
 /**
