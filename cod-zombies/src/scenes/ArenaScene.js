@@ -234,7 +234,7 @@ export function buildArena(engine) {
   };
 
   // placed on interior wall faces, normals pointing into the room
-  addWallBuy('galil', -5, 1.6, -B + 0.55, 0); // south wall, faces +z
+  addWallBuy('rk5', -5, 1.6, -B + 0.55, 0); // south wall, faces +z (RK-5, was GALIL)
   addWallBuy('dsr', 5, 1.6, B - 0.55, Math.PI); // north wall, faces -z
   addWallBuy('olympia', -B + 0.55, 1.6, 4, Math.PI / 2); // west wall, faces +x
   addWallBuy('vector', B - 0.55, 1.6, -4, -Math.PI / 2); // east wall, faces -x
