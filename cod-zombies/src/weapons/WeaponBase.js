@@ -62,9 +62,20 @@ export class WeaponBase {
     if (mode === 'auto') {
       if (ctx.fireHeld) this.#tryFire(ctx);
     } else if (mode === 'burst') {
-      if (ctx.firePressed && !this._fireLatch) { this._fireLatch = true; this.burstLeft = this.data.burstCount; }
-      if (!ctx.fireHeld) this._fireLatch = false;
-      if (this.burstLeft > 0 && this.#tryFire(ctx)) this.burstLeft--;
+      // Fire the rounds of an in-flight burst (paced by cooldown). While a burst
+      // is running we accept NO new input, so rapid clicks can't queue bursts or
+      // dump the mag.
+      if (this.burstLeft > 0) {
+        if (this.#tryFire(ctx)) this.burstLeft--;
+      } else if (ctx.firePressed && !this._fireLatch) {
+        // start a fresh burst only on a new press after a full release
+        this._fireLatch = true;
+        this.burstLeft = this.data.burstCount;
+        if (this.#tryFire(ctx)) this.burstLeft--;
+      }
+      // re-arm only once the trigger is released AND the burst has finished —
+      // a click held/buffered during the burst won't start the next one
+      if (!ctx.fireHeld && this.burstLeft <= 0) this._fireLatch = false;
     } else { // semi | pump
       if (ctx.firePressed && !this._fireLatch) { this._fireLatch = true; this.#tryFire(ctx); }
       if (!ctx.fireHeld) this._fireLatch = false;
