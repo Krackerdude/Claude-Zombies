@@ -19,6 +19,12 @@ const defs = {
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
     reloadTime: 1.6, recoilPitch: 0.016, cost: 500,
     viewmodel: { length: 0.36, color: 0x474b54, accent: 0x0e0f12 } },
+  // Dual-wield FN Five-seveN: twin mirrored viewmodels, ONE shared ammo pool.
+  // Every shot alternates which gun fires. DAMAGE IS A PLACEHOLDER pending tuning.
+  fiveSeven: { Class: WeaponBase, category: C.PISTOL, name: 'FIVE-SEVEN', fireMode: 'auto',
+    dualWield: true, damage: 80, headshotMultiplier: 3.0, fireRate: 500,
+    magazineSize: 40, ammoStockSize: 240, reloadTime: 2.1, recoilPitch: 0.012, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.31, color: 0x2c2f35, accent: 0x0c0e11 } },
   // Remington New Army Model: single-action hand-cannon revolver. 450 dmg,
   // 1.5x headshot (high base damage). Box-only. Cylinder rotates per shot.
   newArmy: { Class: WeaponBase, category: C.PISTOL, name: 'NEW ARMY', fireMode: 'semi',
