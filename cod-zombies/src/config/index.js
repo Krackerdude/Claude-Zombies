@@ -71,12 +71,14 @@ export const PostFXConfig = {
                          // slider drives this: >1 opens the dark range without washing black.
     saturation: 1.14,    // global saturation push
     temperature: 0.0,    // -1 cool .. +1 warm overall tint
-    lift: [0.02, 0.03, 0.05],   // shadows pushed cool/blue (RGB add)
+    lift: [0.0, 0.0, 0.0],       // neutral — a blue-biased lift here was the light-blue
+                                 // wash on the whole frame (use Shadow Brightness instead)
     gain: [1.04, 1.00, 0.96],   // highlights pulled warm (RGB mul)
-    // duotone-ish split toning: shadows toward teal, highlights toward amber
+    // duotone-ish split toning: shadows toward teal, highlights toward amber.
+    // This is the Tartarus colour identity — now driven by the "Split Tone" slider.
     shadowTint: [0.20, 0.42, 0.55],
     highlightTint: [1.00, 0.78, 0.45],
-    splitToning: 0.18,   // 0..1 how strongly the split tint is mixed in
+    splitToning: 0.1,    // 0..1 how strongly the split tint is mixed in
   },
 
   // --- ambient occlusion: a depth-cavity darkening that grounds geometry,

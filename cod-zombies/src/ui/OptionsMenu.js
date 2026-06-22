@@ -212,6 +212,7 @@ export class OptionsMenu {
     p.appendChild(slider({ label: 'Shadow Brightness', sublabel: 'Lifts dark areas so shadows are readable (gamma)', min: 0.6, max: 2.2, step: 0.05, value: g.gradeBrightness, format: dec, onChange: (v) => set('gradeBrightness', v) }));
     p.appendChild(slider({ label: 'Contrast', min: 0.5, max: 1.6, step: 0.01, value: g.gradeContrast, format: dec, onChange: (v) => set('gradeContrast', v) }));
     p.appendChild(slider({ label: 'Saturation', min: 0, max: 2, step: 0.05, value: g.gradeSaturation, format: dec, onChange: (v) => set('gradeSaturation', v) }));
+    p.appendChild(slider({ label: 'Split Tone', sublabel: 'Tartarus colour cast — 0 = neutral, no blue', min: 0, max: 1, step: 0.05, value: g.gradeSplit, format: pct, onChange: (v) => set('gradeSplit', v) }));
 
     p.appendChild(sectionTitle('Stylization'));
     p.appendChild(toggle({ label: 'Ink Outlines', sublabel: 'Persona-style line-art on edges', value: g.outline !== false, onChange: (v) => set('outline', v) }));

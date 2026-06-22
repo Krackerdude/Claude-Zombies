@@ -146,6 +146,7 @@ export class SettingsStore {
       P.grade.contrast = g.gradeContrast;
       P.grade.gamma = g.gradeBrightness;
       P.grade.saturation = g.gradeSaturation;
+      P.grade.splitToning = g.gradeSplit;
 
       P.posterize.enabled = g.posterize !== false; P.posterize.levels = g.posterizeLevels;
       P.dither.enabled = g.dither !== false && g.ditherAmount > 0; P.dither.amount = g.ditherAmount;
