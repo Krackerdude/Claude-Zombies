@@ -139,7 +139,9 @@
    up to fill the diamond crest */
 .perk-icon {
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  background-repeat: no-repeat; background-position: center 42%; background-size: 92%;
+  /* the diamond tapers to a point at the bottom, so its visual centre sits high
+     in the crest — 36% reads as centred, 42% looked low */
+  background-repeat: no-repeat; background-position: center 36%; background-size: 92%;
   filter: brightness(1.3) contrast(1.08) drop-shadow(0 1px 1px rgba(0,0,0,0.85));
 }
 @keyframes perkpop { from { transform: scale(0.2) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }

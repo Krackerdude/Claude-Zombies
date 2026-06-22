@@ -73,18 +73,6 @@ function promptTexture() {
   return t;
 }
 
-function beamTexture() {
-  const c = document.createElement('canvas');
-  c.width = 64; c.height = 256;
-  const x = c.getContext('2d');
-  const g = x.createLinearGradient(0, 256, 0, 0);
-  g.addColorStop(0, 'rgba(120,190,255,0.55)');
-  g.addColorStop(0.5, 'rgba(90,160,255,0.22)');
-  g.addColorStop(1, 'rgba(120,190,255,0)');
-  x.fillStyle = g; x.fillRect(0, 0, 64, 256);
-  return new THREE.CanvasTexture(c);
-}
-
 function radialGlow() {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
@@ -195,24 +183,39 @@ export function buildMysteryBox() {
   light.position.set(0, topY + 0.7, 0);
   group.add(light);
 
-  // aura: crossed vertical beams + a ground glow, all additive blue
+  // aura: a rising column of glowing motes (replaces the old crossed beam
+  // sheets) + a soft ground glow, all additive blue. The motes are GPU Points
+  // animated by MysteryBoxSystem so the box breathes light when in use.
   const aura = new THREE.Group();
-  const beamTex = beamTexture();
-  for (let i = 0; i < 2; i++) {
-    const beam = new THREE.Mesh(
-      new THREE.PlaneGeometry(L * 0.7, 1.6),
-      new THREE.MeshBasicMaterial({ map: beamTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
-    );
-    beam.position.y = topY + 0.7;
-    beam.rotation.y = i * Math.PI / 2;
-    aura.add(beam);
+  const PCOUNT = 110;
+  const colH = 2.1; // column height the motes rise through
+  const pgeo = new THREE.BufferGeometry();
+  const ppos = new Float32Array(PCOUNT * 3);
+  const pseed = new Float32Array(PCOUNT);
+  for (let i = 0; i < PCOUNT; i++) {
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * L * 0.42;
+    ppos[i * 3] = Math.cos(a) * r;
+    ppos[i * 3 + 1] = Math.random() * colH;
+    ppos[i * 3 + 2] = Math.sin(a) * r * (D / L);
+    pseed[i] = 0.55 + Math.random() * 0.9; // rise speed
   }
+  pgeo.setAttribute('position', new THREE.BufferAttribute(ppos, 3));
+  const particles = new THREE.Points(pgeo, new THREE.PointsMaterial({
+    map: radialGlow(), color: 0x8ec8ff, size: 0.17, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+  }));
+  particles.position.y = topY + 0.05;
+  particles.frustumCulled = false;
+  particles.raycast = () => {};
+  aura.add(particles);
+
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(L * 1.3, D * 3.2),
     new THREE.MeshBasicMaterial({ map: radialGlow(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = topY + 0.02;
+  ground.raycast = () => {};
   aura.add(ground);
   group.add(aura);
 
@@ -226,6 +229,9 @@ export function buildMysteryBox() {
   prompt.visible = false;
   group.add(prompt);
 
-  group.userData = { lidPivot, gunAnchor, models, light, aura, prompt, qMarks, topY, lidAngle: 0 };
+  group.userData = {
+    lidPivot, gunAnchor, models, light, aura, ground, prompt, qMarks, topY, lidAngle: 0,
+    particles: { points: particles, seed: pseed, h: colH },
+  };
   return group;
 }
