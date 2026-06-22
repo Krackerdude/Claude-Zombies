@@ -265,7 +265,7 @@ export const FINAL_FRAG = /* glsl */ `
   uniform vec2 uResolution;
   uniform float uTime;
 
-  uniform float uExposure, uContrast, uSaturation, uTemperature, uSplit;
+  uniform float uExposure, uContrast, uSaturation, uGamma, uTemperature, uSplit;
   uniform vec3 uLift, uGain, uShadowTint, uHighlightTint;
   uniform float uVigAmt, uVigSoft;
   uniform float uAberr;
@@ -335,6 +335,10 @@ export const FINAL_FRAG = /* glsl */ `
     // exposure → contrast (around mid grey) → lift/gain → temperature
     col *= uExposure;
     col = (col - 0.5) * uContrast + 0.5;
+    col = max(col, 0.0);
+    // gamma / midtone lift: brightens shadows + midtones for visibility while
+    // pinning true black at black (no milky wash) and white at white
+    if (uGamma != 1.0) col = pow(col, vec3(1.0 / uGamma));
     col = col * uGain + uLift;
     col += vec3(uTemperature, 0.0, -uTemperature) * 0.05;
 

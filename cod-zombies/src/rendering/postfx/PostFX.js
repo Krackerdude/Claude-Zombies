@@ -127,7 +127,7 @@ export class PostFX {
       tGod: { value: this.#black }, uGod: { value: 0 }, uGodColor: { value: new THREE.Vector3(1, 1, 1) },
       uResolution: { value: new THREE.Vector2() }, uTime: { value: 0 },
       uExposure: { value: 1 }, uContrast: { value: 1.12 }, uSaturation: { value: 1.14 },
-      uTemperature: { value: 0 }, uSplit: { value: 0.18 },
+      uGamma: { value: 1 }, uTemperature: { value: 0 }, uSplit: { value: 0.18 },
       uLift: { value: new THREE.Vector3() }, uGain: { value: new THREE.Vector3(1, 1, 1) },
       uShadowTint: { value: new THREE.Vector3() }, uHighlightTint: { value: new THREE.Vector3() },
       uVigAmt: { value: 0.55 }, uVigSoft: { value: 0.45 },
@@ -190,6 +190,7 @@ export class PostFX {
     const g = params.grade ?? {};
     f.uExposure.value = g.exposure ?? 1;
     f.uContrast.value = g.contrast ?? 1.12;
+    f.uGamma.value = g.gamma ?? 1;
     f.uSaturation.value = g.saturation ?? 1.14;
     f.uTemperature.value = g.temperature ?? 0;
     f.uSplit.value = (g.enabled === false) ? 0 : (g.splitToning ?? 0.18);
@@ -199,7 +200,7 @@ export class PostFX {
     f.uHighlightTint.value.fromArray(g.highlightTint ?? [1, 1, 1]);
     if (g.enabled === false) {
       f.uContrast.value = 1; f.uSaturation.value = 1; f.uTemperature.value = 0;
-      f.uExposure.value = 1; f.uGain.value.set(1, 1, 1); f.uLift.value.set(0, 0, 0);
+      f.uExposure.value = 1; f.uGamma.value = 1; f.uGain.value.set(1, 1, 1); f.uLift.value.set(0, 0, 0);
     }
 
     const vig = params.vignette ?? {};
