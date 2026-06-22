@@ -38,6 +38,7 @@ export const defaultSettings = {
     gradeContrast: 1.12,
     gradeBrightness: 1.0, // gamma — shadow/midtone lift (1 = neutral; raise to see into shadow)
     gradeSaturation: 1.14,
+    gradeSplit: 0.1, // 0..1 Tartarus split-tone strength (0 = no colour cast, neutral)
     // graphic-novel colour reduction
     posterize: true, posterizeLevels: 24,
     dither: true, ditherAmount: 0.6,
