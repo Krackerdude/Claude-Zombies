@@ -389,8 +389,12 @@ export class WeaponSystem extends System {
     const o = this.#camera.position;
     let anyHit = false, anyKill = false;
 
-    // world-space muzzle (gun barrel tip) for tracers + shell ejection
-    _muz.copy(o).addScaledVector(_fwd, 0.5).addScaledVector(_right, 0.12).addScaledVector(_up, -0.08);
+    // world-space muzzle (gun barrel tip) for tracers + shell ejection. Dual-wield
+    // alternates the lateral offset each shot so the tracer/FX leave the gun that
+    // actually fired (the weapon owns the side; the viewmodel flash reads the same).
+    let mx = 0.12;
+    if (weapon.data.dualWield) { weapon._dualSide = !weapon._dualSide; mx = weapon._dualSide ? 0.12 : -0.12; }
+    _muz.copy(o).addScaledVector(_fwd, 0.5).addScaledVector(_right, mx).addScaledVector(_up, -0.08);
     if (this.#fx) this.#fx.spawnMuzzle(_muz, _fwd, _right, _up);
 
     for (let s = 0; s < count; s++) {
