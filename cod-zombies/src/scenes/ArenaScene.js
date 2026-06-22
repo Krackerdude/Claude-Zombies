@@ -56,10 +56,10 @@ export function buildArena(engine) {
   scene.background = new THREE.Color(0x0a0d14);
   scene.fog = new THREE.FogExp2(0x0a0d14, 0.011);
 
-  scene.add(new THREE.HemisphereLight(0x6678a0, 0x141820, 0.9));
-  scene.add(new THREE.AmbientLight(0x3a4458, 0.55));
+  scene.add(new THREE.HemisphereLight(0x6678a0, 0x141820, 1.45));
+  scene.add(new THREE.AmbientLight(0x3a4458, 1.0));
 
-  const sun = new THREE.DirectionalLight(0xcdd8ea, 1.5);
+  const sun = new THREE.DirectionalLight(0xcdd8ea, 2.1);
   sun.position.set(-14, 24, 10);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);

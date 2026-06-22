@@ -66,10 +66,12 @@ export const PostFXConfig = {
   grade: {
     enabled: true,
     exposure: 1.08,      // multiplied on top of the renderer's tone-map exposure
-    contrast: 1.14,      // S-curve contrast — restores depth so blacks aren't flat grey
-    saturation: 1.2,     // global saturation push (fights the washed-out grey)
+    contrast: 1.12,      // S-curve contrast — keeps depth/punch in the image
+    gamma: 1.45,         // midtone lift — THIS is the visibility knob: brightens the
+                         // darks/mids while pinning black at black (raise to see more)
+    saturation: 1.2,     // global saturation push (keeps colour from going grey)
     temperature: 0.0,    // -1 cool .. +1 warm overall tint
-    lift: [0.018, 0.026, 0.04], // shadows just off pure-black — deep, not crushed, not milky
+    lift: [0.004, 0.008, 0.014], // a hair off pure-black so shadows aren't dead — gamma does the lifting now
     gain: [1.04, 1.00, 0.96],   // highlights pulled warm (RGB mul)
     // duotone-ish split toning: shadows toward teal, highlights toward amber
     shadowTint: [0.20, 0.42, 0.55],
