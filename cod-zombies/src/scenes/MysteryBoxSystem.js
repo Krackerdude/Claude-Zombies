@@ -51,7 +51,19 @@ export class MysteryBoxSystem extends System {
     const pulse = 0.85 + Math.sin(this.#pulse) * 0.15;
     this.#aura = damp(this.#aura, inUse ? 1 : 0, dt, 5);
     u.light.intensity = this.#aura * 2.6 * pulse;
-    for (const child of u.aura.children) child.material.opacity = this.#aura * (child.rotation.x ? 0.5 : 0.6) * pulse;
+    if (u.ground) u.ground.material.opacity = this.#aura * 0.5 * pulse;
+    // rising mote column: advance each point up, wrap at the top, fade with use
+    const P = u.particles;
+    if (P) {
+      const arr = P.points.geometry.attributes.position.array;
+      for (let i = 0; i < P.seed.length; i++) {
+        let y = arr[i * 3 + 1] + dt * P.seed[i] * 0.9;
+        if (y > P.h) y -= P.h;
+        arr[i * 3 + 1] = y;
+      }
+      P.points.geometry.attributes.position.needsUpdate = true;
+      P.points.material.opacity = this.#aura * 0.9 * pulse;
+    }
     const qGlow = 0.6 + this.#aura * 0.4 * pulse;
     for (const q of u.qMarks) q.material.opacity = qGlow;
 

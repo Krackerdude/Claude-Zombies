@@ -41,6 +41,17 @@ export class RenderManager {
     this.#canvas = canvas;
   }
 
+  /**
+   * Force every material in `scene` to compile its shader up front. Pooled
+   * effects (explosions, Ray Gun plasma) and the mystery-box weapons all live in
+   * the scene graph hidden from load; without this their shaders compile the
+   * first time they become visible mid-game, stalling a frame (the "first
+   * explosion / first box open" freeze). Runs once during the loading screen.
+   */
+  prewarm(scene) {
+    try { this.renderer?.compile?.(scene, this.camera); } catch { /* non-fatal */ }
+  }
+
   async init() {
     const wantGPU =
       RenderConfig.preferWebGPU &&
