@@ -218,7 +218,7 @@ export class OptionsMenu {
     p.appendChild(toggle({ label: 'Ink Outlines', sublabel: 'Persona-style line-art on edges', value: g.outline !== false, onChange: (v) => set('outline', v) }));
     p.appendChild(slider({ label: 'Outline Strength', min: 0, max: 2, step: 0.05, value: g.outlineStrength, format: dec, onChange: (v) => set('outlineStrength', v) }));
     p.appendChild(toggle({ label: 'Posterize', sublabel: 'Banded colour steps (graphic-novel)', value: g.posterize !== false, onChange: (v) => set('posterize', v) }));
-    p.appendChild(slider({ label: 'Colour Levels', sublabel: 'Higher = subtler banding', min: 4, max: 64, step: 1, value: g.posterizeLevels, format: (v) => String(Math.round(v)), onChange: (v) => set('posterizeLevels', v) }));
+    p.appendChild(slider({ label: 'Colour Levels', sublabel: 'Higher = subtler banding', min: 4, max: 128, step: 1, value: g.posterizeLevels, format: (v) => String(Math.round(v)), onChange: (v) => set('posterizeLevels', v) }));
     p.appendChild(toggle({ label: 'Dither', sublabel: 'Ordered dither that breaks the colour bands', value: g.dither !== false, onChange: (v) => set('dither', v) }));
     p.appendChild(slider({ label: 'Dither Amount', min: 0, max: 1, step: 0.05, value: g.ditherAmount, format: pct, onChange: (v) => set('ditherAmount', v) }));
 
