@@ -295,6 +295,12 @@ async function main() {
 
     engine.start();
 
+    // Pre-compile every material now (while the loader is still up) so the first
+    // explosion, Ray Gun shot, or mystery-box open doesn't hitch compiling
+    // shaders on demand. The flash lights are already permanent contributors, so
+    // the scene's light count won't change later either.
+    engine.services.get(Service.Render).prewarm(engine.services.get(Service.Scene).scene);
+
     // Fade out the loader once the first frame is up.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => loader.classList.add('hidden'));

@@ -124,8 +124,15 @@ export class WeaponFx {
       billow: this.#pool(30, () => this.#mkSprite(this.#tex.smoke, THREE.NormalBlending)),
       comet: this.#pool(30, () => this.#mkComet()),
       chunk: this.#pool(30, () => this.#mkChunk()),
-      flash: this.#pool(5, () => this.#mkLight()),
+      flash: this.#pool(2, () => this.#mkLight()),
     };
+    // Keep the explosion/plasma flash lights PERMANENTLY in the scene (visible,
+    // intensity 0 when idle). A point light appearing for the first time changes
+    // the scene's light count, which forces every material to recompile its
+    // shader — the half-second freeze on the first explosion / Ray Gun shot.
+    // Counting them from load means explosions only modulate intensity: no
+    // recompile, no hitch. Two lights cover overlapping blasts cheaply.
+    for (const s of this.#pools.flash.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
   }
 
   // ---- pool plumbing ----
@@ -511,7 +518,12 @@ export class WeaponFx {
   update(dt) {
     for (let i = this.#parts.length - 1; i >= 0; i--) {
       const r = this.#parts[i]; r.age += dt; const t = r.age / r.life;
-      if (t >= 1) { r.slot.mesh.visible = false; r.slot.busy = false; this.#parts.splice(i, 1); this.#free.push(r); continue; }
+      if (t >= 1) {
+        // flash lights stay in the scene (intensity 0) so the light count never
+        // changes; everything else hides on expiry.
+        if (r.kind === 'flash') r.slot.mesh.intensity = 0; else r.slot.mesh.visible = false;
+        r.slot.busy = false; this.#parts.splice(i, 1); this.#free.push(r); continue;
+      }
       const m = r.slot.mesh;
 
       // light flash: quick quadratic falloff of intensity
