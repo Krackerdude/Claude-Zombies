@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildWeaponModel } from './weaponModels.js';
 import { buildPerkBottle } from '../perks/perks.js';
+import { gunMetal, gunGrip, gunDark } from './gunMaterials.js';
 
 const HIP = new THREE.Vector3(0.22, -0.18, -0.4);
 const ADS = new THREE.Vector3(0.0, -0.0715, -0.32);
@@ -111,18 +112,30 @@ export class Viewmodel {
     this.#shock.renderOrder = 10; this.#shock.visible = false;
     this.#group.add(this.#shock);
 
-    // melee knife (its own object, shown only during a swipe)
+    // melee knife (its own object, shown only during a swipe) — a proper combat
+    // knife built from the shared gun materials: bright gunmetal blade with a
+    // fuller groove + clip-point tip, dark crossguard, stippled grip, pommel.
     this.#knife = new THREE.Group();
-    const blade = new THREE.Mesh(
-      new THREE.BoxGeometry(0.016, 0.04, 0.2),
-      new THREE.MeshStandardMaterial({ color: 0xccd2da, metalness: 0.85, roughness: 0.25 }),
-    );
-    blade.position.z = -0.13;
-    const handle = new THREE.Mesh(
-      new THREE.BoxGeometry(0.028, 0.034, 0.09),
-      new THREE.MeshStandardMaterial({ color: 0x1c130b, roughness: 0.9 }),
-    );
-    this.#knife.add(blade, handle);
+    {
+      const steel = gunMetal(0xc9cfd8);
+      const dark = gunDark(0x16181d);
+      const grip = gunGrip(0x2a2d33);
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.24), steel);
+      blade.position.z = -0.18;
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.085, 4), steel);
+      tip.rotation.x = -Math.PI / 2; tip.scale.set(0.2, 1, 1); // flatten to blade thickness
+      tip.position.set(0, 0, -0.34);
+      const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.014, 0.2), dark);
+      fuller.position.set(0, 0.008, -0.18);
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.02, 0.028), dark);
+      guard.position.z = -0.05;
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.12), grip);
+      handle.position.z = 0.03;
+      const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.046, 0.022), steel);
+      pommel.position.z = 0.095;
+      this.#knife.add(blade, tip, fuller, guard, handle, pommel);
+      this.#knife.scale.setScalar(1.3); // bigger, more presence on screen
+    }
     this.#knife.visible = false;
     this.#vmScene.add(this.#knife);
 
