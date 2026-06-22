@@ -1084,55 +1084,78 @@ function fiveSeven() {
 //     rubber grip with the signature red backstrap spine. Shared materials. ---
 function executioner() {
   const g = new THREE.Group();
-  const steel = gunMetal(0x9a9ea4, { metal: 0.85, rough: 0.3 });    // bright stainless
-  const steelDk = gunMetal(0x6e7278, { metal: 0.8, rough: 0.34 });
-  const black = gunDark(0x101216);
-  const rubber = gunGrip(0x1a1c20);                                 // black rubber grip
-  const red = mat(0xc01818, { metal: 0.2, rough: 0.5 });            // red grip spine
-  const redDot = mat(0xff3326, { metal: 0.1, rough: 0.4, emissive: 0xff2a1e, ei: 1.6 });
+  const silver = gunMetal(0xb6bcc4, { metal: 0.6, rough: 0.26 });   // stainless body
+  const silverHi = gunMetal(0xd2d7dd, { metal: 0.55, rough: 0.18 }); // polished edges / highlights
+  const grey = gunMetal(0x3c4046, { metal: 0.6, rough: 0.4 });      // dark-grey rib / flute recesses
+  const greyDk = gunDark(0x1c1f23);                                 // near-black grooves / bores
+  const rubber = gunGrip(0x26282c);                                 // dark-grey rubber grip
+  const red = mat(0xc01818, { metal: 0.25, rough: 0.5 });           // red spine
+  const redDot = mat(0xff3a2c, { metal: 0.1, rough: 0.4, emissive: 0xff2a1e, ei: 1.7 });
 
-  // stainless barrel shroud + vented top rib + side flutes + bore
-  g.add(at(box(0.05, 0.055, 0.4, steel), 0, 0.035, -0.24));
-  g.add(at(box(0.018, 0.014, 0.4, steelDk), 0, 0.066, -0.24));      // vent rib
-  for (let i = 0; i < 4; i++) g.add(at(box(0.052, 0.006, 0.012, black), 0, 0.066, -0.36 + i * 0.06));
-  for (const sx of [-1, 1]) g.add(at(box(0.004, 0.03, 0.32, steelDk), sx * 0.026, 0.035, -0.24));
-  g.add(at(tube(0.013, 0.013, 0.06, black, 12), 0, 0.035, -0.44));
+  // === SHORT stainless barrel, heavily detailed ===
+  g.add(at(box(0.05, 0.058, 0.26, silver), 0, 0.036, -0.17));        // barrel slab
+  g.add(at(box(0.052, 0.006, 0.26, silverHi), 0, 0.066, -0.17));     // polished top edge
+  // vented top rib + slots
+  g.add(at(box(0.022, 0.016, 0.26, grey), 0, 0.072, -0.17));
+  for (let i = 0; i < 5; i++) g.add(at(box(0.026, 0.01, 0.012, greyDk), 0, 0.072, -0.28 + i * 0.05));
+  // three scalloped flutes per side (recessed grey) with bright lips
+  for (const sx of [-1, 1]) for (const z of [-0.1, -0.18, -0.26]) {
+    g.add(at(box(0.006, 0.03, 0.055, grey), sx * 0.027, 0.036, z));
+    g.add(at(box(0.008, 0.04, 0.064, silverHi), sx * 0.0255, 0.036, z));
+  }
+  // thin "RAGING JUDGE MAGNUM" engraving line along each side
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.004, 0.22, greyDk), sx * 0.026, 0.016, -0.17));
+  // full underlug + ejector-rod shroud + front sight ramp + muzzle crown
+  g.add(at(box(0.026, 0.026, 0.24, silver), 0, 0.004, -0.16));
+  g.add(at(tube(0.012, 0.012, 0.2, greyDk), 0, 0.0, -0.16));
+  g.add(at(box(0.016, 0.026, 0.05, grey), 0, 0.086, -0.29));         // front sight ramp
+  g.add(at(box(0.01, 0.014, 0.04, redDot), 0, 0.092, -0.292));       // RED fiber
+  g.add(at(tube(0.024, 0.024, 0.02, silverHi, 14), 0, 0.036, -0.30)); // crown
+  g.add(at(tube(0.013, 0.013, 0.05, greyDk, 12), 0, 0.036, -0.31));   // bore
 
-  // CYLINDER — big fluted 5-shot .410, rotates per shot
+  // === big fluted 5-shot cylinder (rotates) ===
   const cyl = new THREE.Group();
-  const cgeo = new THREE.CylinderGeometry(0.062, 0.062, 0.12, 24); cgeo.rotateX(Math.PI / 2);
-  cyl.add(new THREE.Mesh(cgeo, steel));
+  const cgeo = new THREE.CylinderGeometry(0.066, 0.066, 0.14, 30); cgeo.rotateX(Math.PI / 2);
+  cyl.add(new THREE.Mesh(cgeo, silver));
+  cyl.add(at(tube(0.07, 0.07, 0.01, silverHi, 30), 0, 0, -0.065));   // front rim
+  cyl.add(at(tube(0.07, 0.07, 0.01, silverHi, 30), 0, 0, 0.065));    // rear rim
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
-    const holeGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.13, 12); holeGeo.rotateX(Math.PI / 2);
-    cyl.add(at(new THREE.Mesh(holeGeo, black), Math.cos(a) * 0.038, Math.sin(a) * 0.038, 0));
-    const flute = new THREE.BoxGeometry(0.02, 0.016, 0.1);
-    cyl.add(at(new THREE.Mesh(flute, steelDk), Math.cos(a + 0.628) * 0.062, Math.sin(a + 0.628) * 0.062, 0, 0, 0, a + 0.628));
+    const holeGeo = new THREE.CylinderGeometry(0.016, 0.016, 0.15, 14); holeGeo.rotateX(Math.PI / 2);
+    cyl.add(at(new THREE.Mesh(holeGeo, greyDk), Math.cos(a) * 0.04, Math.sin(a) * 0.04, 0));            // chamber
+    const fl = new THREE.BoxGeometry(0.026, 0.02, 0.12);
+    cyl.add(at(new THREE.Mesh(fl, grey), Math.cos(a + 0.628) * 0.064, Math.sin(a + 0.628) * 0.064, 0, 0, 0, a + 0.628)); // flute
+    cyl.add(at(box(0.012, 0.008, 0.012, greyDk), Math.cos(a + 0.314) * 0.066, Math.sin(a + 0.314) * 0.066, 0.05));       // stop notch
   }
+  cyl.add(at(tube(0.012, 0.012, 0.16, silverHi, 10), 0, 0, 0));      // center pin
   cyl.position.set(0, 0.03, 0.03);
   g.add(cyl);
 
-  // frame + topstrap + rear sight + front fiber + hammer
-  g.add(at(box(0.056, 0.1, 0.12, steel), 0, 0.018, 0.12));
-  g.add(at(box(0.06, 0.026, 0.13, steel), 0, 0.066, 0.115));        // topstrap
-  g.add(at(box(0.03, 0.018, 0.02, black), 0, 0.08, 0.15));          // adjustable rear sight
-  g.add(at(box(0.012, 0.022, 0.012, black), 0, 0.082, -0.42));      // front sight post
-  g.add(at(box(0.008, 0.01, 0.008, redDot), 0, 0.092, -0.425));     // red fiber dot
-  g.add(at(box(0.014, 0.045, 0.02, steelDk), 0, 0.072, 0.185, -0.4)); // exposed hammer
+  // === stainless frame, detailed ===
+  g.add(at(box(0.056, 0.105, 0.13, silver), 0, 0.02, 0.135));
+  g.add(at(box(0.062, 0.026, 0.14, silver), 0, 0.066, 0.13));        // topstrap
+  g.add(at(box(0.058, 0.006, 0.13, silverHi), 0, 0.072, 0.135));     // polished edge
+  g.add(at(box(0.02, 0.014, 0.026, greyDk), 0, 0.084, 0.18));        // rear sight notch
+  g.add(at(box(0.01, 0.03, 0.05, grey), -0.031, 0.03, 0.09));        // cylinder release latch
+  for (const z of [0.1, 0.17]) g.add(at(tube(0.006, 0.006, 0.058, greyDk, 8), 0, 0.0, z, 0, Math.PI / 2)); // frame screws
+  g.add(at(box(0.016, 0.05, 0.022, grey), 0, 0.08, 0.205, -0.4));    // exposed hammer
+  g.add(at(box(0.022, 0.014, 0.016, greyDk), 0, 0.104, 0.218, -0.4)); // hammer spur
 
   // trigger guard + trigger
-  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 10, 18), steel);
-  g.add(at(guard, 0, -0.05, 0.07, 0, Math.PI / 2));
-  g.add(at(box(0.011, 0.03, 0.009, steelDk), 0, -0.045, 0.07));
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.007, 10, 18), silver);
+  g.add(at(guard, 0, -0.052, 0.08, 0, Math.PI / 2));
+  g.add(at(box(0.012, 0.032, 0.01, greyDk), 0, -0.046, 0.08));
 
-  // black rubber grip + signature red backstrap spine + base
-  g.add(at(box(0.05, 0.16, 0.07, rubber), 0, -0.1, 0.16, 0.36));
-  g.add(at(box(0.016, 0.15, 0.02, red), 0, -0.1, 0.198, 0.36));     // red rubber spine
-  g.add(at(box(0.052, 0.02, 0.06, black), 0, -0.178, 0.185, 0.36)); // grip base
+  // === dark-grey rubber grip: finger grooves + RED spine + medallion ===
+  g.add(at(box(0.05, 0.17, 0.072, rubber), 0, -0.105, 0.18, 0.34));
+  for (let i = 0; i < 4; i++) g.add(at(box(0.052, 0.006, 0.06, greyDk), 0, -0.05 - i * 0.035, 0.205 + i * 0.012, 0.34)); // finger grooves
+  g.add(at(box(0.018, 0.16, 0.022, red), 0, -0.105, 0.222, 0.34));   // RED backstrap spine
+  g.add(at(box(0.014, 0.014, 0.008, redDot), 0, -0.14, 0.155, 0.34)); // red medallion
+  g.add(at(box(0.052, 0.022, 0.066, greyDk), 0, -0.188, 0.205, 0.34)); // base
 
   g.userData.cylinder = cyl;
   g.userData.chambers = 5;
-  return { group: g, muzzle: -0.46 };
+  return { group: g, muzzle: -0.33 };
 }
 
 const BUILDERS = {
