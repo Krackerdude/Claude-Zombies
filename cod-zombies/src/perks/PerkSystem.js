@@ -72,6 +72,31 @@ export class PerkSystem extends System {
     });
   }
 
+  /** Dev/test: force-grant a perk by id (bypasses cost + drink + cap). */
+  grantPerk(id) {
+    if (!PERKS[id] || this.#owned.has(id)) return;
+    this.#owned.add(id);
+    const def = PERKS[id];
+    this.#events.emit('perk:gained', { id, name: def.name, color: def.color });
+    if (id === 'juggernog') {
+      const pid = this.world.first(PlayerTag);
+      if (pid !== undefined) { const p = this.world.get(pid, PlayerTag); p.maxHealth = this.maxHealth(); p.health = p.maxHealth; this.#events.emit('player:health', { health: p.health, max: p.maxHealth }); }
+    }
+  }
+
+  /** Dev/test: strip all perks. */
+  clearPerks() {
+    this.#owned.clear();
+    this.#events.emit('perks:reset', {});
+    const pid = this.world.first(PlayerTag);
+    if (pid !== undefined) {
+      const p = this.world.get(pid, PlayerTag);
+      p.maxHealth = PlayerCombat.maxHealth;
+      if (p.health > p.maxHealth) p.health = p.maxHealth;
+      this.#events.emit('player:health', { health: p.health, max: p.maxHealth });
+    }
+  }
+
   // EconomySystem owns the shared HUD prompt + interaction; we expose machines.
   machines() { return this.#machines; }
   owns(id) { return this.#owned.has(id); }

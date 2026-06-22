@@ -4,11 +4,13 @@ import { buildArena } from './scenes/ArenaScene.js';
 import { PlayerTag, Transform } from './ecs/components/index.js';
 import { UIManager } from './ui/UIManager.js';
 import { Scoreboard } from './ui/Scoreboard.js';
+import { DevMenu } from './ui/DevMenu.js';
 import { perkIconDataURL } from './perks/perks.js';
 import { portraitDataURL } from './ui/portrait.js';
 import './ui/menu.css';
 import './ui/hud.css';
 import './ui/scoreboard.css';
+import './ui/devmenu.css';
 
 /**
  * Application bootstrap. This is the only place that touches the DOM chrome
@@ -282,6 +284,7 @@ async function main() {
     // push all settings into the live engine.
     const ui = new UIManager(engine);
     new Scoreboard(engine); // Tab menu (scoreboard / objectives) — pauses the world
+    new DevMenu(engine); // F2 dev/test overlay — points / perks / weapons
     engine.services.get(Service.Settings).applyAll();
     setStatus('ready', 1);
 

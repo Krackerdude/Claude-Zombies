@@ -79,8 +79,8 @@ export class CameraController extends System {
   }
 
   lateUpdate(dt) {
-    // scoreboard (Tab menu) freezes the view on the live frame; menu/pause drift
-    if (this.#gameState.current === 'scoreboard') return;
+    // scoreboard (Tab) + dev menu (F2) freeze the view on the live frame; menu/pause drift
+    if (this.#gameState.current === 'scoreboard' || this.#gameState.current === 'devmenu') return;
     if (!this.#gameState.isPlaying) {
       this.#menuDrift(dt);
       return;
