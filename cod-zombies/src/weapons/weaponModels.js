@@ -1155,7 +1155,10 @@ function executioner() {
 
   g.userData.cylinder = cyl;
   g.userData.chambers = 5;
-  return { group: g, muzzle: -0.33 };
+  // it's a pistol — scale the whole thing down to sit just a touch above the M1911
+  const S = 0.7;
+  g.scale.setScalar(S);
+  return { group: g, muzzle: -0.33 * S };
 }
 
 const BUILDERS = {
