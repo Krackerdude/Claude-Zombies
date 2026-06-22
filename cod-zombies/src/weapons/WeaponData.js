@@ -24,7 +24,7 @@ export class WeaponData {
 
     // ballistics
     this.damage = o.damage ?? 100; // per projectile/pellet
-    this.headshotMultiplier = o.headshotMultiplier ?? 1.5;
+    this.headshotMultiplier = o.headshotMultiplier ?? 3.0; // flat 3x for all guns (M1911 3.5x); wonder weapons override
     this.fireRate = o.fireRate ?? 600; // rounds per minute
     this.fireMode = o.fireMode ?? 'auto'; // auto | semi | burst | pump
     this.burstCount = o.burstCount ?? 3;

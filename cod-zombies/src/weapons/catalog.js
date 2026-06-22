@@ -10,7 +10,7 @@ import { ShotgunWeapon, ProjectileWeapon, ConeWeapon } from './variants.js';
 const C = WeaponCategory;
 
 const defs = {
-  m1911: { Class: WeaponBase, category: C.PISTOL, name: 'M1911', damage: 80, fireRate: 400, cost: 500 },
+  m1911: { Class: WeaponBase, category: C.PISTOL, name: 'M1911', damage: 80, fireRate: 400, cost: 500, headshotMultiplier: 3.5 },
   vector: { Class: WeaponBase, category: C.SMG, name: 'K-Vector', damage: 70, fireRate: 950, magazineSize: 40, adsFov: 56, cost: 1000 },
   galil: { Class: WeaponBase, category: C.AR, name: 'GALIL', damage: 120, fireRate: 575, recoilPitch: 0.014, cost: 1200 },
   olympia: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'OLYMPIA', damage: 42, pellets: 9, magazineSize: 2, fireRate: 90, cost: 1000 },
