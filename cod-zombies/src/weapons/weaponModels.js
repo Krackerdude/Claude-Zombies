@@ -907,6 +907,62 @@ function thunderGunModel() {
   return { group: g, muzzle: -0.56 };
 }
 
+// --- RK-5: semi-futuristic 3-round-burst pistol (BO3). Two-tone gunmetal slide
+//     with angled "shark-tooth" serrations, a gold ribbed compensator, a red
+//     trigger + red fiber-optic sights, and a textured polymer frame + mag. ---
+function rk5() {
+  const g = new THREE.Group();
+  const slide = gunMetal(0x474b54);     // medium gunmetal slide
+  const slideHi = gunMetal(0x6c717b);   // brighter machined top + cuts
+  const frame = gunDark(0x191b20);      // dark polymer frame
+  const grip = gunGrip(0x24262c);       // stippled grip panels
+  const brass = gunMetal(0xc6a14c);     // gold compensator
+  const black = gunDark(0x0e0f12);
+  const red = mat(0xc81810, { metal: 0.35, rough: 0.45, emissive: 0xff2a1e, ei: 0.5 });
+  const redDot = mat(0xff3a2c, { metal: 0.1, rough: 0.4, emissive: 0xff2a1e, ei: 1.6 });
+
+  // slide body + brighter top deck
+  g.add(at(box(0.054, 0.052, 0.30, slide), 0, 0.042, -0.12));
+  g.add(at(box(0.05, 0.015, 0.28, slideHi), 0, 0.07, -0.13));
+  // long milled side windows (dark inset) on both flanks
+  for (const sx of [-1, 1]) g.add(at(box(0.004, 0.024, 0.10, black), sx * 0.028, 0.042, -0.17));
+  // angled "shark-tooth" cocking serrations on the rear slide flanks
+  for (let i = 0; i < 6; i++) for (const sx of [-1, 1]) {
+    g.add(at(box(0.006, 0.044, 0.012, slideHi), sx * 0.028, 0.045, 0.03 - i * 0.02, 0.5));
+  }
+  // front slide nose
+  g.add(at(box(0.052, 0.052, 0.05, slide), 0, 0.04, -0.27));
+
+  // gold ribbed compensator at the muzzle
+  g.add(at(box(0.05, 0.046, 0.07, brass), 0, 0.032, -0.305));
+  for (let i = 0; i < 4; i++) g.add(at(box(0.054, 0.05, 0.005, black), 0, 0.032, -0.285 - i * 0.014)); // rib grooves
+  g.add(at(tube(0.012, 0.012, 0.06, black), 0, 0.034, -0.33)); // muzzle bore
+
+  // frame / dust cover under the slide
+  g.add(at(box(0.048, 0.03, 0.24, frame), 0, 0.006, -0.11));
+  g.add(at(box(0.044, 0.02, 0.12, frame), 0, -0.012, -0.2));
+
+  // grip — angled, textured, finger grooves, extended mag
+  g.add(at(box(0.05, 0.16, 0.062, frame), 0, -0.085, 0.01, 0.28));
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.13, 0.052, grip), sx * 0.027, -0.085, 0.01, 0.28));
+  for (let i = 0; i < 4; i++) g.add(at(box(0.052, 0.006, 0.05, black), 0, -0.04 - i * 0.03, 0.018 + i * 0.009, 0.28)); // finger grooves
+  g.add(at(box(0.046, 0.05, 0.055, black), 0, -0.18, -0.03, 0.28)); // extended mag base
+
+  // trigger guard + RED trigger
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 8, 16), frame);
+  g.add(at(guard, 0, -0.05, -0.06, 0, Math.PI / 2));
+  g.add(at(box(0.012, 0.03, 0.01, red), 0, -0.045, -0.06));
+
+  // red fiber-optic sights: front post + dual rear dots
+  g.add(at(box(0.012, 0.022, 0.012, black), 0, 0.085, -0.235));
+  g.add(at(box(0.008, 0.008, 0.008, redDot), 0, 0.094, -0.237));
+  g.add(at(box(0.05, 0.022, 0.02, black), 0, 0.082, 0.012));
+  g.add(at(box(0.008, 0.009, 0.008, redDot), -0.014, 0.092, 0.012));
+  g.add(at(box(0.008, 0.009, 0.008, redDot), 0.014, 0.092, 0.012));
+
+  return { group: g, muzzle: -0.36 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -917,6 +973,7 @@ const BUILDERS = {
 export function buildWeaponModel(weapon) {
   const vm = weapon.data.viewmodel || { color: 0x4a4f59, accent: 0x26282e };
   const cat = weapon.data.category;
+  if (weapon.data.name === 'RK-5') return rk5();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
