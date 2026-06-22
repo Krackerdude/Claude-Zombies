@@ -65,22 +65,18 @@ export const PostFXConfig = {
   // --- colour grade: the Persona identity lives here ---
   grade: {
     enabled: true,
-    exposure: 1.12,      // multiplied on top of the renderer's tone-map exposure
-    contrast: 0.92,      // below neutral — softens the S-curve further so the dark
-                         // range lifts open instead of crushing toward black
-    gamma: 1.35,         // midtone/shadow lift — the readability lever. Opens up the
-                         // dark range (lowers the effective black point) while keeping
-                         // true black at black (no wash). Raise to see deeper into shadow.
-    saturation: 1.14,    // global saturation push (Tartarus colour identity)
+    exposure: 1.0,       // multiplied on top of the renderer's tone-map exposure
+    contrast: 1.12,      // S-curve contrast around mid grey
+    gamma: 1.0,          // midtone/shadow lift (1 = neutral). The "Shadow Brightness"
+                         // slider drives this: >1 opens the dark range without washing black.
+    saturation: 1.14,    // global saturation push
     temperature: 0.0,    // -1 cool .. +1 warm overall tint
-    lift: [0.006, 0.009, 0.014], // a touch of cool in the deepest shadows (Tartarus), minimal
+    lift: [0.02, 0.03, 0.05],   // shadows pushed cool/blue (RGB add)
     gain: [1.04, 1.00, 0.96],   // highlights pulled warm (RGB mul)
-    // duotone-ish split toning: shadows toward teal, highlights toward amber.
-    // The Tartarus identity — kept but at a lesser degree than before so the lifted
-    // shadows read as cool-dark, not a flat blue wash.
+    // duotone-ish split toning: shadows toward teal, highlights toward amber
     shadowTint: [0.20, 0.42, 0.55],
     highlightTint: [1.00, 0.78, 0.45],
-    splitToning: 0.1,    // 0..1 how strongly the split tint is mixed in (lesser Tartarus)
+    splitToning: 0.18,   // 0..1 how strongly the split tint is mixed in
   },
 
   // --- ambient occlusion: a depth-cavity darkening that grounds geometry,
@@ -88,7 +84,7 @@ export const PostFXConfig = {
   ssao: {
     enabled: true,
     radius: 0.55,        // metres — depth gap that counts as a crevice
-    intensity: 0.85,     // darkening strength (eased so corners don't go black)
+    intensity: 1.15,     // darkening strength
     bias: 0.025,         // ignore tiny depth diffs (no self-occlusion shimmer)
     power: 1.6,          // contrast of the occlusion falloff
   },
@@ -108,7 +104,7 @@ export const PostFXConfig = {
   // velocity (camera-only) for a smear on fast turns / sprints ---
   motionBlur: {
     enabled: true,
-    strength: 0.28,      // 0..1 smear amount (lighter — was muddying motion)
+    strength: 0.5,       // 0..1 smear amount
     samples: 8,          // taps along the velocity vector
     max: 0.04,           // clamp the per-pixel velocity (uv) so it never streaks wildly
   },
@@ -118,20 +114,17 @@ export const PostFXConfig = {
 
   // --- Persona speed-lines + radial blur: a kinetic burst driven at runtime by
   // sprint / slide / damage / kills (intensity is pushed live, not configured) ---
-  speedlines: { enabled: true, blur: 0.4, lines: 0.7 },
+  speedlines: { enabled: true, blur: 0.6, lines: 0.7 },
 
   // --- graphic-novel colour reduction layered into the final grade ---
-  // Kept light so it reads as PS2 charm, not a wall of dither: more colour
-  // levels = subtler banding, so far less ordered dither is needed to break it.
-  posterize: { enabled: true, levels: 48 },   // banded colour steps (higher = subtler)
+  posterize: { enabled: true, levels: 24 },   // banded colour steps (higher = subtler)
   dither: { enabled: true, amount: 0.22 },     // ordered dither to break the bands
 
   // --- screen-space horror flavour (overhauled from the old CSS overlay) ---
-  // All restrained for visibility: a hint of each, never enough to obscure.
-  vignette: { enabled: true, amount: 0.36, softness: 0.5 },
-  aberration: { enabled: true, amount: 0.12 },  // radial RGB split, edge-weighted
-  grain: { enabled: true, amount: 0.05, animated: true }, // animated film grain
-  scanlines: { enabled: true, amount: 0.22, density: 2.4, scroll: 0.4 }, // CRT roll
+  vignette: { enabled: true, amount: 0.55, softness: 0.45 },
+  aberration: { enabled: true, amount: 0.3 },   // radial RGB split, edge-weighted
+  grain: { enabled: true, amount: 0.14, animated: true }, // animated film grain
+  scanlines: { enabled: true, amount: 0.5, density: 2.4, scroll: 0.4 }, // CRT roll
 };
 
 /**
