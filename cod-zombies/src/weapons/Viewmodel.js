@@ -52,7 +52,7 @@ export class Viewmodel {
   // dual-wield (twin mirrored pistols): two holders, the left one scale.x = -1 so
   // its geometry AND its reload lean mirror for free. Shots alternate sides.
   #dual = false; #dualR = null; #dualL = null;
-  #dualDX = 0.13; #dualSide = true; #dualKickR = 0; #dualKickL = 0;
+  #dualDX = 0.13; #dualKickR = 0; #dualKickL = 0;
   #light;
   #starTex;
   #energyTex;
@@ -190,7 +190,7 @@ export class Viewmodel {
     if (this.#dual) {
       this.#dualR = new THREE.Group(); this.#dualR.add(group);
       this.#dualL = new THREE.Group(); this.#dualL.add(buildWeaponModel(weapon).group); this.#dualL.scale.set(-1, 1, 1);
-      this.#dualSide = true; this.#dualKickR = 0; this.#dualKickL = 0;
+      this.#dualKickR = 0; this.#dualKickL = 0;
       const container = new THREE.Group();
       container.add(this.#dualR, this.#dualL);
       this.#model = container;
@@ -233,13 +233,13 @@ export class Viewmodel {
     if (!this.#dualR || !this.#dualL) return;
     const DX = this.#dualDX;
 
-    // new shot -> flash + kick on the active gun, then swap which fires next
+    // new shot -> flash + kick on the gun the WeaponSystem actually fired from
+    // (weapon._dualSide), so the tracer + muzzle flash always match
     if (weapon.justFired > this.#prevFired + 1e-4) {
-      const side = this.#dualSide ? 1 : -1;
+      const side = weapon._dualSide ? 1 : -1;
       this.#flash.position.x = side * DX;
       this.#light.position.x = side * DX;
       if (side > 0) this.#dualKickR = 1; else this.#dualKickL = 1;
-      this.#dualSide = !this.#dualSide;
     }
     this.#dualKickR += (0 - this.#dualKickR) * Math.min(1, dt * 11);
     this.#dualKickL += (0 - this.#dualKickL) * Math.min(1, dt * 11);

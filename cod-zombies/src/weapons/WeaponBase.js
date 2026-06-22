@@ -20,6 +20,7 @@ export class WeaponBase {
     this.recoilIndex = 0;
     this.burstLeft = 0;
     this._fireLatch = false; // for semi/burst edge handling
+    this._dualSide = false; // dual-wield: which gun fired last (synced flash + tracer)
 
     this.aiming = false;
     this.adsProgress = 0; // 0 hip .. 1 fully aimed
