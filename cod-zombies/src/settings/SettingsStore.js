@@ -4,7 +4,9 @@ import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig, AtmosphereConf
 import { setRimIntensity } from '../rendering/rimLight.js';
 import { Service } from '../core/ServiceLocator.js';
 
-const STORAGE_KEY = 'necropolis.settings.v2';
+// v3: rebalanced post-FX defaults (much lighter grain/aberration/vignette,
+// lifted exposure) — bumped so saved v2 settings don't mask the new look.
+const STORAGE_KEY = 'necropolis.settings.v3';
 
 /**
  * Single source of truth for all options. Persists to localStorage and applies

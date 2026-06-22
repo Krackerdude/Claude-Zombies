@@ -15,7 +15,7 @@ export const defaultSettings = {
   },
   graphics: {
     shadows: 'high', // off | low | high
-    exposure: 1.25, // tone-mapping exposure
+    exposure: 1.35, // tone-mapping exposure (lifted so the scene reads dark, not black)
     fog: 0.011, // FogExp2 density
     anisotropy: 8, // texture filtering
     // stylized WebGL post-processing pipeline (PostFX). Master + heavy stages
@@ -33,11 +33,13 @@ export const defaultSettings = {
     rimLight: true, // cold moonlight rim on the zombies
     rain: true, // rain + ground mist
     lightning: true, // periodic lightning flashes
-    // horror post FX — drive the pipeline when postfx is on, the CSS overlay when off
-    grain: 0.14, // 0..1 animated film grain
+    // horror post FX — drive the pipeline when postfx is on, the CSS overlay when off.
+    // Deliberately restrained: a hint of each for PS2 charm, never enough to
+    // bury detail under grain/haze. Tune higher in Options if you want it heavier.
+    grain: 0.05, // 0..1 animated film grain
     scanlines: true,
-    aberration: 0.3, // 0..1 chromatic aberration
-    vignette: 0.55, // 0..1
+    aberration: 0.12, // 0..1 chromatic aberration
+    vignette: 0.36, // 0..1
   },
   controls: {
     sensitivity: 1.0, // multiplier on base look speed

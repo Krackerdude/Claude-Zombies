@@ -65,16 +65,16 @@ export const PostFXConfig = {
   // --- colour grade: the Persona identity lives here ---
   grade: {
     enabled: true,
-    exposure: 1.0,       // multiplied on top of the renderer's tone-map exposure
-    contrast: 1.12,      // S-curve contrast around mid grey
-    saturation: 1.14,    // global saturation push
+    exposure: 1.15,      // multiplied on top of the renderer's tone-map exposure
+    contrast: 1.05,      // gentle S-curve — was crushing shadows to pure black
+    saturation: 1.12,    // global saturation push
     temperature: 0.0,    // -1 cool .. +1 warm overall tint
-    lift: [0.02, 0.03, 0.05],   // shadows pushed cool/blue (RGB add)
+    lift: [0.05, 0.06, 0.08],   // shadows lifted out of black, still cool/blue
     gain: [1.04, 1.00, 0.96],   // highlights pulled warm (RGB mul)
     // duotone-ish split toning: shadows toward teal, highlights toward amber
     shadowTint: [0.20, 0.42, 0.55],
     highlightTint: [1.00, 0.78, 0.45],
-    splitToning: 0.18,   // 0..1 how strongly the split tint is mixed in
+    splitToning: 0.12,   // 0..1 how strongly the split tint is mixed in (eased back)
   },
 
   // --- ambient occlusion: a depth-cavity darkening that grounds geometry,
@@ -82,7 +82,7 @@ export const PostFXConfig = {
   ssao: {
     enabled: true,
     radius: 0.55,        // metres — depth gap that counts as a crevice
-    intensity: 1.15,     // darkening strength
+    intensity: 0.85,     // darkening strength (eased so corners don't go black)
     bias: 0.025,         // ignore tiny depth diffs (no self-occlusion shimmer)
     power: 1.6,          // contrast of the occlusion falloff
   },
@@ -102,7 +102,7 @@ export const PostFXConfig = {
   // velocity (camera-only) for a smear on fast turns / sprints ---
   motionBlur: {
     enabled: true,
-    strength: 0.5,       // 0..1 smear amount
+    strength: 0.28,      // 0..1 smear amount (lighter — was muddying motion)
     samples: 8,          // taps along the velocity vector
     max: 0.04,           // clamp the per-pixel velocity (uv) so it never streaks wildly
   },
@@ -112,17 +112,20 @@ export const PostFXConfig = {
 
   // --- Persona speed-lines + radial blur: a kinetic burst driven at runtime by
   // sprint / slide / damage / kills (intensity is pushed live, not configured) ---
-  speedlines: { enabled: true, blur: 0.6, lines: 0.7 },
+  speedlines: { enabled: true, blur: 0.4, lines: 0.7 },
 
   // --- graphic-novel colour reduction layered into the final grade ---
-  posterize: { enabled: true, levels: 24 },   // banded colour steps (higher = subtler)
-  dither: { enabled: true, amount: 0.6 },      // ordered dither to break the bands
+  // Kept light so it reads as PS2 charm, not a wall of dither: more colour
+  // levels = subtler banding, so far less ordered dither is needed to break it.
+  posterize: { enabled: true, levels: 48 },   // banded colour steps (higher = subtler)
+  dither: { enabled: true, amount: 0.22 },     // ordered dither to break the bands
 
   // --- screen-space horror flavour (overhauled from the old CSS overlay) ---
-  vignette: { enabled: true, amount: 0.55, softness: 0.45 },
-  aberration: { enabled: true, amount: 0.3 },   // radial RGB split, edge-weighted
-  grain: { enabled: true, amount: 0.14, animated: true }, // animated film grain
-  scanlines: { enabled: true, amount: 0.5, density: 2.4, scroll: 0.4 }, // CRT roll
+  // All restrained for visibility: a hint of each, never enough to obscure.
+  vignette: { enabled: true, amount: 0.36, softness: 0.5 },
+  aberration: { enabled: true, amount: 0.12 },  // radial RGB split, edge-weighted
+  grain: { enabled: true, amount: 0.05, animated: true }, // animated film grain
+  scanlines: { enabled: true, amount: 0.22, density: 2.4, scroll: 0.4 }, // CRT roll
 };
 
 /**
