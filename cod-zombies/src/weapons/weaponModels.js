@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gunMetal, gunMetalRidged, gunGrip, gunDark, gunWood, ironSightGlow, scopeGlow, plasmaGlow } from './gunMaterials.js';
+import { gunMetal, gunMetalRidged, gunGrip, gunDark, gunWood, engravedSteel, ironSightGlow, scopeGlow, plasmaGlow } from './gunMaterials.js';
 
 /**
  * Distinct first-person weapon models, assembled from primitives so each class
@@ -973,52 +973,60 @@ function rk5() {
 //     guard + backstrap, and a walnut plow-handle grip. Shared materials. ---
 function newArmy() {
   const g = new THREE.Group();
-  const steel = gunMetal(0x565a61);
-  const steelDk = gunMetal(0x3e424a);
-  const engrave = gunMetalRidged(0x5c6068);          // etched/engraved look
-  const wood = gunWood(0x6a4226);                    // walnut
-  const brass = gunMetal(0x8a7c46, { metal: 0.8, rough: 0.4 });
-  const dark = gunDark(0x101216);
+  const blued = gunMetal(0x2f333a, { metal: 0.8, rough: 0.32 });    // dark blued barrel
+  const bluedDk = gunMetal(0x23262c, { metal: 0.78, rough: 0.36 }); // near-black steel bits
+  const engCyl = engravedSteel(0x5a5f67);                           // bright engraved cylinder
+  const engFrame = engravedSteel(0x474c54);                         // engraved frame
+  const wood = gunWood(0x5a3620);                                   // dark walnut
+  const brass = gunMetal(0x9a8642, { metal: 0.85, rough: 0.34 });
+  const dark = gunDark(0x0c0e11);
 
-  // octagonal barrel (8-sided) + muzzle bore
-  g.add(at(tube(0.022, 0.022, 0.44, steel, 8), 0, 0.03, -0.26));
-  g.add(at(tube(0.01, 0.01, 0.05, dark, 10), 0, 0.03, -0.47));
-  // loading lever + plunger under the barrel
-  g.add(at(box(0.012, 0.012, 0.28, steelDk), 0, 0.006, -0.24));
-  g.add(at(tube(0.01, 0.01, 0.1, steelDk), 0, 0.006, -0.12));
-  g.add(at(box(0.03, 0.05, 0.04, steelDk), 0, 0.012, -0.04));         // barrel lug into frame
+  // octagonal blued barrel (8-sided) + top sighting flat + bore
+  g.add(at(tube(0.023, 0.023, 0.44, blued, 8), 0, 0.03, -0.26));
+  g.add(at(box(0.015, 0.009, 0.42, bluedDk), 0, 0.05, -0.26));       // top flat / sight rib
+  g.add(at(tube(0.011, 0.011, 0.05, dark, 12), 0, 0.03, -0.47));     // bore
+  // loading lever assembly under the barrel
+  g.add(at(box(0.014, 0.016, 0.3, bluedDk), 0, 0.004, -0.24));
+  g.add(at(tube(0.011, 0.011, 0.12, bluedDk), 0, 0.004, -0.12));
+  g.add(at(box(0.02, 0.022, 0.03, dark), 0, -0.002, -0.1));          // lever catch
+  g.add(at(box(0.034, 0.055, 0.05, engFrame), 0, 0.012, -0.04));     // barrel lug / arbor
 
-  // CYLINDER — the rotating part: 6 fluted/engraved chambers about the bore (z)
+  // CYLINDER — rotating, engraved, fluted, chamber holes + stop notches
   const cyl = new THREE.Group();
-  const cgeo = new THREE.CylinderGeometry(0.05, 0.05, 0.095, 16); cgeo.rotateX(Math.PI / 2);
-  cyl.add(new THREE.Mesh(cgeo, engrave));
+  const cgeo = new THREE.CylinderGeometry(0.052, 0.052, 0.1, 24); cgeo.rotateX(Math.PI / 2);
+  cyl.add(new THREE.Mesh(cgeo, engCyl));
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    const holeGeo = new THREE.CylinderGeometry(0.0085, 0.0085, 0.1, 8); holeGeo.rotateX(Math.PI / 2);
-    cyl.add(at(new THREE.Mesh(holeGeo, dark), Math.cos(a) * 0.033, Math.sin(a) * 0.033, 0));
-    const flute = new THREE.BoxGeometry(0.012, 0.006, 0.082);
-    cyl.add(at(new THREE.Mesh(flute, steelDk), Math.cos(a + 0.52) * 0.05, Math.sin(a + 0.52) * 0.05, 0));
+    const holeGeo = new THREE.CylinderGeometry(0.009, 0.009, 0.11, 10); holeGeo.rotateX(Math.PI / 2);
+    cyl.add(at(new THREE.Mesh(holeGeo, dark), Math.cos(a) * 0.034, Math.sin(a) * 0.034, 0));
+    const flute = new THREE.BoxGeometry(0.016, 0.014, 0.092);        // scallop between chambers
+    cyl.add(at(new THREE.Mesh(flute, bluedDk), Math.cos(a + 0.52) * 0.05, Math.sin(a + 0.52) * 0.05, 0, 0, 0, a + 0.52));
+    const notch = new THREE.BoxGeometry(0.012, 0.008, 0.01);         // cylinder-stop notch on the rim
+    cyl.add(at(new THREE.Mesh(notch, dark), Math.cos(a + 0.26) * 0.052, Math.sin(a + 0.26) * 0.052, 0.03));
   }
   cyl.position.set(0, 0.012, 0.03);
   g.add(cyl);
 
-  // engraved frame behind the cylinder + top strap
-  g.add(at(box(0.05, 0.085, 0.1, engrave), 0, 0.0, 0.1));
-  g.add(at(box(0.054, 0.026, 0.1, steel), 0, 0.042, 0.1));
-  g.add(at(box(0.014, 0.04, 0.02, steelDk), 0, 0.058, 0.16, -0.4));   // hammer
+  // engraved frame: recoil shield + topstrap + standing breech
+  g.add(at(box(0.052, 0.09, 0.1, engFrame), 0, 0.0, 0.1));
+  g.add(at(box(0.056, 0.024, 0.11, engFrame), 0, 0.044, 0.095));     // topstrap
+  g.add(at(box(0.05, 0.06, 0.03, bluedDk), 0, 0.0, 0.15));           // standing breech
+  // hammer with thumb spur
+  g.add(at(box(0.012, 0.045, 0.018, bluedDk), 0, 0.06, 0.16, -0.35));
+  g.add(at(box(0.018, 0.012, 0.014, dark), 0, 0.08, 0.172, -0.35));
   // sights
-  g.add(at(box(0.006, 0.012, 0.01, dark), 0, 0.058, -0.47));          // front blade
-  g.add(at(box(0.03, 0.014, 0.012, steel), 0, 0.056, 0.142));         // rear notch
+  g.add(at(box(0.006, 0.013, 0.012, dark), 0, 0.058, -0.46));        // front blade
+  g.add(at(box(0.02, 0.012, 0.012, bluedDk), 0, 0.058, 0.15));       // rear notch
 
-  // brass trigger guard + trigger + backstrap
-  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), brass);
-  g.add(at(guard, 0, -0.055, 0.06, 0, Math.PI / 2));
-  g.add(at(box(0.01, 0.026, 0.008, steelDk), 0, -0.05, 0.06));        // trigger
-  g.add(at(box(0.04, 0.02, 0.07, brass), 0, -0.04, 0.12));            // brass plate
+  // brass trigger guard + trigger + grip frame
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.027, 0.006, 10, 18), brass);
+  g.add(at(guard, 0, -0.058, 0.06, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.028, 0.008, bluedDk), 0, -0.05, 0.06));       // trigger
+  g.add(at(box(0.044, 0.022, 0.075, brass), 0, -0.04, 0.13));        // brass backstrap
 
-  // walnut plow-handle grip (angled down + back) + butt cap
-  g.add(at(box(0.044, 0.14, 0.06, wood), 0, -0.1, 0.14, 0.4));
-  g.add(at(box(0.046, 0.02, 0.05, steelDk), 0, -0.17, 0.16, 0.4));
+  // walnut plow-handle grip + brass butt cap
+  g.add(at(box(0.046, 0.15, 0.062, wood), 0, -0.105, 0.15, 0.42));
+  g.add(at(box(0.048, 0.018, 0.052, brass), 0, -0.182, 0.18, 0.42));
 
   g.userData.cylinder = cyl;
   g.userData.chambers = 6;

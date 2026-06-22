@@ -14,7 +14,7 @@ import * as THREE from 'three';
  * sheen rather than a hard gradient.
  */
 
-let _env, _brushed, _stipple, _ridge, _wood, _checker, _plasma;
+let _env, _brushed, _stipple, _ridge, _wood, _checker, _plasma, _engrave;
 
 export function gunEnv() {
   if (_env) return _env;
@@ -123,8 +123,63 @@ export function woodChecker() {
   return _checker;
 }
 
+/**
+ * Ornate acanthus scrollwork for engraved firearms (the New Army revolver, fancy
+ * lever guns, etc). Drives BOTH bump + roughness so the engraving catches the
+ * light as recessed grooves with raised lips. Grayscale (luminance), so the
+ * material `color` sets the tone. One shared map.
+ */
+export function engraveTexture() {
+  if (_engrave) return _engrave;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const x = c.getContext('2d');
+  x.fillStyle = '#9a9a9a'; x.fillRect(0, 0, 256, 256); // raised metal field
+  x.lineCap = 'round';
+  const scroll = (cx, cy, r0, turns, dir, col, lw) => {
+    x.strokeStyle = col; x.lineWidth = lw;
+    x.beginPath(); let first = true;
+    for (let a = 0; a <= turns * Math.PI * 2; a += 0.22) {
+      const r = r0 * (1 - (a / (turns * Math.PI * 2)) * 0.8);
+      const px = cx + Math.cos(a) * r * dir, py = cy + Math.sin(a) * r;
+      if (first) { x.moveTo(px, py); first = false; } else x.lineTo(px, py);
+    }
+    x.stroke();
+  };
+  for (let i = 0; i < 95; i++) {
+    const cx = Math.random() * 256, cy = Math.random() * 256;
+    const r0 = 5 + Math.random() * 14, turns = 0.8 + Math.random() * 1.4, dir = Math.random() < 0.5 ? 1 : -1;
+    scroll(cx, cy, r0, turns, dir, 'rgba(42,42,42,0.85)', 2.4);           // recessed groove
+    scroll(cx - 0.8, cy - 0.8, r0, turns, dir, 'rgba(228,228,228,0.4)', 0.9); // raised lip
+  }
+  for (let i = 0; i < 45; i++) { // connecting tendrils for density
+    x.strokeStyle = 'rgba(48,48,48,0.6)'; x.lineWidth = 1.5;
+    const x0 = Math.random() * 256, y0 = Math.random() * 256;
+    x.beginPath(); x.moveTo(x0, y0);
+    x.quadraticCurveTo(x0 + (Math.random() - 0.5) * 50, y0 + (Math.random() - 0.5) * 50, x0 + (Math.random() - 0.5) * 72, y0 + (Math.random() - 0.5) * 72);
+    x.stroke();
+  }
+  _engrave = new THREE.CanvasTexture(c);
+  _engrave.wrapS = _engrave.wrapT = THREE.RepeatWrapping;
+  _engrave.repeat.set(2.5, 2.5);
+  return _engrave;
+}
+
 // === the standard, parameterised by tone (maps shared, instances cached) ===
 const _cache = new Map();
+
+/** Engraved steel — gunMetal with the scrollwork bump/roughness laid in. */
+export function engravedSteel(color = 0x4a4f57) {
+  const key = `engrave|${color}`;
+  if (_cache.has(key)) return _cache.get(key);
+  const eng = engraveTexture();
+  const m = new THREE.MeshStandardMaterial({
+    color, metalness: 0.72, roughness: 0.4,
+    roughnessMap: eng, bumpMap: eng, bumpScale: 0.6,
+    envMap: gunEnv(), envMapIntensity: 0.75,
+  });
+  _cache.set(key, m);
+  return m;
+}
 
 export function gunMetal(color = 0x363b43, opts = {}) {
   const ridged = !!opts.ridged;
