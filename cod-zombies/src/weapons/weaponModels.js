@@ -676,13 +676,16 @@ function deathMachine() {
   const grip = gunGrip();
   const RB = 0.045; // barrel-cluster radius
 
-  // === six rotary barrels (the signature) ===
+  // === six rotary barrels (the signature) — wrapped in one group so the whole
+  //     cluster spins together about the bore axis (driven by the Viewmodel) ===
+  const barrels = new THREE.Group();
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
     const x = Math.cos(a) * RB, y = Math.sin(a) * RB;
-    g.add(at(tube(0.013, 0.013, 0.62, barrelMat), x, y, -0.55));     // barrel
-    g.add(at(tube(0.014, 0.014, 0.022, dark), x, y, -0.86));         // dark muzzle bore
+    barrels.add(at(tube(0.013, 0.013, 0.62, barrelMat), x, y, -0.55));   // barrel
+    barrels.add(at(tube(0.014, 0.014, 0.022, dark), x, y, -0.86));       // dark muzzle bore
   }
+  g.add(barrels);
 
   // === clamp/spacer collars along the cluster + larger muzzle collar ===
   for (const cz of [-0.32, -0.48, -0.64]) g.add(at(tube(0.061, 0.061, 0.024, clamp), 0, 0, cz));
@@ -718,6 +721,7 @@ function deathMachine() {
   g.add(at(guard, 0, -0.055, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.012, 0.028, 0.01, dark), 0, -0.05, 0.02));          // trigger
 
+  g.userData.barrelSpin = barrels; // the cluster the Viewmodel spins while firing
   return { group: g, muzzle: -0.88 };
 }
 
@@ -963,6 +967,64 @@ function rk5() {
   return { group: g, muzzle: -0.36 };
 }
 
+// --- Remington New Army Model (BO2) — Old-West cap-and-ball revolver. Long
+//     octagonal barrel + loading lever, a 6-flute engraved cylinder (the part
+//     that ROTATES a chamber per shot), engraved steel frame, brass trigger
+//     guard + backstrap, and a walnut plow-handle grip. Shared materials. ---
+function newArmy() {
+  const g = new THREE.Group();
+  const steel = gunMetal(0x565a61);
+  const steelDk = gunMetal(0x3e424a);
+  const engrave = gunMetalRidged(0x5c6068);          // etched/engraved look
+  const wood = gunWood(0x6a4226);                    // walnut
+  const brass = gunMetal(0x8a7c46, { metal: 0.8, rough: 0.4 });
+  const dark = gunDark(0x101216);
+
+  // octagonal barrel (8-sided) + muzzle bore
+  g.add(at(tube(0.022, 0.022, 0.44, steel, 8), 0, 0.03, -0.26));
+  g.add(at(tube(0.01, 0.01, 0.05, dark, 10), 0, 0.03, -0.47));
+  // loading lever + plunger under the barrel
+  g.add(at(box(0.012, 0.012, 0.28, steelDk), 0, 0.006, -0.24));
+  g.add(at(tube(0.01, 0.01, 0.1, steelDk), 0, 0.006, -0.12));
+  g.add(at(box(0.03, 0.05, 0.04, steelDk), 0, 0.012, -0.04));         // barrel lug into frame
+
+  // CYLINDER — the rotating part: 6 fluted/engraved chambers about the bore (z)
+  const cyl = new THREE.Group();
+  const cgeo = new THREE.CylinderGeometry(0.05, 0.05, 0.095, 16); cgeo.rotateX(Math.PI / 2);
+  cyl.add(new THREE.Mesh(cgeo, engrave));
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const holeGeo = new THREE.CylinderGeometry(0.0085, 0.0085, 0.1, 8); holeGeo.rotateX(Math.PI / 2);
+    cyl.add(at(new THREE.Mesh(holeGeo, dark), Math.cos(a) * 0.033, Math.sin(a) * 0.033, 0));
+    const flute = new THREE.BoxGeometry(0.012, 0.006, 0.082);
+    cyl.add(at(new THREE.Mesh(flute, steelDk), Math.cos(a + 0.52) * 0.05, Math.sin(a + 0.52) * 0.05, 0));
+  }
+  cyl.position.set(0, 0.012, 0.03);
+  g.add(cyl);
+
+  // engraved frame behind the cylinder + top strap
+  g.add(at(box(0.05, 0.085, 0.1, engrave), 0, 0.0, 0.1));
+  g.add(at(box(0.054, 0.026, 0.1, steel), 0, 0.042, 0.1));
+  g.add(at(box(0.014, 0.04, 0.02, steelDk), 0, 0.058, 0.16, -0.4));   // hammer
+  // sights
+  g.add(at(box(0.006, 0.012, 0.01, dark), 0, 0.058, -0.47));          // front blade
+  g.add(at(box(0.03, 0.014, 0.012, steel), 0, 0.056, 0.142));         // rear notch
+
+  // brass trigger guard + trigger + backstrap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), brass);
+  g.add(at(guard, 0, -0.055, 0.06, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.008, steelDk), 0, -0.05, 0.06));        // trigger
+  g.add(at(box(0.04, 0.02, 0.07, brass), 0, -0.04, 0.12));            // brass plate
+
+  // walnut plow-handle grip (angled down + back) + butt cap
+  g.add(at(box(0.044, 0.14, 0.06, wood), 0, -0.1, 0.14, 0.4));
+  g.add(at(box(0.046, 0.02, 0.05, steelDk), 0, -0.17, 0.16, 0.4));
+
+  g.userData.cylinder = cyl;
+  g.userData.chambers = 6;
+  return { group: g, muzzle: -0.49 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -974,6 +1036,7 @@ export function buildWeaponModel(weapon) {
   const vm = weapon.data.viewmodel || { color: 0x4a4f59, accent: 0x26282e };
   const cat = weapon.data.category;
   if (weapon.data.name === 'RK-5') return rk5();
+  if (weapon.data.name === 'NEW ARMY') return newArmy();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();

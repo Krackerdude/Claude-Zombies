@@ -44,6 +44,10 @@ export class Viewmodel {
   #muzzleCore;
   #flash;
   #muzzleZ = -0.5;
+  // animated weapon parts exposed by the model's userData (revolver cylinder
+  // that advances a chamber per shot; minigun barrel cluster that spins while firing)
+  #animParts = null;
+  #cylAngle = 0; #cylTarget = 0; #barrelVel = 0;
   #light;
   #starTex;
   #energyTex;
@@ -177,6 +181,13 @@ export class Viewmodel {
     this.#model = group;
     this.#muzzleZ = muzzle;
     this.#group.add(group);
+
+    // capture animated parts (cylinder / spinning barrels) from the model
+    const ud = group.userData || {};
+    this.#animParts = (ud.cylinder || ud.barrelSpin) ? ud : null;
+    this.#cylAngle = 0; this.#cylTarget = 0; this.#barrelVel = 0;
+    if (ud.cylinder) ud.cylinder.rotation.z = 0;
+    if (ud.barrelSpin) ud.barrelSpin.rotation.z = 0;
 
     // energy weapons get a coloured plasma muzzle (tinted electric burst);
     // everything else keeps the warm cartoon star
@@ -376,6 +387,22 @@ export class Viewmodel {
       this.#light.color.set(0xbcd8ff);
     } else {
       this.#light.intensity = lit * (this.#energyFlash ? 5.5 : 4.5);
+    }
+
+    // animated parts: revolver cylinder advances one chamber per shot (eased);
+    // minigun barrel cluster spins up while firing and coasts down after
+    if (this.#animParts) {
+      const ud = this.#animParts;
+      if (ud.cylinder) {
+        if (weapon.justFired > this.#prevFired + 1e-4) this.#cylTarget += (Math.PI * 2) / (ud.chambers || 6);
+        this.#cylAngle += (this.#cylTarget - this.#cylAngle) * Math.min(1, dt * 20);
+        ud.cylinder.rotation.z = this.#cylAngle;
+      }
+      if (ud.barrelSpin) {
+        const firing = weapon.justFired > 0;
+        this.#barrelVel += ((firing ? 30 : 0) - this.#barrelVel) * Math.min(1, dt * (firing ? 5 : 1.5));
+        ud.barrelSpin.rotation.z += this.#barrelVel * dt;
+      }
     }
     this.#prevFired = weapon.justFired;
   }
