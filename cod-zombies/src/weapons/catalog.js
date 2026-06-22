@@ -25,6 +25,14 @@ const defs = {
     dualWield: true, damage: 80, headshotMultiplier: 3.0, fireRate: 500,
     magazineSize: 40, ammoStockSize: 240, reloadTime: 2.1, recoilPitch: 0.012, cost: 0, boxOnly: true,
     viewmodel: { length: 0.31, color: 0x2c2f35, accent: 0x0c0e11 } },
+  // The Executioner (Taurus Judge): a revolver that fires .410 shotshells —
+  // a SHOTGUN mechanically (8-pellet spread). 35 dmg/pellet, standard 3x head.
+  // Cylinder rotates per shot. Semi, 5-round, box-only.
+  executioner: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'EXECUTIONER', fireMode: 'semi',
+    pellets: 8, damage: 35, headshotMultiplier: 3.0, magazineSize: 5, ammoStockSize: 40,
+    reloadType: 'magazine', reloadTime: 2.4, fireRate: 150, spread: 0.1, adsSpread: 0.06,
+    range: 30, recoilPitch: 0.045, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.46, color: 0x9a9ea4, accent: 0x101216 } },
   // Remington New Army Model: single-action hand-cannon revolver. 450 dmg,
   // 1.5x headshot (high base damage). Box-only. Cylinder rotates per shot.
   newArmy: { Class: WeaponBase, category: C.PISTOL, name: 'NEW ARMY', fireMode: 'semi',
