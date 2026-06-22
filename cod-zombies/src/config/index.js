@@ -66,17 +66,18 @@ export const PostFXConfig = {
   grade: {
     enabled: true,
     exposure: 1.08,      // multiplied on top of the renderer's tone-map exposure
-    contrast: 1.12,      // S-curve contrast — keeps depth/punch in the image
-    gamma: 1.45,         // midtone lift — THIS is the visibility knob: brightens the
+    contrast: 1.1,       // S-curve contrast — keeps a little depth/punch
+    gamma: 1.35,         // midtone lift — THIS is the visibility knob: brightens the
                          // darks/mids while pinning black at black (raise to see more)
-    saturation: 1.2,     // global saturation push (keeps colour from going grey)
-    temperature: 0.0,    // -1 cool .. +1 warm overall tint
-    lift: [0.004, 0.008, 0.014], // a hair off pure-black so shadows aren't dead — gamma does the lifting now
-    gain: [1.04, 1.00, 0.96],   // highlights pulled warm (RGB mul)
-    // duotone-ish split toning: shadows toward teal, highlights toward amber
-    shadowTint: [0.20, 0.42, 0.55],
-    highlightTint: [1.00, 0.78, 0.45],
-    splitToning: 0.18,   // 0..1 how strongly the split tint is mixed in (colour identity)
+    saturation: 1.06,    // near-neutral — was over-pushing the blue cast
+    temperature: 0.02,   // -1 cool .. +1 warm — a hair warm to counter the night blue
+    lift: [0.006, 0.007, 0.008], // barely off black, neutral (no blue in the shadows)
+    gain: [1.03, 1.00, 0.98],   // highlights a touch warm (RGB mul)
+    // duotone-ish split toning: shadows toward teal, highlights toward amber.
+    // Kept very subtle now — it was tinting the whole frame blue once gamma lifted the shadows.
+    shadowTint: [0.42, 0.50, 0.55],
+    highlightTint: [1.00, 0.82, 0.55],
+    splitToning: 0.05,   // 0..1 how strongly the split tint is mixed in (subtle identity, not a blue wash)
   },
 
   // --- ambient occlusion: a depth-cavity darkening that grounds geometry,
