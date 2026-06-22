@@ -1161,6 +1161,63 @@ function executioner() {
   return { group: g, muzzle: -0.33 * S };
 }
 
+// --- CODA 9 (BO7) — futuristic automatic machine pistol. Two-tone: gunmetal
+//     upper with a full-length picatinny rail + slide cutouts over an olive/FDE
+//     polymer frame; a left-side accessory module (red label + teal accent), a
+//     ribbed grip and an extended "DeltaCell" bulk magazine. Shared materials. ---
+function coda9() {
+  const g = new THREE.Group();
+  const slide = gunMetal(0x6c7076, { metal: 0.6, rough: 0.32 });    // gunmetal upper
+  const slideDk = gunMetal(0x44484e, { metal: 0.6, rough: 0.4 });
+  const fde = gunMetal(0x6b5d3a, { metal: 0.25, rough: 0.62 });     // olive/FDE frame
+  const fdeDk = gunMetal(0x4f4528, { metal: 0.25, rough: 0.66 });
+  const black = gunDark(0x131519);
+  const grip = gunGrip(0x322d1d);                                   // dark-olive stippled grip
+  const teal = mat(0x1c5a52, { metal: 0.4, rough: 0.5 });           // module accent
+  const red = mat(0xb01818, { metal: 0.2, rough: 0.5 });
+  const redDot = mat(0xff3a2c, { metal: 0.1, rough: 0.4, emissive: 0xff2a1e, ei: 1.4 });
+
+  // === gunmetal upper + full-length picatinny top rail ===
+  g.add(at(box(0.052, 0.05, 0.34, slide), 0, 0.05, -0.1));
+  g.add(at(box(0.03, 0.012, 0.34, slideDk), 0, 0.078, -0.1));       // rail base
+  for (let i = 0; i < 12; i++) g.add(at(box(0.032, 0.01, 0.008, black), 0, 0.087, -0.25 + i * 0.026)); // rail teeth
+  // slide side cutouts (3 oval slots up front + a long mid slot)
+  for (let i = 0; i < 3; i++) g.add(at(box(0.054, 0.016, 0.012, black), 0, 0.06, -0.22 + i * 0.026));
+  g.add(at(box(0.054, 0.022, 0.06, black), 0, 0.05, -0.06));
+  g.add(at(box(0.05, 0.05, 0.04, slideDk), 0, 0.05, -0.26));        // slide nose
+  g.add(at(tube(0.012, 0.012, 0.05, black), 0, 0.05, -0.29));       // muzzle
+
+  // === olive/FDE polymer frame ===
+  g.add(at(box(0.046, 0.05, 0.3, fde), 0, 0.012, -0.08));
+  g.add(at(box(0.044, 0.016, 0.14, fdeDk), 0, -0.012, -0.16));      // dust cover
+  g.add(at(box(0.002, 0.006, 0.09, black), 0.024, 0.02, -0.04));    // S/N engraving line
+  g.add(at(box(0.01, 0.012, 0.012, red), 0.024, 0.034, 0.02));      // S/F safety marker
+
+  // === left-side accessory module (MOD25) ===
+  g.add(at(box(0.03, 0.05, 0.08, black), -0.04, 0.0, -0.15));       // module body (juts left)
+  g.add(at(box(0.034, 0.034, 0.05, slideDk), -0.046, 0.0, -0.15));  // face
+  g.add(at(box(0.02, 0.012, 0.03, red), -0.052, 0.006, -0.15));     // red warning label
+  g.add(at(box(0.034, 0.006, 0.06, teal), -0.046, 0.026, -0.15));   // teal accent strip
+  g.add(at(box(0.024, 0.012, 0.1, black), 0, -0.02, -0.22));        // front under-rail
+  for (let i = 0; i < 4; i++) g.add(at(box(0.026, 0.008, 0.006, slideDk), 0, -0.026, -0.26 + i * 0.02));
+
+  // === ribbed grip + extended DeltaCell magazine ===
+  g.add(at(box(0.046, 0.16, 0.06, grip), 0, -0.085, 0.04, 0.22));
+  for (let i = 0; i < 7; i++) g.add(at(box(0.048, 0.005, 0.05, black), 0, -0.03 - i * 0.022, 0.052 + i * 0.005, 0.22)); // grip ribs
+  g.add(at(box(0.05, 0.1, 0.052, fdeDk), 0, -0.205, 0.012, 0.22));  // extended mag body
+  g.add(at(box(0.052, 0.016, 0.054, black), 0, -0.258, 0.0, 0.22)); // floorplate
+  for (let i = 0; i < 4; i++) g.add(at(box(0.053, 0.004, 0.05, black), 0, -0.17 - i * 0.018, 0.02 + i * 0.004, 0.22)); // mag ribs
+
+  // === trigger guard + trigger + controls ===
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 8, 16), fde);
+  g.add(at(guard, 0, -0.048, -0.04, 0, Math.PI / 2));
+  g.add(at(box(0.011, 0.028, 0.009, black), 0, -0.042, -0.04));     // trigger
+  g.add(at(box(0.012, 0.014, 0.03, slideDk), 0.024, 0.0, 0.0));     // takedown lever
+  g.add(at(box(0.01, 0.018, 0.02, slideDk), 0.024, 0.012, 0.04));   // slide stop
+
+  return { group: g, muzzle: -0.31 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1175,6 +1232,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'NEW ARMY') return newArmy();
   if (weapon.data.name === 'FIVE-SEVEN') return fiveSeven();
   if (weapon.data.name === 'EXECUTIONER') return executioner();
+  if (weapon.data.name === 'CODA 9') return coda9();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
