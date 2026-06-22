@@ -1033,6 +1033,51 @@ function newArmy() {
   return { group: g, muzzle: -0.49 };
 }
 
+// --- FN Five-seveN (dual-wielded). A slim, modern polymer pistol: dark slide
+//     with rear serrations + ejection port, a polymer frame with an accessory
+//     rail + stippled grip, and green fiber-optic 3-dot sights. The dual-wield
+//     mirroring is handled by the Viewmodel; this is just the single gun. ---
+function fiveSeven() {
+  const g = new THREE.Group();
+  const slide = gunMetal(0x2c2f35, { metal: 0.6, rough: 0.42 });
+  const slideTop = gunMetal(0x363a41);
+  const frame = gunDark(0x17191e);
+  const grip = gunGrip(0x202329);
+  const black = gunDark(0x0c0e11);
+  const green = ironSightGlow();
+
+  // slide + top deck + ejection port + rear serrations
+  g.add(at(box(0.048, 0.05, 0.28, slide), 0, 0.038, -0.11));
+  g.add(at(box(0.05, 0.014, 0.26, slideTop), 0, 0.062, -0.12));
+  g.add(at(box(0.05, 0.028, 0.05, black), 0, 0.04, -0.05));          // ejection port
+  for (let i = 0; i < 6; i++) g.add(at(box(0.05, 0.04, 0.005, slideTop), 0, 0.04, 0.03 - i * 0.012));
+  g.add(at(box(0.046, 0.048, 0.04, slide), 0, 0.038, -0.252));       // nose
+  g.add(at(tube(0.011, 0.011, 0.05, black), 0, 0.038, -0.285));      // barrel
+
+  // frame / dust cover + accessory rail
+  g.add(at(box(0.044, 0.03, 0.22, frame), 0, 0.004, -0.1));
+  g.add(at(box(0.04, 0.014, 0.1, frame), 0, -0.014, -0.18));
+  for (let i = 0; i < 3; i++) g.add(at(box(0.042, 0.004, 0.012, black), 0, -0.024, -0.16 + i * 0.02));
+
+  // stippled polymer grip (angled) + mag base
+  g.add(at(box(0.046, 0.15, 0.062, grip), 0, -0.09, 0.0, 0.26));
+  g.add(at(box(0.048, 0.02, 0.055, black), 0, -0.165, -0.018, 0.26));
+
+  // trigger guard + trigger
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.027, 0.006, 8, 16), frame);
+  g.add(at(guard, 0, -0.05, -0.05, 0, Math.PI / 2));
+  g.add(at(box(0.011, 0.028, 0.009, black), 0, -0.045, -0.05));
+
+  // green fiber-optic 3-dot sights
+  g.add(at(box(0.012, 0.02, 0.012, black), 0, 0.078, -0.23));
+  g.add(at(box(0.008, 0.008, 0.008, green), 0, 0.087, -0.232));
+  g.add(at(box(0.046, 0.02, 0.018, black), 0, 0.074, 0.016));
+  g.add(at(box(0.008, 0.008, 0.008, green), -0.014, 0.084, 0.016));
+  g.add(at(box(0.008, 0.008, 0.008, green), 0.014, 0.084, 0.016));
+
+  return { group: g, muzzle: -0.31 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1045,6 +1090,7 @@ export function buildWeaponModel(weapon) {
   const cat = weapon.data.category;
   if (weapon.data.name === 'RK-5') return rk5();
   if (weapon.data.name === 'NEW ARMY') return newArmy();
+  if (weapon.data.name === 'FIVE-SEVEN') return fiveSeven();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();

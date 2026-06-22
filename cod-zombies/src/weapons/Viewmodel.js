@@ -5,6 +5,7 @@ import { gunMetal, gunGrip, gunDark } from './gunMaterials.js';
 import { paintedMetal } from '../rendering/materials/surfaces.js';
 
 const HIP = new THREE.Vector3(0.22, -0.18, -0.4);
+const HIP_DUAL = new THREE.Vector3(0.0, -0.2, -0.44); // centred: twin pistols straddle it at ±DX
 const ADS = new THREE.Vector3(0.0, -0.0715, -0.32);
 // SMGs carry their sights high on a top rail, so they sit lower at ADS to bring
 // that sight line down to centre (the K-Vector standard for the whole class).
@@ -48,6 +49,10 @@ export class Viewmodel {
   // that advances a chamber per shot; minigun barrel cluster that spins while firing)
   #animParts = null;
   #cylAngle = 0; #cylTarget = 0; #barrelVel = 0;
+  // dual-wield (twin mirrored pistols): two holders, the left one scale.x = -1 so
+  // its geometry AND its reload lean mirror for free. Shots alternate sides.
+  #dual = false; #dualR = null; #dualL = null;
+  #dualDX = 0.13; #dualSide = true; #dualKickR = 0; #dualKickL = 0;
   #light;
   #starTex;
   #energyTex;
@@ -178,9 +183,23 @@ export class Viewmodel {
       this.#model.traverse((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
     }
     const { group, muzzle } = buildWeaponModel(weapon);
-    this.#model = group;
     this.#muzzleZ = muzzle;
-    this.#group.add(group);
+
+    // dual-wield: two holders (right normal, left mirrored via scale.x = -1)
+    this.#dual = !!weapon.data.dualWield;
+    if (this.#dual) {
+      this.#dualR = new THREE.Group(); this.#dualR.add(group);
+      this.#dualL = new THREE.Group(); this.#dualL.add(buildWeaponModel(weapon).group); this.#dualL.scale.set(-1, 1, 1);
+      this.#dualSide = true; this.#dualKickR = 0; this.#dualKickL = 0;
+      const container = new THREE.Group();
+      container.add(this.#dualR, this.#dualL);
+      this.#model = container;
+      this.#group.add(container);
+    } else {
+      this.#dualR = this.#dualL = null;
+      this.#model = group;
+      this.#group.add(group);
+    }
 
     // capture animated parts (cylinder / spinning barrels) from the model
     const ud = group.userData || {};
@@ -196,14 +215,43 @@ export class Viewmodel {
     this.#muzzle.material.map = this.#energyFlash ? this.#energyTex : this.#starTex;
     this.#muzzle.material.color.set(this.#energyFlash ? ecol : 0xffffff);
     this.#muzzle.material.needsUpdate = true;
-    this.#flash.position.set(0, 0.0, this.#muzzleZ - 0.04);
+    const fx0 = this.#dual ? this.#dualDX : 0; // dual: flash starts on the right gun
+    this.#flash.position.set(fx0, 0.0, this.#muzzleZ - 0.04);
     this.#light.color.set(this.#energyFlash ? ecol : 0xffd9a0);
-    this.#light.position.set(0, 0.0, this.#muzzleZ);
+    this.#light.position.set(fx0, 0.0, this.#muzzleZ);
     // Thundergun: replace the flash with expanding shockwave rings at the muzzle
     this.#thunder = weapon.data.muzzleEffect === 'shockwave';
     this.#shock.position.set(0, 0.0, this.#muzzleZ - 0.02);
     this.#shock.visible = this.#thunder;
     this.#shockT = 99; this.#prevFired = 0;
+  }
+
+  /** Twin-pistol animation: alternate the firing side per shot (muzzle flash +
+   *  per-gun kick), and lean both guns inward on reload. Same local values are
+   *  applied to each holder; the left holder's scale.x = -1 mirrors it. */
+  #updateDual(weapon, dt) {
+    if (!this.#dualR || !this.#dualL) return;
+    const DX = this.#dualDX;
+
+    // new shot -> flash + kick on the active gun, then swap which fires next
+    if (weapon.justFired > this.#prevFired + 1e-4) {
+      const side = this.#dualSide ? 1 : -1;
+      this.#flash.position.x = side * DX;
+      this.#light.position.x = side * DX;
+      if (side > 0) this.#dualKickR = 1; else this.#dualKickL = 1;
+      this.#dualSide = !this.#dualSide;
+    }
+    this.#dualKickR += (0 - this.#dualKickR) * Math.min(1, dt * 11);
+    this.#dualKickL += (0 - this.#dualKickL) * Math.min(1, dt * 11);
+
+    // reload lean inward + slight pull to centre (left mirrors via scale.x = -1)
+    const lean = this.#reload;
+    const inward = lean * 0.05;
+    const leanRoll = lean * 0.55;
+    this.#dualR.position.set(DX - inward, 0, this.#dualKickR * 0.05);
+    this.#dualR.rotation.set(this.#dualKickR * 0.22, lean * 0.15, leanRoll);
+    this.#dualL.position.set(-DX + inward, 0, this.#dualKickL * 0.05);
+    this.#dualL.rotation.set(this.#dualKickL * 0.22, lean * 0.15, leanRoll);
   }
 
   /** Place + animate the model relative to the camera. */
@@ -246,10 +294,11 @@ export class Viewmodel {
     this.#reload += (reloadTarget - this.#reload) * Math.min(1, dt * 9);
     const swap = Math.sin(Math.min(1, weapon.reloadProgress) * Math.PI) * this.#reload; // 0->1->0
 
-    const a = weapon.adsProgress * (1 - this.#reload); // can't ADS mid-reload
     const cat = weapon.data.category;
     const dm = weapon.data.name === 'DEATH MACHINE';
-    const hipPos = dm ? HIP_DM : HIP;
+    const dual = weapon.data.dualWield;
+    const a = dual ? 0 : weapon.adsProgress * (1 - this.#reload); // dual wield doesn't ADS
+    const hipPos = dm ? HIP_DM : dual ? HIP_DUAL : HIP;
     const adsPos = dm ? ADS_DM : cat === 'smg' ? ADS_SMG : cat === 'assaultRifle' ? ADS_AR : ADS;
     _off.lerpVectors(hipPos, adsPos, a);
     _off.x += this.#sway.x + bobX - swap * 0.05;
@@ -293,6 +342,9 @@ export class Viewmodel {
     this.#group.position.copy(_off);
     _e.set(this.#kick * 0.14 + this.#reload * 0.55 + swap * 0.25, swap * 0.4 + this.#tuck * 0.18, this.#reload * 0.22 + this.#tuck * 0.22 + dmgRoll);
     this.#group.quaternion.setFromEuler(_e);
+
+    // dual-wield twin-pistol animation (alternating fire + mirrored reload lean)
+    if (this.#dual) this.#updateDual(weapon, dt);
 
     // knife slash: a fast diagonal cut from upper-right down to lower-left
     const sweep = Math.min(1, melee / 0.4);
