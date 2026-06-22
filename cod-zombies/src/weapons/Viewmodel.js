@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildWeaponModel } from './weaponModels.js';
 import { buildPerkBottle } from '../perks/perks.js';
 import { gunMetal, gunGrip, gunDark } from './gunMaterials.js';
+import { paintedMetal } from '../rendering/materials/surfaces.js';
 
 const HIP = new THREE.Vector3(0.22, -0.18, -0.4);
 const ADS = new THREE.Vector3(0.0, -0.0715, -0.32);
@@ -139,25 +140,29 @@ export class Viewmodel {
     this.#knife.visible = false;
     this.#vmScene.add(this.#knife);
 
-    // cooked grenade held in hand, with a pull-pin that flicks off on cook
+    // cooked grenade held in hand — proper green frag body (shared painted-metal
+    // + gunDark fuze) with a safety lever and a pull-pin that flicks off on cook
     this.#grenade = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.SphereGeometry(0.06, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0x39402c, metalness: 0.5, roughness: 0.6 }),
-    );
-    const lever = new THREE.Mesh(
-      new THREE.BoxGeometry(0.015, 0.09, 0.015),
-      new THREE.MeshStandardMaterial({ color: 0xb9b27a, metalness: 0.7, roughness: 0.4 }),
-    );
-    lever.position.set(0.05, 0.02, 0);
-    this.#grenade.add(body, lever);
+    {
+      const gbody = paintedMetal(0x40592a); gbody.roughness = 0.5; gbody.metalness = 0.55;
+      const gsteel = gunDark(0x1d201a);
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), gbody);
+      body.scale.set(1, 1.28, 1); // ovoid frag body
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.043, 0.018, 10), gsteel);
+      collar.position.y = 0.066;
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.033, 0.026, 10), gsteel);
+      cap.position.y = 0.087;
+      const lever = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.078, 0.02), gsteel);
+      lever.position.set(0.04, 0.05, 0); lever.rotation.z = 0.12;
+      this.#grenade.add(body, collar, cap, lever);
+    }
     this.#pin = new THREE.Group();
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.022, 0.006, 6, 12),
+      new THREE.TorusGeometry(0.02, 0.005, 6, 12),
       new THREE.MeshStandardMaterial({ color: 0xcfc8a0, metalness: 0.85, roughness: 0.3 }),
     );
     this.#pin.add(ring);
-    this.#pin.position.set(0.075, 0.03, 0);
+    this.#pin.position.set(0.06, 0.085, 0);
     this.#grenade.add(this.#pin);
     this.#grenade.visible = false;
     this.#vmScene.add(this.#grenade);
