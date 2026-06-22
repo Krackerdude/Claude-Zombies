@@ -87,9 +87,13 @@ export class DecalSystem extends System {
       m.scale.set(sc, sc, 1);
     }
     mat.needsUpdate = true;
-    // tiny y jitter + random spin so overlapping decals don't z-fight or tile
+    // tiny y jitter + random spin so overlapping decals don't z-fight or tile.
+    // Spin about LOCAL Z (which maps to world-up once the quad is laid flat by
+    // rotation.x = -PI/2): that rotates the decal in its own plane and keeps it
+    // dead flat. Spinning rotation.y here tilts the normal off vertical — that
+    // was the jarring diagonal angle on blood / plasma / scorch.
     m.position.set(x, 0.03 + Math.random() * 0.02, z);
-    m.rotation.y = Math.random() * Math.PI * 2;
+    m.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI * 2);
     mat.opacity = 0;
     slot.age = 0;
     slot.active = true;

@@ -52,7 +52,6 @@ export class Scoreboard {
         </div>
         <div class="tab-body">
           <section class="tab-panel active" data-panel="scoreboard">
-            <div class="sb-case sb-top"></div>
             <div class="sb-stats">
               <div class="sb-grid sb-head">
                 <span class="c-name">Survivor</span>
@@ -61,6 +60,18 @@ export class Scoreboard {
               <div class="sb-grid sb-row">
                 <span class="c-name"><i class="sb-pip"></i>Survivor One</span>
                 <span class="v-score">0</span><span class="v-kills">0</span><span class="v-downs">0</span><span class="v-revives">0</span><span class="v-headshots">0</span>
+              </div>
+              <div class="sb-grid sb-row sb-empty-slot">
+                <span class="c-name"><i class="sb-pip"></i>Open Slot</span>
+                <span>—</span><span>—</span><span>—</span><span>—</span><span>—</span>
+              </div>
+              <div class="sb-grid sb-row sb-empty-slot">
+                <span class="c-name"><i class="sb-pip"></i>Open Slot</span>
+                <span>—</span><span>—</span><span>—</span><span>—</span><span>—</span>
+              </div>
+              <div class="sb-grid sb-row sb-empty-slot">
+                <span class="c-name"><i class="sb-pip"></i>Open Slot</span>
+                <span>—</span><span>—</span><span>—</span><span>—</span><span>—</span>
               </div>
             </div>
             <div class="sb-case sb-bottom"></div>
