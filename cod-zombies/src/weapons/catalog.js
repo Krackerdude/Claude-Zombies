@@ -13,6 +13,10 @@ const defs = {
   // 20 dmg flat: round-1 8 bodyshots (7 = 140 HP, leaves 10) / 3 headshots (×3.5 = 70).
   m1911: { Class: WeaponBase, category: C.PISTOL, name: 'M1911', damage: 20, fireRate: 400, cost: 500, headshotMultiplier: 3.5 },
   vector: { Class: WeaponBase, category: C.SMG, name: 'K-Vector', damage: 70, fireRate: 950, magazineSize: 40, adsFov: 56, cost: 1000 },
+  // MP5: classic SMG. 100 dmg/bullet, standard 3x head, 30-round mag, 120 reserve.
+  mp5: { Class: WeaponBase, category: C.SMG, name: 'MP5', damage: 100, headshotMultiplier: 3.0,
+    fireRate: 800, magazineSize: 30, ammoStockSize: 120, reloadTime: 2.0, recoilPitch: 0.009,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.45, color: 0x26292e, accent: 0x14161a } },
   galil: { Class: WeaponBase, category: C.AR, name: 'GALIL', damage: 120, fireRate: 575, recoilPitch: 0.014, cost: 1200 },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
