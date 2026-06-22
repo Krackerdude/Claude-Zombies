@@ -11,6 +11,7 @@ export const AppState = Object.freeze({
   PLAYING: 'playing',
   PAUSED: 'paused',
   SCOREBOARD: 'scoreboard',
+  DEVMENU: 'devmenu', // F2 dev/test overlay — freezes the live frame like scoreboard
 });
 
 export class GameState {

@@ -1,0 +1,48 @@
+/* F2 dev/test overlay — top-right, mouse-driven. Deliberately a plain dev tool
+   (monospace, compact) rather than the in-fiction HUD skin. */
+#devmenu {
+  position: fixed; top: 12px; right: 12px; z-index: 38;
+  width: 256px; max-height: 92vh; overflow-y: auto;
+  display: none; flex-direction: column; gap: 10px;
+  padding: 12px 12px 14px; border-radius: 8px;
+  background: rgba(11,14,17,0.96);
+  border: 1px solid rgba(120,150,160,0.30);
+  box-shadow: 0 12px 44px rgba(0,0,0,0.65), inset 0 0 30px rgba(0,0,0,0.4);
+  font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+  color: #cdd6dc; font-size: 12px; user-select: none;
+}
+#devmenu.show { display: flex; }
+
+#devmenu .dev-head { font-weight: 700; font-size: 14px; letter-spacing: 0.1em; color: #6fe3c0; }
+#devmenu .dev-head span { color: #5a6066; font-size: 11px; font-weight: 400; }
+
+#devmenu .dev-sec {
+  display: flex; flex-direction: column; gap: 6px;
+  border-top: 1px solid rgba(120,150,160,0.15); padding-top: 9px;
+}
+#devmenu .dev-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+  color: #8a94a0; display: flex; align-items: center; gap: 6px;
+}
+#devmenu .dev-points { color: #f3c64e; font-size: 13px; margin-left: auto; }
+
+#devmenu .dev-row { display: flex; flex-wrap: wrap; gap: 4px; }
+#devmenu .dev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+#devmenu .dev-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+
+#devmenu .dev-btn {
+  appearance: none; cursor: pointer; padding: 6px 8px; border-radius: 4px;
+  background: rgba(40,48,54,0.9); border: 1px solid rgba(120,150,160,0.22);
+  color: #cdd6dc; font: inherit; font-size: 11px; line-height: 1.1;
+  transition: background 0.12s, border-color 0.12s;
+}
+#devmenu .dev-btn:hover { background: rgba(72,92,102,0.95); border-color: rgba(150,180,190,0.45); }
+#devmenu .dev-btn:active { background: rgba(96,120,132,1); }
+#devmenu .dev-mini { padding: 2px 7px; font-size: 10px; margin-left: 2px; }
+#devmenu .dev-warn { color: #ff9484; border-color: rgba(200,70,50,0.4); }
+#devmenu .dev-perk { border-left: 3px solid var(--pc, #888); text-align: left; }
+#devmenu .dev-gun { text-align: left; }
+
+/* slim scrollbar for the weapon list */
+#devmenu::-webkit-scrollbar { width: 8px; }
+#devmenu::-webkit-scrollbar-thumb { background: rgba(120,150,160,0.3); border-radius: 4px; }
