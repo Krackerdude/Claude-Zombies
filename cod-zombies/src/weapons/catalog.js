@@ -19,6 +19,12 @@ const defs = {
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
     reloadTime: 1.6, recoilPitch: 0.016, cost: 500,
     viewmodel: { length: 0.36, color: 0x474b54, accent: 0x0e0f12 } },
+  // CODA 9 (BO7): futuristic automatic machine pistol. Slightly more damage/bullet
+  // than the Five-seveN, smaller mag but a much larger reserve. Standard 3x head.
+  coda9: { Class: WeaponBase, category: C.PISTOL, name: 'CODA 9', fireMode: 'auto',
+    damage: 90, headshotMultiplier: 3.0, fireRate: 750, magazineSize: 18, ammoStockSize: 400,
+    reloadTime: 1.7, recoilPitch: 0.011, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.31, color: 0x6c7076, accent: 0x131519 } },
   // Dual-wield FN Five-seveN: twin mirrored viewmodels, ONE shared ammo pool.
   // Every shot alternates which gun fires. DAMAGE IS A PLACEHOLDER pending tuning.
   fiveSeven: { Class: WeaponBase, category: C.PISTOL, name: 'FIVE-SEVEN', fireMode: 'auto',
