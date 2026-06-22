@@ -65,16 +65,16 @@ export const PostFXConfig = {
   // --- colour grade: the Persona identity lives here ---
   grade: {
     enabled: true,
-    exposure: 1.15,      // multiplied on top of the renderer's tone-map exposure
-    contrast: 1.05,      // gentle S-curve — was crushing shadows to pure black
-    saturation: 1.12,    // global saturation push
+    exposure: 1.08,      // multiplied on top of the renderer's tone-map exposure
+    contrast: 1.14,      // S-curve contrast — restores depth so blacks aren't flat grey
+    saturation: 1.2,     // global saturation push (fights the washed-out grey)
     temperature: 0.0,    // -1 cool .. +1 warm overall tint
-    lift: [0.05, 0.06, 0.08],   // shadows lifted out of black, still cool/blue
+    lift: [0.018, 0.026, 0.04], // shadows just off pure-black — deep, not crushed, not milky
     gain: [1.04, 1.00, 0.96],   // highlights pulled warm (RGB mul)
     // duotone-ish split toning: shadows toward teal, highlights toward amber
     shadowTint: [0.20, 0.42, 0.55],
     highlightTint: [1.00, 0.78, 0.45],
-    splitToning: 0.12,   // 0..1 how strongly the split tint is mixed in (eased back)
+    splitToning: 0.18,   // 0..1 how strongly the split tint is mixed in (colour identity)
   },
 
   // --- ambient occlusion: a depth-cavity darkening that grounds geometry,

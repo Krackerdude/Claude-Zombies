@@ -15,7 +15,7 @@ export const defaultSettings = {
   },
   graphics: {
     shadows: 'high', // off | low | high
-    exposure: 1.35, // tone-mapping exposure (lifted so the scene reads dark, not black)
+    exposure: 1.28, // tone-mapping exposure (a touch brighter — dark, not black, not washed)
     fog: 0.011, // FogExp2 density
     anisotropy: 8, // texture filtering
     // stylized WebGL post-processing pipeline (PostFX). Master + heavy stages
