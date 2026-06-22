@@ -1224,57 +1224,55 @@ function coda9() {
 //     30-round magazine, angled grip and the A3 sliding stock. Shared materials. ---
 function mp5() {
   const g = new THREE.Group();
-  const black = gunMetal(0x26292e, { metal: 0.55, rough: 0.42 });   // receiver
-  const blackHi = gunMetal(0x3a3e44, { metal: 0.55, rough: 0.35 }); // lighter edges
-  const dark = gunDark(0x131519);                                   // bores / details
+  const black = gunMetal(0x2a2d33, { metal: 0.5, rough: 0.45 });    // receiver body
+  const blackHi = gunMetal(0x3c4046, { metal: 0.5, rough: 0.38 });  // edges / top deck
+  const dark = gunDark(0x141619);                                   // bores / details
   const grip = gunGrip(0x1c1e22);                                   // grip + handguard
-  const steel = gunMetal(0x4a4e54, { metal: 0.7, rough: 0.3 });     // barrel / charging tube
+  const steel = gunMetal(0x4a4e54, { metal: 0.7, rough: 0.32 });    // barrel
   const accent = mat(0x1c5a52, { metal: 0.4, rough: 0.5 });         // subtle modern accent
 
-  // === receiver: slim box + rounded top tube + short top rail ===
-  g.add(at(box(0.05, 0.058, 0.4, black), 0, 0.0, -0.12));
-  g.add(at(tube(0.03, 0.03, 0.4, blackHi), 0, 0.02, -0.12));
-  g.add(at(box(0.022, 0.012, 0.16, dark), 0, 0.046, -0.06));        // rail base
-  for (let i = 0; i < 6; i++) g.add(at(box(0.024, 0.008, 0.006, black), 0, 0.054, -0.12 + i * 0.022));
+  // === RECEIVER: a solid slab BODY (the MP5 shape), not a tube ===
+  g.add(at(box(0.058, 0.088, 0.28, black), 0, 0.012, -0.12));       // main receiver
+  g.add(at(box(0.05, 0.026, 0.28, blackHi), 0, 0.064, -0.12));      // rounded top deck
+  g.add(at(box(0.06, 0.05, 0.1, black), 0, -0.024, 0.02));          // trigger-group housing
+  g.add(at(box(0.061, 0.03, 0.06, dark), 0, 0.024, -0.06));         // ejection-port recess
+  g.add(at(box(0.062, 0.016, 0.02, accent), 0, 0.018, -0.14));      // teal panel accent
+  for (let i = 0; i < 5; i++) g.add(at(box(0.026, 0.008, 0.006, dark), 0, 0.08, -0.08 + i * 0.02)); // short top rail
 
-  // === cylindrical vented handguard + teal accent ===
-  g.add(at(tube(0.036, 0.036, 0.18, grip), 0, -0.004, -0.34));
-  for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) g.add(at(box(0.006, 0.02, 0.04, dark), sx * 0.034, -0.004, -0.32 - i * 0.05));
-  g.add(at(box(0.004, 0.05, 0.14, accent), 0.034, 0.0, -0.34));
+  // === slim boxy handguard + short barrel + sights ===
+  g.add(at(box(0.05, 0.06, 0.14, grip), 0, 0.006, -0.3));
+  for (let i = 0; i < 3; i++) g.add(at(box(0.052, 0.01, 0.012, dark), 0, 0.038, -0.27 - i * 0.03)); // top vents
+  g.add(at(box(0.004, 0.052, 0.12, accent), 0.026, 0.006, -0.3));   // side accent
+  g.add(at(tube(0.013, 0.013, 0.12, steel), 0, 0.012, -0.42));      // short barrel
+  g.add(at(tube(0.02, 0.02, 0.03, dark), 0, 0.012, -0.47));         // flash hider
+  const fhood = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.005, 8, 14), black);
+  g.add(at(fhood, 0, 0.05, -0.4));                                  // hooded front sight
+  g.add(at(box(0.004, 0.024, 0.006, dark), 0, 0.044, -0.4));        // front post
+  g.add(at(box(0.024, 0.02, 0.024, dark), -0.034, 0.044, -0.32));   // charging handle (HK slap)
 
-  // === barrel + flash hider + hooded front sight + HK charging tube ===
-  g.add(at(tube(0.012, 0.012, 0.16, steel), 0, 0.0, -0.49));
-  g.add(at(tube(0.018, 0.018, 0.03, dark), 0, 0.0, -0.55));
-  const fhood = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.004, 8, 14), black);
-  g.add(at(fhood, 0, 0.03, -0.45));
-  g.add(at(box(0.004, 0.02, 0.006, dark), 0, 0.024, -0.45));        // front post
-  g.add(at(tube(0.012, 0.012, 0.22, steel), -0.026, 0.034, -0.36)); // charging tube (left)
-  g.add(at(box(0.02, 0.016, 0.02, dark), -0.04, 0.034, -0.45));     // cocking handle (HK slap)
+  // === rear drum sight ===
+  g.add(at(box(0.034, 0.03, 0.034, blackHi), 0, 0.074, 0.0));
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.046, 14), dark);
+  g.add(at(drum, 0, 0.084, 0.0, 0, 0, Math.PI / 2));
 
-  // === rotary drum rear sight ===
-  g.add(at(box(0.03, 0.03, 0.03, blackHi), 0, 0.05, 0.04));
-  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.042, 14), dark);
-  g.add(at(drum, 0, 0.058, 0.04, 0, 0, Math.PI / 2));               // axis horizontal (the drum)
+  // === curved 30-round magazine (prominent, forward of the grip) ===
+  g.add(at(box(0.04, 0.13, 0.052, black), 0, -0.11, -0.04, 0.12));
+  g.add(at(box(0.04, 0.11, 0.05, black), 0, -0.21, -0.005, 0.26));  // curved lower
+  g.add(at(box(0.042, 0.018, 0.054, dark), 0, -0.27, 0.012, 0.26)); // floorplate
 
-  // === curved 30-round magazine (two angled segments suggest the banana) ===
-  g.add(at(box(0.034, 0.1, 0.05, black), 0, -0.1, -0.04, 0.12));
-  g.add(at(box(0.034, 0.1, 0.05, black), 0, -0.19, -0.015, 0.28));
-  g.add(at(box(0.036, 0.016, 0.052, dark), 0, -0.245, 0.0, 0.28));  // floorplate
-
-  // === pistol grip + trigger guard + selector ===
-  g.add(at(box(0.04, 0.12, 0.05, grip), 0, -0.075, 0.08, 0.32));
-  g.add(at(box(0.042, 0.02, 0.05, dark), 0, -0.14, 0.06, 0.32));
+  // === grip + trigger guard + selector ===
+  g.add(at(box(0.044, 0.125, 0.05, grip), 0, -0.075, 0.085, 0.3));
+  g.add(at(box(0.046, 0.02, 0.05, dark), 0, -0.142, 0.063, 0.3));
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 8, 16), black);
-  g.add(at(guard, 0, -0.04, 0.04, 0, Math.PI / 2));
-  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.035, 0.04));        // trigger
-  g.add(at(box(0.012, 0.012, 0.012, dark), 0.025, 0.01, 0.06));     // SEF selector
+  g.add(at(guard, 0, -0.04, 0.045, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.034, 0.045));       // trigger
+  g.add(at(box(0.012, 0.012, 0.012, dark), 0.026, 0.014, 0.06));    // SEF selector
 
-  // === A3 retractable sliding stock ===
-  for (const sx of [-1, 1]) g.add(at(box(0.008, 0.01, 0.22, steel), sx * 0.02, 0.0, 0.2));
-  g.add(at(box(0.05, 0.07, 0.018, dark), 0, 0.0, 0.31));            // shoulder pad
-  g.add(at(box(0.05, 0.012, 0.02, blackHi), 0, 0.0, 0.3));
+  // === compact (collapsed) stock ===
+  for (const sx of [-1, 1]) g.add(at(box(0.008, 0.01, 0.1, steel), sx * 0.022, 0.012, 0.12));
+  g.add(at(box(0.055, 0.078, 0.02, dark), 0, 0.012, 0.16));         // butt pad
 
-  return { group: g, muzzle: -0.57 };
+  return { group: g, muzzle: -0.48 };
 }
 
 const BUILDERS = {
