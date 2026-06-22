@@ -49,7 +49,15 @@ export class UIManager {
     this.#buildPause();
     this.#buildOptions();
 
-    this.#applyFxVars(this.#settings.graphics);
+    // seed the CSS-overlay vars from the resolved amounts (toggle × amount);
+    // applyAll() re-broadcasts the authoritative values on settings:fx next.
+    const gx = this.#settings.graphics;
+    this.#applyFxVars({
+      grain: gx.grain !== false ? gx.grainAmount : 0,
+      scanlines: gx.scanlines,
+      aberration: gx.aberration !== false ? gx.aberrationAmount : 0,
+      vignette: gx.vignette !== false ? gx.vignetteAmount : 0,
+    });
     this.#events.on('settings:fx', (fx) => this.#applyFxVars(fx));
     this.#events.on('state:change', () => this.#refresh());
 

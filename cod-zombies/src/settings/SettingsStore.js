@@ -4,9 +4,9 @@ import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig, AtmosphereConf
 import { setRimIntensity } from '../rendering/rimLight.js';
 import { Service } from '../core/ServiceLocator.js';
 
-// v3: rebalanced post-FX defaults (much lighter grain/aberration/vignette,
-// lifted exposure) — bumped so saved v2 settings don't mask the new look.
-const STORAGE_KEY = 'necropolis.settings.v3';
+// v4: per-effect post-FX controls (toggle + intensity for every composer stage)
+// reshaped the graphics schema — bumped so older saved settings load fresh.
+const STORAGE_KEY = 'necropolis.settings.v4';
 
 /**
  * Single source of truth for all options. Persists to localStorage and applies
@@ -127,24 +127,35 @@ export class SettingsStore {
     const g = this.graphics;
     const postOn = render.postFX && g.postfx !== false;
     if (render.postFX) {
-      PostFXConfig.enabled = g.postfx !== false;
-      PostFXConfig.bloom.enabled = g.bloom !== false;
-      PostFXConfig.dof.enabled = g.dof !== false;
-      PostFXConfig.godrays.enabled = g.godRays !== false;
-      PostFXConfig.grain.enabled = g.grain > 0;
-      PostFXConfig.grain.amount = g.grain;
-      PostFXConfig.scanlines.enabled = !!g.scanlines;
-      PostFXConfig.aberration.enabled = g.aberration > 0;
-      PostFXConfig.aberration.amount = g.aberration;
-      PostFXConfig.vignette.enabled = g.vignette > 0;
-      PostFXConfig.vignette.amount = g.vignette;
-      PostFXConfig.ssao.enabled = g.ssao !== false;
-      PostFXConfig.outline.enabled = g.outline !== false;
-      PostFXConfig.motionBlur.enabled = g.motionBlur !== false;
-      // exposure is applied by the renderer's tone-map during the world pass
-      // (above), so it is deliberately NOT fed into the grade — that would
-      // double it. grade.exposure stays at its neutral config default.
-      render.postFX.applyParams(PostFXConfig);
+      const P = PostFXConfig;
+      P.enabled = g.postfx !== false;
+
+      P.bloom.enabled = g.bloom !== false; P.bloom.intensity = g.bloomIntensity;
+      P.dof.enabled = g.dof !== false; P.dof.maxBlur = g.dofBlur;
+      P.godrays.enabled = g.godRays !== false; P.godrays.intensity = g.godRaysIntensity;
+      P.ssao.enabled = g.ssao !== false; P.ssao.intensity = g.ssaoIntensity;
+      P.outline.enabled = g.outline !== false; P.outline.strength = g.outlineStrength;
+      P.motionBlur.enabled = g.motionBlur !== false; P.motionBlur.strength = g.motionBlurStrength;
+      P.heatHaze.enabled = g.heatHaze !== false;
+      P.speedlines.enabled = g.speedLines !== false;
+
+      // colour grade. exposure stays at its neutral config default — the
+      // renderer tone-map (above) owns overall exposure so we don't double it.
+      // gradeBrightness drives gamma: the shadow-lift "visibility" knob.
+      P.grade.enabled = g.grade !== false;
+      P.grade.contrast = g.gradeContrast;
+      P.grade.gamma = g.gradeBrightness;
+      P.grade.saturation = g.gradeSaturation;
+
+      P.posterize.enabled = g.posterize !== false; P.posterize.levels = g.posterizeLevels;
+      P.dither.enabled = g.dither !== false && g.ditherAmount > 0; P.dither.amount = g.ditherAmount;
+
+      P.grain.enabled = g.grain !== false && g.grainAmount > 0; P.grain.amount = g.grainAmount;
+      P.scanlines.enabled = g.scanlines !== false; P.scanlines.amount = g.scanlineAmount;
+      P.aberration.enabled = g.aberration !== false && g.aberrationAmount > 0; P.aberration.amount = g.aberrationAmount;
+      P.vignette.enabled = g.vignette !== false && g.vignetteAmount > 0; P.vignette.amount = g.vignetteAmount;
+
+      render.postFX.applyParams(P);
     }
 
     // Scene-level atmosphere systems read these config flags live each frame,
@@ -162,10 +173,10 @@ export class SettingsStore {
     this.#events.emit('settings:fx', postOn
       ? { grain: 0, scanlines: false, aberration: 0, vignette: 0 }
       : {
-          grain: this.graphics.grain,
-          scanlines: this.graphics.scanlines,
-          aberration: this.graphics.aberration,
-          vignette: this.graphics.vignette,
+          grain: g.grain !== false ? g.grainAmount : 0,
+          scanlines: g.scanlines,
+          aberration: g.aberration !== false ? g.aberrationAmount : 0,
+          vignette: g.vignette !== false ? g.vignetteAmount : 0,
         });
   }
 

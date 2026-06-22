@@ -14,32 +14,46 @@ export const defaultSettings = {
     hudBounds: 26, // safe-area inset (px) pushing the HUD in off the screen edge
   },
   graphics: {
+    // --- rendering ---
     shadows: 'high', // off | low | high
-    exposure: 1.28, // tone-mapping exposure (a touch brighter — dark, not black, not washed)
+    exposure: 1.25, // tone-mapping exposure (renderer)
     fog: 0.011, // FogExp2 density
     anisotropy: 8, // texture filtering
-    // stylized WebGL post-processing pipeline (PostFX). Master + heavy stages
-    // are individually toggleable for performance; off => CSS-overlay fallback.
+
+    // --- post-processing composer ---
+    // Master + per-effect toggle, each with an intensity where it makes sense.
+    // The Post FX options tab binds straight to these; SettingsStore pushes them
+    // into PostFXConfig live. Defaults mirror PostFXConfig (the authored look).
     postfx: true, // master switch for the whole composer
-    bloom: true, // additive bloom on practicals / neon / muzzle highlights
-    dof: true, // depth of field (near subject crisp, world melts to murk)
-    godRays: true, // volumetric light shafts from the moon
-    ssao: true, // depth-cavity ambient occlusion
-    outline: true, // Persona ink / cel outlines
-    motionBlur: true, // camera motion blur on fast turns / sprint
+    bloom: true, bloomIntensity: 0.85,
+    dof: true, dofBlur: 1.0,
+    godRays: true, godRaysIntensity: 0.5,
+    ssao: true, ssaoIntensity: 1.15,
+    outline: true, outlineStrength: 0.9,
+    motionBlur: true, motionBlurStrength: 0.5,
+    heatHaze: true,
+    speedLines: true,
+    // colour grade
+    grade: true,
+    gradeContrast: 1.12,
+    gradeBrightness: 1.0, // gamma — shadow/midtone lift (1 = neutral; raise to see into shadow)
+    gradeSaturation: 1.14,
+    // graphic-novel colour reduction
+    posterize: true, posterizeLevels: 24,
+    dither: true, ditherAmount: 0.6,
+    // horror flavour
+    grain: true, grainAmount: 0.14,
+    scanlines: true, scanlineAmount: 0.5,
+    aberration: true, aberrationAmount: 0.3,
+    vignette: true, vignetteAmount: 0.55,
+
+    // --- atmosphere (scene systems, not the composer) ---
     particles: true, // ambient dust / ash motes in the air
     decals: true, // persistent blood pools + scorch on the ground
     lightCones: true, // dusty volumetric beams under the lamps
     rimLight: true, // cold moonlight rim on the zombies
     rain: true, // rain + ground mist
     lightning: true, // periodic lightning flashes
-    // horror post FX — drive the pipeline when postfx is on, the CSS overlay when off.
-    // Deliberately restrained: a hint of each for PS2 charm, never enough to
-    // bury detail under grain/haze. Tune higher in Options if you want it heavier.
-    grain: 0.05, // 0..1 animated film grain
-    scanlines: true,
-    aberration: 0.12, // 0..1 chromatic aberration
-    vignette: 0.36, // 0..1
   },
   controls: {
     sensitivity: 1.0, // multiplier on base look speed
