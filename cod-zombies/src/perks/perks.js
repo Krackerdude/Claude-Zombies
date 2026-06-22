@@ -413,6 +413,24 @@ function buildDinerMachine(def) {
   const icon = new THREE.Mesh(new THREE.CircleGeometry(0.17, 26), decalMat(new THREE.MeshBasicMaterial({ map: reviveIcon() })));
   icon.position.z = 0.06; signGroup.add(icon);
 
+  // --- extra trim + flair ---
+  // vertical chrome corner pilasters sharpen the cabinet's edges
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const pil = box(0.05, bodyH, 0.05, chrome);
+    pil.position.set(sx * (W / 2 - 0.025), bodyY, sz * (D / 2 - 0.025)); g.add(pil);
+  }
+  // chrome pull-handle bar across the lid front
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, W * 0.5, 8), chrome);
+  handle.rotation.z = Math.PI / 2; handle.position.set(0, bodyY + bodyH / 2 - 0.05, F + 0.06); g.add(handle);
+  for (const sx of [-1, 1]) { const br = box(0.02, 0.05, 0.05, chrome); br.position.set(sx * W * 0.24, bodyY + bodyH / 2 - 0.05, F + 0.035); g.add(br); }
+  // cold cyan glow strip along the toe-kick — fun cooler accent that catches bloom
+  const toe = box(W - 0.12, 0.024, 0.02, glow); toe.position.set(0, 0.115, F + 0.01); g.add(toe);
+  // side cooling vents (dark slats)
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const v = box(0.02, 0.012, D * 0.42, dark);
+    v.position.set(sx * (W / 2 + 0.004), bodyY + bodyH * 0.16 - i * 0.06, 0); g.add(v);
+  }
+
   const light = new THREE.PointLight(def.color, 0.7, 3.2, 2.0);
   light.position.set(0, signY, F + 0.2); g.add(light);
 
@@ -542,6 +560,27 @@ function buildPinupMachine(def) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.02, 8, 24), chrome); ring.position.z = 0.04; signGroup.add(ring);
   const icon = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24), decalMat(new THREE.MeshBasicMaterial({ map: juggIcon() })));
   icon.position.z = 0.06; signGroup.add(icon);
+
+  // --- extra deco trim + flair ---
+  // chrome corner pilasters sharpen the cabinet's edges
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const pil = box(0.045, lowH, 0.045, chrome);
+    pil.position.set(sx * (W / 2 - 0.022), lowH / 2, sz * (D / 2 - 0.022)); g.add(pil);
+  }
+  // chrome band where the red cabinet meets the cream upper
+  const band = box(W + 0.03, 0.05, D + 0.03, chrome); band.position.y = lowH; g.add(band);
+  // deco chrome studs at the cream-panel corners
+  for (const sx of [-1, 1]) for (const sy of [0.05, 0.235]) {
+    const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.03, 10), chrome);
+    stud.rotation.x = Math.PI / 2; stud.position.set(sx * (W / 2 - 0.07), lowH + H * sy, F - 0.005); g.add(stud);
+  }
+  // chrome deco wing-fins flanking the sign neck (art-deco flair)
+  for (const sx of [-1, 1]) {
+    const wing = box(0.16, 0.02, 0.05, chrome);
+    wing.position.set(sx * 0.12, lowH + H * 0.46, 0); wing.rotation.z = sx * -0.35; g.add(wing);
+  }
+  // warm under-glow accent strip along the base front (catches bloom)
+  const toe = box(W - 0.1, 0.022, 0.02, glow); toe.position.set(0, 0.12, F + 0.005); g.add(toe);
 
   const light = new THREE.PointLight(def.color, 0.7, 3.2, 2.0);
   light.position.set(0, signY, F + 0.2); g.add(light);
@@ -1622,13 +1661,17 @@ function buildDeadshotMachine(def) {
 /** A glassy colored bottle held during the drink animation, with rising bubbles. */
 export function buildPerkBottle(color) {
   const g = new THREE.Group();
-  const glass = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.78, roughness: 0.15, metalness: 0.1, emissive: color, emissiveIntensity: 0.3 });
+  // Lit glass that sits IN the scene rather than glowing out of it: only a faint
+  // internal emissive (was 0.3 — that bloomed into a bright blob under the new
+  // bloom pass), a little more surface roughness, a touch more metal so the lamps
+  // catch it as a highlight instead of it self-illuminating.
+  const glass = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.82, roughness: 0.28, metalness: 0.2, emissive: color, emissiveIntensity: 0.1 });
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.13, 10), glass);
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.03, 0.05, 8), glass); neck.position.y = 0.09;
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.02, 8), new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.8, roughness: 0.3 })); cap.position.y = 0.12;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.02, 8), new THREE.MeshStandardMaterial({ color: 0xbfc2c6, metalness: 0.85, roughness: 0.35 })); cap.position.y = 0.12;
   g.add(body, neck, cap);
   g.userData.cap = cap;
-  const bubbleMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+  const bubbleMat = new THREE.MeshBasicMaterial({ color: 0xdfe6ec, transparent: true, opacity: 0.5 });
   const bubbles = [];
   for (let i = 0; i < 6; i++) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.006, 6, 5), bubbleMat.clone());
