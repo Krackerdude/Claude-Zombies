@@ -1078,6 +1078,63 @@ function fiveSeven() {
   return { group: g, muzzle: -0.31 };
 }
 
+// --- The Executioner (Taurus Judge) — a stainless .410 revolver that fires
+//     shotshells. Bright stainless fluted barrel with a vented rib + red fiber
+//     front sight, a big 5-shot fluted cylinder (rotates per shot), and a black
+//     rubber grip with the signature red backstrap spine. Shared materials. ---
+function executioner() {
+  const g = new THREE.Group();
+  const steel = gunMetal(0x9a9ea4, { metal: 0.85, rough: 0.3 });    // bright stainless
+  const steelDk = gunMetal(0x6e7278, { metal: 0.8, rough: 0.34 });
+  const black = gunDark(0x101216);
+  const rubber = gunGrip(0x1a1c20);                                 // black rubber grip
+  const red = mat(0xc01818, { metal: 0.2, rough: 0.5 });            // red grip spine
+  const redDot = mat(0xff3326, { metal: 0.1, rough: 0.4, emissive: 0xff2a1e, ei: 1.6 });
+
+  // stainless barrel shroud + vented top rib + side flutes + bore
+  g.add(at(box(0.05, 0.055, 0.4, steel), 0, 0.035, -0.24));
+  g.add(at(box(0.018, 0.014, 0.4, steelDk), 0, 0.066, -0.24));      // vent rib
+  for (let i = 0; i < 4; i++) g.add(at(box(0.052, 0.006, 0.012, black), 0, 0.066, -0.36 + i * 0.06));
+  for (const sx of [-1, 1]) g.add(at(box(0.004, 0.03, 0.32, steelDk), sx * 0.026, 0.035, -0.24));
+  g.add(at(tube(0.013, 0.013, 0.06, black, 12), 0, 0.035, -0.44));
+
+  // CYLINDER — big fluted 5-shot .410, rotates per shot
+  const cyl = new THREE.Group();
+  const cgeo = new THREE.CylinderGeometry(0.062, 0.062, 0.12, 24); cgeo.rotateX(Math.PI / 2);
+  cyl.add(new THREE.Mesh(cgeo, steel));
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const holeGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.13, 12); holeGeo.rotateX(Math.PI / 2);
+    cyl.add(at(new THREE.Mesh(holeGeo, black), Math.cos(a) * 0.038, Math.sin(a) * 0.038, 0));
+    const flute = new THREE.BoxGeometry(0.02, 0.016, 0.1);
+    cyl.add(at(new THREE.Mesh(flute, steelDk), Math.cos(a + 0.628) * 0.062, Math.sin(a + 0.628) * 0.062, 0, 0, 0, a + 0.628));
+  }
+  cyl.position.set(0, 0.03, 0.03);
+  g.add(cyl);
+
+  // frame + topstrap + rear sight + front fiber + hammer
+  g.add(at(box(0.056, 0.1, 0.12, steel), 0, 0.018, 0.12));
+  g.add(at(box(0.06, 0.026, 0.13, steel), 0, 0.066, 0.115));        // topstrap
+  g.add(at(box(0.03, 0.018, 0.02, black), 0, 0.08, 0.15));          // adjustable rear sight
+  g.add(at(box(0.012, 0.022, 0.012, black), 0, 0.082, -0.42));      // front sight post
+  g.add(at(box(0.008, 0.01, 0.008, redDot), 0, 0.092, -0.425));     // red fiber dot
+  g.add(at(box(0.014, 0.045, 0.02, steelDk), 0, 0.072, 0.185, -0.4)); // exposed hammer
+
+  // trigger guard + trigger
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.006, 10, 18), steel);
+  g.add(at(guard, 0, -0.05, 0.07, 0, Math.PI / 2));
+  g.add(at(box(0.011, 0.03, 0.009, steelDk), 0, -0.045, 0.07));
+
+  // black rubber grip + signature red backstrap spine + base
+  g.add(at(box(0.05, 0.16, 0.07, rubber), 0, -0.1, 0.16, 0.36));
+  g.add(at(box(0.016, 0.15, 0.02, red), 0, -0.1, 0.198, 0.36));     // red rubber spine
+  g.add(at(box(0.052, 0.02, 0.06, black), 0, -0.178, 0.185, 0.36)); // grip base
+
+  g.userData.cylinder = cyl;
+  g.userData.chambers = 5;
+  return { group: g, muzzle: -0.46 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1091,6 +1148,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'RK-5') return rk5();
   if (weapon.data.name === 'NEW ARMY') return newArmy();
   if (weapon.data.name === 'FIVE-SEVEN') return fiveSeven();
+  if (weapon.data.name === 'EXECUTIONER') return executioner();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
