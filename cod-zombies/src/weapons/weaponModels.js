@@ -1218,6 +1218,65 @@ function coda9() {
   return { group: g, muzzle: -0.31 };
 }
 
+// --- MP5 — the classic H&K SMG, lightly modernised. Slim rounded receiver with
+//     a short top rail, cylindrical vented handguard + teal accent, the HK
+//     charging tube + hooded front sight, rotary drum rear sight, a curved
+//     30-round magazine, angled grip and the A3 sliding stock. Shared materials. ---
+function mp5() {
+  const g = new THREE.Group();
+  const black = gunMetal(0x26292e, { metal: 0.55, rough: 0.42 });   // receiver
+  const blackHi = gunMetal(0x3a3e44, { metal: 0.55, rough: 0.35 }); // lighter edges
+  const dark = gunDark(0x131519);                                   // bores / details
+  const grip = gunGrip(0x1c1e22);                                   // grip + handguard
+  const steel = gunMetal(0x4a4e54, { metal: 0.7, rough: 0.3 });     // barrel / charging tube
+  const accent = mat(0x1c5a52, { metal: 0.4, rough: 0.5 });         // subtle modern accent
+
+  // === receiver: slim box + rounded top tube + short top rail ===
+  g.add(at(box(0.05, 0.058, 0.4, black), 0, 0.0, -0.12));
+  g.add(at(tube(0.03, 0.03, 0.4, blackHi), 0, 0.02, -0.12));
+  g.add(at(box(0.022, 0.012, 0.16, dark), 0, 0.046, -0.06));        // rail base
+  for (let i = 0; i < 6; i++) g.add(at(box(0.024, 0.008, 0.006, black), 0, 0.054, -0.12 + i * 0.022));
+
+  // === cylindrical vented handguard + teal accent ===
+  g.add(at(tube(0.036, 0.036, 0.18, grip), 0, -0.004, -0.34));
+  for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) g.add(at(box(0.006, 0.02, 0.04, dark), sx * 0.034, -0.004, -0.32 - i * 0.05));
+  g.add(at(box(0.004, 0.05, 0.14, accent), 0.034, 0.0, -0.34));
+
+  // === barrel + flash hider + hooded front sight + HK charging tube ===
+  g.add(at(tube(0.012, 0.012, 0.16, steel), 0, 0.0, -0.49));
+  g.add(at(tube(0.018, 0.018, 0.03, dark), 0, 0.0, -0.55));
+  const fhood = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.004, 8, 14), black);
+  g.add(at(fhood, 0, 0.03, -0.45));
+  g.add(at(box(0.004, 0.02, 0.006, dark), 0, 0.024, -0.45));        // front post
+  g.add(at(tube(0.012, 0.012, 0.22, steel), -0.026, 0.034, -0.36)); // charging tube (left)
+  g.add(at(box(0.02, 0.016, 0.02, dark), -0.04, 0.034, -0.45));     // cocking handle (HK slap)
+
+  // === rotary drum rear sight ===
+  g.add(at(box(0.03, 0.03, 0.03, blackHi), 0, 0.05, 0.04));
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.042, 14), dark);
+  g.add(at(drum, 0, 0.058, 0.04, 0, 0, Math.PI / 2));               // axis horizontal (the drum)
+
+  // === curved 30-round magazine (two angled segments suggest the banana) ===
+  g.add(at(box(0.034, 0.1, 0.05, black), 0, -0.1, -0.04, 0.12));
+  g.add(at(box(0.034, 0.1, 0.05, black), 0, -0.19, -0.015, 0.28));
+  g.add(at(box(0.036, 0.016, 0.052, dark), 0, -0.245, 0.0, 0.28));  // floorplate
+
+  // === pistol grip + trigger guard + selector ===
+  g.add(at(box(0.04, 0.12, 0.05, grip), 0, -0.075, 0.08, 0.32));
+  g.add(at(box(0.042, 0.02, 0.05, dark), 0, -0.14, 0.06, 0.32));
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 8, 16), black);
+  g.add(at(guard, 0, -0.04, 0.04, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.035, 0.04));        // trigger
+  g.add(at(box(0.012, 0.012, 0.012, dark), 0.025, 0.01, 0.06));     // SEF selector
+
+  // === A3 retractable sliding stock ===
+  for (const sx of [-1, 1]) g.add(at(box(0.008, 0.01, 0.22, steel), sx * 0.02, 0.0, 0.2));
+  g.add(at(box(0.05, 0.07, 0.018, dark), 0, 0.0, 0.31));            // shoulder pad
+  g.add(at(box(0.05, 0.012, 0.02, blackHi), 0, 0.0, 0.3));
+
+  return { group: g, muzzle: -0.57 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1233,6 +1292,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'FIVE-SEVEN') return fiveSeven();
   if (weapon.data.name === 'EXECUTIONER') return executioner();
   if (weapon.data.name === 'CODA 9') return coda9();
+  if (weapon.data.name === 'MP5') return mp5();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
