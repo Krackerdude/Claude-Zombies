@@ -66,8 +66,8 @@ export const PostFXConfig = {
   grade: {
     enabled: true,
     exposure: 1.12,      // multiplied on top of the renderer's tone-map exposure
-    contrast: 1.0,       // NO shadow crush — the contrast S-curve was the high black
-                         // point pushing dark areas to pure unreadable black
+    contrast: 0.92,      // below neutral — softens the S-curve further so the dark
+                         // range lifts open instead of crushing toward black
     gamma: 1.7,          // midtone/shadow lift — the readability lever. Opens up the
                          // dark range (lowers the effective black point) while keeping
                          // true black at black (no wash). Raise to see deeper into shadow.
