@@ -19,6 +19,12 @@ const defs = {
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
     reloadTime: 1.6, recoilPitch: 0.016, cost: 500,
     viewmodel: { length: 0.36, color: 0x474b54, accent: 0x0e0f12 } },
+  // Remington New Army Model: single-action hand-cannon revolver. 450 dmg,
+  // 1.5x headshot (high base damage). Box-only. Cylinder rotates per shot.
+  newArmy: { Class: WeaponBase, category: C.PISTOL, name: 'NEW ARMY', fireMode: 'semi',
+    damage: 450, headshotMultiplier: 1.5, fireRate: 160, magazineSize: 6, ammoStockSize: 60,
+    reloadTime: 2.6, recoilPitch: 0.05, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.49, color: 0x565a61, accent: 0x3e424a } },
   olympia: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'OLYMPIA', damage: 42, pellets: 9, magazineSize: 2, fireRate: 90, cost: 1000 },
   dsr: { Class: WeaponBase, category: C.SNIPER, name: 'DSR-50', damage: 1500, magazineSize: 4, cost: 1500 },
   hk21: { Class: WeaponBase, category: C.HMG, name: 'HK21', damage: 140, fireRate: 700, magazineSize: 125, cost: 1500 },
