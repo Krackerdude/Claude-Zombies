@@ -22,7 +22,8 @@ export class WeaponData {
     this.name = o.name ?? 'Weapon';
     this.category = o.category ?? WeaponCategory.AR;
 
-    // ballistics
+    // ballistics — flat per-shot damage. Damage NEVER changes by round; the
+    // shots-to-kill grow purely because the zombies gain HP each round.
     this.damage = o.damage ?? 100; // per projectile/pellet
     this.headshotMultiplier = o.headshotMultiplier ?? 3.0; // flat 3x for all guns (M1911 3.5x); wonder weapons override
     this.fireRate = o.fireRate ?? 600; // rounds per minute
