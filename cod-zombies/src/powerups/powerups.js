@@ -2,8 +2,8 @@ import * as THREE from 'three';
 
 /**
  * Power-up pickups: a gold object that literally represents the power-up, wrapped
- * in a subtle green gaseous glow. Built from primitives + a couple of canvas
- * glyph planes. The PowerupSystem floats/spins them at waist height.
+ * in a green emissive mote aura (GPU Points, not flat sheets). The PowerupSystem
+ * floats/spins the whole group at waist height, so the motes orbit the icon.
  */
 
 const GOLD = 0xffcb3d;
@@ -19,47 +19,68 @@ function at(mesh, x, y, z, rx = 0, ry = 0, rz = 0) {
   return mesh;
 }
 
-function glyphPlane(text, size = 0.42) {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
+// soft round sprite for the aura motes (white core, tinted by the material)
+function softDot() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
   const x = c.getContext('2d');
-  x.clearRect(0, 0, 128, 128);
-  x.fillStyle = '#ffce3f';
-  x.strokeStyle = '#7a5200';
-  x.lineWidth = 5;
-  x.font = 'bold 96px Arial Black, Arial';
-  x.textAlign = 'center';
-  x.textBaseline = 'middle';
-  x.strokeText(text, 64, 70);
-  x.fillText(text, 64, 70);
-  const tex = new THREE.CanvasTexture(c);
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false });
-  // two crossed quads so it reads from any angle
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.4, 'rgba(255,255,255,0.55)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+
+// a glyph stamped INTO the coin face: a light top-highlight under a dark fill
+function coinGlyph(text) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d'); x.clearRect(0, 0, 128, 128);
+  x.font = '900 84px Arial Black, Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillStyle = 'rgba(255,240,190,0.7)'; x.fillText(text, 64, 67); // raised highlight
+  x.fillStyle = '#5a3d0a'; x.fillText(text, 64, 70);               // stamped dark fill
+  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+}
+
+// a struck gold medallion with the glyph embossed on both faces + a beaded rim
+function goldMedallion(text) {
   const g = new THREE.Group();
-  const a = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
-  const b = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
-  b.rotation.y = Math.PI / 2;
-  g.add(a, b);
+  const m = gold();
+  const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 30), m);
+  coin.rotation.x = Math.PI / 2; g.add(coin);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.022, 10, 30), gold({ color: GOLD_DARK, emissiveIntensity: 0.3 }));
+  g.add(rim);
+  const tex = coinGlyph(text);
+  for (const sz of [1, -1]) {
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.3, 0.3),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    );
+    face.position.z = sz * 0.027; if (sz < 0) face.rotation.y = Math.PI;
+    g.add(face);
+  }
   return g;
 }
 
-function greenGlow() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const x = c.getContext('2d');
-  const grad = x.createRadialGradient(64, 64, 6, 64, 64, 64);
-  grad.addColorStop(0, 'rgba(120,255,140,0.55)');
-  grad.addColorStop(0.5, 'rgba(70,220,90,0.22)');
-  grad.addColorStop(1, 'rgba(70,220,90,0)');
-  x.fillStyle = grad; x.fillRect(0, 0, 128, 128);
-  const tex = new THREE.CanvasTexture(c);
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-  const g = new THREE.Group();
-  for (let i = 0; i < 3; i++) {
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.95), mat);
-    p.rotation.y = (i / 3) * Math.PI;
-    g.add(p);
+// green emissive mote aura — a cloud of additive points haloing the icon
+function greenAura() {
+  const N = 48;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const r = 0.18 + Math.random() * 0.36;
+    const a = Math.random() * Math.PI * 2, e = Math.acos(2 * Math.random() - 1);
+    pos[i * 3] = Math.sin(e) * Math.cos(a) * r;
+    pos[i * 3 + 1] = Math.cos(e) * r * 0.95;
+    pos[i * 3 + 2] = Math.sin(e) * Math.sin(a) * r;
   }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+    map: softDot(), color: 0x8bff9b, size: 0.12, transparent: true, opacity: 0.9,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+  }));
+  pts.raycast = () => {};
+  const g = new THREE.Group();
+  g.add(pts);
   g.userData.spinGlow = true;
   return g;
 }
@@ -68,8 +89,8 @@ function buildShape(type) {
   const g = new THREE.Group();
   const m = gold();
   switch (type) {
-    case 'doublePoints': g.add(glyphPlane('2X', 0.46)); break;
-    case 'bloodMoney': g.add(glyphPlane('$', 0.46)); break;
+    case 'doublePoints': g.add(goldMedallion('2X')); break;
+    case 'bloodMoney': g.add(goldMedallion('$')); break;
     case 'instaKill': { // skull
       const s = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), m); g.add(s);
       g.add(at(box(0.13, 0.07, 0.05, m), 0, -0.15, 0.06)); // jaw
@@ -104,6 +125,6 @@ function buildShape(type) {
 export function buildPowerupModel(type) {
   const group = new THREE.Group();
   group.add(buildShape(type));
-  group.add(greenGlow());
+  group.add(greenAura());
   return group;
 }
