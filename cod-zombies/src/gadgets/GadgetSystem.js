@@ -5,6 +5,40 @@ import { Action } from '../config/keybinds.js';
 import { Transform, PlayerTag, ZombieTag } from '../ecs/components/index.js';
 import { damageZombie } from '../weapons/damage.js';
 import { PlayerCombat } from '../config/zombies.js';
+import { paintedMetal } from '../rendering/materials/surfaces.js';
+
+// Shared frag-grenade parts, built once and reused by every throw. Body uses the
+// shared painted-metal material (with its environment normal map) tinted military
+// green; the fuze assembly is a darker shared metal.
+let _nade = null;
+function grenadeModel() {
+  if (!_nade) {
+    const body = paintedMetal(0x40592a); body.roughness = 0.5; body.metalness = 0.55;
+    const steel = ps1Steel();
+    _nade = {
+      body, steel,
+      bodyGeo: new THREE.SphereGeometry(0.062, 12, 10),
+      collarGeo: new THREE.CylinderGeometry(0.04, 0.046, 0.02, 10),
+      capGeo: new THREE.CylinderGeometry(0.03, 0.036, 0.03, 10),
+      leverGeo: new THREE.BoxGeometry(0.012, 0.075, 0.024),
+      ringGeo: new THREE.TorusGeometry(0.016, 0.005, 6, 12),
+    };
+  }
+  const P = _nade;
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(P.bodyGeo, P.body); body.scale.set(1, 1.28, 1); // ovoid frag body
+  const collar = new THREE.Mesh(P.collarGeo, P.steel); collar.position.y = 0.074;
+  const cap = new THREE.Mesh(P.capGeo, P.steel); cap.position.y = 0.097;
+  const lever = new THREE.Mesh(P.leverGeo, P.steel); lever.position.set(0.038, 0.078, 0); lever.rotation.z = 0.1;
+  const ring = new THREE.Mesh(P.ringGeo, P.steel); ring.position.set(-0.042, 0.09, 0); ring.rotation.y = Math.PI / 2;
+  g.add(body, collar, cap, lever, ring);
+  return g;
+}
+let _steel = null;
+function ps1Steel() {
+  _steel = _steel || new THREE.MeshStandardMaterial({ color: 0x1d201a, metalness: 0.75, roughness: 0.45 });
+  return _steel;
+}
 
 const FUSE = 4.0;          // seconds from press to detonation (cooked or not)
 const READY_TIME = 0.5;    // pin-pull + draw-to-hand before a throw can release (anti-spam)
@@ -45,8 +79,10 @@ export class GadgetSystem extends System {
     this.#events = s.get(Service.Events);
     this.#spawn = s.get(Service.Spawn);
 
-    // flashlight: a spotlight that follows the camera (off by default)
-    this.#light = new THREE.SpotLight(0xfff4d6, 0, 26, Math.PI / 7, 0.4, 1.2);
+    // flashlight: a powerful spotlight that follows the camera (off by default).
+    // Long reach, wide cone, gentle falloff so it actually lights the arena.
+    // (color, intensity[0=off], distance, angle, penumbra, decay)
+    this.#light = new THREE.SpotLight(0xfff4d6, 0, 70, Math.PI / 4.2, 0.5, 1.0);
     this.#light.target = new THREE.Object3D();
     this.#scene.add(this.#light, this.#light.target);
 
@@ -67,8 +103,8 @@ export class GadgetSystem extends System {
     // flashlight follows the camera
     this.#light.position.copy(this.#camera.position);
     _fwd.set(0, 0, -1).applyQuaternion(this.#camera.quaternion);
-    this.#light.target.position.copy(this.#camera.position).addScaledVector(_fwd, 10);
-    if (this.#actions.pressed(Action.FLASHLIGHT)) { this.#lightOn = !this.#lightOn; this.#light.intensity = this.#lightOn ? 3.5 : 0; }
+    this.#light.target.position.copy(this.#camera.position).addScaledVector(_fwd, 16);
+    if (this.#actions.pressed(Action.FLASHLIGHT)) { this.#lightOn = !this.#lightOn; this.#light.intensity = this.#lightOn ? 11 : 0; }
 
     // lethal: start cooking on press, throw on release, blow up at fuse end
     if (this.#nadeCd > 0) this.#nadeCd = Math.max(0, this.#nadeCd - dt);
@@ -90,10 +126,7 @@ export class GadgetSystem extends System {
   }
 
   #throw(fuse) {
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.07, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0x39402c, metalness: 0.5, roughness: 0.6 }),
-    );
+    const mesh = grenadeModel();
     const o = this.#camera.position;
     mesh.position.set(o.x, o.y - 0.1, o.z);
     this.#scene.add(mesh);
