@@ -135,7 +135,7 @@ export class Viewmodel {
       const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.046, 0.022), steel);
       pommel.position.z = 0.095;
       this.#knife.add(blade, tip, fuller, guard, handle, pommel);
-      this.#knife.scale.setScalar(1.3); // bigger, more presence on screen
+      this.#knife.scale.setScalar(0.95); // modest on-screen size
     }
     this.#knife.visible = false;
     this.#vmScene.add(this.#knife);
@@ -289,7 +289,7 @@ export class Viewmodel {
     if (this.#knife.visible) {
       // fast-start, slow-middle, fast-end so the cut has weight (timing unchanged)
       const p = sweep + 0.9 * Math.sin(2 * Math.PI * sweep) / (2 * Math.PI);
-      _koff.set(lerp(0.52, -0.56, p), lerp(0.14, -0.3, p), -0.264); // 20% closer to camera
+      _koff.set(lerp(0.52, -0.56, p), lerp(0.14, -0.3, p), -0.21); // pulled in closer to camera
       this.#knife.position.copy(_koff);
       _ke.set(lerp(-0.4, 0.5, p), lerp(-1.05, 1.15, p), lerp(1.5, -1.7, p));
       this.#knife.quaternion.setFromEuler(_ke);
