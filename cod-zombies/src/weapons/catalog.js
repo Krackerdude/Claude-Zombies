@@ -119,6 +119,10 @@ const defs = {
     reloadTime: 2.6, recoilPitch: 0.05, cost: 0, boxOnly: true,
     viewmodel: { length: 0.49, color: 0x565a61, accent: 0x3e424a } },
   olympia: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'OLYMPIA', damage: 42, pellets: 9, magazineSize: 2, fireRate: 90, cost: 1000 },
+  // KRM-262 (BO3): tactical pump shotgun. 36 dmg/pellet, 8-shell tube, 64 reserve.
+  krm: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'KRM-262', damage: 36, pellets: 8,
+    headshotMultiplier: 3.0, magazineSize: 8, ammoStockSize: 64, fireRate: 80, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.62, color: 0x44484f, accent: 0x1c1e22 } },
   dsr: { Class: WeaponBase, category: C.SNIPER, name: 'DSR-50', damage: 1500, magazineSize: 4, cost: 1500 },
   // SVG-300 (AW): the 2035 DSR — a higher-caliber power sniper. Much harder
   // hitting, but the big rounds mean a tiny mag and a light reserve.

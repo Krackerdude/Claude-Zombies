@@ -2774,6 +2774,81 @@ function hellionSalvo() {
   return { group: g, muzzle: -0.62 };
 }
 
+// --- KRM-262 (BO3) — tactical pump shotgun. Angular grey gunmetal body with
+//     skeletonised cuts + oval-slotted handguard, a blocky stepped muzzle, an
+//     under-barrel tube magazine, a ribbed sliding pump, a top rail with a
+//     red-fiber flip front sight + a red-dot reflex optic (copper ring), a
+//     pistol grip and an open skeleton stock. Worn copper accent patch. ---
+function krm() {
+  const g = new THREE.Group();
+  const body = gunMetal(0x44484f, { metal: 0.62, rough: 0.36 });   // grey gunmetal
+  const bodyHi = gunMetal(0x565b63, { metal: 0.6, rough: 0.3 });
+  const bodyDk = gunDark(0x1a1c20);                                // shadow / cuts
+  const steel = gunMetal(0x3a3f46, { metal: 0.74, rough: 0.26 });  // barrel
+  const copper = gunMetal(0x7a4a32, { metal: 0.55, rough: 0.48 }); // worn copper patch / optic ring
+  const black = gunMetal(0x1c1e22, { metal: 0.52, rough: 0.44 });
+  const grip = gunGrip(0x23262b);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x140a08, metalness: 0.2, roughness: 0.14 });
+  const dark = gunDark(0x0c0d10);
+  const red = mat(0xff2a1e, { metal: 0.2, rough: 0.4, emissive: 0xff2a1e, ei: 1.8 }); // fiber + dot
+
+  // === barrel + blocky stepped muzzle + under-barrel tube magazine ===
+  g.add(at(tube(0.015, 0.015, 0.32, steel), 0, 0.026, -0.5));
+  g.add(at(box(0.04, 0.044, 0.08, bodyDk), 0, 0.026, -0.64));        // blocky muzzle
+  g.add(at(box(0.044, 0.012, 0.06, body), 0, 0.05, -0.64));          // muzzle top step
+  g.add(at(tube(0.015, 0.015, 0.02, dark, 12), 0, 0.026, -0.685));   // bore
+  g.add(at(tube(0.014, 0.014, 0.32, bodyDk, 14), 0, -0.006, -0.46)); // tube magazine under barrel
+  g.add(at(box(0.026, 0.016, 0.05, black), 0, -0.012, -0.6));        // mag cap
+
+  // === oval-slotted handguard over the barrel ===
+  g.add(at(box(0.05, 0.05, 0.26, body), 0, 0.026, -0.42));
+  g.add(at(box(0.054, 0.014, 0.24, bodyHi), 0, 0.054, -0.42));       // top strap
+  for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) g.add(at(box(0.005, 0.022, 0.046, dark), sx * 0.026, 0.026, -0.5 + i * 0.06)); // oval side slots
+  for (let i = 0; i < 3; i++) g.add(at(box(0.022, 0.005, 0.046, dark), 0, 0.052, -0.48 + i * 0.07)); // top slots
+
+  // === ribbed sliding pump (under-barrel forend) ===
+  g.add(at(box(0.046, 0.05, 0.12, black), 0, -0.03, -0.34));
+  for (let i = 0; i < 4; i++) g.add(at(box(0.05, 0.05, 0.008, dark), 0, -0.03, -0.39 + i * 0.026)); // finger grooves
+  g.add(at(box(0.05, 0.012, 0.12, bodyDk), 0, -0.056, -0.34));       // pump underside rail
+
+  // === angular grey receiver with skeletonised cuts + copper patch ===
+  g.add(at(box(0.05, 0.082, 0.26, body), 0, 0.014, -0.1));
+  g.add(at(box(0.046, 0.024, 0.06, copper), 0, 0.02, -0.16));        // worn copper accent patch
+  for (const sx of [-1, 1]) {                                        // skeleton triangle cuts (front of receiver)
+    g.add(at(box(0.006, 0.05, 0.014, bodyDk), sx * 0.026, 0.0, -0.18, 0, 0, 0.5));
+    g.add(at(box(0.006, 0.05, 0.014, bodyDk), sx * 0.026, 0.0, -0.13, 0, 0, -0.5));
+  }
+  g.add(at(box(0.012, 0.024, 0.05, bodyHi), -0.03, 0.03, -0.04));    // left charging handle
+  g.add(at(box(0.05, 0.04, 0.05, bodyDk), 0.03, 0.0, 0.0));          // right ejection block
+
+  // === top rail + red-fiber flip front sight + red-dot reflex optic ===
+  g.add(at(box(0.024, 0.014, 0.22, bodyDk), 0, 0.058, -0.12));       // rail base
+  for (let i = 0; i < 8; i++) g.add(at(box(0.026, 0.006, 0.008, dark), 0, 0.066, -0.2 + i * 0.024)); // rail teeth
+  g.add(at(box(0.02, 0.026, 0.018, black), 0, 0.076, -0.34));        // front sight base
+  g.add(at(box(0.006, 0.018, 0.008, red), 0, 0.094, -0.34));         // red fiber front post
+  // red-dot reflex optic (copper ring housing, glowing dot)
+  g.add(at(box(0.034, 0.03, 0.04, black), 0, 0.072, -0.02));         // optic body
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.005, 10, 22), copper), 0, 0.094, -0.02, 0, Math.PI / 2)); // copper lens ring
+  g.add(at(tube(0.016, 0.016, 0.006, glass), 0, 0.094, -0.012, 0, Math.PI / 2)); // lens
+  g.add(at(box(0.004, 0.004, 0.004, red), 0, 0.094, -0.018));        // red dot
+
+  // === pistol grip + trigger guard ===
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.06, 0.3));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.106, 0.078, 0.3));  // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bodyDk);
+  g.add(at(guard, 0, -0.028, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, copper), 0, -0.024, 0.0));        // copper trigger
+
+  // === open skeleton stock (rear ~z 0.2) ===
+  g.add(at(box(0.05, 0.07, 0.06, body), 0, 0.014, 0.06));            // stock socket
+  g.add(at(box(0.044, 0.022, 0.13, bodyHi), 0, 0.05, 0.15));         // top bar
+  g.add(at(box(0.04, 0.02, 0.11, body), 0, -0.03, 0.14));            // bottom bar (skeleton gap)
+  g.add(at(box(0.03, 0.094, 0.024, body), 0, 0.01, 0.2));            // rear vertical frame
+  g.add(at(box(0.046, 0.104, 0.022, dark), 0, 0.006, 0.214));        // butt pad
+
+  return { group: g, muzzle: -0.69 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2806,6 +2881,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'LSAT') return lsat();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
+  if (weapon.data.name === 'KRM-262') return krm();
   if (weapon.data.name === 'OLYMPIA') return olympia();
   if (weapon.data.name === 'BALLISTA') return ballista();
   if (weapon.data.name === 'DRAKON') return drakon();
