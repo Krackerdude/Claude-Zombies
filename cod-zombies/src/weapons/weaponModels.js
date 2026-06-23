@@ -1628,6 +1628,64 @@ function an94() {
   return { group: g, muzzle: -0.56 };
 }
 
+// --- STG-44 — the first true assault rifle (WW2). Long blued stamped receiver
+//     with oval lightening slots + a rounded top, a long thin barrel with a
+//     hooded front sight + gas tube, a tangent rear sight, a curved magazine, a
+//     brown bakelite grip and the wooden buttstock. Shared materials. ---
+function stg44() {
+  const g = new THREE.Group();
+  const steel = gunMetal(0x2c3036, { metal: 0.62, rough: 0.34 });   // blued steel
+  const steelHi = gunMetal(0x3e434a, { metal: 0.6, rough: 0.3 });
+  const steelDk = gunMetal(0x1a1d22, { metal: 0.58, rough: 0.4 });
+  const wood = gunWood(0x6a4a2e);                                   // brown stock
+  const woodDk = gunWood(0x4e3420);
+  const bakeGrip = gunWood(0x5a3a22);                               // bakelite grip
+  const mag = gunMetal(0x1c1f23, { metal: 0.5, rough: 0.45 });      // black mag
+  const dark = gunDark(0x0e0f12);
+
+  // === long thin barrel + gas tube + hooded front sight ===
+  g.add(at(tube(0.011, 0.011, 0.26, steel), 0, 0.04, -0.46));
+  g.add(at(tube(0.008, 0.008, 0.2, steelDk), 0, 0.066, -0.42));     // gas tube
+  g.add(at(tube(0.016, 0.016, 0.02, steelDk, 12), 0, 0.04, -0.6));  // muzzle nut
+  g.add(at(tube(0.01, 0.01, 0.02, dark, 12), 0, 0.04, -0.62));      // bore
+  g.add(at(tube(0.018, 0.018, 0.02, steelDk, 14), 0, 0.04, -0.56)); // front sight band
+  const fhood = new THREE.Mesh(new THREE.TorusGeometry(0.013, 0.003, 8, 12), steelDk);
+  g.add(at(fhood, 0, 0.066, -0.56));
+  g.add(at(box(0.004, 0.016, 0.005, dark), 0, 0.06, -0.56));        // post
+
+  // === long stamped receiver: rounded top + oval lightening slots ===
+  g.add(at(box(0.05, 0.07, 0.34, steel), 0, 0.035, -0.16));
+  g.add(at(tube(0.026, 0.026, 0.34, steelHi, 18), 0, 0.058, -0.16)); // rounded top
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) g.add(at(box(0.004, 0.02, 0.05, dark), sx * 0.026, 0.03, -0.26 + i * 0.07)); // oval slots
+  g.add(at(box(0.044, 0.03, 0.14, steelDk), 0, -0.005, -0.3));      // lower fore
+  for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) g.add(at(box(0.005, 0.014, 0.012, dark), sx * 0.023, -0.005, -0.36 + i * 0.03)); // cooling slots
+
+  // === tangent rear sight ===
+  g.add(at(box(0.024, 0.018, 0.05, steelDk), 0, 0.07, -0.02));
+  g.add(at(box(0.02, 0.024, 0.012, steelDk), 0, 0.086, 0.0));       // leaf
+  g.add(at(box(0.008, 0.008, 0.006, dark), 0, 0.092, 0.0));         // notch
+
+  // === curved magazine ===
+  g.add(at(box(0.038, 0.12, 0.05, mag), 0, -0.08, -0.08, 0.16));
+  g.add(at(box(0.038, 0.1, 0.05, mag), 0, -0.19, -0.02, 0.34));     // lower curve
+  g.add(at(box(0.04, 0.016, 0.052, dark), 0, -0.24, 0.015, 0.34));  // floorplate
+  for (let i = 0; i < 5; i++) g.add(at(box(0.039, 0.004, 0.048, dark), 0, -0.06 - i * 0.03, -0.08 + i * 0.012, 0.2)); // ribs
+
+  // === brown bakelite grip + trigger guard ===
+  g.add(at(box(0.038, 0.1, 0.044, bakeGrip), 0, -0.05, 0.04, 0.32));
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), steelDk);
+  g.add(at(guard, 0, -0.028, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.022, 0.008, dark), 0, -0.024, 0.0));
+
+  // === wooden buttstock (flat, with the oval hole) ===
+  g.add(at(box(0.036, 0.06, 0.1, wood), 0, 0.012, 0.08));           // neck
+  g.add(at(box(0.046, 0.11, 0.12, wood), 0, 0.0, 0.17));            // butt
+  g.add(at(box(0.048, 0.12, 0.018, woodDk), 0, 0.0, 0.22));         // butt plate
+  g.add(at(box(0.05, 0.04, 0.045, dark), 0, 0.0, 0.16));            // oval cutout (inset)
+
+  return { group: g, muzzle: -0.63 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1650,6 +1708,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'MP40') return mp40();
   if (weapon.data.name === 'XM4') return xm4();
   if (weapon.data.name === 'AN-94') return an94();
+  if (weapon.data.name === 'STG-44') return stg44();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();

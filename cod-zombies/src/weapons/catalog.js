@@ -46,6 +46,11 @@ const defs = {
   an94: { Class: WeaponBase, category: C.AR, name: 'AN-94', damage: 180, headshotMultiplier: 3.0,
     fireRate: 660, magazineSize: 30, ammoStockSize: 270, reloadTime: 2.4, recoilPitch: 0.013,
     cost: 0, boxOnly: true, viewmodel: { length: 0.56, color: 0x262b31, accent: 0x837748 } },
+  // STG-44: the first assault rifle (WW2). Slightly-upper damage, slowest AR fire
+  // rate, mid mag + reserve, longer body. Standard 3x head.
+  stg44: { Class: WeaponBase, category: C.AR, name: 'STG-44', damage: 205, headshotMultiplier: 3.0,
+    fireRate: 580, magazineSize: 30, ammoStockSize: 240, reloadTime: 2.5, recoilPitch: 0.014,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.63, color: 0x2c3036, accent: 0x6a4a2e } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
