@@ -123,6 +123,11 @@ const defs = {
   krm: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'KRM-262', damage: 36, pellets: 8,
     headshotMultiplier: 3.0, magazineSize: 8, ammoStockSize: 64, fireRate: 80, cost: 0, boxOnly: true,
     viewmodel: { length: 0.62, color: 0x44484f, accent: 0x1c1e22 } },
+  // MOG 12 (BO4): a slightly lower-tier pump shotgun. Similar pellet damage to
+  // the KRM but only 4 in the mag and a smaller reserve. Stubbier, stock-less.
+  mog12: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'MOG 12', damage: 36, pellets: 8,
+    headshotMultiplier: 3.0, magazineSize: 4, ammoStockSize: 32, fireRate: 80, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.5, color: 0x222428, accent: 0xd83426 } },
   dsr: { Class: WeaponBase, category: C.SNIPER, name: 'DSR-50', damage: 1500, magazineSize: 4, cost: 1500 },
   // SVG-300 (AW): the 2035 DSR — a higher-caliber power sniper. Much harder
   // hitting, but the big rounds mean a tiny mag and a light reserve.

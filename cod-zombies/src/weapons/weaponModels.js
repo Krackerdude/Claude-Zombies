@@ -2849,6 +2849,64 @@ function krm() {
   return { group: g, muzzle: -0.69 };
 }
 
+// --- MOG 12 (BO4) — compact stock-less pump shotgun. A dark slab body with
+//     rows of oval lightening holes + a square slotted muzzle, an under-barrel
+//     tube magazine, a top rail with a red-fiber front sight, the signature
+//     leather sling with a RED band slung under the barrel, a pistol grip with
+//     a red trigger + red selector, and no stock. Stubbier than the KRM. ---
+function mog12() {
+  const g = new THREE.Group();
+  const black = gunMetal(0x222428, { metal: 0.5, rough: 0.46 });   // dark body
+  const blackHi = gunMetal(0x32363c, { metal: 0.5, rough: 0.38 });
+  const bodyDk = gunDark(0x131418);
+  const steel = gunMetal(0x3a3f46, { metal: 0.74, rough: 0.28 });  // barrel
+  const leather = gunWood(0x4a3422);                               // sling strap
+  const grip = gunGrip(0x202329);
+  const dark = gunDark(0x0c0d10);
+  const red = mat(0xd83426, { metal: 0.2, rough: 0.4, emissive: 0xd83426, ei: 1.4 }); // accents
+
+  // === short barrel + square slotted muzzle + tube magazine ===
+  g.add(at(tube(0.015, 0.015, 0.22, steel), 0, 0.022, -0.34));
+  g.add(at(box(0.044, 0.046, 0.08, bodyDk), 0, 0.022, -0.46));       // square muzzle block
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.026, 0.05, dark), sx * 0.02, 0.022, -0.46)); // side slot cuts
+  g.add(at(box(0.03, 0.006, 0.05, dark), 0, 0.044, -0.46));          // top slot
+  g.add(at(tube(0.015, 0.015, 0.02, dark, 12), 0, 0.022, -0.5));     // bore
+  g.add(at(tube(0.013, 0.013, 0.24, bodyDk, 14), 0, -0.006, -0.32)); // under-barrel tube mag
+  g.add(at(box(0.024, 0.014, 0.04, black), 0, -0.012, -0.42));       // mag cap
+
+  // === dark slab body with oval lightening holes ===
+  g.add(at(box(0.05, 0.088, 0.4, black), 0, 0.012, -0.18));
+  g.add(at(box(0.054, 0.016, 0.34, blackHi), 0, 0.058, -0.18));      // top spine
+  for (const sx of [-1, 1]) {                                        // oval lightening holes (two rows)
+    for (let i = 0; i < 3; i++) g.add(at(box(0.005, 0.024, 0.05, dark), sx * 0.026, 0.024, -0.3 + i * 0.07));
+    for (let i = 0; i < 3; i++) g.add(at(tube(0.006, 0.006, 0.054, dark, 8), sx * 0.026, -0.022, -0.28 + i * 0.05, 0, 0, Math.PI / 2)); // dot row
+  }
+
+  // === top rail + red-fiber front sight ===
+  g.add(at(box(0.022, 0.012, 0.3, bodyDk), 0, 0.064, -0.16));        // rail
+  for (let i = 0; i < 9; i++) g.add(at(box(0.024, 0.006, 0.008, dark), 0, 0.072, -0.28 + i * 0.026)); // teeth
+  g.add(at(box(0.02, 0.024, 0.016, black), 0, 0.08, -0.36));         // front sight base
+  g.add(at(box(0.006, 0.016, 0.008, red), 0, 0.096, -0.36));         // red fiber front post
+
+  // === leather sling with a RED band slung under the barrel ===
+  for (let i = 0; i < 5; i++) {                                       // drooping strap (arc of segments)
+    const t = i / 4, droop = Math.sin(t * Math.PI) * 0.05;
+    g.add(at(box(0.01, 0.012, 0.06, leather), 0, -0.05 - droop, -0.36 + t * 0.18));
+  }
+  g.add(at(box(0.012, 0.016, 0.024, red), 0, -0.1, -0.27));          // red strap band
+
+  // === pistol grip + trigger guard (rear, no stock) ===
+  g.add(at(box(0.046, 0.072, 0.06, blackHi), 0, 0.006, 0.06));       // grip housing / rear cap
+  g.add(at(box(0.014, 0.026, 0.03, red), 0.024, 0.012, 0.04));       // red selector switch (right)
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.07, 0.08, 0.32));     // pistol grip
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.128, 0.1, 0.32));   // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bodyDk);
+  g.add(at(guard, 0, -0.03, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, red), 0, -0.026, 0.02));          // red trigger
+
+  return { group: g, muzzle: -0.51 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2882,6 +2940,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'KRM-262') return krm();
+  if (weapon.data.name === 'MOG 12') return mog12();
   if (weapon.data.name === 'OLYMPIA') return olympia();
   if (weapon.data.name === 'BALLISTA') return ballista();
   if (weapon.data.name === 'DRAKON') return drakon();
