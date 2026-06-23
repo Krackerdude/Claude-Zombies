@@ -161,6 +161,13 @@ const defs = {
   rpg7: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'RPG-7', splashDamage: 1200, splashRadius: 5.2,
     ammoStockSize: 8, reloadTime: 4.0, cost: 0, boxOnly: true,
     viewmodel: { length: 0.92, color: 0x2a2e34, accent: 0x7a4a26 } },
+  // HELLION SALVO (BO4): 4-rocket launcher. "Aiming" only eases the FOV in a
+  // touch (focusOnly) — the viewmodel never raises. 1300 splash one-shots
+  // through round 12, low ~20 reserve.
+  hellionSalvo: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'HELLION SALVO',
+    splashDamage: 1300, splashRadius: 5.2, magazineSize: 4, ammoStockSize: 20, reloadTime: 4.6,
+    focusOnly: true, adsFov: 65, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.94, color: 0x5e6440, accent: 0x6a6f76 } },
   deathMachine: { Class: WeaponBase, category: C.SPECIAL, name: 'DEATH MACHINE', damage: 160, fireRate: 1000, magazineSize: 300, cost: 0, boxOnly: true },
   rayGun: {
     Class: ProjectileWeapon, category: C.WONDER, name: 'RAY GUN',
