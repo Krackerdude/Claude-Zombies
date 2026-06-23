@@ -82,6 +82,11 @@ const defs = {
   stoner63: { Class: WeaponBase, category: C.HMG, name: 'STONER 63', damage: 145, headshotMultiplier: 3.0,
     fireRate: 620, magazineSize: 75, ammoStockSize: 300, reloadTime: 4.8, recoilPitch: 0.013,
     cost: 0, boxOnly: true, viewmodel: { length: 0.72, color: 0x202327, accent: 0x6a4428 } },
+  // LSAT (BO2): the modern Stoner 63 — same damage, faster fire rate, but a
+  // smaller 60-round belt + lighter reserve. Standard 3x head.
+  lsat: { Class: WeaponBase, category: C.HMG, name: 'LSAT', damage: 145, headshotMultiplier: 3.0,
+    fireRate: 700, magazineSize: 60, ammoStockSize: 240, reloadTime: 4.6, recoilPitch: 0.012,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.72, color: 0x2a2e34, accent: 0xb89042 } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,

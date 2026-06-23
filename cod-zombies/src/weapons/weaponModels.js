@@ -2164,6 +2164,90 @@ function stoner63() {
   return { group: g, muzzle: -0.74 };
 }
 
+// --- LSAT (BO2) — modern boxy belt-fed LMG. Dark gunmetal body with gold/brass
+//     accents, a chunky perforated muzzle brake, a top Picatinny rail with
+//     hooded RING flip sights, a left-side belt of BLUE-tipped cartridges with a
+//     red round-counter display, a square ammo box hanging below, a pistol grip
+//     and a skeletonised collapsing stock. NO bipod. ---
+function lsat() {
+  const g = new THREE.Group();
+  const body = gunMetal(0x2a2e34, { metal: 0.6, rough: 0.38 });    // dark gunmetal
+  const bodyHi = gunMetal(0x3a4047, { metal: 0.58, rough: 0.32 }); // light-catching facets
+  const bodyDk = gunDark(0x141519);                                // shadow channels
+  const steel = gunMetal(0x44494f, { metal: 0.76, rough: 0.26 });  // bright barrel
+  const gold = gunMetal(0xb89042, { metal: 0.85, rough: 0.34 });   // brass/gold accents
+  const boxMat = gunMetal(0x222428, { metal: 0.5, rough: 0.46 });  // square ammo box
+  const brass = gunMetal(0xb08a3c, { metal: 0.82, rough: 0.32 });  // belt cartridge bodies
+  const grip = gunGrip(0x23262b);
+  const dark = gunDark(0x0c0d10);
+  const blue = mat(0x2f6cff, { metal: 0.3, rough: 0.4, emissive: 0x2f6cff, ei: 1.1 }); // blue cartridge tips
+  const redLed = mat(0xff2a1e, { metal: 0.2, rough: 0.4, emissive: 0xff2a1e, ei: 1.6 }); // red counter
+
+  // === barrel + chunky perforated muzzle brake (gold-accented) + brass collar ===
+  g.add(at(tube(0.014, 0.014, 0.34, steel), 0, 0.022, -0.46));
+  g.add(at(tube(0.02, 0.02, 0.03, gold, 14), 0, 0.022, -0.4));        // brass barrel collar
+  g.add(at(box(0.046, 0.05, 0.1, bodyDk), 0, 0.022, -0.64));          // muzzle-brake block
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++)
+    g.add(at(tube(0.008, 0.008, 0.05, dark, 10), sx * 0.022, 0.022, -0.62 + i * 0.026, 0, Math.PI / 2)); // drilled holes
+  g.add(at(tube(0.015, 0.015, 0.018, dark, 12), 0, 0.022, -0.69));    // bore
+  g.add(at(box(0.05, 0.012, 0.1, gold), 0, 0.05, -0.64));             // gold top strap on brake
+
+  // === hooded RING front sight on a folding base ===
+  g.add(at(box(0.022, 0.03, 0.024, bodyDk), 0, 0.05, -0.44));         // front sight base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.0035, 8, 18), bodyDk), 0, 0.078, -0.44)); // ring hood
+  g.add(at(box(0.005, 0.02, 0.008, dark), 0, 0.072, -0.44));          // front post
+
+  // === slotted handguard with side rail + small accent holes ===
+  g.add(at(box(0.056, 0.062, 0.2, body), 0, 0.018, -0.3));
+  g.add(at(box(0.05, 0.018, 0.18, bodyHi), 0, 0.052, -0.3));          // top rail
+  for (let i = 0; i < 7; i++) g.add(at(box(0.052, 0.006, 0.008, dark), 0, 0.062, -0.38 + i * 0.024)); // rail teeth
+  for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) g.add(at(tube(0.006, 0.006, 0.01, dark, 10), sx * 0.029, 0.018, -0.37 + i * 0.045, 0, Math.PI / 2)); // side accent holes
+
+  // === boxy faceted receiver + top rail ===
+  g.add(at(box(0.06, 0.084, 0.26, body), 0, 0.016, -0.08));
+  g.add(at(box(0.052, 0.024, 0.24, bodyHi), 0, 0.064, -0.08));        // raised top deck
+  for (let i = 0; i < 8; i++) g.add(at(box(0.054, 0.006, 0.008, dark), 0, 0.08, -0.18 + i * 0.026)); // rail teeth
+  g.add(at(box(0.012, 0.024, 0.05, gold), -0.038, 0.03, -0.14));      // gold charging handle (left)
+  g.add(at(box(0.05, 0.04, 0.06, bodyDk), 0.036, 0.0, -0.02));        // right feed cover block
+
+  // === hooded RING rear flip sight (gold-accented) ===
+  g.add(at(box(0.026, 0.03, 0.024, bodyDk), 0, 0.082, 0.04));         // rear base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0035, 8, 18), gold), 0, 0.108, 0.04)); // gold ring aperture
+
+  // === left-side belt of BLUE-tipped cartridges + red round-counter display ===
+  g.add(at(box(0.05, 0.05, 0.06, bodyDk), -0.03, -0.02, -0.05));      // feed throat (left)
+  for (let i = 0; i < 6; i++) {
+    const t = i / 5;
+    g.add(at(box(0.014, 0.022, 0.012, brass), -0.046, -0.06 + t * 0.07, -0.03 - t * 0.0)); // brass cartridge
+    g.add(at(box(0.006, 0.008, 0.012, blue), -0.056, -0.06 + t * 0.07, -0.03));            // blue tip
+  }
+  g.add(at(box(0.018, 0.022, 0.012, dark), -0.044, -0.1, 0.02));      // counter housing
+  g.add(at(box(0.014, 0.014, 0.006, redLed), -0.05, -0.1, 0.02));     // red "100" LED face
+
+  // === square ammo box hanging below ===
+  g.add(at(box(0.05, 0.03, 0.058, bodyDk), 0, -0.05, -0.04));         // mag well
+  g.add(at(box(0.064, 0.11, 0.08, boxMat), 0, -0.12, -0.04));         // square ammo box
+  g.add(at(box(0.066, 0.012, 0.04, dark), 0, -0.072, -0.04));         // box top latch
+  for (const sx of [-1, 1]) g.add(at(box(0.004, 0.09, 0.06, dark), sx * 0.033, -0.12, -0.04)); // box edge seams
+  g.add(at(box(0.05, 0.018, 0.014, gold), 0, -0.1, -0.001));          // small gold latch tab
+
+  // === pistol grip + trigger guard ===
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.28));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.106, 0.086, 0.28));  // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bodyDk);
+  g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));
+
+  // === skeletonised collapsing stock (rear ~z 0.22, NO bipod) ===
+  g.add(at(box(0.056, 0.072, 0.06, body), 0, 0.016, 0.06));           // stock socket
+  g.add(at(box(0.05, 0.04, 0.12, bodyDk), 0, 0.046, 0.15));           // top strut
+  g.add(at(box(0.05, 0.03, 0.1, bodyDk), 0, -0.03, 0.14));            // bottom strut
+  g.add(at(box(0.026, 0.092, 0.024, body), 0, 0.01, 0.205));          // vertical butt frame
+  g.add(at(box(0.04, 0.1, 0.03, dark), 0, 0.01, 0.218));             // butt pad
+
+  return { group: g, muzzle: -0.71 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2193,6 +2277,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'RPD') return rpd();
   if (weapon.data.name === 'HAMR') return hamr();
   if (weapon.data.name === 'STONER 63') return stoner63();
+  if (weapon.data.name === 'LSAT') return lsat();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
