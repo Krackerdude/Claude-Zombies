@@ -1395,6 +1395,62 @@ function kuda() {
   return { group: g, muzzle: -0.38 };
 }
 
+// --- PPSh-41 — WW2 Soviet SMG. Perforated steel barrel shroud with oval cooling
+//     slots + an angled compensator, a hooded front sight, blued receiver with a
+//     rear sight + bolt handle, the iconic 71-round drum magazine, and a
+//     one-piece reddish wooden stock. Shared materials. ---
+function ppsh() {
+  const g = new THREE.Group();
+  const wood = gunWood(0x6a3526);                                  // reddish PPSh wood
+  const woodDk = gunWood(0x4e2718);
+  const steel = gunMetal(0x3c4045, { metal: 0.65, rough: 0.4 });   // blued steel
+  const steelDk = gunMetal(0x2a2d31, { metal: 0.6, rough: 0.45 });
+  const dark = gunDark(0x121316);                                  // bores / slot insets
+  const drumMat = gunMetal(0x44484e, { metal: 0.6, rough: 0.42 }); // drum
+
+  // === perforated barrel shroud + oval cooling slots ===
+  g.add(at(box(0.05, 0.055, 0.34, steel), 0, 0.045, -0.24));
+  for (let i = 0; i < 6; i++) g.add(at(box(0.052, 0.024, 0.03, dark), 0, 0.06, -0.38 + i * 0.05));        // top slots
+  for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) g.add(at(box(0.004, 0.02, 0.026, dark), sx * 0.026, 0.045, -0.37 + i * 0.05)); // side slots
+  g.add(at(box(0.054, 0.062, 0.05, steelDk), 0, 0.05, -0.42, 0.28)); // angled compensator
+  g.add(at(tube(0.012, 0.012, 0.06, dark), 0, 0.045, -0.44));        // bore
+  g.add(at(tube(0.011, 0.011, 0.3, steelDk), 0, 0.045, -0.26));      // barrel
+
+  // === hooded front sight ===
+  g.add(at(box(0.016, 0.012, 0.016, steelDk), 0, 0.078, -0.4));
+  const fhood = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.003, 8, 12), steelDk);
+  g.add(at(fhood, 0, 0.092, -0.4));
+  g.add(at(box(0.003, 0.014, 0.004, dark), 0, 0.09, -0.4));
+
+  // === receiver + rear sight + bolt handle ===
+  g.add(at(box(0.052, 0.06, 0.12, steel), 0, 0.04, -0.04));
+  g.add(at(box(0.05, 0.014, 0.1, steelDk), 0, 0.072, -0.04));        // bolt-cover hump
+  g.add(at(box(0.05, 0.022, 0.04, steelDk), 0, 0.072, -0.02));       // rear sight base
+  g.add(at(box(0.03, 0.016, 0.012, dark), 0, 0.086, -0.02));         // rear leaf
+  g.add(at(box(0.014, 0.012, 0.03, steelDk), 0.03, 0.05, -0.01));    // bolt handle (right)
+
+  // === 71-round drum magazine (round face to the side) ===
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.048, 30), drumMat);
+  g.add(at(drum, 0, -0.075, -0.13, 0, 0, Math.PI / 2));
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.054, 16), steelDk);
+  g.add(at(hub, 0, -0.075, -0.13, 0, 0, Math.PI / 2));
+  const ringD = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.005, 8, 28), steelDk);
+  g.add(at(ringD, -0.026, -0.075, -0.13, 0, Math.PI / 2));           // ring on the visible face
+
+  // === one-piece reddish wooden stock ===
+  g.add(at(box(0.046, 0.05, 0.16, wood), 0, -0.008, 0.07));          // wrist
+  g.add(at(box(0.05, 0.09, 0.14, wood), 0, -0.018, 0.18));           // buttstock
+  g.add(at(box(0.052, 0.1, 0.018, woodDk), 0, -0.018, 0.25));        // butt plate
+  g.add(at(box(0.044, 0.045, 0.09, wood), 0, -0.04, 0.03, 0.18));    // wrist underside
+
+  // === trigger guard + trigger ===
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), steelDk);
+  g.add(at(guard, 0, -0.022, -0.0, 0, Math.PI / 2));
+  g.add(at(box(0.009, 0.022, 0.008, dark), 0, -0.018, -0.0));
+
+  return { group: g, muzzle: -0.45 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1413,6 +1469,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'MP5') return mp5();
   if (weapon.data.name === 'UZI') return uzi();
   if (weapon.data.name === 'KUDA') return kuda();
+  if (weapon.data.name === 'PPSH-41') return ppsh();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
