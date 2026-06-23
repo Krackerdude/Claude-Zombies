@@ -1275,6 +1275,63 @@ function mp5() {
   return { group: g, muzzle: -0.48 };
 }
 
+// --- UZI — the iconic compact SMG. Boxy stamped sheet-metal receiver (no tube)
+//     with horizontal reinforcement ribs, a top charging knob, a ribbed top
+//     handguard, a short barrel with a knurled nut + eared front sight, the
+//     centre grip with the magazine feeding straight THROUGH it, and no stock. ---
+function uzi() {
+  const g = new THREE.Group();
+  const black = gunMetal(0x2c2f35, { metal: 0.55, rough: 0.42 });   // stamped receiver
+  const blackHi = gunMetal(0x3e4248, { metal: 0.55, rough: 0.36 }); // edges / top
+  const dark = gunDark(0x141619);                                   // grooves / bores
+  const grip = gunGrip(0x222428);                                   // checkered grip
+  const wood = gunMetal(0x5a5a4e, { metal: 0.3, rough: 0.6 });      // olive ribbed handguard
+  const steel = gunMetal(0x6a6e74, { metal: 0.7, rough: 0.3 });     // barrel / knurled nut
+  const red = mat(0xb01818, { metal: 0.2, rough: 0.5 });            // selector marking
+
+  // === boxy stamped receiver (square body, NO tube) + side ribs ===
+  g.add(at(box(0.06, 0.076, 0.26, black), 0, 0.015, -0.05));
+  for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) g.add(at(box(0.004, 0.005, 0.24, dark), sx * 0.031, -0.012 + i * 0.018, -0.05));
+  g.add(at(box(0.04, 0.012, 0.26, blackHi), 0, 0.056, -0.05));      // top deck
+  g.add(at(box(0.03, 0.018, 0.05, dark), 0, 0.063, 0.0));           // charging-handle housing
+  g.add(at(tube(0.012, 0.012, 0.02, steel), 0, 0.076, 0.0));        // top cocking knob
+
+  // === ribbed top handguard (front) ===
+  g.add(at(box(0.05, 0.042, 0.1, wood), 0, 0.038, -0.16));
+  for (let i = 0; i < 5; i++) g.add(at(box(0.052, 0.004, 0.012, dark), 0, 0.058, -0.2 + i * 0.022));
+
+  // === short barrel + knurled nut + eared front sight ===
+  g.add(at(tube(0.022, 0.022, 0.045, steel, 16), 0, 0.02, -0.21));  // knurled barrel nut
+  for (let i = 0; i < 4; i++) g.add(at(tube(0.024, 0.024, 0.004, dark, 16), 0, 0.02, -0.195 - i * 0.012));
+  g.add(at(tube(0.011, 0.011, 0.1, steel), 0, 0.02, -0.28));        // barrel
+  g.add(at(tube(0.016, 0.016, 0.02, dark), 0, 0.02, -0.32));        // muzzle
+  g.add(at(box(0.004, 0.022, 0.006, dark), 0, 0.05, -0.25));        // front post
+  for (const sx of [-1, 1]) g.add(at(box(0.004, 0.024, 0.006, dark), sx * 0.013, 0.05, -0.25)); // ears
+
+  // === rear flip sight ===
+  g.add(at(box(0.024, 0.018, 0.02, dark), 0, 0.062, 0.05));
+  g.add(at(box(0.018, 0.014, 0.006, blackHi), 0, 0.07, 0.05));
+
+  // === CENTRE grip with the magazine feeding THROUGH it ===
+  g.add(at(box(0.045, 0.13, 0.05, grip), 0, -0.085, -0.02));
+  for (let i = 0; i < 5; i++) g.add(at(box(0.047, 0.004, 0.046, dark), 0, -0.05 - i * 0.018, -0.02)); // checkering
+  g.add(at(box(0.038, 0.13, 0.044, black), 0, -0.21, -0.02));       // magazine
+  g.add(at(box(0.04, 0.016, 0.046, dark), 0, -0.275, -0.02));       // floorplate
+  for (let i = 0; i < 4; i++) g.add(at(box(0.041, 0.004, 0.04, dark), 0, -0.17 - i * 0.022, -0.02)); // mag ribs
+
+  // === trigger guard + trigger + selector ===
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 8, 16), black);
+  g.add(at(guard, 0, -0.038, -0.08, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.032, -0.08));
+  g.add(at(box(0.012, 0.012, 0.012, red), 0.031, 0.012, 0.02));     // selector marking
+
+  // === rear end cap (NO stock) ===
+  g.add(at(box(0.062, 0.078, 0.02, blackHi), 0, 0.015, 0.085));
+  g.add(at(box(0.026, 0.026, 0.014, dark), 0, 0.0, 0.095));         // sling loop
+
+  return { group: g, muzzle: -0.33 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1291,6 +1348,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'EXECUTIONER') return executioner();
   if (weapon.data.name === 'CODA 9') return coda9();
   if (weapon.data.name === 'MP5') return mp5();
+  if (weapon.data.name === 'UZI') return uzi();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
