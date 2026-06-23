@@ -125,6 +125,13 @@ const defs = {
   svg300: { Class: WeaponBase, category: C.SNIPER, name: 'SVG-300', damage: 2500, headshotMultiplier: 3.0,
     scoped: true, fireRate: 50, magazineSize: 3, ammoStockSize: 24, reloadTime: 3.6, recoilPitch: 0.06,
     cost: 0, boxOnly: true, viewmodel: { length: 0.9, color: 0xb8bcc2, accent: 0xff2a1e } },
+  // SWISS K31 (Schmidt-Rubin): scopeless straight-pull bolt rifle. Ballista-like
+  // (iron sights, 5x head) but a MASSIVE damage jump. Slow bolt fire rate, only
+  // 6 rounds, and a long reload from the bolt action.
+  k31: { Class: WeaponBase, category: C.SNIPER, name: 'SWISS K31', fireMode: 'semi',
+    damage: 450, headshotMultiplier: 5.0, scoped: false, fireRate: 45, magazineSize: 6,
+    ammoStockSize: 48, reloadTime: 4.0, recoilPitch: 0.06, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.86, color: 0x9a5a28, accent: 0x2a2e34 } },
   // BALLISTA (BO2): the only SCOPELESS sniper — runs hooded iron sights. Plays
   // more like the FAL: semi-auto, high-ish body damage with a huge 5x headshot.
   ballista: { Class: WeaponBase, category: C.SNIPER, name: 'BALLISTA', fireMode: 'semi',

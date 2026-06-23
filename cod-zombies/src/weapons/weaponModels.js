@@ -2505,6 +2505,71 @@ function svg300() {
   return { group: g, muzzle: -0.86 };
 }
 
+// --- SWISS K31 (Schmidt-Rubin) — classic full-wood straight-pull bolt rifle.
+//     Long blued barrel with a brass-tipped muzzle + hooded front blade, a
+//     tangent rear sight, a near-full-length walnut stock with steel barrel
+//     bands, the signature bright STRAIGHT-PULL bolt with the RING pull loop on
+//     the right, a trigger guard and a wooden buttstock. Iron sights only. ---
+function k31() {
+  const g = new THREE.Group();
+  const wood = gunWood(0x9a5a28);                                   // warm walnut
+  const woodDk = gunWood(0x6e3c18);
+  const blued = gunMetal(0x2a2e34, { metal: 0.66, rough: 0.34 });   // blued steel
+  const bluedDk = gunDark(0x16191d);
+  const barrelMat = gunDark(0x1a1d22);                              // barrel
+  const brightSteel = gunMetal(0x9498a0, { metal: 0.86, rough: 0.2 }); // white bolt steel
+  const brass = gunMetal(0xb08a3c, { metal: 0.82, rough: 0.34 });   // muzzle/front tip
+  const dark = gunDark(0x0c0d10);
+
+  // === long blued barrel + brass-tipped muzzle + hooded front blade ===
+  g.add(at(tube(0.012, 0.012, 0.62, barrelMat), 0, 0.03, -0.46));
+  g.add(at(tube(0.016, 0.016, 0.04, brass, 14), 0, 0.03, -0.78));    // brass muzzle collar
+  g.add(at(tube(0.011, 0.011, 0.018, dark, 12), 0, 0.03, -0.81));    // bore
+  g.add(at(box(0.022, 0.026, 0.03, bluedDk), 0, 0.05, -0.74));       // front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.032, 0.012, bluedDk), sx * 0.011, 0.078, -0.74)); // protective ears
+  g.add(at(box(0.005, 0.02, 0.01, dark), 0, 0.07, -0.74));           // front blade
+
+  // === near-full-length walnut forend (under the barrel) + barrel bands ===
+  g.add(at(box(0.044, 0.05, 0.56, wood), 0, 0.0, -0.42));            // forend
+  g.add(at(box(0.03, 0.022, 0.5, woodDk), 0, 0.03, -0.42));          // upper handguard wood strip
+  for (const bz of [-0.36, -0.6]) {                                  // steel barrel bands
+    g.add(at(tube(0.026, 0.026, 0.022, bluedDk, 14), 0, 0.012, bz));
+    g.add(at(box(0.05, 0.012, 0.024, bluedDk), 0, -0.02, bz));       // band lower lug
+  }
+  g.add(at(box(0.012, 0.016, 0.02, bluedDk), 0, -0.044, -0.58));     // forward sling swivel
+
+  // === tangent rear sight on the barrel ahead of the receiver ===
+  g.add(at(box(0.03, 0.02, 0.05, bluedDk), 0, 0.05, -0.2));          // rear sight base
+  g.add(at(box(0.026, 0.026, 0.012, bluedDk), 0, 0.07, -0.18));      // tangent leaf
+  g.add(at(box(0.012, 0.008, 0.008, dark), 0, 0.082, -0.18));        // rear notch
+
+  // === blued receiver ===
+  g.add(at(box(0.046, 0.058, 0.22, blued), 0, 0.018, -0.06));
+  g.add(at(box(0.04, 0.02, 0.2, bluedDk), 0, 0.05, -0.06));          // receiver top flat
+  g.add(at(box(0.05, 0.05, 0.07, blued), 0, -0.02, -0.1));           // magazine housing (flush 6-rd box)
+  g.add(at(box(0.046, 0.024, 0.06, bluedDk), 0, -0.05, -0.1));       // magazine floor
+
+  // === signature STRAIGHT-PULL bolt with the RING pull loop (right side) ===
+  g.add(at(tube(0.013, 0.013, 0.2, brightSteel), 0.012, 0.046, -0.02)); // bolt body (bright)
+  g.add(at(box(0.02, 0.03, 0.05, brightSteel), 0.012, 0.046, 0.06));    // bolt sleeve / cocking piece
+  g.add(at(box(0.016, 0.022, 0.04, brightSteel), 0.03, 0.03, 0.05, 0, 0, 0.3)); // bolt handle arm (out right)
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.005, 8, 18), brightSteel), 0.046, 0.018, 0.07, Math.PI / 2)); // RING pull loop (vertical)
+
+  // === trigger guard + trigger ===
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), bluedDk);
+  g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.026, 0.0));          // trigger
+
+  // === wooden buttstock with butt plate (rear ~z 0.22) ===
+  g.add(at(box(0.04, 0.066, 0.1, wood), 0, -0.01, 0.08));            // wrist/comb neck
+  g.add(at(box(0.046, 0.11, 0.12, wood), 0, -0.024, 0.17));          // butt body
+  g.add(at(box(0.044, 0.03, 0.07, woodDk), 0, 0.044, 0.11));         // raised comb
+  g.add(at(box(0.048, 0.12, 0.018, bluedDk), 0, -0.03, 0.225));      // steel butt plate
+  g.add(at(box(0.012, 0.016, 0.02, bluedDk), 0, -0.084, 0.12));      // rear sling swivel
+
+  return { group: g, muzzle: -0.82 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2541,6 +2606,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'BALLISTA') return ballista();
   if (weapon.data.name === 'DRAKON') return drakon();
   if (weapon.data.name === 'SVG-300') return svg300();
+  if (weapon.data.name === 'SWISS K31') return k31();
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
