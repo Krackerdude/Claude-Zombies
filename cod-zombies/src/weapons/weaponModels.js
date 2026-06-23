@@ -2419,6 +2419,92 @@ function drakon() {
   return { group: g, muzzle: -0.85 };
 }
 
+// --- SVG-300 (AW) — the 2035 power sniper / coil rifle. Polished CHROME barrel
+//     assembly with glowing RED energy grooves, a chunky faceted muzzle with
+//     rectangular vents, a long slab shroud, a beefy futuristic scope on top, a
+//     skeletonised gunmetal frame (lightening holes + triangular bracing), a
+//     magazine block underneath, a holed pistol grip with a red trigger, and a
+//     skeleton stock. DSR-sized but heavier. ---
+function svg300() {
+  const g = new THREE.Group();
+  const chrome = gunMetal(0xb8bcc2, { metal: 0.92, rough: 0.18 });  // polished silver
+  const chromeDk = gunMetal(0x7c8086, { metal: 0.86, rough: 0.26 });
+  const body = gunMetal(0x2c3037, { metal: 0.64, rough: 0.38 });    // gunmetal frame
+  const bodyDk = gunDark(0x16181c);                                 // shadow / skeleton
+  const scopeBody = gunDark(0x121419);
+  const scopeMetal = gunMetal(0x2a2e35);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x0a0e12, metalness: 0.2, roughness: 0.14 });
+  const grip = gunGrip(0x24272c);
+  const dark = gunDark(0x0c0d10);
+  const red = mat(0xff2a1e, { metal: 0.2, rough: 0.4, emissive: 0xff2a1e, ei: 1.8 }); // energy grooves
+  const cyl = (r1, r2, len, m, seg = 14) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m); // axis = y
+
+  // === chunky faceted (octagonal) muzzle block with rectangular vents ===
+  g.add(at(tube(0.038, 0.038, 0.12, chrome, 8), 0, 0.022, -0.78));    // octagonal muzzle
+  g.add(at(tube(0.04, 0.04, 0.014, chromeDk, 8), 0, 0.022, -0.84));   // front cap
+  g.add(at(tube(0.016, 0.016, 0.02, dark, 12), 0, 0.022, -0.85));     // bore
+  for (const sx of [-1, 1]) g.add(at(box(0.012, 0.022, 0.04, dark), sx * 0.026, 0.022, -0.76)); // rectangular vents
+
+  // === long polished slab barrel shroud + red energy grooves ===
+  g.add(at(box(0.05, 0.064, 0.5, chrome), 0, 0.022, -0.48));
+  g.add(at(box(0.054, 0.016, 0.5, chromeDk), 0, 0.058, -0.48));       // top facet strip
+  g.add(at(box(0.03, 0.07, 0.5, chromeDk), 0, 0.0, -0.48));           // lower facet
+  // rows of glowing red energy dashes along the top and sides
+  for (let i = 0; i < 6; i++) {
+    g.add(at(box(0.026, 0.005, 0.05, red), 0, 0.067, -0.66 + i * 0.07));        // top dash
+    for (const sx of [-1, 1]) g.add(at(box(0.004, 0.018, 0.05, red), sx * 0.026, 0.03, -0.66 + i * 0.07)); // side dash
+  }
+  // rectangular window cutouts near the front
+  for (const sx of [-1, 1]) for (let i = 0; i < 2; i++) g.add(at(box(0.006, 0.026, 0.06, dark), sx * 0.026, 0.02, -0.64 + i * 0.1));
+
+  // === skeletonised gunmetal frame (mid-body) ===
+  g.add(at(box(0.052, 0.09, 0.28, body), 0, 0.006, -0.06));          // receiver core
+  g.add(at(box(0.048, 0.026, 0.26, chromeDk), 0, 0.058, -0.06));      // scope-rail deck
+  g.add(at(box(0.054, 0.01, 0.16, red), 0, 0.072, -0.04));           // red rail accent line
+  // lightening holes + triangular bracing down the sides
+  for (const sx of [-1, 1]) {
+    for (let i = 0; i < 4; i++) g.add(at(tube(0.008, 0.008, 0.054, dark, 10), sx * 0.026, -0.02, -0.16 + i * 0.05, 0, 0, Math.PI / 2)); // holes
+    g.add(at(box(0.004, 0.06, 0.012, body), sx * 0.027, -0.01, 0.04, 0, 0, 0.5)); // diagonal brace
+    g.add(at(box(0.004, 0.06, 0.012, body), sx * 0.027, -0.01, -0.16, 0, 0, -0.5));
+  }
+  g.add(at(box(0.014, 0.024, 0.05, chromeDk), 0.03, 0.03, -0.12));    // right charging block
+
+  // === beefy futuristic scope on top ===
+  g.add(at(box(0.05, 0.034, 0.024, scopeMetal), 0, 0.09, -0.18));     // front mount
+  g.add(at(box(0.05, 0.034, 0.024, scopeMetal), 0, 0.09, 0.02));      // rear mount
+  g.add(at(box(0.05, 0.05, 0.24, scopeBody), 0, 0.122, -0.08));       // boxy scope housing
+  g.add(at(tube(0.03, 0.034, 0.06, scopeBody, 16), 0, 0.122, -0.21));// objective bell
+  g.add(at(tube(0.03, 0.03, 0.008, glass), 0, 0.122, -0.242));        // objective lens
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.005, 8, 24), red), 0, 0.122, -0.239)); // red objective ring
+  g.add(at(box(0.03, 0.02, 0.06, scopeMetal), 0, 0.15, -0.02));       // top control pod
+  g.add(at(box(0.012, 0.012, 0.008, red), 0, 0.158, -0.02));          // red indicator
+  g.add(at(tube(0.026, 0.026, 0.006, glass), 0, 0.122, 0.045));       // ocular lens
+
+  // === magazine block underneath ===
+  g.add(at(box(0.05, 0.05, 0.06, bodyDk), 0, -0.06, -0.1));           // mag well
+  g.add(at(box(0.046, 0.1, 0.058, body), 0, -0.13, -0.1));            // mag body (short, big rounds)
+  g.add(at(box(0.048, 0.018, 0.06, dark), 0, -0.186, -0.1));          // floorplate
+  g.add(at(box(0.05, 0.01, 0.04, red), 0, -0.09, -0.07));             // red mag accent
+
+  // === holed pistol grip + red trigger ===
+  g.add(at(box(0.044, 0.11, 0.05, grip), 0, -0.055, 0.06, 0.26));
+  for (let i = 0; i < 3; i++) g.add(at(tube(0.007, 0.007, 0.052, dark, 8), 0, -0.05 - i * 0.025, 0.066 + i * 0.006, 0, 0, Math.PI / 2)); // grip holes
+  g.add(at(box(0.046, 0.016, 0.052, dark), 0, -0.112, 0.078, 0.26)); // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.005, 8, 16), body);
+  g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, red), 0, -0.026, 0.0));            // red trigger
+
+  // === skeleton stock (triangular cutouts, rear ~z 0.22) ===
+  g.add(at(box(0.05, 0.084, 0.06, body), 0, 0.006, 0.06));           // stock socket
+  g.add(at(box(0.044, 0.022, 0.16, chromeDk), 0, 0.05, 0.16));        // top bar
+  g.add(at(box(0.038, 0.02, 0.14, body), 0, -0.04, 0.16));           // bottom bar (skeleton gap)
+  for (const sx of [-1, 1]) g.add(at(box(0.004, 0.07, 0.012, body), sx * 0.02, 0.004, 0.14, 0, 0, 0.5)); // diagonal braces
+  g.add(at(box(0.03, 0.11, 0.024, body), 0, 0.006, 0.205));          // rear vertical frame
+  g.add(at(box(0.048, 0.12, 0.022, dark), 0, 0.002, 0.218));         // butt pad
+
+  return { group: g, muzzle: -0.86 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2454,6 +2540,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'OLYMPIA') return olympia();
   if (weapon.data.name === 'BALLISTA') return ballista();
   if (weapon.data.name === 'DRAKON') return drakon();
+  if (weapon.data.name === 'SVG-300') return svg300();
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
