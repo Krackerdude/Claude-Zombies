@@ -2331,6 +2331,94 @@ function ballista() {
   return { group: g, muzzle: -0.78 };
 }
 
+// --- DRAKON (BO3) — ornate scoped semi-auto marksman rifle. A long slotted
+//     STEEL barrel shroud (oval lightening cuts) over rich walnut furniture with
+//     gold scroll accents, a knurled muzzle brake, a big scope on top, an
+//     angular gunmetal receiver, a SIDE-mounted (left) box magazine, and a
+//     thumbhole wood stock with an engraved gold side plate. DSR-sized. ---
+function drakon() {
+  const g = new THREE.Group();
+  const steel = gunMetal(0x42474e, { metal: 0.78, rough: 0.24 });   // bright shroud steel
+  const steelDk = gunMetal(0x2a2e34, { metal: 0.7, rough: 0.34 });
+  const barrelMat = gunDark(0x141519);                              // near-black barrel
+  const wood = gunWood(0x6e4424);                                   // walnut furniture
+  const woodDk = gunWood(0x4c2e16);
+  const gold = gunMetal(0xb8923c, { metal: 0.88, rough: 0.32 });    // brass/gold accents
+  const goldEngrave = engravedSteel(0xb8923c);                      // ornate engraved plate
+  const bodyMat = gunMetal(0x2e333b, { metal: 0.64, rough: 0.36 }); // gunmetal receiver
+  const olive = gunMetal(0x5e6038, { metal: 0.4, rough: 0.52 });    // olive side magazine
+  const scopeBody = gunDark(0x0e0f12);
+  const scopeMetal = gunMetal(0x2a2e35);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x0a0e12, metalness: 0.2, roughness: 0.14 });
+  const grip = gunWood(0x66401f);
+  const dark = gunDark(0x0c0d10);
+  const red = scopeGlow(0xff2a1e);
+  const cyl = (r1, r2, len, m, seg = 14) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m); // axis = y
+
+  // === barrel + knurled muzzle brake (bright bore) ===
+  g.add(at(tube(0.015, 0.015, 0.42, barrelMat), 0, 0.01, -0.56));
+  g.add(at(tube(0.026, 0.026, 0.08, steelDk, 16), 0, 0.01, -0.79));   // brake body
+  for (const sz of [-0.77, -0.8, -0.83]) g.add(at(tube(0.028, 0.028, 0.006, dark, 14), 0, 0.01, sz)); // knurl rings
+  g.add(at(tube(0.022, 0.022, 0.014, gold, 14), 0, 0.01, -0.84));     // gold front collar
+  g.add(at(tube(0.013, 0.013, 0.018, dark, 12), 0, 0.01, -0.85));     // bright bore
+
+  // === long slotted STEEL barrel shroud (oval lightening cuts) ===
+  g.add(at(box(0.046, 0.05, 0.42, steel), 0, 0.04, -0.52));
+  g.add(at(box(0.05, 0.014, 0.42, steelDk), 0, 0.066, -0.52));        // top strap
+  for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) g.add(at(box(0.005, 0.026, 0.05, dark), sx * 0.024, 0.04, -0.66 + i * 0.07)); // side ovals
+  for (let i = 0; i < 5; i++) g.add(at(box(0.022, 0.005, 0.05, dark), 0, 0.066, -0.66 + i * 0.07)); // top ovals
+
+  // === rich walnut forend below the shroud (with a long groove) ===
+  g.add(at(box(0.052, 0.05, 0.36, wood), 0, -0.012, -0.48));
+  g.add(at(box(0.054, 0.012, 0.28, woodDk), 0, -0.034, -0.46));       // bottom groove inlay
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.02, 0.24, woodDk), sx * 0.027, -0.01, -0.46)); // side grooves
+  g.add(at(tube(0.012, 0.012, 0.04, gold, 12), 0, -0.012, -0.3, 0, Math.PI / 2)); // gold barrel-band stud
+
+  // === angular gunmetal receiver + gold accents + panel rivets ===
+  g.add(at(box(0.058, 0.082, 0.26, bodyMat), 0, 0.012, -0.12));
+  g.add(at(box(0.05, 0.024, 0.24, steelDk), 0, 0.058, -0.12));        // raised top deck (scope rail base)
+  g.add(at(box(0.05, 0.014, 0.06, gold), 0, 0.066, -0.02));           // gold rail accent
+  for (let i = 0; i < 4; i++) g.add(at(tube(0.004, 0.004, 0.062, dark, 6), 0, 0.0, -0.18 + i * 0.06, 0, 0, Math.PI / 2)); // panel rivets
+  g.add(at(box(0.014, 0.024, 0.05, steelDk), 0.034, 0.024, -0.06));   // right charging handle
+  g.add(at(box(0.018, 0.03, 0.026, gold), 0, -0.008, 0.02, 0, 0, 0.2)); // brass action accent
+
+  // === big scope on top (red illumination) ===
+  g.add(at(box(0.04, 0.03, 0.022, scopeMetal), 0, 0.088, -0.22));     // front mount ring
+  g.add(at(box(0.04, 0.03, 0.022, scopeMetal), 0, 0.088, -0.02));     // rear mount ring
+  g.add(at(tube(0.026, 0.026, 0.26, scopeBody), 0, 0.11, -0.12));     // main tube
+  g.add(at(tube(0.036, 0.028, 0.07, scopeBody), 0, 0.11, -0.27));     // objective bell
+  g.add(at(tube(0.034, 0.034, 0.008, glass), 0, 0.11, -0.305));       // objective lens
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.005, 8, 24), red), 0, 0.11, -0.302)); // red objective ring
+  g.add(at(tube(0.03, 0.028, 0.045, scopeMetal), 0, 0.11, 0.0));      // knurled magnification ring
+  g.add(at(tube(0.028, 0.028, 0.006, glass), 0, 0.11, 0.04));         // ocular lens
+  g.add(at(cyl(0.016, 0.016, 0.03, scopeMetal), 0, 0.142, -0.11));    // elevation turret
+  g.add(at(cyl(0.0175, 0.0175, 0.006, red, 14), 0, 0.133, -0.11));    // turret red index band
+
+  // === SIDE-mounted (left) box magazine — projects out the left, raked down ===
+  g.add(at(box(0.03, 0.05, 0.06, steelDk), -0.034, -0.03, -0.06));    // side mag well
+  g.add(at(box(0.11, 0.06, 0.052, olive), -0.1, -0.05, -0.06, 0, 0, 0.34)); // mag body (out to the left)
+  g.add(at(box(0.018, 0.062, 0.054, dark), -0.158, -0.07, -0.06, 0, 0, 0.34)); // mag end cap
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.004, 8, 16), gold), -0.1, -0.05, -0.032, 0, 0, 0.34)); // gold emblem ring
+  for (let i = 0; i < 3; i++) g.add(at(box(0.02, 0.005, 0.05, woodDk), -0.07 - i * 0.028, -0.04 - i * 0.01, -0.06, 0, 0, 0.34)); // mag ribs
+
+  // === thumbhole walnut stock with engraved gold side plate (rear ~z 0.22) ===
+  g.add(at(box(0.046, 0.07, 0.08, wood), 0, 0.008, 0.04));            // wrist
+  g.add(at(box(0.044, 0.022, 0.16, wood), 0, 0.052, 0.16));           // top comb bar
+  g.add(at(box(0.042, 0.07, 0.05, grip), 0, -0.06, 0.08, 0.2));       // thumbhole grip column
+  g.add(at(box(0.04, 0.03, 0.05, dark), 0, -0.02, 0.115));            // thumbhole inner shadow (the hole)
+  g.add(at(box(0.05, 0.11, 0.1, wood), 0, -0.004, 0.18));             // butt body
+  g.add(at(box(0.004, 0.08, 0.07, goldEngrave), 0.026, 0.0, 0.18));   // engraved gold side plate (right)
+  g.add(at(box(0.004, 0.08, 0.07, goldEngrave), -0.026, 0.0, 0.18));  // engraved gold side plate (left)
+  g.add(at(box(0.052, 0.118, 0.02, dark), 0, -0.01, 0.225));          // recoil pad
+
+  // === trigger guard + trigger ===
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bodyMat);
+  g.add(at(guard, 0, -0.04, -0.04, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.035, -0.04));         // trigger
+
+  return { group: g, muzzle: -0.85 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2365,6 +2453,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
   if (weapon.data.name === 'BALLISTA') return ballista();
+  if (weapon.data.name === 'DRAKON') return drakon();
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();

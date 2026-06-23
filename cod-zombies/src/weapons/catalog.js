@@ -126,6 +126,13 @@ const defs = {
     damage: 95, headshotMultiplier: 5.0, scoped: false, fireRate: 330, magazineSize: 8,
     ammoStockSize: 56, reloadTime: 3.0, recoilPitch: 0.045, cost: 0, boxOnly: true,
     viewmodel: { length: 0.78, color: 0x8f8054, accent: 0x1c1e22 } },
+  // DRAKON (BO3): scoped semi-auto marksman sniper. Slightly more body damage
+  // than the Ballista, 3x head, and fires as fast as you can click (high RPM cap
+  // so the trigger isn't the bottleneck). DSR-sized, side-mounted magazine.
+  drakon: { Class: WeaponBase, category: C.SNIPER, name: 'DRAKON', fireMode: 'semi',
+    damage: 120, headshotMultiplier: 3.0, scoped: true, fireRate: 600, magazineSize: 10,
+    ammoStockSize: 60, reloadTime: 3.2, recoilPitch: 0.04, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.86, color: 0x3a3f46, accent: 0x6e4424 } },
   hk21: { Class: WeaponBase, category: C.HMG, name: 'HK21', damage: 140, fireRate: 700, magazineSize: 125, cost: 1500 },
   rpg: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'M72 LAW', splashDamage: 1400, splashRadius: 5, cost: 2000, boxOnly: true },
   deathMachine: { Class: WeaponBase, category: C.SPECIAL, name: 'DEATH MACHINE', damage: 160, fireRate: 1000, magazineSize: 300, cost: 0, boxOnly: true },
