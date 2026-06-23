@@ -1429,13 +1429,13 @@ function ppsh() {
   g.add(at(box(0.03, 0.016, 0.012, dark), 0, 0.086, -0.02));         // rear leaf
   g.add(at(box(0.014, 0.012, 0.03, steelDk), 0.03, 0.05, -0.01));    // bolt handle (right)
 
-  // === 71-round drum magazine (round face to the side) ===
+  // === 71-round drum magazine (rotated so the round face sits to the side) ===
   const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.048, 30), drumMat);
-  g.add(at(drum, 0, -0.075, -0.13, 0, 0, Math.PI / 2));
+  g.add(at(drum, 0, -0.075, -0.13, Math.PI / 2, 0, 0));
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.054, 16), steelDk);
-  g.add(at(hub, 0, -0.075, -0.13, 0, 0, Math.PI / 2));
+  g.add(at(hub, 0, -0.075, -0.13, Math.PI / 2, 0, 0));
   const ringD = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.005, 8, 28), steelDk);
-  g.add(at(ringD, -0.026, -0.075, -0.13, 0, Math.PI / 2));           // ring on the visible face
+  g.add(at(ringD, 0, -0.075, -0.105));                               // ring on the visible face
 
   // === one-piece reddish wooden stock ===
   g.add(at(box(0.046, 0.05, 0.16, wood), 0, -0.008, 0.07));          // wrist
