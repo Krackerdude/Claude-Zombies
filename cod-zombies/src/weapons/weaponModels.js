@@ -2080,6 +2080,90 @@ function hamr() {
   return { group: g, muzzle: -0.66 };
 }
 
+// --- STONER 63 — all-black belt/box-fed LMG. Long black barrel with a slotted
+//     flash hider + flip front sight, the signature PERFORATED heat-shield
+//     handguard (row of round holes) over a finned lower handguard, a vertical
+//     front foregrip, a brown WOOD carry handle on top, a ribbed box magazine
+//     inserted from below, a pistol grip and a solid black polymer fixed stock,
+//     plus a folded bipod. Dingo-class size, all-black. ---
+function stoner63() {
+  const g = new THREE.Group();
+  const black = gunMetal(0x202327, { metal: 0.58, rough: 0.4 });    // main body
+  const blackHi = gunMetal(0x2f343b, { metal: 0.56, rough: 0.34 }); // light-catching panels
+  const blackDk = gunDark(0x111316);                                // shadow / flash hider
+  const steel = gunMetal(0x3a3f46, { metal: 0.76, rough: 0.26 });   // barrel
+  const wood = gunWood(0x6a4428);                                   // brown wood carry handle
+  const woodDk = gunWood(0x4c2e16);
+  const mag = gunMetal(0x1b1e23, { metal: 0.5, rough: 0.46 });      // box mag
+  const grip = gunGrip(0x1f2228);
+  const dark = gunDark(0x0c0d10);
+
+  // === long black barrel + slotted flash hider + hooded flip front sight ===
+  g.add(at(tube(0.013, 0.013, 0.42, steel), 0, 0.024, -0.5));
+  g.add(at(tube(0.019, 0.019, 0.07, blackDk, 14), 0, 0.024, -0.66));  // flash hider
+  for (const sz of [-0.64, -0.67]) g.add(at(tube(0.0205, 0.0205, 0.006, dark, 12), 0, 0.024, sz)); // slot rings
+  g.add(at(tube(0.013, 0.013, 0.018, dark, 12), 0, 0.024, -0.7));     // bore
+  g.add(at(box(0.024, 0.05, 0.05, blackDk), 0, 0.014, -0.44));        // gas block / front band
+  g.add(at(box(0.024, 0.028, 0.03, blackDk), 0, 0.05, -0.5));         // front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.038, 0.012, blackDk), sx * 0.013, 0.08, -0.5)); // protective ears
+  g.add(at(box(0.006, 0.024, 0.01, dark), 0, 0.066, -0.5));           // front post
+
+  // === perforated heat-shield handguard (row of round holes) + finned lower ===
+  g.add(at(box(0.05, 0.044, 0.22, black), 0, 0.044, -0.32));          // shield body
+  g.add(at(box(0.052, 0.012, 0.2, blackHi), 0, 0.07, -0.32));         // top strap
+  for (const sx of [-1, 1]) for (let i = 0; i < 8; i++)
+    g.add(at(tube(0.009, 0.009, 0.012, dark, 12), sx * 0.026, 0.05, -0.41 + i * 0.024, 0, Math.PI / 2)); // round perforations
+  g.add(at(box(0.046, 0.05, 0.2, black), 0, -0.006, -0.32));          // finned lower handguard
+  for (let i = 0; i < 9; i++) g.add(at(box(0.05, 0.052, 0.006, dark), 0, -0.006, -0.41 + i * 0.022)); // vertical cooling fins
+
+  // === vertical front foregrip ===
+  g.add(at(box(0.034, 0.08, 0.036, grip), 0, -0.07, -0.34));
+  g.add(at(box(0.036, 0.014, 0.038, dark), 0, -0.114, -0.34));        // foregrip cap
+
+  // === black receiver ===
+  g.add(at(box(0.054, 0.082, 0.26, black), 0, 0.016, -0.08));
+  g.add(at(box(0.05, 0.022, 0.24, blackHi), 0, 0.062, -0.08));        // top cover
+  g.add(at(box(0.012, 0.024, 0.05, blackHi), -0.034, 0.03, -0.14));   // left charging handle
+  g.add(at(box(0.05, 0.04, 0.05, blackDk), 0.034, 0.0, -0.02));       // right feed-cover block
+
+  // === brown WOOD carry handle on top (arched: bar on two posts) ===
+  for (const pz of [-0.12, -0.0]) g.add(at(box(0.018, 0.04, 0.02, woodDk), 0, 0.092, pz)); // posts
+  g.add(at(box(0.022, 0.022, 0.14, wood), 0, 0.116, -0.06));          // wood grip bar
+  g.add(at(box(0.024, 0.01, 0.14, woodDk), 0, 0.13, -0.06));          // top ridge
+
+  // === rear flip peep sight ===
+  g.add(at(box(0.026, 0.026, 0.024, blackDk), 0, 0.078, 0.04));       // rear base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.01, 0.0035, 6, 14), dark), 0, 0.09, 0.046, 0, Math.PI / 2)); // aperture
+
+  // === ribbed box magazine inserted from below (slight forward rake) ===
+  g.add(at(box(0.05, 0.03, 0.058, blackDk), 0, -0.05, -0.04));        // mag well
+  g.add(at(box(0.046, 0.14, 0.06, mag), 0, -0.14, -0.05, 0.06));      // box mag body
+  g.add(at(box(0.048, 0.018, 0.062, dark), 0, -0.214, -0.04, 0.06));  // floorplate
+  for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) g.add(at(box(0.005, 0.024, 0.012, dark), sx * 0.024, -0.1 - i * 0.03, -0.05, 0.06)); // checkered ribs
+
+  // === pistol grip + trigger guard ===
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.28));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.106, 0.086, 0.28));  // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), blackDk);
+  g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));
+
+  // === solid black polymer fixed stock (AR-style, rear ~z 0.22) ===
+  g.add(at(box(0.05, 0.066, 0.08, black), 0, 0.012, 0.05));           // stock neck
+  g.add(at(box(0.052, 0.1, 0.12, blackHi), 0, 0.0, 0.16));            // stock body
+  g.add(at(box(0.054, 0.11, 0.02, blackDk), 0, -0.004, 0.215));       // butt plate
+  g.add(at(box(0.046, 0.03, 0.06, black), 0, 0.05, 0.12));            // comb top
+
+  // === folded bipod under the front ===
+  g.add(at(box(0.02, 0.02, 0.03, blackDk), 0, -0.026, -0.5));         // bipod mount
+  for (const sx of [-1, 1]) {
+    g.add(at(tube(0.005, 0.005, 0.16, blackDk), sx * 0.012, -0.046, -0.42, 0, sx * 0.1, 0)); // leg folded back
+    g.add(at(box(0.008, 0.02, 0.008, blackDk), sx * 0.028, -0.056, -0.35));                   // foot
+  }
+
+  return { group: g, muzzle: -0.74 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2108,6 +2192,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'DINGO') return dingo();
   if (weapon.data.name === 'RPD') return rpd();
   if (weapon.data.name === 'HAMR') return hamr();
+  if (weapon.data.name === 'STONER 63') return stoner63();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();

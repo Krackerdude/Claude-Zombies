@@ -77,6 +77,11 @@ const defs = {
   hamr: { Class: WeaponBase, category: C.HMG, name: 'HAMR', damage: 140, headshotMultiplier: 3.0,
     fireRate: 770, magazineSize: 75, ammoStockSize: 300, reloadTime: 4.4, recoilPitch: 0.013,
     cost: 0, boxOnly: true, viewmodel: { length: 0.7, color: 0x9c8c5e, accent: 0x1c1e22 } },
+  // STONER 63: Dingo-class LMG — lower fire rate, slightly higher damage, with a
+  // similar (not identical) mag + reserve. Standard 3x head.
+  stoner63: { Class: WeaponBase, category: C.HMG, name: 'STONER 63', damage: 145, headshotMultiplier: 3.0,
+    fireRate: 620, magazineSize: 75, ammoStockSize: 300, reloadTime: 4.8, recoilPitch: 0.013,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.72, color: 0x202327, accent: 0x6a4428 } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
