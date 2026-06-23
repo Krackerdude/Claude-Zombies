@@ -120,6 +120,12 @@ const defs = {
     viewmodel: { length: 0.49, color: 0x565a61, accent: 0x3e424a } },
   olympia: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'OLYMPIA', damage: 42, pellets: 9, magazineSize: 2, fireRate: 90, cost: 1000 },
   dsr: { Class: WeaponBase, category: C.SNIPER, name: 'DSR-50', damage: 1500, magazineSize: 4, cost: 1500 },
+  // BALLISTA (BO2): the only SCOPELESS sniper — runs hooded iron sights. Plays
+  // more like the FAL: semi-auto, high-ish body damage with a huge 5x headshot.
+  ballista: { Class: WeaponBase, category: C.SNIPER, name: 'BALLISTA', fireMode: 'semi',
+    damage: 95, headshotMultiplier: 5.0, scoped: false, fireRate: 330, magazineSize: 8,
+    ammoStockSize: 56, reloadTime: 3.0, recoilPitch: 0.045, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.78, color: 0x8f8054, accent: 0x1c1e22 } },
   hk21: { Class: WeaponBase, category: C.HMG, name: 'HK21', damage: 140, fireRate: 700, magazineSize: 125, cost: 1500 },
   rpg: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'M72 LAW', splashDamage: 1400, splashRadius: 5, cost: 2000, boxOnly: true },
   deathMachine: { Class: WeaponBase, category: C.SPECIAL, name: 'DEATH MACHINE', damage: 160, fireRate: 1000, magazineSize: 300, cost: 0, boxOnly: true },

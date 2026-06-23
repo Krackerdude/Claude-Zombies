@@ -2248,6 +2248,89 @@ function lsat() {
   return { group: g, muzzle: -0.71 };
 }
 
+// --- BALLISTA (BO2) — the scopeless precision rifle. FDE-tan angular chassis
+//     with teardrop lightening cuts, a long black barrel + slotted muzzle brake,
+//     a top rail carrying hooded IRON sights ONLY (open-prong front + a hooded
+//     RING rear aperture — NO scope), a pistol grip, a box magazine, a folded
+//     bipod and a skeletonised adjustable stock. Built iron-sights-only. ---
+function ballista() {
+  const g = new THREE.Group();
+  const tan = gunMetal(0x8f8054, { metal: 0.32, rough: 0.55 });    // FDE chassis
+  const tanHi = gunMetal(0xa5946a, { metal: 0.3, rough: 0.48 });   // lighter facets
+  const tanDk = gunMetal(0x6c6040, { metal: 0.32, rough: 0.58 });  // shadowed tan
+  const black = gunMetal(0x1c1e22, { metal: 0.52, rough: 0.42 });  // black rail/furniture
+  const blackDk = gunDark(0x111316);
+  const barrelMat = gunDark(0x141519);                             // near-black barrel
+  const steel = gunMetal(0x3e434a, { metal: 0.74, rough: 0.26 });  // bright steel
+  const mag = gunMetal(0x1a1d22, { metal: 0.5, rough: 0.45 });     // box mag
+  const grip = gunGrip(0x26282d);
+  const dark = gunDark(0x0c0d10);
+
+  // === long black barrel + slotted boxy muzzle brake ===
+  g.add(at(tube(0.016, 0.016, 0.4, barrelMat), 0, 0.02, -0.5));
+  g.add(at(box(0.042, 0.042, 0.1, blackDk), 0, 0.02, -0.7));          // brake block
+  for (let i = 0; i < 3; i++) g.add(at(box(0.046, 0.046, 0.008, dark), 0, 0.02, -0.67 - i * 0.022)); // top slots
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.024, 0.06, dark), sx * 0.022, 0.02, -0.7)); // side vents
+  g.add(at(tube(0.016, 0.016, 0.016, dark, 12), 0, 0.02, -0.755));    // bore
+  g.add(at(box(0.03, 0.03, 0.06, tanDk), 0, 0.014, -0.42));           // barrel clamp / gas block
+
+  // === FDE handguard with rail + teardrop lightening cuts ===
+  g.add(at(box(0.056, 0.06, 0.22, tan), 0, 0.018, -0.32));
+  g.add(at(box(0.046, 0.016, 0.2, black), 0, 0.052, -0.32));          // top rail
+  for (let i = 0; i < 8; i++) g.add(at(box(0.048, 0.006, 0.008, dark), 0, 0.062, -0.41 + i * 0.024)); // rail teeth
+  for (const sx of [-1, 1]) for (let i = 0; i < 2; i++) g.add(at(box(0.006, 0.03, 0.07, blackDk), sx * 0.029, 0.014, -0.38 + i * 0.09, 0, 0, 0.2)); // angled cuts
+
+  // === angular FDE receiver + continuous rail ===
+  g.add(at(box(0.058, 0.078, 0.26, tan), 0, 0.014, -0.1));
+  g.add(at(box(0.05, 0.02, 0.24, black), 0, 0.054, -0.1));            // receiver rail
+  for (let i = 0; i < 9; i++) g.add(at(box(0.052, 0.006, 0.008, dark), 0, 0.064, -0.2 + i * 0.024)); // rail teeth
+  // teardrop lightening cuts down the receiver sides (the Ballista's signature)
+  for (const sx of [-1, 1]) {
+    g.add(at(box(0.006, 0.044, 0.1, blackDk), sx * 0.03, 0.0, -0.13, 0, 0, 0.25));
+    g.add(at(box(0.006, 0.034, 0.05, blackDk), sx * 0.03, -0.01, 0.0, 0, 0, 0.25));
+  }
+  g.add(at(box(0.014, 0.024, 0.05, tanHi), -0.034, 0.03, -0.16));     // left charging handle
+  g.add(at(box(0.05, 0.04, 0.06, tanDk), 0.034, 0.0, -0.02));         // right bolt/port block
+
+  // === hooded IRON sights ONLY — open-prong front + hooded RING rear (NO scope) ===
+  g.add(at(box(0.022, 0.026, 0.024, blackDk), 0, 0.064, -0.46));      // front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.034, 0.012, blackDk), sx * 0.012, 0.092, -0.46)); // open prongs
+  g.add(at(box(0.005, 0.024, 0.01, dark), 0, 0.082, -0.46));          // front post
+  g.add(at(box(0.028, 0.03, 0.024, blackDk), 0, 0.07, 0.04));         // rear sight base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.005, 10, 20), blackDk), 0, 0.098, 0.04)); // hooded ring aperture
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.008, 0.0028, 8, 16), dark), 0, 0.098, 0.038)); // inner aperture ring
+
+  // === box magazine ahead of the grip ===
+  g.add(at(box(0.05, 0.03, 0.058, tanDk), 0, -0.05, -0.06));          // mag well
+  g.add(at(box(0.044, 0.11, 0.052, mag), 0, -0.11, -0.06, 0.04));     // mag body
+  g.add(at(box(0.046, 0.016, 0.054, dark), 0, -0.172, -0.05, 0.04));  // floorplate
+  for (let i = 0; i < 3; i++) g.add(at(box(0.045, 0.005, 0.05, blackDk), 0, -0.08 - i * 0.03, -0.06, 0.04)); // ribs
+
+  // === pistol grip + trigger guard ===
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.28));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.106, 0.086, 0.28));  // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), tanDk);
+  g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));
+
+  // === skeletonised adjustable stock (rear ~z 0.22) ===
+  g.add(at(box(0.05, 0.066, 0.07, tan), 0, 0.012, 0.06));             // stock neck
+  g.add(at(box(0.044, 0.022, 0.14, tanDk), 0, 0.046, 0.15));          // top comb bar
+  g.add(at(box(0.046, 0.03, 0.1, tanHi), 0, 0.066, 0.13));            // adjustable cheek riser
+  g.add(at(box(0.034, 0.02, 0.14, tan), 0, -0.03, 0.15));             // lower bar (skeleton gap above)
+  g.add(at(box(0.03, 0.1, 0.024, tan), 0, 0.018, 0.205));             // rear vertical frame
+  g.add(at(box(0.046, 0.11, 0.022, blackDk), 0, 0.014, 0.218));       // recoil pad
+
+  // === folded bipod under the front ===
+  g.add(at(box(0.02, 0.02, 0.03, blackDk), 0, -0.022, -0.42));        // bipod mount
+  for (const sx of [-1, 1]) {
+    g.add(at(tube(0.005, 0.005, 0.16, black), sx * 0.012, -0.042, -0.34, 0, sx * 0.1, 0)); // leg folded back
+    g.add(at(box(0.008, 0.02, 0.008, black), sx * 0.028, -0.052, -0.27));                   // foot
+  }
+
+  return { group: g, muzzle: -0.78 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2281,6 +2364,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
+  if (weapon.data.name === 'BALLISTA') return ballista();
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
