@@ -1564,6 +1564,69 @@ function xm4() {
   return { group: g, muzzle: -0.55 };
 }
 
+// --- AN-94 Abakan — Russian AR. AK-style blued receiver, tan/olive ribbed
+//     handguard + grip + skeletonised stock, a long barrel with the muzzle
+//     brake, a hooded front sight + dual rear, all with RED glowing fibre dots,
+//     and a curved banana magazine. Shared materials. ---
+function an94() {
+  const g = new THREE.Group();
+  const black = gunMetal(0x262b31, { metal: 0.55, rough: 0.4 });   // blued AK receiver
+  const blackDk = gunMetal(0x16191d, { metal: 0.5, rough: 0.45 });
+  const tan = gunMetal(0x837748, { metal: 0.2, rough: 0.6 });      // olive/tan furniture
+  const tanDk = gunMetal(0x645b36, { metal: 0.2, rough: 0.62 });
+  const grip = gunGrip(0x6e6438);                                  // tan grip
+  const steel = gunMetal(0x3a3e44, { metal: 0.7, rough: 0.3 });    // barrel
+  const mag = gunMetal(0x1c1f23, { metal: 0.5, rough: 0.45 });     // black curved mag
+  const dark = gunDark(0x0e0f12);
+  const red = mat(0xff2a1e, { metal: 0.1, rough: 0.4, emissive: 0xff2a1e, ei: 1.8 }); // glowing sights
+
+  // === barrel + muzzle brake + hooded front sight (red) ===
+  g.add(at(tube(0.012, 0.012, 0.18, steel), 0, 0.03, -0.42));
+  g.add(at(tube(0.018, 0.018, 0.06, blackDk, 14), 0, 0.03, -0.53)); // muzzle brake
+  for (let i = 0; i < 3; i++) g.add(at(box(0.04, 0.006, 0.012, dark), 0, 0.03, -0.5 - i * 0.014)); // slots
+  g.add(at(tube(0.012, 0.012, 0.02, dark, 12), 0, 0.03, -0.56));    // bore
+  g.add(at(box(0.026, 0.04, 0.03, blackDk), 0, 0.05, -0.45));       // front sight base
+  const fhood = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.004, 8, 14), blackDk);
+  g.add(at(fhood, 0, 0.085, -0.45));
+  g.add(at(box(0.006, 0.018, 0.006, blackDk), 0, 0.078, -0.45));    // post
+  g.add(at(box(0.006, 0.006, 0.006, red), 0, 0.082, -0.45));        // red front dot
+
+  // === tan ribbed handguard ===
+  g.add(at(box(0.05, 0.05, 0.18, tan), 0, 0.018, -0.3));
+  g.add(at(box(0.046, 0.03, 0.16, tanDk), 0, 0.052, -0.3));         // gas-tube cover
+  for (let i = 0; i < 6; i++) g.add(at(box(0.052, 0.004, 0.014, dark), 0, 0.066, -0.37 + i * 0.026)); // top ribs
+  for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) g.add(at(box(0.004, 0.034, 0.014, dark), sx * 0.026, 0.018, -0.37 + i * 0.026)); // side ribs
+
+  // === blued receiver + optic rail + rear sight (red) + selector ===
+  g.add(at(box(0.052, 0.06, 0.2, black), 0, 0.02, -0.08));
+  g.add(at(box(0.054, 0.02, 0.18, blackDk), 0, 0.052, -0.08));      // dust cover
+  g.add(at(box(0.024, 0.014, 0.1, blackDk), 0, 0.066, -0.04));      // rail base
+  for (let i = 0; i < 5; i++) g.add(at(box(0.026, 0.008, 0.006, dark), 0, 0.074, -0.08 + i * 0.02));
+  g.add(at(box(0.03, 0.02, 0.02, blackDk), 0, 0.066, 0.04));        // rear sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.006, 0.006, red), sx * 0.012, 0.074, 0.04)); // red rear dots
+  g.add(at(box(0.014, 0.04, 0.03, blackDk), 0.03, 0.0, -0.02));     // selector (right)
+
+  // === curved banana magazine ===
+  g.add(at(box(0.04, 0.1, 0.05, mag), 0, -0.08, -0.06, 0.18));
+  g.add(at(box(0.04, 0.1, 0.05, mag), 0, -0.18, -0.005, 0.4));      // lower (more curve)
+  g.add(at(box(0.042, 0.016, 0.052, dark), 0, -0.23, 0.03, 0.4));   // floorplate
+  for (let i = 0; i < 5; i++) g.add(at(box(0.041, 0.004, 0.048, dark), 0, -0.06 - i * 0.03, -0.06 + i * 0.01, 0.22)); // ribs
+
+  // === tan grip + trigger guard ===
+  g.add(at(box(0.04, 0.11, 0.046, grip), 0, -0.055, 0.06, 0.36));
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), blackDk);
+  g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.025, 0.0));
+
+  // === olive/tan skeletonised stock ===
+  g.add(at(box(0.024, 0.045, 0.12, tan), 0, 0.02, 0.13));
+  g.add(at(box(0.012, 0.08, 0.018, tan), 0, 0.0, 0.2));             // butt upright
+  g.add(at(box(0.045, 0.085, 0.016, tanDk), 0, 0.0, 0.21));         // butt pad
+  g.add(at(box(0.012, 0.035, 0.06, tan), 0, -0.025, 0.16));         // lower strut
+
+  return { group: g, muzzle: -0.56 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1585,6 +1648,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'PPSH-41') return ppsh();
   if (weapon.data.name === 'MP40') return mp40();
   if (weapon.data.name === 'XM4') return xm4();
+  if (weapon.data.name === 'AN-94') return an94();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
