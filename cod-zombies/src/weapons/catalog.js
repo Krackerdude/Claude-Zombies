@@ -152,7 +152,15 @@ const defs = {
     ammoStockSize: 60, reloadTime: 3.2, recoilPitch: 0.04, cost: 0, boxOnly: true,
     viewmodel: { length: 0.86, color: 0x3a3f46, accent: 0x6e4424 } },
   hk21: { Class: WeaponBase, category: C.HMG, name: 'HK21', damage: 140, fireRate: 700, magazineSize: 125, cost: 1500 },
-  rpg: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'M72 LAW', splashDamage: 1400, splashRadius: 5, cost: 2000, boxOnly: true },
+  // Launchers should NOT stay instant-kills forever — tuned to stop one-shotting
+  // in the round 9-12 window (zombie HP: r9 950, r10 1045, r11 1150, r12 1264).
+  // M72 LAW: 1000 splash one-shots through round 9, falls off at round 10.
+  rpg: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'M72 LAW', splashDamage: 1000, splashRadius: 5, cost: 2000, boxOnly: true },
+  // RPG-7: very like the M72 but more damage (1200 splash → one-shots through
+  // round 11, off at round 12), a smaller reserve and a longer reload.
+  rpg7: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'RPG-7', splashDamage: 1200, splashRadius: 5.2,
+    ammoStockSize: 8, reloadTime: 4.0, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.92, color: 0x2a2e34, accent: 0x7a4a26 } },
   deathMachine: { Class: WeaponBase, category: C.SPECIAL, name: 'DEATH MACHINE', damage: 160, fireRate: 1000, magazineSize: 300, cost: 0, boxOnly: true },
   rayGun: {
     Class: ProjectileWeapon, category: C.WONDER, name: 'RAY GUN',

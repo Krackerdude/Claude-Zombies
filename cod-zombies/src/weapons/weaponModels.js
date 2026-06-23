@@ -2650,6 +2650,67 @@ function svu() {
   return { group: g, muzzle: -0.72 };
 }
 
+// --- RPG-7 — classic shoulder-fired rocket launcher. A long steel tube with the
+//     brown WOOD heat-shield wraps, a bulbous olive PG-7 warhead + conical nose
+//     at the front, the flared venturi blast cone at the rear, raised iron sights
+//     on top, a pistol grip + trigger and a forward grip underneath. ---
+function rpg7() {
+  const g = new THREE.Group();
+  const tubeMat = gunMetal(0x2a2e34, { metal: 0.62, rough: 0.36 }); // steel tube
+  const tubeDk = gunDark(0x16191d);
+  const wood = gunWood(0x7a4a26);                                  // wood heat shield
+  const woodDk = gunWood(0x583218);
+  const olive = gunMetal(0x4e5836, { metal: 0.3, rough: 0.6 });    // PG-7 warhead
+  const oliveDk = gunMetal(0x3a4128, { metal: 0.3, rough: 0.62 });
+  const steel = gunMetal(0x3a3f46, { metal: 0.74, rough: 0.28 });
+  const grip = gunGrip(0x222428);
+  const dark = gunDark(0x0c0d10);
+
+  // === main launch tube ===
+  g.add(at(tube(0.03, 0.03, 0.56, tubeMat), 0, 0.02, -0.24));
+  g.add(at(tube(0.031, 0.031, 0.04, tubeDk, 18), 0, 0.02, -0.46)); // forward reinforcing ring
+  g.add(at(tube(0.031, 0.031, 0.04, tubeDk, 18), 0, 0.02, 0.02));  // rear reinforcing ring
+
+  // === brown wood heat-shield wraps around the middle ===
+  for (const wz of [-0.12, -0.04]) {
+    g.add(at(tube(0.036, 0.036, 0.07, wood, 18), 0, 0.02, wz));
+    g.add(at(tube(0.037, 0.037, 0.008, woodDk, 18), 0, 0.02, wz - 0.034)); // wrap seam
+    g.add(at(tube(0.037, 0.037, 0.008, woodDk, 18), 0, 0.02, wz + 0.034));
+  }
+
+  // === bulbous olive PG-7 warhead + conical nose at the front ===
+  g.add(at(tube(0.024, 0.024, 0.05, steel), 0, 0.02, -0.49));       // sustainer neck (into the tube)
+  g.add(at(tube(0.038, 0.038, 0.08, olive, 18), 0, 0.02, -0.56));   // bulbous warhead body
+  g.add(at(tube(0.038, 0.006, 0.1, olive, 18), 0, 0.02, -0.66));    // conical nose (tapers to a point)
+  g.add(at(tube(0.04, 0.04, 0.01, oliveDk, 18), 0, 0.02, -0.515));  // warhead base band
+  for (let i = 0; i < 3; i++) g.add(at(tube(0.039, 0.039, 0.005, oliveDk, 18), 0, 0.02, -0.6 - i * 0.018)); // nose scribe lines
+
+  // === flared venturi blast cone at the rear (opens rearward) ===
+  g.add(at(tube(0.03, 0.052, 0.09, tubeMat, 18), 0, 0.02, 0.085));  // flare cone
+  g.add(at(tube(0.052, 0.052, 0.01, tubeDk, 18), 0, 0.02, 0.13));   // flare lip
+
+  // === raised iron sights on top (front blade + rear leaf) ===
+  g.add(at(box(0.014, 0.06, 0.016, tubeDk), 0, 0.07, -0.34));       // front sight post
+  g.add(at(box(0.022, 0.012, 0.016, tubeDk), 0, 0.098, -0.34));     // front blade housing
+  g.add(at(box(0.005, 0.018, 0.008, dark), 0, 0.1, -0.34));         // front blade
+  g.add(at(box(0.016, 0.07, 0.018, tubeDk), 0, 0.075, -0.02));      // rear sight post
+  g.add(at(box(0.026, 0.022, 0.012, tubeDk), 0, 0.108, -0.02));     // rear leaf
+  g.add(at(box(0.014, 0.008, 0.006, dark), 0, 0.112, -0.02));       // rear notch
+
+  // === pistol grip + trigger guard (underneath, mid) ===
+  g.add(at(box(0.04, 0.1, 0.044, grip), 0, -0.07, 0.0, 0.12));
+  g.add(at(box(0.042, 0.016, 0.046, dark), 0, -0.122, 0.006, 0.12)); // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), tubeDk);
+  g.add(at(guard, 0, -0.03, -0.04, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.022, 0.008, dark), 0, -0.026, -0.04));        // trigger
+
+  // === forward grip (underneath, ahead of the trigger) ===
+  g.add(at(box(0.036, 0.085, 0.04, grip), 0, -0.06, -0.24));
+  g.add(at(box(0.038, 0.014, 0.042, dark), 0, -0.106, -0.24));       // forward grip cap
+
+  return { group: g, muzzle: -0.71 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2691,6 +2752,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
+  if (weapon.data.name === 'RPG-7') return rpg7();
   if (weapon.data.name === 'RAY GUN') return rayGunModel(weapon);
   if (weapon.data.name === 'THUNDERGUN') return thunderGunModel();
   if (weapon.data.name === 'DEATH MACHINE') return deathMachine();
