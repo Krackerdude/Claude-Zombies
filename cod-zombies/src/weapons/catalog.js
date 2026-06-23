@@ -17,6 +17,10 @@ const defs = {
   mp5: { Class: WeaponBase, category: C.SMG, name: 'MP5', damage: 100, headshotMultiplier: 3.0,
     fireRate: 800, magazineSize: 30, ammoStockSize: 120, reloadTime: 2.0, recoilPitch: 0.009,
     cost: 0, boxOnly: true, viewmodel: { length: 0.45, color: 0x26292e, accent: 0x14161a } },
+  // UZI: compact SMG. 85 dmg/bullet, standard 3x head, higher fire rate than the MP5.
+  uzi: { Class: WeaponBase, category: C.SMG, name: 'UZI', damage: 85, headshotMultiplier: 3.0,
+    fireRate: 950, magazineSize: 32, ammoStockSize: 160, reloadTime: 2.1, recoilPitch: 0.01,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.32, color: 0x2c2f35, accent: 0x141619 } },
   galil: { Class: WeaponBase, category: C.AR, name: 'GALIL', damage: 120, fireRate: 575, recoilPitch: 0.014, cost: 1200 },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
