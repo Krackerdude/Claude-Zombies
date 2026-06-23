@@ -1758,6 +1758,73 @@ function icr1() {
   return { group: g, muzzle: -0.55 };
 }
 
+// --- FAL — the classic FN FAL battle rifle. Blued stamped/milled steel
+//     receiver with a hump-backed top, a long blued barrel ending in a slotted
+//     flash hider + winged front sight, blonde-wood handguard (three oval
+//     lightening slots), a wood pistol grip + full wooden buttstock with a
+//     steel butt plate, an aperture rear sight and a slightly-curved steel mag.
+//     Same length class as the AN-94. Shared gunMetal/gunWood standards. ---
+function fal() {
+  const g = new THREE.Group();
+  const blued = gunMetal(0x2a2f36, { metal: 0.7, rough: 0.3 });    // blued receiver/barrel
+  const bluedHi = gunMetal(0x3a4047, { metal: 0.68, rough: 0.26 });
+  const bluedDk = gunMetal(0x16191d, { metal: 0.66, rough: 0.4 }); // shadow cuts
+  const wood = gunWood(0xc69a5a);                                  // blonde furniture
+  const woodDk = gunWood(0x9a7038);
+  const grip = gunWood(0xb88a4e);                                  // wood pistol grip
+  const mag = gunMetal(0x232830, { metal: 0.6, rough: 0.4 });      // blued steel mag
+  const dark = gunDark(0x0e0f12);
+
+  // === long blued barrel + slotted flash hider + winged front sight ===
+  g.add(at(tube(0.012, 0.012, 0.22, blued), 0, 0.034, -0.44));
+  g.add(at(tube(0.018, 0.018, 0.07, bluedDk, 14), 0, 0.034, -0.56));  // flash hider
+  for (let i = 0; i < 4; i++) g.add(at(box(0.04, 0.006, 0.01, dark), 0, 0.034, -0.53 - i * 0.016)); // vertical slots
+  g.add(at(tube(0.012, 0.012, 0.018, dark, 12), 0, 0.034, -0.6));     // bore
+  g.add(at(box(0.03, 0.024, 0.034, bluedDk), 0, 0.05, -0.48));        // front sight block
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.044, 0.014, bluedDk), sx * 0.016, 0.082, -0.48)); // protective wings
+  g.add(at(box(0.006, 0.026, 0.01, dark), 0, 0.07, -0.48));           // front post
+  g.add(at(box(0.026, 0.03, 0.05, bluedDk), 0, 0.044, -0.4));         // gas block / front band
+
+  // === blonde-wood handguard with three oval lightening slots ===
+  g.add(at(box(0.052, 0.06, 0.2, wood), 0, 0.026, -0.28));
+  g.add(at(box(0.04, 0.034, 0.18, woodDk), 0, 0.06, -0.28));          // top wood (under barrel ridge)
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++)
+    g.add(at(box(0.005, 0.022, 0.04, dark), sx * 0.027, 0.022, -0.34 + i * 0.07)); // oval slots each side
+  g.add(at(box(0.05, 0.018, 0.04, bluedDk), 0, -0.006, -0.36));       // lower handguard cap
+
+  // === blued receiver with the FAL hump-back + aperture rear sight ===
+  g.add(at(box(0.05, 0.07, 0.22, blued), 0, 0.026, -0.08));
+  g.add(at(box(0.05, 0.03, 0.1, bluedHi), 0, 0.066, -0.12));          // raised hump (front of receiver top)
+  g.add(at(box(0.046, 0.026, 0.06, bluedDk), 0, 0.022, 0.02));        // rear hump step
+  g.add(at(box(0.03, 0.026, 0.026, bluedDk), 0, 0.07, 0.0));          // rear sight base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.01, 0.0035, 6, 14), dark), 0, 0.082, 0.006, 0, Math.PI / 2)); // aperture
+  g.add(at(box(0.012, 0.026, 0.026, bluedDk), -0.032, 0.024, -0.14)); // charging handle (left)
+  g.add(at(box(0.012, 0.03, 0.022, bluedHi), -0.031, -0.006, -0.04)); // safety/selector lever (left)
+  g.add(at(box(0.014, 0.026, 0.05, bluedDk), 0.03, 0.018, -0.06));    // ejection port (right)
+
+  // === slightly-curved blued steel magazine ===
+  g.add(at(box(0.046, 0.03, 0.058, blued), 0, -0.05, -0.05));         // mag well lip
+  g.add(at(box(0.04, 0.09, 0.052, mag), 0, -0.1, -0.045, 0.1));
+  g.add(at(box(0.04, 0.07, 0.05, mag), 0, -0.17, -0.018, 0.24));      // lower (mild curve)
+  g.add(at(box(0.042, 0.016, 0.052, dark), 0, -0.21, 0.0, 0.24));     // floorplate
+  for (let i = 0; i < 4; i++) g.add(at(box(0.041, 0.005, 0.05, bluedDk), 0, -0.07 - i * 0.03, -0.05 + i * 0.006, 0.14)); // ribs
+
+  // === wood pistol grip + trigger guard ===
+  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.055, 0.06, 0.32));
+  g.add(at(box(0.042, 0.016, 0.048, woodDk), 0, -0.108, 0.078, 0.32)); // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), bluedDk);
+  g.add(at(guard, 0, -0.028, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.022, 0.008, dark), 0, -0.024, 0.0));
+
+  // === full wooden buttstock with steel butt plate (rear stays ~z 0.22) ===
+  g.add(at(box(0.044, 0.066, 0.08, wood), 0, 0.01, 0.07));            // wrist/neck
+  g.add(at(box(0.05, 0.108, 0.11, wood), 0, -0.004, 0.16, -0.05));    // butt body (slight drop)
+  g.add(at(box(0.052, 0.118, 0.018, bluedDk), 0, -0.01, 0.215, -0.05)); // steel butt plate
+  g.add(at(box(0.046, 0.03, 0.06, woodDk), 0, 0.046, 0.12));          // comb top
+
+  return { group: g, muzzle: -0.6 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1782,6 +1849,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'AN-94') return an94();
   if (weapon.data.name === 'STG-44') return stg44();
   if (weapon.data.name === 'ICR-1') return icr1();
+  if (weapon.data.name === 'FAL') return fal();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
