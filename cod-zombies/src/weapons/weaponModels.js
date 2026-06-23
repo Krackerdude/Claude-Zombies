@@ -2505,6 +2505,212 @@ function svg300() {
   return { group: g, muzzle: -0.86 };
 }
 
+// --- SWISS K31 (Schmidt-Rubin) — classic full-wood straight-pull bolt rifle.
+//     Long blued barrel with a brass-tipped muzzle + hooded front blade, a
+//     tangent rear sight, a near-full-length walnut stock with steel barrel
+//     bands, the signature bright STRAIGHT-PULL bolt with the RING pull loop on
+//     the right, a trigger guard and a wooden buttstock. Iron sights only. ---
+function k31() {
+  const g = new THREE.Group();
+  const wood = gunWood(0x9a5a28);                                   // warm walnut
+  const woodDk = gunWood(0x6e3c18);
+  const blued = gunMetal(0x2a2e34, { metal: 0.66, rough: 0.34 });   // blued steel
+  const bluedDk = gunDark(0x16191d);
+  const barrelMat = gunDark(0x1a1d22);                              // barrel
+  const brightSteel = gunMetal(0x9498a0, { metal: 0.86, rough: 0.2 }); // white bolt steel
+  const brass = gunMetal(0xb08a3c, { metal: 0.82, rough: 0.34 });   // muzzle/front tip
+  const dark = gunDark(0x0c0d10);
+
+  // === long blued barrel + brass-tipped muzzle + hooded front blade ===
+  g.add(at(tube(0.012, 0.012, 0.62, barrelMat), 0, 0.03, -0.46));
+  g.add(at(tube(0.016, 0.016, 0.04, brass, 14), 0, 0.03, -0.78));    // brass muzzle collar
+  g.add(at(tube(0.011, 0.011, 0.018, dark, 12), 0, 0.03, -0.81));    // bore
+  g.add(at(box(0.022, 0.026, 0.03, bluedDk), 0, 0.05, -0.74));       // front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.032, 0.012, bluedDk), sx * 0.011, 0.078, -0.74)); // protective ears
+  g.add(at(box(0.005, 0.02, 0.01, dark), 0, 0.07, -0.74));           // front blade
+
+  // === near-full-length walnut forend (under the barrel) + barrel bands ===
+  g.add(at(box(0.044, 0.05, 0.56, wood), 0, 0.0, -0.42));            // forend
+  g.add(at(box(0.03, 0.022, 0.5, woodDk), 0, 0.03, -0.42));          // upper handguard wood strip
+  for (const bz of [-0.36, -0.6]) {                                  // steel barrel bands
+    g.add(at(tube(0.026, 0.026, 0.022, bluedDk, 14), 0, 0.012, bz));
+    g.add(at(box(0.05, 0.012, 0.024, bluedDk), 0, -0.02, bz));       // band lower lug
+  }
+  g.add(at(box(0.012, 0.016, 0.02, bluedDk), 0, -0.044, -0.58));     // forward sling swivel
+
+  // === tangent rear sight on the barrel ahead of the receiver ===
+  g.add(at(box(0.03, 0.02, 0.05, bluedDk), 0, 0.05, -0.2));          // rear sight base
+  g.add(at(box(0.026, 0.026, 0.012, bluedDk), 0, 0.07, -0.18));      // tangent leaf
+  g.add(at(box(0.012, 0.008, 0.008, dark), 0, 0.082, -0.18));        // rear notch
+
+  // === blued receiver ===
+  g.add(at(box(0.046, 0.058, 0.22, blued), 0, 0.018, -0.06));
+  g.add(at(box(0.04, 0.02, 0.2, bluedDk), 0, 0.05, -0.06));          // receiver top flat
+  g.add(at(box(0.05, 0.05, 0.07, blued), 0, -0.02, -0.1));           // magazine housing (flush 6-rd box)
+  g.add(at(box(0.046, 0.024, 0.06, bluedDk), 0, -0.05, -0.1));       // magazine floor
+
+  // === signature STRAIGHT-PULL bolt with the RING pull loop (right side) ===
+  g.add(at(tube(0.013, 0.013, 0.2, brightSteel), 0.012, 0.046, -0.02)); // bolt body (bright)
+  g.add(at(box(0.02, 0.03, 0.05, brightSteel), 0.012, 0.046, 0.06));    // bolt sleeve / cocking piece
+  g.add(at(box(0.016, 0.022, 0.04, brightSteel), 0.03, 0.03, 0.05, 0, 0, 0.3)); // bolt handle arm (out right)
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.005, 8, 18), brightSteel), 0.046, 0.018, 0.07, Math.PI / 2)); // RING pull loop (vertical)
+
+  // === trigger guard + trigger ===
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), bluedDk);
+  g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.026, 0.0));          // trigger
+
+  // === wooden buttstock with butt plate (rear ~z 0.22) ===
+  g.add(at(box(0.04, 0.066, 0.1, wood), 0, -0.01, 0.08));            // wrist/comb neck
+  g.add(at(box(0.046, 0.11, 0.12, wood), 0, -0.024, 0.17));          // butt body
+  g.add(at(box(0.044, 0.03, 0.07, woodDk), 0, 0.044, 0.11));         // raised comb
+  g.add(at(box(0.048, 0.12, 0.018, bluedDk), 0, -0.03, 0.225));      // steel butt plate
+  g.add(at(box(0.012, 0.016, 0.02, bluedDk), 0, -0.084, 0.12));      // rear sling swivel
+
+  return { group: g, muzzle: -0.82 };
+}
+
+// --- SVU (SVU-AS) — bullpup Dragunov marksman rifle. Black receiver + skeleton
+//     thumbhole stock, the signature maroon RIBBED bakelite handguard, a fat
+//     cylindrical muzzle device, a PSO scope on top (red lens), a curved
+//     Dragunov magazine forward of the grip, and a hooded front sight. Scoped. ---
+function svu() {
+  const g = new THREE.Group();
+  const maroon = gunMetal(0x5e2a28, { metal: 0.34, rough: 0.52 });  // maroon bakelite
+  const maroonDk = gunMetal(0x44201e, { metal: 0.34, rough: 0.56 });
+  const black = gunMetal(0x1c1e22, { metal: 0.52, rough: 0.42 });   // black furniture
+  const blackHi = gunMetal(0x2a2e34, { metal: 0.5, rough: 0.36 });
+  const barrelMat = gunDark(0x141519);
+  const steel = gunMetal(0x3a3f46, { metal: 0.74, rough: 0.26 });
+  const mag = gunMetal(0x1a1d22, { metal: 0.5, rough: 0.45 });
+  const scopeBody = gunDark(0x0e0f12);
+  const scopeMetal = gunMetal(0x2a2e35);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x0a0e12, metalness: 0.2, roughness: 0.14 });
+  const grip = gunGrip(0x222428);
+  const dark = gunDark(0x0c0d10);
+  const red = scopeGlow(0xff2a1e);
+  const cyl = (r1, r2, len, m, seg = 14) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m); // axis = y
+
+  // === fat cylindrical muzzle device + barrel ===
+  g.add(at(tube(0.014, 0.014, 0.26, barrelMat), 0, 0.024, -0.46));
+  g.add(at(tube(0.028, 0.028, 0.12, black, 16), 0, 0.024, -0.64));    // fat muzzle brake body
+  for (const sz of [-0.6, -0.64, -0.68]) g.add(at(tube(0.03, 0.03, 0.006, dark, 14), 0, 0.024, sz)); // grooves
+  g.add(at(tube(0.026, 0.026, 0.016, blackHi, 16), 0, 0.024, -0.71)); // front cap
+  g.add(at(tube(0.014, 0.014, 0.018, dark, 12), 0, 0.024, -0.715));   // bore
+  g.add(at(box(0.026, 0.04, 0.04, blackHi), 0, 0.046, -0.5));         // gas block
+  g.add(at(box(0.022, 0.026, 0.03, black), 0, 0.066, -0.5));          // hooded front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.03, 0.012, black), sx * 0.011, 0.092, -0.5)); // ears
+
+  // === maroon RIBBED bakelite handguard (the SVU signature) ===
+  g.add(at(box(0.05, 0.058, 0.2, maroon), 0, 0.014, -0.34));
+  g.add(at(tube(0.028, 0.028, 0.18, maroon, 16), 0, 0.04, -0.34));    // rounded ribbed top
+  for (let i = 0; i < 9; i++) g.add(at(box(0.056, 0.05, 0.006, maroonDk), 0, 0.02, -0.42 + i * 0.02)); // vertical cooling ribs
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.04, 0.16, maroonDk), sx * 0.027, 0.012, -0.34)); // side rails
+
+  // === black receiver ===
+  g.add(at(box(0.05, 0.072, 0.24, black), 0, 0.014, -0.08));
+  g.add(at(box(0.044, 0.022, 0.22, blackHi), 0, 0.052, -0.08));       // top cover / scope base
+  g.add(at(box(0.014, 0.024, 0.05, blackHi), -0.032, 0.03, -0.12));   // left charging handle
+  g.add(at(box(0.05, 0.04, 0.05, dark), 0.032, 0.0, -0.02));          // right port block
+
+  // === PSO scope on top (offset mount, red lens) ===
+  g.add(at(box(0.024, 0.04, 0.04, scopeMetal), -0.026, 0.078, -0.04)); // side mount bracket (left, Dragunov-style)
+  g.add(at(box(0.03, 0.03, 0.05, scopeMetal), 0, 0.1, -0.14));         // front mount
+  g.add(at(tube(0.024, 0.024, 0.24, scopeBody), 0, 0.118, -0.06));     // main tube
+  g.add(at(tube(0.032, 0.026, 0.06, scopeBody), 0, 0.118, -0.18));     // objective bell
+  g.add(at(tube(0.03, 0.03, 0.008, glass), 0, 0.118, -0.212));         // objective lens
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.005, 8, 24), red), 0, 0.118, -0.209)); // red lens ring
+  g.add(at(cyl(0.015, 0.015, 0.028, scopeMetal), 0, 0.146, -0.08));    // elevation turret
+  g.add(at(tube(0.026, 0.024, 0.05, scopeBody), 0, 0.118, 0.06, 0.5)); // angled eyepiece
+  g.add(at(tube(0.024, 0.024, 0.006, glass), 0, 0.13, 0.085));         // ocular lens
+
+  // === curved Dragunov magazine forward of the grip ===
+  g.add(at(box(0.046, 0.03, 0.056, dark), 0, -0.04, -0.04));          // mag well
+  g.add(at(box(0.04, 0.08, 0.05, mag), 0, -0.09, -0.05, 0.18));
+  g.add(at(box(0.04, 0.06, 0.048, mag), 0, -0.15, -0.02, 0.4));       // lower (curved)
+  g.add(at(box(0.042, 0.016, 0.05, dark), 0, -0.19, 0.005, 0.4));     // floorplate
+  for (let i = 0; i < 4; i++) g.add(at(box(0.041, 0.005, 0.046, dark), 0, -0.07 - i * 0.028, -0.05 + i * 0.008, 0.22)); // ribs
+
+  // === pistol grip + trigger guard ===
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.05, 0.06, 0.28));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.1, 0.078, 0.28));    // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
+  g.add(at(guard, 0, -0.026, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.022, 0.0));
+
+  // === black skeleton thumbhole stock (rear ~z 0.22) ===
+  g.add(at(box(0.048, 0.07, 0.07, black), 0, 0.012, 0.06));           // stock front
+  g.add(at(box(0.044, 0.022, 0.14, blackHi), 0, 0.05, 0.15));         // top comb bar
+  g.add(at(box(0.046, 0.03, 0.06, black), 0, 0.07, 0.12));            // cheek riser
+  g.add(at(box(0.04, 0.046, 0.04, black), 0, -0.05, 0.12, 0.2));      // thumbhole grip column
+  g.add(at(box(0.034, 0.026, 0.04, dark), 0, -0.012, 0.13));          // thumbhole inner shadow
+  g.add(at(box(0.03, 0.1, 0.024, black), 0, 0.014, 0.205));           // rear vertical frame
+  g.add(at(box(0.046, 0.11, 0.022, dark), 0, 0.01, 0.218));           // butt pad
+
+  return { group: g, muzzle: -0.72 };
+}
+
+// --- RPG-7 — classic shoulder-fired rocket launcher. A long steel tube with the
+//     brown WOOD heat-shield wraps, a bulbous olive PG-7 warhead + conical nose
+//     at the front, the flared venturi blast cone at the rear, raised iron sights
+//     on top, a pistol grip + trigger and a forward grip underneath. ---
+function rpg7() {
+  const g = new THREE.Group();
+  const tubeMat = gunMetal(0x2a2e34, { metal: 0.62, rough: 0.36 }); // steel tube
+  const tubeDk = gunDark(0x16191d);
+  const wood = gunWood(0x7a4a26);                                  // wood heat shield
+  const woodDk = gunWood(0x583218);
+  const olive = gunMetal(0x4e5836, { metal: 0.3, rough: 0.6 });    // PG-7 warhead
+  const oliveDk = gunMetal(0x3a4128, { metal: 0.3, rough: 0.62 });
+  const steel = gunMetal(0x3a3f46, { metal: 0.74, rough: 0.28 });
+  const grip = gunGrip(0x222428);
+  const dark = gunDark(0x0c0d10);
+
+  // === main launch tube ===
+  g.add(at(tube(0.03, 0.03, 0.56, tubeMat), 0, 0.02, -0.24));
+  g.add(at(tube(0.031, 0.031, 0.04, tubeDk, 18), 0, 0.02, -0.46)); // forward reinforcing ring
+  g.add(at(tube(0.031, 0.031, 0.04, tubeDk, 18), 0, 0.02, 0.02));  // rear reinforcing ring
+
+  // === brown wood heat-shield wraps around the middle ===
+  for (const wz of [-0.12, -0.04]) {
+    g.add(at(tube(0.036, 0.036, 0.07, wood, 18), 0, 0.02, wz));
+    g.add(at(tube(0.037, 0.037, 0.008, woodDk, 18), 0, 0.02, wz - 0.034)); // wrap seam
+    g.add(at(tube(0.037, 0.037, 0.008, woodDk, 18), 0, 0.02, wz + 0.034));
+  }
+
+  // === bulbous olive PG-7 warhead + conical nose at the front ===
+  g.add(at(tube(0.024, 0.024, 0.05, steel), 0, 0.02, -0.49));       // sustainer neck (into the tube)
+  g.add(at(tube(0.038, 0.038, 0.08, olive, 18), 0, 0.02, -0.56));   // bulbous warhead body
+  g.add(at(tube(0.038, 0.006, 0.1, olive, 18), 0, 0.02, -0.66));    // conical nose (tapers to a point)
+  g.add(at(tube(0.04, 0.04, 0.01, oliveDk, 18), 0, 0.02, -0.515));  // warhead base band
+  for (let i = 0; i < 3; i++) g.add(at(tube(0.039, 0.039, 0.005, oliveDk, 18), 0, 0.02, -0.6 - i * 0.018)); // nose scribe lines
+
+  // === flared venturi blast cone at the rear (opens rearward) ===
+  g.add(at(tube(0.03, 0.052, 0.09, tubeMat, 18), 0, 0.02, 0.085));  // flare cone
+  g.add(at(tube(0.052, 0.052, 0.01, tubeDk, 18), 0, 0.02, 0.13));   // flare lip
+
+  // === raised iron sights on top (front blade + rear leaf) ===
+  g.add(at(box(0.014, 0.06, 0.016, tubeDk), 0, 0.07, -0.34));       // front sight post
+  g.add(at(box(0.022, 0.012, 0.016, tubeDk), 0, 0.098, -0.34));     // front blade housing
+  g.add(at(box(0.005, 0.018, 0.008, dark), 0, 0.1, -0.34));         // front blade
+  g.add(at(box(0.016, 0.07, 0.018, tubeDk), 0, 0.075, -0.02));      // rear sight post
+  g.add(at(box(0.026, 0.022, 0.012, tubeDk), 0, 0.108, -0.02));     // rear leaf
+  g.add(at(box(0.014, 0.008, 0.006, dark), 0, 0.112, -0.02));       // rear notch
+
+  // === pistol grip + trigger guard (underneath, mid) ===
+  g.add(at(box(0.04, 0.1, 0.044, grip), 0, -0.07, 0.0, 0.12));
+  g.add(at(box(0.042, 0.016, 0.046, dark), 0, -0.122, 0.006, 0.12)); // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), tubeDk);
+  g.add(at(guard, 0, -0.03, -0.04, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.022, 0.008, dark), 0, -0.026, -0.04));        // trigger
+
+  // === forward grip (underneath, ahead of the trigger) ===
+  g.add(at(box(0.036, 0.085, 0.04, grip), 0, -0.06, -0.24));
+  g.add(at(box(0.038, 0.014, 0.042, dark), 0, -0.106, -0.24));       // forward grip cap
+
+  return { group: g, muzzle: -0.71 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2541,9 +2747,12 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'BALLISTA') return ballista();
   if (weapon.data.name === 'DRAKON') return drakon();
   if (weapon.data.name === 'SVG-300') return svg300();
+  if (weapon.data.name === 'SWISS K31') return k31();
+  if (weapon.data.name === 'SVU') return svu();
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
+  if (weapon.data.name === 'RPG-7') return rpg7();
   if (weapon.data.name === 'RAY GUN') return rayGunModel(weapon);
   if (weapon.data.name === 'THUNDERGUN') return thunderGunModel();
   if (weapon.data.name === 'DEATH MACHINE') return deathMachine();

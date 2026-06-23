@@ -125,6 +125,19 @@ const defs = {
   svg300: { Class: WeaponBase, category: C.SNIPER, name: 'SVG-300', damage: 2500, headshotMultiplier: 3.0,
     scoped: true, fireRate: 50, magazineSize: 3, ammoStockSize: 24, reloadTime: 3.6, recoilPitch: 0.06,
     cost: 0, boxOnly: true, viewmodel: { length: 0.9, color: 0xb8bcc2, accent: 0xff2a1e } },
+  // SWISS K31 (Schmidt-Rubin): scopeless straight-pull bolt rifle. Ballista-like
+  // (iron sights, 5x head) but a MASSIVE damage jump. Slow bolt fire rate, only
+  // 6 rounds, and a long reload from the bolt action.
+  k31: { Class: WeaponBase, category: C.SNIPER, name: 'SWISS K31', fireMode: 'semi',
+    damage: 450, headshotMultiplier: 5.0, scoped: false, fireRate: 45, magazineSize: 6,
+    ammoStockSize: 48, reloadTime: 4.0, recoilPitch: 0.06, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.86, color: 0x9a5a28, accent: 0x2a2e34 } },
+  // SVU (SVU-AS): scoped semi-auto Dragunov marksman rifle. Like the Ballista but
+  // slightly less damage, with a higher mag size + reserve, and an actual scope.
+  svu: { Class: WeaponBase, category: C.SNIPER, name: 'SVU', fireMode: 'semi',
+    damage: 80, headshotMultiplier: 5.0, scoped: true, fireRate: 330, magazineSize: 10,
+    ammoStockSize: 70, reloadTime: 3.0, recoilPitch: 0.04, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.8, color: 0x5e2a28, accent: 0x1c1e22 } },
   // BALLISTA (BO2): the only SCOPELESS sniper — runs hooded iron sights. Plays
   // more like the FAL: semi-auto, high-ish body damage with a huge 5x headshot.
   ballista: { Class: WeaponBase, category: C.SNIPER, name: 'BALLISTA', fireMode: 'semi',
@@ -139,7 +152,15 @@ const defs = {
     ammoStockSize: 60, reloadTime: 3.2, recoilPitch: 0.04, cost: 0, boxOnly: true,
     viewmodel: { length: 0.86, color: 0x3a3f46, accent: 0x6e4424 } },
   hk21: { Class: WeaponBase, category: C.HMG, name: 'HK21', damage: 140, fireRate: 700, magazineSize: 125, cost: 1500 },
-  rpg: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'M72 LAW', splashDamage: 1400, splashRadius: 5, cost: 2000, boxOnly: true },
+  // Launchers should NOT stay instant-kills forever — tuned to stop one-shotting
+  // in the round 9-12 window (zombie HP: r9 950, r10 1045, r11 1150, r12 1264).
+  // M72 LAW: 1000 splash one-shots through round 9, falls off at round 10.
+  rpg: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'M72 LAW', splashDamage: 1000, splashRadius: 5, cost: 2000, boxOnly: true },
+  // RPG-7: very like the M72 but more damage (1200 splash → one-shots through
+  // round 11, off at round 12), a smaller reserve and a longer reload.
+  rpg7: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'RPG-7', splashDamage: 1200, splashRadius: 5.2,
+    ammoStockSize: 8, reloadTime: 4.0, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.92, color: 0x2a2e34, accent: 0x7a4a26 } },
   deathMachine: { Class: WeaponBase, category: C.SPECIAL, name: 'DEATH MACHINE', damage: 160, fireRate: 1000, magazineSize: 300, cost: 0, boxOnly: true },
   rayGun: {
     Class: ProjectileWeapon, category: C.WONDER, name: 'RAY GUN',
