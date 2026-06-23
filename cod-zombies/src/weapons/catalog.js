@@ -56,6 +56,12 @@ const defs = {
   icr1: { Class: WeaponBase, category: C.AR, name: 'ICR-1', damage: 110, headshotMultiplier: 3.0,
     fireRate: 720, magazineSize: 40, ammoStockSize: 280, reloadTime: 2.2, recoilPitch: 0.012,
     cost: 0, boxOnly: true, viewmodel: { length: 0.55, color: 0x2a2e34, accent: 0x15171b } },
+  // FAL: semi-automatic battle rifle. Hard-hitting per shot (semi-auto), 3x head,
+  // AN-94-sized body, high 30-round mag but a modest reserve.
+  fal: { Class: WeaponBase, category: C.AR, name: 'FAL', fireMode: 'semi',
+    damage: 300, headshotMultiplier: 3.0, fireRate: 360, magazineSize: 30, ammoStockSize: 180,
+    reloadTime: 2.4, recoilPitch: 0.03, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.56, color: 0x2a2f36, accent: 0xc69a5a } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
