@@ -31,6 +31,10 @@ const defs = {
   ppsh: { Class: WeaponBase, category: C.SMG, name: 'PPSH-41', damage: 65, headshotMultiplier: 3.0,
     fireRate: 1200, magazineSize: 71, ammoStockSize: 355, reloadTime: 3.0, recoilPitch: 0.008,
     cost: 0, boxOnly: true, viewmodel: { length: 0.45, color: 0x3c4045, accent: 0x6a3526 } },
+  // MP40: classic WW2 SMG. Reliable damage, slower fire rate, decent ammo, 3x head.
+  mp40: { Class: WeaponBase, category: C.SMG, name: 'MP40', damage: 95, headshotMultiplier: 3.0,
+    fireRate: 600, magazineSize: 32, ammoStockSize: 192, reloadTime: 2.3, recoilPitch: 0.01,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.4, color: 0x34373c, accent: 0x222428 } },
   galil: { Class: WeaponBase, category: C.AR, name: 'GALIL', damage: 120, fireRate: 575, recoilPitch: 0.014, cost: 1200 },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,

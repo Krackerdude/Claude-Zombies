@@ -1451,6 +1451,61 @@ function ppsh() {
   return { group: g, muzzle: -0.45 };
 }
 
+// --- MP40 — WW2 German SMG. Tubular dark-grey receiver with a flat top + ribs,
+//     a thin barrel with the resting bar + hooded front sight, flip rear sight,
+//     left cocking handle, a bakelite mag housing + straight stick magazine, a
+//     bakelite grip and a folded under-folding stock. Shared materials. ---
+function mp40() {
+  const g = new THREE.Group();
+  const steel = gunMetal(0x34373c, { metal: 0.62, rough: 0.3 });   // dark-grey sheen
+  const steelDk = gunMetal(0x222428, { metal: 0.6, rough: 0.36 });
+  const steelHi = gunMetal(0x44484e, { metal: 0.62, rough: 0.26 });
+  const bake = gunMetal(0x2a2420, { metal: 0.15, rough: 0.6 });    // bakelite housing
+  const grip = gunGrip(0x241f1a);                                 // bakelite grip
+  const dark = gunDark(0x121316);
+  const mag = gunMetal(0x3a3d42, { metal: 0.55, rough: 0.4 });
+
+  // === tubular receiver (round body) with flat top + end rings ===
+  g.add(at(tube(0.044, 0.044, 0.26, steel, 22), 0, 0.03, -0.04));
+  g.add(at(box(0.05, 0.02, 0.24, steelHi), 0, 0.066, -0.04));       // flat top strip
+  g.add(at(tube(0.046, 0.046, 0.012, steelDk, 22), 0, 0.03, 0.06)); // rear ring
+  g.add(at(tube(0.046, 0.046, 0.012, steelDk, 22), 0, 0.03, -0.16));// front ring
+
+  // === barrel + muzzle nut + resting bar + hooded front sight ===
+  g.add(at(tube(0.013, 0.013, 0.2, steel), 0, 0.03, -0.27));
+  g.add(at(tube(0.02, 0.02, 0.03, steelDk, 16), 0, 0.03, -0.37));   // muzzle nut
+  g.add(at(tube(0.014, 0.014, 0.02, dark, 14), 0, 0.03, -0.39));    // bore
+  g.add(at(box(0.018, 0.03, 0.018, steelDk), 0, 0.008, -0.2));      // resting-bar mount
+  g.add(at(box(0.06, 0.012, 0.012, steelDk), 0, -0.01, -0.2));      // resting bar
+  g.add(at(box(0.012, 0.012, 0.014, steelDk), 0, 0.05, -0.355));    // front sight base
+  const fhood = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.003, 8, 12), steelDk);
+  g.add(at(fhood, 0, 0.064, -0.355));
+  g.add(at(box(0.003, 0.012, 0.004, dark), 0, 0.062, -0.355));
+
+  // === rear flip sight + cocking handle (left) ===
+  g.add(at(box(0.02, 0.018, 0.018, steelDk), 0, 0.07, 0.04));
+  g.add(at(box(0.016, 0.012, 0.006, dark), 0, 0.082, 0.04));
+  g.add(at(box(0.012, 0.012, 0.02, steelHi), -0.044, 0.04, -0.02));
+
+  // === bakelite mag housing + straight stick magazine ===
+  g.add(at(box(0.046, 0.06, 0.06, bake), 0, -0.03, -0.1));          // housing / fore-grip
+  g.add(at(box(0.036, 0.18, 0.044, mag), 0, -0.16, -0.1, 0.08));    // straight mag (slight lean)
+  g.add(at(box(0.038, 0.016, 0.046, dark), 0, -0.245, -0.118, 0.08)); // floorplate
+  for (let i = 0; i < 5; i++) g.add(at(box(0.037, 0.004, 0.045, dark), 0, -0.1 - i * 0.03, -0.1, 0.08)); // witness marks
+
+  // === bakelite pistol grip + trigger guard ===
+  g.add(at(box(0.04, 0.12, 0.048, grip), 0, -0.06, 0.06, 0.34));
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), steelDk);
+  g.add(at(guard, 0, -0.03, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.009, 0.022, 0.008, dark), 0, -0.025, 0.02));
+
+  // === folded under-folding stock (compact) ===
+  g.add(at(box(0.014, 0.012, 0.16, steelDk), 0, -0.044, 0.0));      // strut
+  g.add(at(box(0.05, 0.02, 0.04, steelDk), 0, -0.044, 0.08));       // folded shoulder piece
+
+  return { group: g, muzzle: -0.4 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1470,6 +1525,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'UZI') return uzi();
   if (weapon.data.name === 'KUDA') return kuda();
   if (weapon.data.name === 'PPSH-41') return ppsh();
+  if (weapon.data.name === 'MP40') return mp40();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
