@@ -67,6 +67,11 @@ const defs = {
   dingo: { Class: WeaponBase, category: C.HMG, name: 'DINGO', damage: 130, headshotMultiplier: 3.0,
     fireRate: 750, magazineSize: 80, ammoStockSize: 320, reloadTime: 4.6, recoilPitch: 0.012,
     cost: 0, boxOnly: true, viewmodel: { length: 0.72, color: 0x34383f, accent: 0xb89048 } },
+  // RPD: classic Soviet belt-fed LMG. Decent damage (Dingo-class), huge 120-round
+  // pan drum, 360 reserve, standard 3x head. Slightly bulkier than the HK21.
+  rpd: { Class: WeaponBase, category: C.HMG, name: 'RPD', damage: 130, headshotMultiplier: 3.0,
+    fireRate: 650, magazineSize: 120, ammoStockSize: 360, reloadTime: 5.0, recoilPitch: 0.013,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.74, color: 0x2a2e34, accent: 0x8a4a28 } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,

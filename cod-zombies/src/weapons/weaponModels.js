@@ -1914,6 +1914,90 @@ function dingo() {
   return { group: g, muzzle: -0.74 };
 }
 
+// --- RPD — classic Soviet belt-fed LMG. Long near-black barrel with a hooded
+//     front post + gas tube, reddish-brown wood handguard, a slab blued receiver
+//     with a top rail + leaf rear sight, a brass belt feeding from a big ROUND
+//     PAN DRUM that hangs below (its flat circular face pointing SIDEWAYS — axis
+//     along X, ry = PI/2), wood pistol grip + full wooden buttstock with a black
+//     butt plate, and a folded bipod. Slightly bulkier than the HK21. ---
+function rpd() {
+  const g = new THREE.Group();
+  const blued = gunMetal(0x2a2e34, { metal: 0.66, rough: 0.34 });   // blued receiver
+  const bluedHi = gunMetal(0x3a4047, { metal: 0.64, rough: 0.3 });
+  const bluedDk = gunMetal(0x16191d, { metal: 0.62, rough: 0.42 }); // shadow cuts / drum
+  const barrelMat = gunDark(0x141519);                              // near-black barrel
+  const wood = gunWood(0x934c26);                                   // reddish-brown furniture
+  const woodDk = gunWood(0x6c3618);
+  const grip = gunWood(0x8a4824);                                   // wood pistol grip
+  const drumMat = gunMetal(0x24272d, { metal: 0.58, rough: 0.42 }); // dark blued pan drum
+  const brass = gunMetal(0xb08a3c, { metal: 0.82, rough: 0.32 });   // belt cartridges
+  const dark = gunDark(0x0c0d10);
+
+  // === long near-black barrel + gas tube + hooded front post ===
+  g.add(at(tube(0.013, 0.013, 0.42, barrelMat), 0, 0.02, -0.5));
+  g.add(at(tube(0.009, 0.009, 0.32, bluedDk), 0, -0.014, -0.46));     // gas tube below
+  g.add(at(box(0.024, 0.05, 0.05, bluedDk), 0, 0.01, -0.42));         // gas block / front band
+  g.add(at(box(0.026, 0.03, 0.034, bluedDk), 0, 0.046, -0.66));       // front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.04, 0.012, bluedDk), sx * 0.014, 0.078, -0.66)); // open "U" ears
+  g.add(at(box(0.006, 0.026, 0.01, dark), 0, 0.066, -0.66));          // front post
+  g.add(at(tube(0.013, 0.013, 0.018, dark, 12), 0, 0.02, -0.71));     // muzzle bore
+
+  // === reddish-brown wood handguard (short, ahead of the receiver) ===
+  g.add(at(box(0.05, 0.058, 0.16, wood), 0, 0.012, -0.32));
+  g.add(at(box(0.052, 0.024, 0.14, woodDk), 0, 0.044, -0.32));        // top wood ridge
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) g.add(at(box(0.004, 0.03, 0.014, dark), sx * 0.026, 0.012, -0.37 + i * 0.05)); // grip grooves
+
+  // === slab blued receiver + top rail + leaf rear sight ===
+  g.add(at(box(0.062, 0.088, 0.26, blued), 0, 0.014, -0.1));
+  g.add(at(box(0.06, 0.026, 0.24, bluedHi), 0, 0.062, -0.1));         // raised top cover
+  g.add(at(box(0.03, 0.012, 0.16, bluedDk), 0, 0.08, -0.12));         // rail base
+  for (let i = 0; i < 8; i++) g.add(at(box(0.032, 0.007, 0.008, dark), 0, 0.088, -0.18 + i * 0.022)); // rail teeth
+  g.add(at(box(0.03, 0.024, 0.022, bluedDk), 0, 0.084, 0.02));        // rear sight leaf base
+  g.add(at(box(0.024, 0.014, 0.01, dark), 0, 0.098, 0.022));          // rear notch
+  g.add(at(box(0.012, 0.024, 0.04, bluedHi), -0.038, 0.03, -0.1));    // left charging handle
+  g.add(at(box(0.05, 0.04, 0.05, bluedDk), 0.038, 0.0, -0.04));       // right side block / dust cover
+
+  // === brass belt feeding up from the drum (left) into the feed tray ===
+  g.add(at(box(0.052, 0.022, 0.06, bluedDk), 0, 0.044, -0.04));       // feed tray cover hinge
+  for (let i = 0; i < 6; i++) {
+    const t = i / 5;
+    g.add(at(box(0.012, 0.022, 0.013, brass), -0.03 - t * 0.012, -0.02 + t * 0.06, -0.05)); // cartridges climbing in
+  }
+
+  // === big ROUND PAN DRUM hanging below — flat face SIDEWAYS (axis = X) ===
+  g.add(at(box(0.05, 0.04, 0.06, bluedDk), 0, -0.05, -0.07));         // drum hanger collar
+  g.add(at(tube(0.084, 0.084, 0.058, drumMat, 26), 0, -0.14, -0.07, 0, Math.PI / 2)); // drum body (axis X → round face to the side)
+  for (const fx of [-1, 1]) {                                          // concentric ribs on each circular face
+    g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.005, 8, 24), drumMat), fx * 0.03, -0.14, -0.07, 0, Math.PI / 2));
+    g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.004, 8, 24), bluedDk), fx * 0.031, -0.14, -0.07, 0, Math.PI / 2));
+    g.add(at(tube(0.012, 0.012, 0.01, dark, 12), fx * 0.032, -0.14, -0.07, 0, Math.PI / 2)); // hub
+  }
+  g.add(at(box(0.066, 0.026, 0.05, drumMat), 0, -0.055, -0.07));      // drum top latch shroud
+  g.add(at(box(0.05, 0.018, 0.04, bluedHi), 0, -0.072, -0.07));       // latch band (light catch)
+
+  // === wood pistol grip + trigger guard ===
+  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.26));
+  g.add(at(box(0.042, 0.016, 0.048, woodDk), 0, -0.106, 0.084, 0.26)); // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bluedDk);
+  g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));          // trigger
+
+  // === full wooden buttstock with black butt plate (rear ~z 0.22) ===
+  g.add(at(box(0.044, 0.062, 0.08, blued), 0, 0.012, 0.05));          // metal stock neck/socket
+  g.add(at(box(0.05, 0.1, 0.12, wood), 0, -0.004, 0.16));             // wood butt body
+  g.add(at(box(0.052, 0.112, 0.018, dark), 0, -0.01, 0.215));         // black butt plate
+  g.add(at(box(0.046, 0.03, 0.06, woodDk), 0, 0.044, 0.12));          // comb top
+
+  // === folded bipod under the front ===
+  g.add(at(box(0.02, 0.02, 0.03, dark), 0, -0.02, -0.5));             // bipod mount
+  for (const sx of [-1, 1]) {
+    g.add(at(tube(0.005, 0.005, 0.16, bluedDk), sx * 0.012, -0.04, -0.42, 0, sx * 0.1, 0)); // leg folded back
+    g.add(at(box(0.008, 0.02, 0.008, bluedDk), sx * 0.028, -0.05, -0.35));                   // foot
+  }
+
+  return { group: g, muzzle: -0.72 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1940,6 +2024,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'ICR-1') return icr1();
   if (weapon.data.name === 'FAL') return fal();
   if (weapon.data.name === 'DINGO') return dingo();
+  if (weapon.data.name === 'RPD') return rpd();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
