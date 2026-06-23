@@ -77,6 +77,16 @@ const defs = {
   hamr: { Class: WeaponBase, category: C.HMG, name: 'HAMR', damage: 140, headshotMultiplier: 3.0,
     fireRate: 770, magazineSize: 75, ammoStockSize: 300, reloadTime: 4.4, recoilPitch: 0.013,
     cost: 0, boxOnly: true, viewmodel: { length: 0.7, color: 0x9c8c5e, accent: 0x1c1e22 } },
+  // STONER 63: Dingo-class LMG — lower fire rate, slightly higher damage, with a
+  // similar (not identical) mag + reserve. Standard 3x head.
+  stoner63: { Class: WeaponBase, category: C.HMG, name: 'STONER 63', damage: 145, headshotMultiplier: 3.0,
+    fireRate: 620, magazineSize: 75, ammoStockSize: 300, reloadTime: 4.8, recoilPitch: 0.013,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.72, color: 0x202327, accent: 0x6a4428 } },
+  // LSAT (BO2): the modern Stoner 63 — same damage, faster fire rate, but a
+  // smaller 60-round belt + lighter reserve. Standard 3x head.
+  lsat: { Class: WeaponBase, category: C.HMG, name: 'LSAT', damage: 145, headshotMultiplier: 3.0,
+    fireRate: 700, magazineSize: 60, ammoStockSize: 240, reloadTime: 4.6, recoilPitch: 0.012,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.72, color: 0x2a2e34, accent: 0xb89042 } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
@@ -110,6 +120,24 @@ const defs = {
     viewmodel: { length: 0.49, color: 0x565a61, accent: 0x3e424a } },
   olympia: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'OLYMPIA', damage: 42, pellets: 9, magazineSize: 2, fireRate: 90, cost: 1000 },
   dsr: { Class: WeaponBase, category: C.SNIPER, name: 'DSR-50', damage: 1500, magazineSize: 4, cost: 1500 },
+  // SVG-300 (AW): the 2035 DSR — a higher-caliber power sniper. Much harder
+  // hitting, but the big rounds mean a tiny mag and a light reserve.
+  svg300: { Class: WeaponBase, category: C.SNIPER, name: 'SVG-300', damage: 2500, headshotMultiplier: 3.0,
+    scoped: true, fireRate: 50, magazineSize: 3, ammoStockSize: 24, reloadTime: 3.6, recoilPitch: 0.06,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.9, color: 0xb8bcc2, accent: 0xff2a1e } },
+  // BALLISTA (BO2): the only SCOPELESS sniper — runs hooded iron sights. Plays
+  // more like the FAL: semi-auto, high-ish body damage with a huge 5x headshot.
+  ballista: { Class: WeaponBase, category: C.SNIPER, name: 'BALLISTA', fireMode: 'semi',
+    damage: 95, headshotMultiplier: 5.0, scoped: false, fireRate: 330, magazineSize: 8,
+    ammoStockSize: 56, reloadTime: 3.0, recoilPitch: 0.045, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.78, color: 0x8f8054, accent: 0x1c1e22 } },
+  // DRAKON (BO3): scoped semi-auto marksman sniper. Slightly more body damage
+  // than the Ballista, 3x head, and fires as fast as you can click (high RPM cap
+  // so the trigger isn't the bottleneck). DSR-sized, side-mounted magazine.
+  drakon: { Class: WeaponBase, category: C.SNIPER, name: 'DRAKON', fireMode: 'semi',
+    damage: 120, headshotMultiplier: 3.0, scoped: true, fireRate: 600, magazineSize: 10,
+    ammoStockSize: 60, reloadTime: 3.2, recoilPitch: 0.04, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.86, color: 0x3a3f46, accent: 0x6e4424 } },
   hk21: { Class: WeaponBase, category: C.HMG, name: 'HK21', damage: 140, fireRate: 700, magazineSize: 125, cost: 1500 },
   rpg: { Class: ProjectileWeapon, category: C.LAUNCHER, name: 'M72 LAW', splashDamage: 1400, splashRadius: 5, cost: 2000, boxOnly: true },
   deathMachine: { Class: WeaponBase, category: C.SPECIAL, name: 'DEATH MACHINE', damage: 160, fireRate: 1000, magazineSize: 300, cost: 0, boxOnly: true },
