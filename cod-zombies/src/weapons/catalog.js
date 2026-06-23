@@ -119,6 +119,21 @@ const defs = {
     reloadTime: 2.6, recoilPitch: 0.05, cost: 0, boxOnly: true,
     viewmodel: { length: 0.49, color: 0x565a61, accent: 0x3e424a } },
   olympia: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'OLYMPIA', damage: 42, pellets: 9, magazineSize: 2, fireRate: 90, cost: 1000 },
+  // KRM-262 (BO3): tactical pump shotgun. 36 dmg/pellet, 8-shell tube, 64 reserve.
+  krm: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'KRM-262', damage: 36, pellets: 8,
+    headshotMultiplier: 3.0, magazineSize: 8, ammoStockSize: 64, fireRate: 80, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.62, color: 0x44484f, accent: 0x1c1e22 } },
+  // MOG 12 (BO4): a slightly lower-tier pump shotgun. Similar pellet damage to
+  // the KRM but only 4 in the mag and a smaller reserve. Stubbier, stock-less.
+  mog12: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'MOG 12', damage: 36, pellets: 8,
+    headshotMultiplier: 3.0, magazineSize: 4, ammoStockSize: 32, fireRate: 80, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.5, color: 0x222428, accent: 0xd83426 } },
+  // DOUBLE-BARREL: classic side-by-side break-action. Double the KRM's pellet
+  // damage, a 2-shell break action and a small 36 reserve.
+  doubleBarrel: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'DOUBLE-BARREL', fireMode: 'semi',
+    damage: 72, pellets: 8, headshotMultiplier: 3.0, magazineSize: 2, ammoStockSize: 36,
+    reloadType: 'magazine', reloadTime: 2.6, fireRate: 160, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.56, color: 0x1c2026, accent: 0x8a4a26 } },
   dsr: { Class: WeaponBase, category: C.SNIPER, name: 'DSR-50', damage: 1500, magazineSize: 4, cost: 1500 },
   // SVG-300 (AW): the 2035 DSR — a higher-caliber power sniper. Much harder
   // hitting, but the big rounds mean a tiny mag and a light reserve.
