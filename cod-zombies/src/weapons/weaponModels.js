@@ -2711,6 +2711,69 @@ function rpg7() {
   return { group: g, muzzle: -0.71 };
 }
 
+// --- HELLION SALVO (BO4) — bulky futuristic 4-rocket launcher. A smooth grey
+//     ribbed launch tube (yellow band) up front, a boxy olive breech wrapped in
+//     tactical canvas/webbing with straps + clips and a small blue status screen,
+//     a firing pistol grip with a red trigger, a forward support grip, a small
+//     folding top sight and a rear shoulder pad. ---
+function hellionSalvo() {
+  const g = new THREE.Group();
+  const olive = gunMetal(0x5e6440, { metal: 0.2, rough: 0.74 });   // canvas-wrapped breech
+  const oliveDk = gunMetal(0x44492c, { metal: 0.2, rough: 0.76 }); // straps / shadow
+  const grey = gunMetal(0x6a6f76, { metal: 0.6, rough: 0.38 });    // launch tube
+  const greyDk = gunMetal(0x4a4e54, { metal: 0.58, rough: 0.42 });
+  const black = gunMetal(0x1c1e22, { metal: 0.52, rough: 0.44 });  // furniture / grips
+  const blackHi = gunMetal(0x2a2e34, { metal: 0.5, rough: 0.36 });
+  const yellow = gunMetal(0xc6a02e, { metal: 0.4, rough: 0.5 });   // caution band
+  const grip = gunGrip(0x202329);
+  const dark = gunDark(0x0c0d10);
+  const red = mat(0xd83426, { metal: 0.2, rough: 0.4, emissive: 0xd83426, ei: 1.2 }); // trigger accent
+  const blue = mat(0x2f9cff, { metal: 0.2, rough: 0.3, emissive: 0x2f9cff, ei: 1.4 }); // status screen
+
+  // === smooth grey ribbed launch tube (front) + yellow band + bore ===
+  g.add(at(tube(0.036, 0.036, 0.36, grey, 20), 0, 0.026, -0.42));
+  for (let i = 0; i < 4; i++) g.add(at(tube(0.038, 0.038, 0.006, greyDk, 18), 0, 0.026, -0.32 - i * 0.06)); // groove rings
+  g.add(at(tube(0.04, 0.04, 0.03, yellow, 18), 0, 0.026, -0.5));      // yellow caution band
+  g.add(at(tube(0.04, 0.04, 0.016, greyDk, 18), 0, 0.026, -0.585));   // muzzle ring
+  g.add(at(tube(0.03, 0.03, 0.02, dark, 16), 0, 0.026, -0.6));        // bore
+  g.add(at(box(0.06, 0.012, 0.3, greyDk), 0, 0.058, -0.42));          // top spine strip
+
+  // === small folding top sight on the tube ===
+  g.add(at(box(0.016, 0.024, 0.014, black), 0, 0.078, -0.32));        // sight base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.01, 0.003, 6, 14), black), 0, 0.094, -0.32)); // ring aperture
+
+  // === boxy olive breech wrapped in tactical canvas (rear) ===
+  g.add(at(box(0.092, 0.12, 0.28, olive), 0, 0.01, -0.02));          // main breech block
+  g.add(at(box(0.096, 0.03, 0.26, oliveDk), 0, 0.066, -0.02));       // raised top deck
+  // canvas straps / webbing crossing the body
+  for (const sz of [-0.1, 0.02, 0.1]) g.add(at(box(0.098, 0.014, 0.016, oliveDk), 0, 0.02, sz));
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.1, 0.2, oliveDk), sx * 0.047, 0.0, -0.02)); // side seam
+  // clips / fasteners (small black greebles)
+  for (const sz of [-0.08, 0.0, 0.08]) for (const sx of [-1, 1]) g.add(at(box(0.014, 0.018, 0.018, black), sx * 0.05, 0.02, sz));
+  // panel bolts on the top deck
+  for (let i = 0; i < 4; i++) g.add(at(tube(0.004, 0.004, 0.006, dark, 6), 0.02, 0.082, -0.1 + i * 0.06, Math.PI / 2));
+  // small blue status screen on the left side
+  g.add(at(box(0.006, 0.03, 0.05, dark), -0.048, 0.0, -0.06));        // screen bezel
+  g.add(at(box(0.004, 0.022, 0.04, blue), -0.051, 0.0, -0.06));       // blue screen face
+  // rear shoulder pad (closes the breech, ~z 0.2)
+  g.add(at(box(0.08, 0.13, 0.03, black), 0, 0.006, 0.16));           // butt pad
+  g.add(at(box(0.05, 0.09, 0.02, blackHi), 0, 0.006, 0.178));        // pad face
+
+  // === firing pistol grip + trigger guard (under the breech) ===
+  g.add(at(box(0.044, 0.11, 0.05, grip), 0, -0.085, 0.0, 0.18));
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.14, 0.01, 0.18));   // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
+  g.add(at(guard, 0, -0.04, -0.05, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, red), 0, -0.036, -0.05));         // red trigger
+
+  // === forward angular support grip (under the tube) ===
+  g.add(at(box(0.038, 0.09, 0.044, black), 0, -0.06, -0.32, -0.16));
+  for (let i = 0; i < 3; i++) g.add(at(box(0.04, 0.006, 0.046, dark), 0, -0.05 - i * 0.022, -0.314 - i * 0.004, -0.16)); // grip ridges
+  g.add(at(box(0.04, 0.014, 0.046, blackHi), 0, -0.106, -0.336, -0.16)); // grip cap
+
+  return { group: g, muzzle: -0.62 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2753,6 +2816,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
   if (weapon.data.name === 'RPG-7') return rpg7();
+  if (weapon.data.name === 'HELLION SALVO') return hellionSalvo();
   if (weapon.data.name === 'RAY GUN') return rayGunModel(weapon);
   if (weapon.data.name === 'THUNDERGUN') return thunderGunModel();
   if (weapon.data.name === 'DEATH MACHINE') return deathMachine();

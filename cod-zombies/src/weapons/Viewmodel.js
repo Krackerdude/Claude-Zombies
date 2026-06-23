@@ -297,7 +297,9 @@ export class Viewmodel {
     const cat = weapon.data.category;
     const dm = weapon.data.name === 'DEATH MACHINE';
     const dual = weapon.data.dualWield;
-    const a = dual ? 0 : weapon.adsProgress * (1 - this.#reload); // dual wield doesn't ADS
+    // dual wield doesn't ADS; focusOnly weapons only ease the camera FOV (the
+    // viewmodel stays at the hip — no raise to the eye).
+    const a = (dual || weapon.data.focusOnly) ? 0 : weapon.adsProgress * (1 - this.#reload);
     const hipPos = dm ? HIP_DM : dual ? HIP_DUAL : HIP;
     const adsPos = dm ? ADS_DM : cat === 'smg' ? ADS_SMG : cat === 'assaultRifle' ? ADS_AR : ADS;
     _off.lerpVectors(hipPos, adsPos, a);

@@ -61,6 +61,7 @@ export class WeaponData {
     this.adsTime = o.adsTime ?? 0.16; // time to raise sights (s)
     this.scoped = o.scoped ?? false; // draws the sniper scope overlay
     this.scopeFov = o.scopeFov ?? 22; // zoom when scoped
+    this.focusOnly = o.focusOnly ?? false; // "aim" just eases the FOV in — the viewmodel stays at the hip (no raise)
 
     // movement feel
     this.moveSpeedMult = o.moveSpeedMult ?? 1.0;
