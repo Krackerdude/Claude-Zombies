@@ -1825,6 +1825,95 @@ function fal() {
   return { group: g, muzzle: -0.6 };
 }
 
+// --- DINGO (BO3) — bulky futuristic LMG. Slab-sided dark gunmetal body slightly
+//     wider than the HK21, with angular faceted panels, gold/tan diagonal racing
+//     stripes, a wide DUAL-PORT muzzle shroud (two bores), a long slotted barrel
+//     shroud, flip-up GREEN irons front + rear, a big cylindrical drum magazine
+//     hanging down-and-forward, red accent switches, and a skeleton stock. ---
+function dingo() {
+  const g = new THREE.Group();
+  const body = gunMetal(0x34383f, { metal: 0.62, rough: 0.36 });   // main grey body
+  const bodyHi = gunMetal(0x434852, { metal: 0.6, rough: 0.3 });   // raised facets / catches light
+  const bodyDk = gunMetal(0x1c1f24, { metal: 0.58, rough: 0.44 }); // shadow channels
+  const steel = gunMetal(0x4a4f57, { metal: 0.78, rough: 0.24 });  // bright op-rod / barrel
+  const tan = gunMetal(0xb89048, { metal: 0.45, rough: 0.5 });     // gold/tan stripes
+  const drumMat = gunMetal(0x3a3e45, { metal: 0.55, rough: 0.4 }); // cylindrical mag
+  const grip = gunGrip(0x26292f);
+  const dark = gunDark(0x0e1014);
+  const green = ironSightGlow();
+  const red = mat(0xd83426, { metal: 0.2, rough: 0.4, emissive: 0xd83426, ei: 1.2 }); // red accents
+
+  // === wide DUAL-PORT muzzle shroud (two bores side by side) ===
+  g.add(at(box(0.07, 0.062, 0.12, bodyDk), 0, 0.02, -0.66));          // muzzle block
+  for (const sx of [-1, 1]) {
+    g.add(at(tube(0.018, 0.018, 0.12, dark, 14), sx * 0.018, 0.02, -0.66)); // bore tube
+    g.add(at(tube(0.019, 0.019, 0.018, dark, 14), sx * 0.018, 0.02, -0.72)); // bore mouth
+  }
+  for (let i = 0; i < 3; i++) g.add(at(box(0.074, 0.006, 0.008, dark), 0, 0.05, -0.64 - i * 0.02)); // top vents
+
+  // === long slotted barrel shroud (faceted, with a tan diagonal stripe) ===
+  g.add(at(box(0.066, 0.07, 0.28, body), 0, 0.02, -0.42));
+  g.add(at(box(0.07, 0.026, 0.26, bodyHi), 0, 0.058, -0.42));         // raised top spine
+  for (let i = 0; i < 8; i++) g.add(at(box(0.072, 0.006, 0.008, dark), 0, 0.072, -0.53 + i * 0.03)); // top rail teeth
+  // side cooling slots
+  for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) g.add(at(box(0.006, 0.03, 0.026, dark), sx * 0.034, 0.018, -0.52 + i * 0.05));
+  // faceted lower lightening cut
+  g.add(at(box(0.05, 0.022, 0.24, bodyDk), 0, -0.026, -0.42));
+  // gold/tan diagonal racing stripe across the shroud (two angled segments)
+  for (const sx of [-1, 1]) {
+    g.add(at(box(0.004, 0.05, 0.03, tan), sx * 0.035, 0.024, -0.46, 0, 0, 0.5));
+    g.add(at(box(0.004, 0.05, 0.03, tan), sx * 0.035, 0.024, -0.4, 0, 0, 0.5));
+  }
+  // bright internal op-rod showing through the slots
+  g.add(at(tube(0.012, 0.012, 0.34, steel), 0, 0.03, -0.42));
+
+  // === bulky faceted receiver (slightly wider than HK21) ===
+  g.add(at(box(0.072, 0.084, 0.24, body), 0, 0.018, -0.1));
+  g.add(at(box(0.076, 0.03, 0.22, bodyHi), 0, 0.064, -0.1));          // raised top deck
+  for (let i = 0; i < 7; i++) g.add(at(box(0.078, 0.006, 0.008, dark), 0, 0.08, -0.18 + i * 0.028)); // top rail
+  g.add(at(box(0.05, 0.04, 0.05, bodyDk), 0.038, 0.0, -0.04));        // right ejection block
+  g.add(at(box(0.012, 0.026, 0.04, steel), -0.04, 0.03, -0.15));      // left charging handle
+  g.add(at(box(0.022, 0.024, 0.022, red), 0.04, 0.01, 0.02));         // red fire-selector button (right)
+  g.add(at(box(0.05, 0.02, 0.05, bodyDk), 0, -0.05, -0.06));          // belt/feed underside block
+  // gold/tan diagonal stripe block across the receiver top-left
+  g.add(at(box(0.004, 0.04, 0.06, tan), -0.038, 0.05, -0.1, 0, 0, 0.6));
+
+  // === flip-up GREEN irons: front blade over the shroud, rear aperture ===
+  g.add(at(box(0.028, 0.03, 0.022, bodyDk), 0, 0.078, -0.34));        // front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.034, 0.01, dark), sx * 0.014, 0.1, -0.34)); // wings
+  g.add(at(box(0.006, 0.022, 0.008, dark), 0, 0.094, -0.34));         // front post
+  g.add(at(box(0.007, 0.007, 0.007, green), 0, 0.104, -0.342));       // front green dot
+  g.add(at(box(0.032, 0.028, 0.024, bodyDk), 0, 0.084, 0.02));        // rear sight housing
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.0035, 6, 14), dark), 0, 0.094, 0.026, 0, Math.PI / 2)); // aperture
+  for (const sx of [-1, 1]) g.add(at(box(0.007, 0.007, 0.007, green), sx * 0.012, 0.094, 0.016)); // twin green rear dots
+
+  // === pistol grip + trigger guard (Dingo-marked) ===
+  g.add(at(box(0.046, 0.11, 0.05, grip), 0, -0.06, 0.04, 0.3));
+  g.add(at(box(0.048, 0.018, 0.052, dark), 0, -0.118, 0.058, 0.3));   // grip cap
+  g.add(at(box(0.004, 0.04, 0.03, tan), 0.024, -0.05, 0.05, 0, 0, 0.5)); // tan grip stripe
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 8, 16), bodyDk);
+  g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.026, 0.0));
+
+  // === big cylindrical DRUM magazine hanging down-and-forward ===
+  g.add(at(box(0.05, 0.04, 0.05, bodyDk), 0, -0.07, -0.1));           // mag housing collar
+  g.add(at(tube(0.05, 0.05, 0.16, drumMat, 22), 0, -0.16, -0.13, 0.32)); // drum body (tilted forward)
+  g.add(at(tube(0.052, 0.052, 0.018, bodyDk, 22), 0, -0.224, -0.16, 0.32)); // drum end cap
+  g.add(at(tube(0.053, 0.053, 0.016, bodyDk, 22), 0, -0.1, -0.105, 0.32));  // drum top cap
+  for (let i = 0; i < 4; i++) g.add(at(box(0.084, 0.004, 0.026, bodyDk), 0, -0.12 - i * 0.026, -0.135, 0.32)); // drum ribs
+  g.add(at(box(0.01, 0.05, 0.04, red), 0.03, -0.17, -0.14, 0.32));    // red drum indicator stripe
+
+  // === skeleton stock (rear stays ~z 0.2) ===
+  g.add(at(box(0.06, 0.07, 0.06, body), 0, 0.018, 0.05));             // stock socket
+  g.add(at(tube(0.009, 0.009, 0.16, steel), 0, 0.05, 0.13));          // top tube
+  g.add(at(tube(0.009, 0.009, 0.16, steel), 0, -0.02, 0.13));         // bottom tube
+  g.add(at(box(0.04, 0.022, 0.08, bodyDk), 0, 0.056, 0.11));          // cheek rest
+  g.add(at(box(0.02, 0.1, 0.024, body), 0, 0.016, 0.205));            // vertical butt frame
+  g.add(at(box(0.034, 0.108, 0.03, dark), 0, 0.016, 0.218));          // butt pad
+
+  return { group: g, muzzle: -0.74 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1850,6 +1939,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'STG-44') return stg44();
   if (weapon.data.name === 'ICR-1') return icr1();
   if (weapon.data.name === 'FAL') return fal();
+  if (weapon.data.name === 'DINGO') return dingo();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
