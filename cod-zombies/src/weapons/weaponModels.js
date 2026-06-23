@@ -2907,6 +2907,61 @@ function mog12() {
   return { group: g, muzzle: -0.51 };
 }
 
+// --- DOUBLE-BARREL — classic side-by-side coach gun. Two deep-blued barrels
+//     joined by a top rib (front bead), a reddish-brown wood forend, a blued
+//     break-action receiver with engraved case-hardened side plates + a top
+//     lever, brass shell heads at the breech, a trigger guard with twin
+//     triggers, and a warm wooden buttstock with a steel butt plate. ---
+function doubleBarrel() {
+  const g = new THREE.Group();
+  const blued = gunMetal(0x1c2026, { metal: 0.72, rough: 0.26 });   // deep-blued barrels
+  const bluedHi = gunMetal(0x2c323a, { metal: 0.7, rough: 0.24 });
+  const receiver = engravedSteel(0x5a5248);                         // case-hardened engraved receiver
+  const wood = gunWood(0x8a4a26);                                   // reddish-brown furniture
+  const woodDk = gunWood(0x5e3216);
+  const brass = gunMetal(0xb08a3c, { metal: 0.82, rough: 0.32 });   // shell heads
+  const dark = gunDark(0x0c0d10);
+  const BX = 0.019; // half the barrel spacing (side-by-side)
+
+  // === two side-by-side blued barrels + joining ribs ===
+  for (const sx of [-1, 1]) {
+    g.add(at(tube(0.018, 0.018, 0.62, blued), sx * BX, 0.024, -0.36));
+    g.add(at(tube(0.018, 0.018, 0.02, dark, 14), sx * BX, 0.024, -0.66)); // bore
+  }
+  g.add(at(box(0.012, 0.01, 0.6, bluedHi), 0, 0.044, -0.35));         // top sighting rib
+  g.add(at(box(0.012, 0.01, 0.6, blued), 0, 0.004, -0.35));           // bottom joining rib
+  g.add(at(box(0.04, 0.012, 0.6, blued), 0, 0.024, -0.35));           // mid web between barrels
+  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 8), bluedHi), 0, 0.052, -0.64)); // front bead
+
+  // === reddish-brown wood forend under the barrels ===
+  g.add(at(box(0.054, 0.036, 0.28, wood), 0, -0.008, -0.4));
+  g.add(at(box(0.056, 0.012, 0.26, woodDk), 0, -0.026, -0.4));        // forend bottom groove
+  g.add(at(box(0.05, 0.026, 0.03, dark), 0, -0.01, -0.52));           // forend tip latch
+  g.add(at(box(0.044, 0.014, 0.05, bluedHi), 0, -0.026, -0.3));       // forend iron / latch lug
+
+  // === blued break-action receiver + engraved side plates + top lever ===
+  g.add(at(box(0.058, 0.07, 0.16, receiver), 0, 0.012, -0.02));
+  for (const sx of [-1, 1]) g.add(at(box(0.004, 0.05, 0.12, receiver), sx * 0.03, 0.008, -0.02)); // engraved side plates
+  g.add(at(box(0.05, 0.024, 0.06, bluedHi), 0, 0.05, -0.02));         // top strap
+  g.add(at(box(0.012, 0.014, 0.05, bluedHi), 0, 0.058, 0.04));        // opening top lever
+  // brass shell heads at the breech (where the barrels meet the receiver)
+  for (const sx of [-1, 1]) g.add(at(tube(0.015, 0.015, 0.012, brass, 12), sx * BX, 0.024, -0.085));
+
+  // === trigger guard + twin triggers ===
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.005, 8, 18), bluedHi);
+  g.add(at(guard, 0, -0.038, 0.04, 0, Math.PI / 2));
+  g.add(at(box(0.009, 0.024, 0.008, dark), 0, -0.03, 0.028));         // front trigger
+  g.add(at(box(0.009, 0.022, 0.008, dark), 0, -0.03, 0.05));          // rear trigger
+
+  // === warm wooden buttstock + steel butt plate (rear ~z 0.22) ===
+  g.add(at(box(0.044, 0.066, 0.1, wood), 0, -0.004, 0.1));            // wrist
+  g.add(at(box(0.05, 0.108, 0.12, wood), 0, -0.02, 0.19, -0.05));     // butt body (slight drop)
+  g.add(at(box(0.046, 0.03, 0.06, woodDk), 0, 0.04, 0.14));           // comb
+  g.add(at(box(0.052, 0.118, 0.016, dark), 0, -0.026, 0.243, -0.05)); // steel butt plate
+
+  return { group: g, muzzle: -0.68 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2941,6 +2996,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'KRM-262') return krm();
   if (weapon.data.name === 'MOG 12') return mog12();
+  if (weapon.data.name === 'DOUBLE-BARREL') return doubleBarrel();
   if (weapon.data.name === 'OLYMPIA') return olympia();
   if (weapon.data.name === 'BALLISTA') return ballista();
   if (weapon.data.name === 'DRAKON') return drakon();

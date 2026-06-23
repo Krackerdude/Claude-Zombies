@@ -128,6 +128,12 @@ const defs = {
   mog12: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'MOG 12', damage: 36, pellets: 8,
     headshotMultiplier: 3.0, magazineSize: 4, ammoStockSize: 32, fireRate: 80, cost: 0, boxOnly: true,
     viewmodel: { length: 0.5, color: 0x222428, accent: 0xd83426 } },
+  // DOUBLE-BARREL: classic side-by-side break-action. Double the KRM's pellet
+  // damage, a 2-shell break action and a small 36 reserve.
+  doubleBarrel: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'DOUBLE-BARREL', fireMode: 'semi',
+    damage: 72, pellets: 8, headshotMultiplier: 3.0, magazineSize: 2, ammoStockSize: 36,
+    reloadType: 'magazine', reloadTime: 2.6, fireRate: 160, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.56, color: 0x1c2026, accent: 0x8a4a26 } },
   dsr: { Class: WeaponBase, category: C.SNIPER, name: 'DSR-50', damage: 1500, magazineSize: 4, cost: 1500 },
   // SVG-300 (AW): the 2035 DSR — a higher-caliber power sniper. Much harder
   // hitting, but the big rounds mean a tiny mag and a light reserve.
