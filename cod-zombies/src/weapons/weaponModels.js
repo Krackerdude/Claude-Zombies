@@ -1472,15 +1472,15 @@ function mp40() {
   g.add(at(tube(0.046, 0.046, 0.012, steelDk, 22), 0, 0.03, -0.16));// front ring
 
   // === barrel + muzzle nut + resting bar + hooded front sight ===
-  g.add(at(tube(0.013, 0.013, 0.2, steel), 0, 0.03, -0.27));
-  g.add(at(tube(0.02, 0.02, 0.03, steelDk, 16), 0, 0.03, -0.37));   // muzzle nut
-  g.add(at(tube(0.014, 0.014, 0.02, dark, 14), 0, 0.03, -0.39));    // bore
-  g.add(at(box(0.018, 0.03, 0.018, steelDk), 0, 0.008, -0.2));      // resting-bar mount
-  g.add(at(box(0.06, 0.012, 0.012, steelDk), 0, -0.01, -0.2));      // resting bar
-  g.add(at(box(0.012, 0.012, 0.014, steelDk), 0, 0.05, -0.355));    // front sight base
+  g.add(at(tube(0.013, 0.013, 0.28, steel), 0, 0.03, -0.31));
+  g.add(at(tube(0.02, 0.02, 0.03, steelDk, 16), 0, 0.03, -0.45));   // muzzle nut
+  g.add(at(tube(0.014, 0.014, 0.02, dark, 14), 0, 0.03, -0.47));    // bore
+  g.add(at(box(0.018, 0.03, 0.018, steelDk), 0, 0.008, -0.26));     // resting-bar mount
+  g.add(at(box(0.06, 0.012, 0.012, steelDk), 0, -0.01, -0.26));     // resting bar
+  g.add(at(box(0.012, 0.012, 0.014, steelDk), 0, 0.05, -0.43));     // front sight base
   const fhood = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.003, 8, 12), steelDk);
-  g.add(at(fhood, 0, 0.064, -0.355));
-  g.add(at(box(0.003, 0.012, 0.004, dark), 0, 0.062, -0.355));
+  g.add(at(fhood, 0, 0.064, -0.43));
+  g.add(at(box(0.003, 0.012, 0.004, dark), 0, 0.062, -0.43));
 
   // === rear flip sight + cocking handle (left) ===
   g.add(at(box(0.02, 0.018, 0.018, steelDk), 0, 0.07, 0.04));
@@ -1503,7 +1503,7 @@ function mp40() {
   g.add(at(box(0.014, 0.012, 0.16, steelDk), 0, -0.044, 0.0));      // strut
   g.add(at(box(0.05, 0.02, 0.04, steelDk), 0, -0.044, 0.08));       // folded shoulder piece
 
-  return { group: g, muzzle: -0.4 };
+  return { group: g, muzzle: -0.48 };
 }
 
 const BUILDERS = {
