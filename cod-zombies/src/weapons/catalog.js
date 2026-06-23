@@ -72,6 +72,11 @@ const defs = {
   rpd: { Class: WeaponBase, category: C.HMG, name: 'RPD', damage: 130, headshotMultiplier: 3.0,
     fireRate: 650, magazineSize: 120, ammoStockSize: 360, reloadTime: 5.0, recoilPitch: 0.013,
     cost: 0, boxOnly: true, viewmodel: { length: 0.74, color: 0x2a2e34, accent: 0x8a4a28 } },
+  // HAMR (BO2): an HK21-class LMG, mechanically the same gun — same 140 damage,
+  // differentiated only by a higher fire rate and a smaller 75-round mag.
+  hamr: { Class: WeaponBase, category: C.HMG, name: 'HAMR', damage: 140, headshotMultiplier: 3.0,
+    fireRate: 770, magazineSize: 75, ammoStockSize: 300, reloadTime: 4.4, recoilPitch: 0.013,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.7, color: 0x9c8c5e, accent: 0x1c1e22 } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,

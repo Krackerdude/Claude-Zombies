@@ -1998,6 +1998,88 @@ function rpd() {
   return { group: g, muzzle: -0.72 };
 }
 
+// --- HAMR (BO2) — modern SCAR/ACR-pattern LMG in FDE tan + black. Flat-top
+//     receiver with a full-length Picatinny rail, hooded RING flip sights front
+//     + rear with a knurled rotary drum (1·2·3) adjuster, a black barrel with a
+//     slotted muzzle brake + folded bipod, a tan handguard, a big round DRUM
+//     magazine (flat face sideways, axis X) and a tan collapsing stock. ---
+function hamr() {
+  const g = new THREE.Group();
+  const tan = gunMetal(0x9c8c5e, { metal: 0.34, rough: 0.54 });     // FDE body
+  const tanHi = gunMetal(0xb2a06e, { metal: 0.32, rough: 0.48 });   // lighter panels
+  const tanDk = gunMetal(0x756840, { metal: 0.34, rough: 0.58 });   // shadowed tan
+  const black = gunMetal(0x1c1e22, { metal: 0.55, rough: 0.42 });   // black furniture/rail
+  const blackDk = gunDark(0x111316);
+  const steel = gunMetal(0x3a3f46, { metal: 0.74, rough: 0.26 });   // barrel
+  const drumMat = gunMetal(0x242a2e, { metal: 0.55, rough: 0.42 }); // dark drum
+  const amber = gunMetal(0xc0962e, { metal: 0.5, rough: 0.5 });     // painted sight numbers
+  const grip = gunGrip(0x2a2c30);
+  const dark = gunDark(0x0c0d10);
+
+  // === black barrel + slotted muzzle brake ===
+  g.add(at(tube(0.013, 0.013, 0.3, steel), 0, 0.02, -0.46));
+  g.add(at(tube(0.019, 0.019, 0.07, blackDk, 14), 0, 0.02, -0.6));    // muzzle brake
+  for (const sz of [-0.58, -0.61]) g.add(at(tube(0.0205, 0.0205, 0.006, dark, 12), 0, 0.02, sz)); // slot rings
+  g.add(at(tube(0.013, 0.013, 0.018, dark, 12), 0, 0.02, -0.64));     // bore
+  g.add(at(box(0.022, 0.04, 0.04, blackDk), 0, 0.012, -0.42));        // gas block
+
+  // === tan handguard with rail slots ===
+  g.add(at(box(0.054, 0.058, 0.2, tan), 0, 0.016, -0.32));
+  g.add(at(box(0.05, 0.018, 0.18, black), 0, 0.05, -0.32));           // top rail over handguard
+  for (let i = 0; i < 7; i++) g.add(at(box(0.052, 0.006, 0.008, dark), 0, 0.06, -0.4 + i * 0.024)); // rail teeth
+  for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) g.add(at(box(0.005, 0.026, 0.026, dark), sx * 0.028, 0.016, -0.39 + i * 0.05)); // side slots
+
+  // === tan flat-top receiver + continuous black rail ===
+  g.add(at(box(0.058, 0.078, 0.26, tan), 0, 0.014, -0.1));
+  g.add(at(box(0.05, 0.02, 0.24, black), 0, 0.056, -0.1));            // receiver rail
+  for (let i = 0; i < 9; i++) g.add(at(box(0.052, 0.006, 0.008, dark), 0, 0.066, -0.2 + i * 0.024)); // rail teeth
+  g.add(at(box(0.05, 0.03, 0.06, tanHi), 0, 0.02, -0.02));            // raised charging block
+  g.add(at(box(0.012, 0.024, 0.05, black), -0.036, 0.03, -0.16));     // left charging handle
+  g.add(at(box(0.05, 0.04, 0.05, tanDk), 0.036, 0.0, -0.04));         // right side block / port
+
+  // === hooded RING flip sights: front blade + rear ring with rotary drum ===
+  g.add(at(box(0.022, 0.03, 0.022, blackDk), 0, 0.072, -0.36));       // front sight base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.0035, 8, 18), blackDk), 0, 0.096, -0.36)); // ring hood
+  g.add(at(box(0.005, 0.02, 0.008, dark), 0, 0.09, -0.36));           // front post
+  g.add(at(box(0.026, 0.034, 0.026, blackDk), 0, 0.074, 0.02));       // rear sight base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.013, 0.0035, 8, 18), blackDk), 0, 0.1, 0.02)); // rear ring aperture
+  // knurled rotary range drum (1·2·3) on the right of the rear sight
+  g.add(at(tube(0.016, 0.016, 0.026, blackDk, 16), 0.03, 0.066, 0.02, 0, Math.PI / 2)); // drum body (axis X)
+  g.add(at(tube(0.0165, 0.0165, 0.008, amber, 16), 0.03, 0.066, 0.02, 0, Math.PI / 2)); // painted index band
+
+  // === big round DRUM magazine — flat face SIDEWAYS (axis = X) ===
+  g.add(at(box(0.05, 0.04, 0.06, tanDk), 0, -0.05, -0.06));           // mag well collar
+  g.add(at(tube(0.072, 0.072, 0.056, drumMat, 24), 0, -0.13, -0.06, 0, Math.PI / 2)); // drum body
+  for (const fx of [-1, 1]) {
+    g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.005, 8, 22), drumMat), fx * 0.029, -0.13, -0.06, 0, Math.PI / 2)); // face rib
+    g.add(at(tube(0.012, 0.012, 0.01, dark, 12), fx * 0.031, -0.13, -0.06, 0, Math.PI / 2)); // hub
+  }
+  g.add(at(box(0.06, 0.024, 0.05, drumMat), 0, -0.055, -0.06));       // drum top latch
+
+  // === pistol grip + trigger guard ===
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.28));
+  g.add(at(box(0.044, 0.016, 0.048, blackDk), 0, -0.106, 0.086, 0.28)); // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
+  g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));
+
+  // === tan SCAR collapsing stock (rear ~z 0.2) ===
+  g.add(at(box(0.05, 0.07, 0.06, tan), 0, 0.014, 0.06));              // stock body front
+  g.add(at(box(0.05, 0.06, 0.1, tanDk), 0, 0.01, 0.15));              // stock body
+  g.add(at(box(0.052, 0.092, 0.022, blackDk), 0, 0.004, 0.205));      // butt plate
+  g.add(at(box(0.046, 0.024, 0.08, tanHi), 0, 0.046, 0.12));          // raised comb
+  g.add(at(box(0.014, 0.04, 0.04, black), 0, -0.03, 0.07));           // sling/hinge block
+
+  // === folded bipod under the front ===
+  g.add(at(box(0.02, 0.02, 0.03, blackDk), 0, -0.02, -0.46));         // bipod mount
+  for (const sx of [-1, 1]) {
+    g.add(at(tube(0.005, 0.005, 0.16, black), sx * 0.012, -0.04, -0.38, 0, sx * 0.1, 0)); // leg folded back
+    g.add(at(box(0.008, 0.02, 0.008, black), sx * 0.028, -0.05, -0.31));                   // foot
+  }
+
+  return { group: g, muzzle: -0.66 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2025,6 +2107,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'FAL') return fal();
   if (weapon.data.name === 'DINGO') return dingo();
   if (weapon.data.name === 'RPD') return rpd();
+  if (weapon.data.name === 'HAMR') return hamr();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();
