@@ -1686,6 +1686,78 @@ function stg44() {
   return { group: g, muzzle: -0.63 };
 }
 
+// --- ICR-1 (BO3) — modern angular AR (Honey Badger family). A flat-sided dark
+//     gunmetal receiver with a full-length Picatinny top rail, a long slot-cut
+//     KeyMod handguard, a stubby flash hider, flip-up GREEN fiber sights, a
+//     straight polymer mag and a tubular skeleton collapsing stock. Reads as a
+//     close cousin of the Galil (same length) but cleaner / more modern. ---
+function icr1() {
+  const g = new THREE.Group();
+  const body = gunMetal(0x2a2e34, { metal: 0.6, rough: 0.38 });    // receiver / handguard
+  const bodyHi = gunMetal(0x363b42, { metal: 0.58, rough: 0.34 }); // raised panels / rail
+  const bodyDk = gunMetal(0x191c20, { metal: 0.55, rough: 0.44 }); // shadow cuts / accents
+  const steel = gunMetal(0x3a3f46, { metal: 0.72, rough: 0.28 });  // barrel steel
+  const poly = gunMetal(0x202327, { metal: 0.25, rough: 0.6 });    // polymer mag / stock
+  const grip = gunGrip(0x23262b);                                  // stippled grip
+  const dark = gunDark(0x101216);
+  const green = ironSightGlow();
+
+  // === barrel + stubby flash hider out the front ===
+  g.add(at(tube(0.012, 0.012, 0.16, steel), 0, 0.018, -0.42));
+  g.add(at(tube(0.02, 0.02, 0.05, bodyDk, 14), 0, 0.018, -0.52));     // flash hider body
+  for (let i = 0; i < 3; i++) g.add(at(tube(0.022, 0.022, 0.005, dark, 14), 0, 0.018, -0.5 - i * 0.016)); // cut rings
+  g.add(at(tube(0.013, 0.013, 0.018, dark, 12), 0, 0.018, -0.55));    // bore
+
+  // === long slotted handguard (KeyMod look) wrapping the barrel ===
+  g.add(at(box(0.05, 0.052, 0.26, body), 0, 0.022, -0.3));
+  g.add(at(box(0.052, 0.018, 0.24, bodyHi), 0, 0.05, -0.3));          // top rail run over the handguard
+  for (let i = 0; i < 9; i++) g.add(at(box(0.054, 0.006, 0.008, dark), 0, 0.06, -0.4 + i * 0.024)); // top rail teeth
+  // slot cutouts down each side + the bottom of the handguard
+  for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) g.add(at(box(0.005, 0.024, 0.034, dark), sx * 0.026, 0.018, -0.39 + i * 0.05));
+  for (let i = 0; i < 4; i++) g.add(at(box(0.026, 0.005, 0.034, dark), 0, -0.006, -0.39 + i * 0.05)); // bottom slots
+
+  // === flat-sided receiver + continuous top rail ===
+  g.add(at(box(0.052, 0.066, 0.22, body), 0, 0.02, -0.07));
+  g.add(at(box(0.052, 0.02, 0.2, bodyHi), 0, 0.055, -0.07));          // receiver rail
+  for (let i = 0; i < 8; i++) g.add(at(box(0.054, 0.006, 0.008, dark), 0, 0.066, -0.15 + i * 0.024)); // rail teeth
+  g.add(at(box(0.014, 0.03, 0.05, bodyDk), 0.03, 0.012, -0.02));      // ejection port (right)
+  g.add(at(box(0.012, 0.024, 0.024, bodyDk), -0.032, 0.026, -0.12));  // charging handle (left)
+  g.add(at(box(0.012, 0.03, 0.022, bodyHi), -0.032, -0.004, 0.01));   // ambi selector
+
+  // === flip-up GREEN sights: hooded front over the gas block, rear on the receiver ===
+  g.add(at(box(0.024, 0.034, 0.026, bodyDk), 0, 0.044, -0.45));       // front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.04, 0.01, dark), sx * 0.014, 0.07, -0.45)); // hood ears
+  g.add(at(box(0.034, 0.007, 0.01, dark), 0, 0.092, -0.45));          // hood crossbar
+  g.add(at(box(0.006, 0.026, 0.008, dark), 0, 0.066, -0.45));         // front post
+  g.add(at(box(0.007, 0.007, 0.007, green), 0, 0.078, -0.452));       // front green dot
+  g.add(at(box(0.03, 0.024, 0.022, bodyDk), 0, 0.072, 0.0));          // rear sight base
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.01, 0.0035, 6, 14), dark), 0, 0.08, 0.006, 0, Math.PI / 2)); // aperture
+  for (const sx of [-1, 1]) g.add(at(box(0.007, 0.007, 0.007, green), sx * 0.011, 0.08, -0.004)); // twin green rear dots
+
+  // === straight polymer magazine ===
+  g.add(at(box(0.046, 0.03, 0.058, body), 0, -0.05, -0.05));          // mag well lip
+  g.add(at(box(0.04, 0.14, 0.052, poly), 0, -0.13, -0.045, 0.06));    // straight mag body (mild rake)
+  g.add(at(box(0.042, 0.016, 0.054, dark), 0, -0.2, -0.032, 0.06));   // floorplate
+  for (let i = 0; i < 4; i++) g.add(at(box(0.041, 0.005, 0.05, bodyDk), 0, -0.09 - i * 0.03, -0.05 + i * 0.002, 0.06)); // ribs
+
+  // === stippled pistol grip + trigger guard ===
+  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.055, 0.06, 0.34));
+  g.add(at(box(0.042, 0.016, 0.048, dark), 0, -0.108, 0.078, 0.34));  // grip base cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), bodyDk);
+  g.add(at(guard, 0, -0.028, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.022, 0.008, dark), 0, -0.024, 0.0));
+
+  // === tubular skeleton collapsing stock — rear stays near z 0.22 ===
+  g.add(at(box(0.05, 0.064, 0.05, body), 0, 0.02, 0.06));             // stock socket / buffer
+  g.add(at(tube(0.008, 0.008, 0.14, steel), 0, 0.046, 0.14));         // top tube
+  g.add(at(tube(0.008, 0.008, 0.14, steel), 0, -0.018, 0.14));        // bottom tube
+  g.add(at(box(0.034, 0.018, 0.07, bodyDk), 0, 0.05, 0.12));          // cheek riser
+  g.add(at(box(0.018, 0.092, 0.022, poly), 0, 0.014, 0.205));         // vertical butt frame
+  g.add(at(box(0.03, 0.1, 0.03, dark), 0, 0.014, 0.218));             // rubber butt pad
+
+  return { group: g, muzzle: -0.55 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1709,6 +1781,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'XM4') return xm4();
   if (weapon.data.name === 'AN-94') return an94();
   if (weapon.data.name === 'STG-44') return stg44();
+  if (weapon.data.name === 'ICR-1') return icr1();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();

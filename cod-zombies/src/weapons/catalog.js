@@ -51,6 +51,11 @@ const defs = {
   stg44: { Class: WeaponBase, category: C.AR, name: 'STG-44', damage: 205, headshotMultiplier: 3.0,
     fireRate: 580, magazineSize: 30, ammoStockSize: 240, reloadTime: 2.5, recoilPitch: 0.014,
     cost: 0, boxOnly: true, viewmodel: { length: 0.63, color: 0x2c3036, accent: 0x6a4a2e } },
+  // ICR-1 (BO3): modern angular AR, very close to the Galil but slightly less
+  // damage and a higher fire rate. Mid mag + reserve, green iron sights. 3x head.
+  icr1: { Class: WeaponBase, category: C.AR, name: 'ICR-1', damage: 110, headshotMultiplier: 3.0,
+    fireRate: 720, magazineSize: 40, ammoStockSize: 280, reloadTime: 2.2, recoilPitch: 0.012,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.55, color: 0x2a2e34, accent: 0x15171b } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
