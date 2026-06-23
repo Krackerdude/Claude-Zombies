@@ -1332,6 +1332,69 @@ function uzi() {
   return { group: g, muzzle: -0.33 };
 }
 
+// --- KUDA (BO3) — semi-futuristic SMG. Two-tone: tan/FDE angular upper with
+//     carbon hatch panels + lightening cutouts and a full-length top rail (flip
+//     ring sight + rear block) over a dark barrel shroud with a big knurled
+//     muzzle device; a long curved mag, skeletonised guard, and an angular tan
+//     stock. Shared materials. ---
+function kuda() {
+  const g = new THREE.Group();
+  const tan = gunMetal(0xa39a7c, { metal: 0.35, rough: 0.5 });      // FDE body
+  const tanDk = gunMetal(0x837a5e, { metal: 0.35, rough: 0.55 });   // darker tan
+  const dark = gunMetal(0x26282c, { metal: 0.5, rough: 0.5 });      // dark lower / shroud
+  const black = gunDark(0x141619);
+  const grip = gunGrip(0x1a1c20);                                   // black grip
+  const steel = gunMetal(0x55595f, { metal: 0.7, rough: 0.32 });    // muzzle / barrel
+  const carbon = gunMetalRidged(0x8c845f);                          // carbon-ish hatch panel
+
+  // === tan angular upper: carbon panel + lightening cutouts + top rail ===
+  g.add(at(box(0.058, 0.07, 0.34, tan), 0, 0.03, -0.08));           // main body
+  g.add(at(box(0.06, 0.05, 0.12, carbon), 0, 0.03, -0.04));         // carbon panel
+  g.add(at(box(0.062, 0.018, 0.04, black), 0, 0.034, -0.14));       // cutout
+  g.add(at(box(0.062, 0.02, 0.03, black), 0, 0.026, -0.18));        // cutout
+  g.add(at(box(0.062, 0.026, 0.03, black), 0, 0.022, 0.04));        // ejection port
+  g.add(at(box(0.026, 0.012, 0.32, dark), 0, 0.07, -0.08));         // rail base
+  for (let i = 0; i < 13; i++) g.add(at(box(0.028, 0.01, 0.008, black), 0, 0.079, -0.22 + i * 0.024)); // rail teeth
+
+  // === flip front ring sight + rear sight block ===
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.004, 8, 14), black);
+  g.add(at(ring, 0, 0.1, -0.22));
+  g.add(at(box(0.006, 0.03, 0.006, black), 0, 0.088, -0.22));       // post
+  g.add(at(box(0.03, 0.03, 0.04, dark), 0, 0.092, 0.02));           // rear block
+  g.add(at(box(0.024, 0.018, 0.01, black), 0, 0.104, 0.02));        // aperture
+
+  // === dark barrel shroud + big knurled muzzle device ===
+  g.add(at(box(0.05, 0.05, 0.24, dark), 0, -0.012, -0.18));
+  g.add(at(box(0.052, 0.01, 0.2, black), 0, 0.012, -0.18));         // shroud seam
+  g.add(at(tube(0.011, 0.011, 0.04, steel), 0, -0.012, -0.31));     // barrel
+  g.add(at(tube(0.032, 0.032, 0.06, steel, 20), 0, -0.012, -0.33)); // knurled muzzle cap
+  for (let i = 0; i < 5; i++) g.add(at(tube(0.034, 0.034, 0.003, black, 20), 0, -0.012, -0.31 - i * 0.011)); // grooves
+  g.add(at(tube(0.018, 0.018, 0.03, black, 16), 0, -0.012, -0.37)); // bore
+  g.add(at(box(0.01, 0.01, 0.02, steel), 0, -0.04, -0.27));         // QD button
+
+  // === long STRAIGHT magazine (forward of the grip) ===
+  g.add(at(box(0.036, 0.25, 0.05, black), 0, -0.185, -0.03));       // straight mag body
+  g.add(at(box(0.038, 0.016, 0.052, dark), 0, -0.315, -0.03));      // floorplate
+  for (let i = 0; i < 6; i++) g.add(at(box(0.037, 0.004, 0.051, dark), 0, -0.09 - i * 0.035, -0.03)); // witness marks
+
+  // === grip + skeletonised guard + controls ===
+  g.add(at(box(0.04, 0.13, 0.05, grip), 0, -0.07, 0.1, 0.28));
+  for (let i = 0; i < 6; i++) g.add(at(box(0.042, 0.005, 0.046, black), 0, -0.03 - i * 0.018, 0.114 + i * 0.005, 0.28)); // grip ribs
+  g.add(at(box(0.01, 0.006, 0.06, tan), 0, -0.052, 0.04));          // guard bottom bar
+  g.add(at(box(0.01, 0.04, 0.006, tan), 0, -0.035, 0.07));          // guard front bar
+  g.add(at(box(0.01, 0.026, 0.009, black), 0, -0.03, 0.04));        // trigger
+  g.add(at(box(0.014, 0.012, 0.03, dark), 0.032, 0.04, -0.02));     // charging handle
+  g.add(at(box(0.012, 0.014, 0.012, tan), 0.031, 0.0, 0.06));       // bolt release
+
+  // === angular skeletonised TAN stock ===
+  g.add(at(box(0.03, 0.05, 0.1, tan), 0, 0.03, 0.15));              // stock arm
+  g.add(at(box(0.012, 0.085, 0.018, tan), 0, 0.008, 0.21));         // butt upright
+  g.add(at(box(0.04, 0.085, 0.014, tanDk), 0, 0.008, 0.222));       // butt pad
+  g.add(at(box(0.012, 0.04, 0.05, tan), 0, -0.025, 0.18));          // lower strut
+
+  return { group: g, muzzle: -0.38 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1349,6 +1412,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'CODA 9') return coda9();
   if (weapon.data.name === 'MP5') return mp5();
   if (weapon.data.name === 'UZI') return uzi();
+  if (weapon.data.name === 'KUDA') return kuda();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();

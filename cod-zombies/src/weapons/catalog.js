@@ -21,6 +21,11 @@ const defs = {
   uzi: { Class: WeaponBase, category: C.SMG, name: 'UZI', damage: 85, headshotMultiplier: 3.0,
     fireRate: 950, magazineSize: 32, ammoStockSize: 160, reloadTime: 2.1, recoilPitch: 0.01,
     cost: 0, boxOnly: true, viewmodel: { length: 0.32, color: 0x2c2f35, accent: 0x141619 } },
+  // KUDA (BO3): semi-futuristic SMG. 110 dmg/bullet, standard 3x head, medium
+  // fire rate (slightly slower than the MP5), 30-round mag, 210 reserve.
+  kuda: { Class: WeaponBase, category: C.SMG, name: 'KUDA', damage: 110, headshotMultiplier: 3.0,
+    fireRate: 750, magazineSize: 30, ammoStockSize: 210, reloadTime: 2.1, recoilPitch: 0.009,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.38, color: 0xa39a7c, accent: 0x26282c } },
   galil: { Class: WeaponBase, category: C.AR, name: 'GALIL', damage: 120, fireRate: 575, recoilPitch: 0.014, cost: 1200 },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
