@@ -1526,40 +1526,41 @@ function xm4() {
   g.add(at(tube(0.012, 0.012, 0.02, dark, 12), 0, 0.03, -0.545));   // bore
 
   // === A-frame front sight tower + gas block ===
-  g.add(at(box(0.03, 0.05, 0.04, black), 0, 0.05, -0.4));
-  g.add(at(box(0.014, 0.05, 0.02, black), 0, 0.085, -0.4));         // upright
-  g.add(at(box(0.024, 0.014, 0.018, black), 0, 0.108, -0.4));       // sight ears
-  g.add(at(box(0.012, 0.012, 0.03, steel), 0, 0.018, -0.43));       // gas block under
+  g.add(at(box(0.038, 0.05, 0.045, black), 0, 0.052, -0.4));
+  g.add(at(box(0.016, 0.05, 0.022, black), 0, 0.088, -0.4));        // upright
+  g.add(at(box(0.028, 0.016, 0.02, black), 0, 0.112, -0.4));        // sight ears
+  g.add(at(box(0.016, 0.016, 0.034, steel), 0, 0.016, -0.43));      // gas block under
 
-  // === ribbed handguard ===
-  g.add(at(box(0.052, 0.055, 0.2, poly), 0, 0.03, -0.28));
-  for (let i = 0; i < 7; i++) g.add(at(box(0.054, 0.004, 0.016, dark), 0, 0.058, -0.37 + i * 0.026)); // top ribs
-  for (const sx of [-1, 1]) for (let i = 0; i < 7; i++) g.add(at(box(0.004, 0.038, 0.016, dark), sx * 0.027, 0.03, -0.37 + i * 0.026)); // side ribs
+  // === chunky ribbed handguard (the M4's bulk) ===
+  g.add(at(box(0.074, 0.072, 0.2, poly), 0, 0.028, -0.28));
+  g.add(at(box(0.066, 0.066, 0.2, blackHi), 0, 0.028, -0.28));      // inner core (rounder read)
+  for (let i = 0; i < 7; i++) g.add(at(box(0.076, 0.006, 0.018, dark), 0, 0.066, -0.37 + i * 0.026)); // top ribs
+  for (const sx of [-1, 1]) for (let i = 0; i < 7; i++) g.add(at(box(0.006, 0.05, 0.018, dark), sx * 0.038, 0.028, -0.37 + i * 0.026)); // side ribs
 
   // === flat-top upper receiver + rail + rear drum sight ===
-  g.add(at(box(0.05, 0.05, 0.18, black), 0, 0.03, -0.08));
-  g.add(at(box(0.052, 0.014, 0.18, blackHi), 0, 0.058, -0.08));     // flat top
-  for (let i = 0; i < 7; i++) g.add(at(box(0.054, 0.008, 0.006, dark), 0, 0.066, -0.14 + i * 0.02)); // rail teeth
-  g.add(at(box(0.022, 0.03, 0.026, black), 0, 0.08, 0.02));         // rear sight tower
-  g.add(at(tube(0.012, 0.012, 0.016, dark, 12), 0, 0.092, 0.02, 0, 0, Math.PI / 2)); // drum
-  g.add(at(box(0.014, 0.014, 0.02, blackHi), 0.027, 0.04, -0.02));  // forward assist (right)
-  g.add(at(box(0.02, 0.022, 0.04, blackHi), 0.027, 0.028, 0.03));   // ejection port / dust cover
+  g.add(at(box(0.062, 0.062, 0.2, black), 0, 0.028, -0.08));
+  g.add(at(box(0.064, 0.016, 0.2, blackHi), 0, 0.062, -0.08));      // flat top
+  for (let i = 0; i < 8; i++) g.add(at(box(0.066, 0.01, 0.006, dark), 0, 0.072, -0.15 + i * 0.02)); // rail teeth
+  g.add(at(box(0.026, 0.034, 0.03, black), 0, 0.086, 0.02));        // rear sight tower
+  g.add(at(tube(0.013, 0.013, 0.018, dark, 12), 0, 0.1, 0.02, 0, 0, Math.PI / 2)); // drum
+  g.add(at(box(0.018, 0.018, 0.026, blackHi), 0.034, 0.04, -0.02)); // forward assist (right)
+  g.add(at(box(0.024, 0.026, 0.05, blackHi), 0.034, 0.028, 0.03));  // ejection port / dust cover
 
-  // === lower receiver: curved STANAG mag + grip + trigger ===
-  g.add(at(box(0.046, 0.05, 0.1, black), 0, 0.0, -0.04));
-  g.add(at(box(0.04, 0.13, 0.05, mag), 0, -0.1, -0.06, 0.1));       // mag upper (curved)
-  g.add(at(box(0.04, 0.06, 0.05, mag), 0, -0.21, -0.03, 0.18));     // mag lower
-  g.add(at(box(0.042, 0.016, 0.052, dark), 0, -0.25, -0.01, 0.18)); // floorplate
-  g.add(at(box(0.04, 0.11, 0.046, poly), 0, -0.06, 0.06, 0.4));     // A2 grip
-  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
-  g.add(at(guard, 0, -0.035, 0.0, 0, Math.PI / 2));
-  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.03, 0.0));          // trigger
+  // === bulky lower receiver: curved STANAG mag + grip + trigger ===
+  g.add(at(box(0.058, 0.062, 0.12, black), 0, -0.002, -0.04));      // lower receiver / mag well
+  g.add(at(box(0.048, 0.13, 0.056, mag), 0, -0.1, -0.06, 0.1));     // mag upper (curved)
+  g.add(at(box(0.048, 0.06, 0.056, mag), 0, -0.21, -0.03, 0.18));   // mag lower
+  g.add(at(box(0.05, 0.018, 0.058, dark), 0, -0.25, -0.01, 0.18));  // floorplate
+  g.add(at(box(0.046, 0.115, 0.05, poly), 0, -0.062, 0.06, 0.4));   // A2 grip
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 8, 16), black);
+  g.add(at(guard, 0, -0.036, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.012, 0.026, 0.009, dark), 0, -0.03, 0.0));         // trigger
 
-  // === buffer tube + collapsible carbine stock ===
-  g.add(at(tube(0.02, 0.02, 0.16, blackHi), 0, 0.03, 0.1));
-  g.add(at(box(0.046, 0.07, 0.1, poly), 0, 0.022, 0.16));           // stock body
-  g.add(at(box(0.05, 0.085, 0.02, poly), 0, 0.02, 0.21));           // butt pad
-  g.add(at(box(0.012, 0.04, 0.06, poly), 0, -0.018, 0.13));         // stock lever
+  // === buffer tube + bulky collapsible carbine stock ===
+  g.add(at(tube(0.026, 0.026, 0.16, blackHi), 0, 0.03, 0.1));
+  g.add(at(box(0.06, 0.088, 0.12, poly), 0, 0.02, 0.16));           // stock body
+  g.add(at(box(0.064, 0.1, 0.024, poly), 0, 0.018, 0.215));         // butt pad
+  g.add(at(box(0.016, 0.05, 0.07, poly), 0, -0.024, 0.13));         // stock lever/lower
 
   return { group: g, muzzle: -0.55 };
 }
