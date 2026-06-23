@@ -41,6 +41,11 @@ const defs = {
   xm4: { Class: WeaponBase, category: C.AR, name: 'XM4', damage: 210, headshotMultiplier: 3.0,
     fireRate: 720, magazineSize: 30, ammoStockSize: 300, reloadTime: 2.2, recoilPitch: 0.013,
     cost: 0, boxOnly: true, viewmodel: { length: 0.55, color: 0x26282c, accent: 0x17181c } },
+  // AN-94 Abakan: AR. Medium damage, slightly slower fire rate than the XM4,
+  // curved mag, red glowing iron sights, standard 3x head.
+  an94: { Class: WeaponBase, category: C.AR, name: 'AN-94', damage: 180, headshotMultiplier: 3.0,
+    fireRate: 660, magazineSize: 30, ammoStockSize: 270, reloadTime: 2.4, recoilPitch: 0.013,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.56, color: 0x262b31, accent: 0x837748 } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
