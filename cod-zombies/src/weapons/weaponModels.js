@@ -1506,6 +1506,64 @@ function mp40() {
   return { group: g, muzzle: -0.48 };
 }
 
+// --- XM4 / Commando (M4 carbine) — the classic AR. Barrel + A2 birdcage flash
+//     hider, A-frame front sight tower, ribbed handguard, flat-top upper with a
+//     short rail + rear drum sight, forward assist + ejection port, curved
+//     STANAG mag, A2 grip and a collapsible carbine stock. Shared materials. ---
+function xm4() {
+  const g = new THREE.Group();
+  const black = gunMetal(0x26282c, { metal: 0.5, rough: 0.45 });   // receiver
+  const blackHi = gunMetal(0x383b40, { metal: 0.5, rough: 0.4 });
+  const poly = gunDark(0x17181c);                                  // handguard/grip/stock
+  const steel = gunMetal(0x44484e, { metal: 0.7, rough: 0.3 });    // barrel
+  const mag = gunMetal(0x3a3d42, { metal: 0.55, rough: 0.4 });
+  const dark = gunDark(0x101113);
+
+  // === barrel + A2 birdcage flash hider ===
+  g.add(at(tube(0.012, 0.012, 0.16, steel), 0, 0.03, -0.42));
+  g.add(at(tube(0.018, 0.018, 0.05, dark, 14), 0, 0.03, -0.52));    // flash hider
+  for (let i = 0; i < 3; i++) g.add(at(tube(0.02, 0.02, 0.003, blackHi, 14), 0, 0.03, -0.5 - i * 0.012));
+  g.add(at(tube(0.012, 0.012, 0.02, dark, 12), 0, 0.03, -0.545));   // bore
+
+  // === A-frame front sight tower + gas block ===
+  g.add(at(box(0.03, 0.05, 0.04, black), 0, 0.05, -0.4));
+  g.add(at(box(0.014, 0.05, 0.02, black), 0, 0.085, -0.4));         // upright
+  g.add(at(box(0.024, 0.014, 0.018, black), 0, 0.108, -0.4));       // sight ears
+  g.add(at(box(0.012, 0.012, 0.03, steel), 0, 0.018, -0.43));       // gas block under
+
+  // === ribbed handguard ===
+  g.add(at(box(0.052, 0.055, 0.2, poly), 0, 0.03, -0.28));
+  for (let i = 0; i < 7; i++) g.add(at(box(0.054, 0.004, 0.016, dark), 0, 0.058, -0.37 + i * 0.026)); // top ribs
+  for (const sx of [-1, 1]) for (let i = 0; i < 7; i++) g.add(at(box(0.004, 0.038, 0.016, dark), sx * 0.027, 0.03, -0.37 + i * 0.026)); // side ribs
+
+  // === flat-top upper receiver + rail + rear drum sight ===
+  g.add(at(box(0.05, 0.05, 0.18, black), 0, 0.03, -0.08));
+  g.add(at(box(0.052, 0.014, 0.18, blackHi), 0, 0.058, -0.08));     // flat top
+  for (let i = 0; i < 7; i++) g.add(at(box(0.054, 0.008, 0.006, dark), 0, 0.066, -0.14 + i * 0.02)); // rail teeth
+  g.add(at(box(0.022, 0.03, 0.026, black), 0, 0.08, 0.02));         // rear sight tower
+  g.add(at(tube(0.012, 0.012, 0.016, dark, 12), 0, 0.092, 0.02, 0, 0, Math.PI / 2)); // drum
+  g.add(at(box(0.014, 0.014, 0.02, blackHi), 0.027, 0.04, -0.02));  // forward assist (right)
+  g.add(at(box(0.02, 0.022, 0.04, blackHi), 0.027, 0.028, 0.03));   // ejection port / dust cover
+
+  // === lower receiver: curved STANAG mag + grip + trigger ===
+  g.add(at(box(0.046, 0.05, 0.1, black), 0, 0.0, -0.04));
+  g.add(at(box(0.04, 0.13, 0.05, mag), 0, -0.1, -0.06, 0.1));       // mag upper (curved)
+  g.add(at(box(0.04, 0.06, 0.05, mag), 0, -0.21, -0.03, 0.18));     // mag lower
+  g.add(at(box(0.042, 0.016, 0.052, dark), 0, -0.25, -0.01, 0.18)); // floorplate
+  g.add(at(box(0.04, 0.11, 0.046, poly), 0, -0.06, 0.06, 0.4));     // A2 grip
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
+  g.add(at(guard, 0, -0.035, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.03, 0.0));          // trigger
+
+  // === buffer tube + collapsible carbine stock ===
+  g.add(at(tube(0.02, 0.02, 0.16, blackHi), 0, 0.03, 0.1));
+  g.add(at(box(0.046, 0.07, 0.1, poly), 0, 0.022, 0.16));           // stock body
+  g.add(at(box(0.05, 0.085, 0.02, poly), 0, 0.02, 0.21));           // butt pad
+  g.add(at(box(0.012, 0.04, 0.06, poly), 0, -0.018, 0.13));         // stock lever
+
+  return { group: g, muzzle: -0.55 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -1526,6 +1584,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'KUDA') return kuda();
   if (weapon.data.name === 'PPSH-41') return ppsh();
   if (weapon.data.name === 'MP40') return mp40();
+  if (weapon.data.name === 'XM4') return xm4();
   if (weapon.data.name === 'K-Vector') return kvector();
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'OLYMPIA') return olympia();

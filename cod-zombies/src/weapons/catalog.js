@@ -36,6 +36,11 @@ const defs = {
     fireRate: 600, magazineSize: 32, ammoStockSize: 192, reloadTime: 2.3, recoilPitch: 0.01,
     cost: 0, boxOnly: true, viewmodel: { length: 0.4, color: 0x34373c, accent: 0x222428 } },
   galil: { Class: WeaponBase, category: C.AR, name: 'GALIL', damage: 120, fireRate: 575, recoilPitch: 0.014, cost: 1200 },
+  // XM4 / Commando (M4 carbine): AR. 210 dmg/bullet, standard 3x head, medium
+  // 30-round mag, high reserve.
+  xm4: { Class: WeaponBase, category: C.AR, name: 'XM4', damage: 210, headshotMultiplier: 3.0,
+    fireRate: 720, magazineSize: 30, ammoStockSize: 300, reloadTime: 2.2, recoilPitch: 0.013,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.55, color: 0x26282c, accent: 0x17181c } },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
     damage: 100, headshotMultiplier: 3.0, fireRate: 700, magazineSize: 20, ammoStockSize: 140,
