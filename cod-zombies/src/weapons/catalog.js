@@ -132,6 +132,12 @@ const defs = {
     damage: 450, headshotMultiplier: 5.0, scoped: false, fireRate: 45, magazineSize: 6,
     ammoStockSize: 48, reloadTime: 4.0, recoilPitch: 0.06, cost: 0, boxOnly: true,
     viewmodel: { length: 0.86, color: 0x9a5a28, accent: 0x2a2e34 } },
+  // SVU (SVU-AS): scoped semi-auto Dragunov marksman rifle. Like the Ballista but
+  // slightly less damage, with a higher mag size + reserve, and an actual scope.
+  svu: { Class: WeaponBase, category: C.SNIPER, name: 'SVU', fireMode: 'semi',
+    damage: 80, headshotMultiplier: 5.0, scoped: true, fireRate: 330, magazineSize: 10,
+    ammoStockSize: 70, reloadTime: 3.0, recoilPitch: 0.04, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.8, color: 0x5e2a28, accent: 0x1c1e22 } },
   // BALLISTA (BO2): the only SCOPELESS sniper — runs hooded iron sights. Plays
   // more like the FAL: semi-auto, high-ish body damage with a huge 5x headshot.
   ballista: { Class: WeaponBase, category: C.SNIPER, name: 'BALLISTA', fireMode: 'semi',

@@ -2570,6 +2570,86 @@ function k31() {
   return { group: g, muzzle: -0.82 };
 }
 
+// --- SVU (SVU-AS) — bullpup Dragunov marksman rifle. Black receiver + skeleton
+//     thumbhole stock, the signature maroon RIBBED bakelite handguard, a fat
+//     cylindrical muzzle device, a PSO scope on top (red lens), a curved
+//     Dragunov magazine forward of the grip, and a hooded front sight. Scoped. ---
+function svu() {
+  const g = new THREE.Group();
+  const maroon = gunMetal(0x5e2a28, { metal: 0.34, rough: 0.52 });  // maroon bakelite
+  const maroonDk = gunMetal(0x44201e, { metal: 0.34, rough: 0.56 });
+  const black = gunMetal(0x1c1e22, { metal: 0.52, rough: 0.42 });   // black furniture
+  const blackHi = gunMetal(0x2a2e34, { metal: 0.5, rough: 0.36 });
+  const barrelMat = gunDark(0x141519);
+  const steel = gunMetal(0x3a3f46, { metal: 0.74, rough: 0.26 });
+  const mag = gunMetal(0x1a1d22, { metal: 0.5, rough: 0.45 });
+  const scopeBody = gunDark(0x0e0f12);
+  const scopeMetal = gunMetal(0x2a2e35);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x0a0e12, metalness: 0.2, roughness: 0.14 });
+  const grip = gunGrip(0x222428);
+  const dark = gunDark(0x0c0d10);
+  const red = scopeGlow(0xff2a1e);
+  const cyl = (r1, r2, len, m, seg = 14) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, seg), m); // axis = y
+
+  // === fat cylindrical muzzle device + barrel ===
+  g.add(at(tube(0.014, 0.014, 0.26, barrelMat), 0, 0.024, -0.46));
+  g.add(at(tube(0.028, 0.028, 0.12, black, 16), 0, 0.024, -0.64));    // fat muzzle brake body
+  for (const sz of [-0.6, -0.64, -0.68]) g.add(at(tube(0.03, 0.03, 0.006, dark, 14), 0, 0.024, sz)); // grooves
+  g.add(at(tube(0.026, 0.026, 0.016, blackHi, 16), 0, 0.024, -0.71)); // front cap
+  g.add(at(tube(0.014, 0.014, 0.018, dark, 12), 0, 0.024, -0.715));   // bore
+  g.add(at(box(0.026, 0.04, 0.04, blackHi), 0, 0.046, -0.5));         // gas block
+  g.add(at(box(0.022, 0.026, 0.03, black), 0, 0.066, -0.5));          // hooded front sight base
+  for (const sx of [-1, 1]) g.add(at(box(0.005, 0.03, 0.012, black), sx * 0.011, 0.092, -0.5)); // ears
+
+  // === maroon RIBBED bakelite handguard (the SVU signature) ===
+  g.add(at(box(0.05, 0.058, 0.2, maroon), 0, 0.014, -0.34));
+  g.add(at(tube(0.028, 0.028, 0.18, maroon, 16), 0, 0.04, -0.34));    // rounded ribbed top
+  for (let i = 0; i < 9; i++) g.add(at(box(0.056, 0.05, 0.006, maroonDk), 0, 0.02, -0.42 + i * 0.02)); // vertical cooling ribs
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.04, 0.16, maroonDk), sx * 0.027, 0.012, -0.34)); // side rails
+
+  // === black receiver ===
+  g.add(at(box(0.05, 0.072, 0.24, black), 0, 0.014, -0.08));
+  g.add(at(box(0.044, 0.022, 0.22, blackHi), 0, 0.052, -0.08));       // top cover / scope base
+  g.add(at(box(0.014, 0.024, 0.05, blackHi), -0.032, 0.03, -0.12));   // left charging handle
+  g.add(at(box(0.05, 0.04, 0.05, dark), 0.032, 0.0, -0.02));          // right port block
+
+  // === PSO scope on top (offset mount, red lens) ===
+  g.add(at(box(0.024, 0.04, 0.04, scopeMetal), -0.026, 0.078, -0.04)); // side mount bracket (left, Dragunov-style)
+  g.add(at(box(0.03, 0.03, 0.05, scopeMetal), 0, 0.1, -0.14));         // front mount
+  g.add(at(tube(0.024, 0.024, 0.24, scopeBody), 0, 0.118, -0.06));     // main tube
+  g.add(at(tube(0.032, 0.026, 0.06, scopeBody), 0, 0.118, -0.18));     // objective bell
+  g.add(at(tube(0.03, 0.03, 0.008, glass), 0, 0.118, -0.212));         // objective lens
+  g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.005, 8, 24), red), 0, 0.118, -0.209)); // red lens ring
+  g.add(at(cyl(0.015, 0.015, 0.028, scopeMetal), 0, 0.146, -0.08));    // elevation turret
+  g.add(at(tube(0.026, 0.024, 0.05, scopeBody), 0, 0.118, 0.06, 0.5)); // angled eyepiece
+  g.add(at(tube(0.024, 0.024, 0.006, glass), 0, 0.13, 0.085));         // ocular lens
+
+  // === curved Dragunov magazine forward of the grip ===
+  g.add(at(box(0.046, 0.03, 0.056, dark), 0, -0.04, -0.04));          // mag well
+  g.add(at(box(0.04, 0.08, 0.05, mag), 0, -0.09, -0.05, 0.18));
+  g.add(at(box(0.04, 0.06, 0.048, mag), 0, -0.15, -0.02, 0.4));       // lower (curved)
+  g.add(at(box(0.042, 0.016, 0.05, dark), 0, -0.19, 0.005, 0.4));     // floorplate
+  for (let i = 0; i < 4; i++) g.add(at(box(0.041, 0.005, 0.046, dark), 0, -0.07 - i * 0.028, -0.05 + i * 0.008, 0.22)); // ribs
+
+  // === pistol grip + trigger guard ===
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.05, 0.06, 0.28));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.1, 0.078, 0.28));    // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
+  g.add(at(guard, 0, -0.026, 0.0, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.022, 0.0));
+
+  // === black skeleton thumbhole stock (rear ~z 0.22) ===
+  g.add(at(box(0.048, 0.07, 0.07, black), 0, 0.012, 0.06));           // stock front
+  g.add(at(box(0.044, 0.022, 0.14, blackHi), 0, 0.05, 0.15));         // top comb bar
+  g.add(at(box(0.046, 0.03, 0.06, black), 0, 0.07, 0.12));            // cheek riser
+  g.add(at(box(0.04, 0.046, 0.04, black), 0, -0.05, 0.12, 0.2));      // thumbhole grip column
+  g.add(at(box(0.034, 0.026, 0.04, dark), 0, -0.012, 0.13));          // thumbhole inner shadow
+  g.add(at(box(0.03, 0.1, 0.024, black), 0, 0.014, 0.205));           // rear vertical frame
+  g.add(at(box(0.046, 0.11, 0.022, dark), 0, 0.01, 0.218));           // butt pad
+
+  return { group: g, muzzle: -0.72 };
+}
+
 const BUILDERS = {
   pistol, smg, assaultRifle, shotgun, sniper, hmg, launcher, special, wonder,
 };
@@ -2607,6 +2687,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'DRAKON') return drakon();
   if (weapon.data.name === 'SVG-300') return svg300();
   if (weapon.data.name === 'SWISS K31') return k31();
+  if (weapon.data.name === 'SVU') return svu();
   if (weapon.data.name === 'DSR-50') return dsr();
   if (weapon.data.name === 'HK21') return hk21();
   if (weapon.data.name === 'M72 LAW') return m72();
