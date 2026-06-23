@@ -26,6 +26,11 @@ const defs = {
   kuda: { Class: WeaponBase, category: C.SMG, name: 'KUDA', damage: 110, headshotMultiplier: 3.0,
     fireRate: 750, magazineSize: 30, ammoStockSize: 210, reloadTime: 2.1, recoilPitch: 0.009,
     cost: 0, boxOnly: true, viewmodel: { length: 0.38, color: 0xa39a7c, accent: 0x26282c } },
+  // PPSh-41: WW2 SMG. Low damage, the highest fire rate of any SMG, huge 71-round
+  // drum + hefty reserve. Standard 3x head.
+  ppsh: { Class: WeaponBase, category: C.SMG, name: 'PPSH-41', damage: 65, headshotMultiplier: 3.0,
+    fireRate: 1200, magazineSize: 71, ammoStockSize: 355, reloadTime: 3.0, recoilPitch: 0.008,
+    cost: 0, boxOnly: true, viewmodel: { length: 0.45, color: 0x3c4045, accent: 0x6a3526 } },
   galil: { Class: WeaponBase, category: C.AR, name: 'GALIL', damage: 120, fireRate: 575, recoilPitch: 0.014, cost: 1200 },
   // RK-5: semi-futuristic 3-round-burst pistol. 100 body / 300 headshot (x3.0).
   rk5: { Class: WeaponBase, category: C.PISTOL, name: 'RK-5', fireMode: 'burst', burstCount: 3,
