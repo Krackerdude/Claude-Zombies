@@ -236,6 +236,8 @@ export class OptionsMenu {
     p.appendChild(slider({ label: 'Colour Levels', sublabel: 'Higher = subtler banding', min: 4, max: 128, step: 1, value: g.posterizeLevels, format: (v) => String(Math.round(v)), onChange: (v) => set('posterizeLevels', v) }));
     p.appendChild(toggle({ label: 'Dither', sublabel: 'Ordered dither that breaks the colour bands', value: g.dither !== false, onChange: (v) => set('dither', v) }));
     p.appendChild(slider({ label: 'Dither Amount', min: 0, max: 1, step: 0.05, value: g.ditherAmount, format: pct, onChange: (v) => set('ditherAmount', v) }));
+    p.appendChild(toggle({ label: 'Vertex Snapping', sublabel: 'PS1-style geometry wobble (quantized vertices)', value: g.vertexSnap !== false, onChange: (v) => set('vertexSnap', v) }));
+    p.appendChild(slider({ label: 'Vertex Snap Amount', sublabel: 'Higher = chunkier wobble', min: 0, max: 1, step: 0.05, value: g.vertexSnapAmount ?? 0.75, format: pct, onChange: (v) => set('vertexSnapAmount', v) }));
 
     p.appendChild(sectionTitle('Motion'));
     p.appendChild(toggle({ label: 'Motion Blur', sublabel: 'Camera smear on fast turns / sprint', value: g.motionBlur !== false, onChange: (v) => set('motionBlur', v) }));

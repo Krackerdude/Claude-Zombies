@@ -42,6 +42,7 @@ export const defaultSettings = {
     // graphic-novel colour reduction
     posterize: true, posterizeLevels: 24,
     dither: true, ditherAmount: 1.0,
+    vertexSnap: true, vertexSnapAmount: 0.75, // PS1-style vertex wobble (quantized geometry)
     // horror flavour (grain off by default — posterize+dither give the same texture)
     grain: true, grainAmount: 0.0,
     scanlines: true, scanlineAmount: 1.0,
