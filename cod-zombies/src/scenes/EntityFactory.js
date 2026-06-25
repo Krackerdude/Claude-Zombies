@@ -5,7 +5,7 @@ import { PlayerConfig } from '../config/index.js';
 import { ZombieConfig } from '../config/zombies.js';
 import { ps1Snap } from '../rendering/ps1.js';
 import { buildZombieRig } from './zombieRig.js';
-import { randomZombieSkin } from './zombieAssets.js';
+import { randomZombieLook } from './zombieAssets.js';
 
 /**
  * Prefab-style factory functions that assemble entities from components.
@@ -59,7 +59,7 @@ export class EntityFactory {
   /** A nav-driven zombie: low-poly animated humanoid + tag + a kinematic
    *  capsule so the player physically collides with it (can't run through). */
   zombie(position, stats) {
-    const group = buildZombieRig(randomZombieSkin());
+    const group = buildZombieRig(randomZombieLook());
     const pos = position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z);
 
     // kinematic capsule the player's character controller collides with

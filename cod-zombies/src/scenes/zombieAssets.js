@@ -86,6 +86,10 @@ const PALETTES = [
   { flesh: [156, 150, 138], shirt: [208, 206, 200], pants: [60, 62, 70], shoe: [26, 26, 30] }, // white shirt / dark
   { flesh: [138, 148, 132], shirt: [66, 92, 140], pants: [44, 48, 60], shoe: [22, 22, 26] }, // blue uniform
   { flesh: [150, 142, 120], shirt: [120, 132, 80], pants: [70, 60, 46], shoe: [34, 28, 22] }, // green vest / brown
+  { flesh: [128, 120, 116], shirt: [150, 60, 58], pants: [40, 42, 46], shoe: [24, 22, 24] }, // ashen / red shirt
+  { flesh: [120, 134, 124], shirt: [40, 44, 50], pants: [54, 58, 66], shoe: [20, 20, 22] }, // gray-green rot / charcoal
+  { flesh: [162, 140, 118], shirt: [180, 150, 96], pants: [96, 84, 60], shoe: [40, 32, 24] }, // sallow / khaki
+  { flesh: [134, 130, 140], shirt: [92, 70, 120], pants: [48, 44, 58], shoe: [26, 24, 30] }, // livid / purple shirt
 ];
 
 let _skins = null;
@@ -106,4 +110,103 @@ export function getZombieSkins() {
 export function randomZombieSkin() {
   const s = getZombieSkins();
   return s[(Math.random() * s.length) | 0];
+}
+
+/* ===========================================================================
+   Modular cosmetics — hair, beards, hats and outerwear layered onto the same
+   rig with the same crunchy materials, so the horde reads as a crowd of people
+   instead of a line of bald clones. Everything is a shared, cached material
+   (cheap) and a few boxes attached to the head/torso joints by zombieRig.
+   =========================================================================== */
+
+function hairTex([r, g, b]) {
+  return canvasTex((x) => {
+    x.fillStyle = rgb(r, g, b); x.fillRect(0, 0, SIZE, SIZE);
+    speckle(x, rgb(r * 0.55, g * 0.55, b * 0.55), 120, 1, 3, 0.55); // strands / shadow
+    speckle(x, rgb(r * 1.3, g * 1.3, b * 1.25), 45, 1, 2, 0.3);     // highlight wisps
+  });
+}
+
+// hair + beard colours (beards reuse the same set)
+const HAIR_COLORS = {
+  black: [30, 26, 24], darkbrown: [48, 33, 21], brown: [86, 58, 36],
+  gray: [124, 120, 114], blonde: [188, 156, 92], ginger: [156, 84, 40], white: [196, 192, 184],
+};
+let _hairMats = null;
+export function hairMat(name) {
+  if (!_hairMats) { _hairMats = {}; for (const k in HAIR_COLORS) _hairMats[k] = snapMat(hairTex(HAIR_COLORS[k]), { rough: 0.96 }); }
+  return _hairMats[name] || _hairMats.black;
+}
+
+// cloth accessories share one cache keyed by a colour name
+const _clothMats = new Map();
+function clothMatFor(key, rgbArr) {
+  let m = _clothMats.get(key);
+  if (!m) { m = snapMat(clothTex(rgbArr, { tatters: false })); _clothMats.set(key, m); }
+  return m;
+}
+
+const OUTER = { gray: [96, 98, 104], navy: [44, 54, 86], olive: [78, 82, 48], brown: [78, 58, 40], maroon: [92, 44, 46], black: [34, 34, 38], tan: [150, 132, 92] };
+const TIES = { red: [150, 30, 30], navy: [36, 44, 78], green: [36, 72, 46], black: [28, 28, 32], gold: [150, 120, 40] };
+const APRONS = { white: [200, 196, 186], tan: [164, 142, 100], denim: [64, 82, 118], forest: [44, 70, 48] };
+const HATS = [
+  { style: 'cap', key: 'cap_black', color: [34, 34, 38] },
+  { style: 'cap', key: 'cap_red', color: [140, 40, 38] },
+  { style: 'cap', key: 'cap_navy', color: [40, 50, 80] },
+  { style: 'beanie', key: 'beanie_gray', color: [110, 108, 104] },
+  { style: 'beanie', key: 'beanie_brown', color: [80, 50, 40] },
+  { style: 'hardhat', key: 'hardhat_yellow', color: [196, 168, 40] },
+];
+
+const HAIR_STYLES = ['buzz', 'short', 'messy', 'mohawk', 'balding', 'long', 'bun'];
+const BEARDS = ['none', 'none', 'none', 'stubble', 'goatee', 'full'];
+const TOPS = ['plain', 'plain', 'hoodie', 'jacket', 'vest', 'tie', 'apron'];
+
+const keysOf = (o) => Object.keys(o);
+const pick = (a) => a[(Math.random() * a.length) | 0];
+const pickKey = (o) => pick(keysOf(o));
+
+function topMatFor(top) {
+  if (top === 'tie') { const k = pickKey(TIES); return clothMatFor('tie_' + k, TIES[k]); }
+  if (top === 'apron') { const k = pickKey(APRONS); return clothMatFor('apron_' + k, APRONS[k]); }
+  const k = pickKey(OUTER); return clothMatFor('outer_' + k, OUTER[k]); // hoodie / jacket / vest
+}
+
+/** A full randomized appearance: base skin + hair + beard + hat + outerwear. */
+export function randomZombieLook() {
+  const skin = randomZombieSkin();
+  const hasHat = Math.random() < 0.22;
+  const hatEntry = hasHat ? pick(HATS) : null;
+  const hairC = pickKey(HAIR_COLORS);
+  const hair = hasHat
+    ? (Math.random() < 0.4 ? 'balding' : 'bald')        // a hat hides most hair
+    : (Math.random() < 0.12 ? 'bald' : pick(HAIR_STYLES));
+  const beard = pick(BEARDS);
+  const beardC = Math.random() < 0.75 ? hairC : pickKey(HAIR_COLORS);
+  const top = pick(TOPS);
+  return {
+    skin,
+    hair, hairMat: hairMat(hairC),
+    beard, beardMat: hairMat(beardC),
+    hat: hatEntry ? hatEntry.style : 'none', hatMat: hatEntry ? clothMatFor(hatEntry.key, hatEntry.color) : null,
+    top, topMat: top === 'plain' ? null : topMatFor(top),
+  };
+}
+
+/** Park one tiny hidden quad per shared zombie material in the scene so the
+ *  load-time prewarm compiles + uploads them all and the first wave never
+ *  hitches (mirrors the box/effect prewarm). */
+export function prewarmZombieCosmetics(scene) {
+  const mats = [];
+  for (const s of getZombieSkins()) mats.push(s.flesh, s.shirt, s.pants, s.shoe, s.eye);
+  for (const k in HAIR_COLORS) mats.push(hairMat(k));
+  for (const k in OUTER) mats.push(clothMatFor('outer_' + k, OUTER[k]));
+  for (const k in TIES) mats.push(clothMatFor('tie_' + k, TIES[k]));
+  for (const k in APRONS) mats.push(clothMatFor('apron_' + k, APRONS[k]));
+  for (const h of HATS) mats.push(clothMatFor(h.key, h.color));
+  const g = new THREE.Group();
+  g.visible = false; g.position.set(0, -100, 0);
+  const geo = new THREE.PlaneGeometry(0.01, 0.01);
+  for (const m of mats) g.add(new THREE.Mesh(geo, m));
+  scene.add(g);
 }
