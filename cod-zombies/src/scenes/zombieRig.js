@@ -45,7 +45,7 @@ export function buildZombieRig(look) {
 
   // --- arms (reach forward by default) ---
   const arm = (side) => {
-    const sx = side * 0.26; // mounted just outside the 0.4-wide chest so arms clear the torso
+    const sx = side * 0.235;
     const sh = pivot(sx, 0.42, 0); sh.rotation.x = -1.15; sh.rotation.z = side * 0.12; // raised forward
     torso.add(sh);
     sh.add(box(0.12, 0.34, 0.13, skin.shirt, 0, -0.16, 0));    // upper arm (sleeve)
