@@ -19,13 +19,14 @@ const KEYBIND_ACTIONS = [
 
 const TABS = [
   { id: 'controls', label: 'Controls' },
+  { id: 'gameplay', label: 'Gameplay' },
   { id: 'graphics', label: 'Graphics' },
   { id: 'postfx', label: 'Post FX' },
   { id: 'display', label: 'Display' },
 ];
 
 // options tab id -> SettingsStore category (Post FX edits live in graphics)
-const TAB_CATEGORY = { controls: 'controls', graphics: 'graphics', postfx: 'graphics', display: 'display' };
+const TAB_CATEGORY = { controls: 'controls', gameplay: 'gameplay', graphics: 'graphics', postfx: 'graphics', display: 'display' };
 
 /**
  * The tabbed options screen. Builds its DOM once, rebuilds the active panel on
@@ -92,6 +93,7 @@ export class OptionsMenu {
   #renderPanel() {
     this.#panel.innerHTML = '';
     if (this.#active === 'controls') this.#buildControls();
+    else if (this.#active === 'gameplay') this.#buildGameplay();
     else if (this.#active === 'graphics') this.#buildGraphics();
     else if (this.#active === 'postfx') this.#buildPostFX();
     else this.#buildDisplay();
@@ -130,6 +132,19 @@ export class OptionsMenu {
         onRebind: (code) => this.#actions.rebind(action, [code]),
       }));
     });
+  }
+
+  #buildGameplay() {
+    const g = this.#settings.gameplay;
+    const set = (k, v) => this.#settings.set('gameplay', k, v);
+    const p = this.#panel;
+
+    p.appendChild(sectionTitle('HUD'));
+    p.appendChild(toggle({
+      label: 'Stylized Health Bar',
+      sublabel: 'Reskin the health bar to match the interaction prompt (off = plain bar)',
+      value: g.stylizedHealthBar !== false, onChange: (v) => set('stylizedHealthBar', v),
+    }));
   }
 
   #buildGraphics() {

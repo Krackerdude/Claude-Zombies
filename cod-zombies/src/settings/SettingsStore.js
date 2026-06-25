@@ -4,9 +4,8 @@ import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig, AtmosphereConf
 import { setRimIntensity } from '../rendering/rimLight.js';
 import { Service } from '../core/ServiceLocator.js';
 
-// v4: per-effect post-FX controls (toggle + intensity for every composer stage)
-// reshaped the graphics schema — bumped so older saved settings load fresh.
-const STORAGE_KEY = 'necropolis.settings.v4';
+// v5: added the `gameplay` category (stylized health bar toggle).
+const STORAGE_KEY = 'necropolis.settings.v5';
 
 /**
  * Single source of truth for all options. Persists to localStorage and applies
@@ -18,6 +17,7 @@ export class SettingsStore {
   display;
   graphics;
   controls;
+  gameplay;
 
   #engine;
   #events;
@@ -29,6 +29,7 @@ export class SettingsStore {
     this.display = { ...defaultSettings.display, ...(loaded.display ?? {}) };
     this.graphics = { ...defaultSettings.graphics, ...(loaded.graphics ?? {}) };
     this.controls = { ...defaultSettings.controls, ...(loaded.controls ?? {}) };
+    this.gameplay = { ...defaultSettings.gameplay, ...(loaded.gameplay ?? {}) };
   }
 
   /** Update a single value within a category and re-apply + persist. */
@@ -43,12 +44,14 @@ export class SettingsStore {
     this.applyCategory('display');
     this.applyCategory('graphics');
     this.applyCategory('controls');
+    this.applyCategory('gameplay');
   }
 
   applyCategory(category) {
     if (category === 'display') this.#applyDisplay();
     else if (category === 'graphics') this.#applyGraphics();
     else if (category === 'controls') this.#applyControls();
+    else if (category === 'gameplay') this.#applyGameplay();
   }
 
   // --- apply implementations ---------------------------------------------
@@ -188,13 +191,19 @@ export class SettingsStore {
     this.#events.emit('settings:controls', { ...this.controls });
   }
 
+  #applyGameplay() {
+    // Flag the HUD so hud.css can swap the health bar skin (styled <-> plain).
+    const hud = document.getElementById('hud');
+    if (hud) hud.dataset.healthbar = this.gameplay.stylizedHealthBar ? 'styled' : 'plain';
+  }
+
   // --- persistence --------------------------------------------------------
 
   save() {
     try {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ display: this.display, graphics: this.graphics, controls: this.controls }),
+        JSON.stringify({ display: this.display, graphics: this.graphics, controls: this.controls, gameplay: this.gameplay }),
       );
     } catch { /* storage unavailable */ }
   }

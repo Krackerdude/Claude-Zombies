@@ -115,7 +115,7 @@
 }
 /* --- perks row --- (CoD-zombies shield badges: darker, gritty, flat-top /
    pointed-bottom crest; nudged right off the round number, tight together) */
-#hud-perks { display: flex; align-items: flex-end; gap: 4px; padding-bottom: 5px; margin-left: 8px; }
+#hud-perks { display: flex; align-items: flex-end; gap: 4px; padding-bottom: 5px; margin-left: 22px; }
 .perk-chip {
   position: relative; width: 42px; height: 47px;
   clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
@@ -294,6 +294,45 @@
 @keyframes promptIn { 0% { opacity: 0; transform: translate(-50%,-50%) translateY(4px); } 100% { opacity: 1; transform: translate(-50%,-50%) translateY(0); } }
 #hud #prompt.denied { color: #ffb4ac; border-top-color: rgba(226,58,46,0.6); box-shadow: 0 7px 22px rgba(0,0,0,0.62), inset 0 0 18px rgba(60,0,0,0.5), 0 0 16px rgba(210,36,28,0.2); }
 #hud #prompt.denied::after { background: linear-gradient(180deg, #ff6a5a, rgba(210,36,28,0.3)); box-shadow: 0 0 8px rgba(226,58,46,0.7); }
+
+/* ===================== stylized health bar (Gameplay opt) ================= */
+/* Reskins the plain debug bar to match the "[E]" interaction prompt: a sheared,
+   gritty panel with a teal accent edge + leading stripe. The fill stays
+   blood-red (health = the threat draining). Gated on #hud[data-healthbar] so the
+   Gameplay > "Stylized Health Bar" toggle can fall back to the plain bar. */
+#hud[data-healthbar="styled"] #hud-health {
+  width: 300px; height: 15px; bottom: 26px;
+  border: none; border-top: 1px solid rgba(120,210,225,0.5); border-bottom: 1px solid rgba(0,0,0,0.72);
+  clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(22,31,37,0.88), rgba(8,12,15,0.92));
+  background-size: 88px 88px, auto; background-blend-mode: overlay, normal;
+  box-shadow: 0 7px 22px rgba(0,0,0,0.62), inset 0 0 18px rgba(0,0,0,0.55), 0 0 16px rgba(70,195,186,0.14);
+  isolation: isolate; overflow: visible;
+}
+#hud[data-healthbar="styled"] #hud-health::after { /* hot teal stripe down the leading shear */
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; z-index: 4;
+  background: linear-gradient(180deg, rgba(120,210,225,0.9), rgba(70,195,186,0.2));
+  box-shadow: 0 0 8px rgba(70,195,186,0.7);
+}
+#hud[data-healthbar="styled"] #hud-health-fill {
+  position: relative;
+  clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 42%),
+    linear-gradient(90deg, #5e0907 0%, #b3201c 58%, #ff4226 100%);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 0 12px rgba(210,36,28,0.35);
+  transition: width 0.18s;
+}
+#hud[data-healthbar="styled"] #hud-health-fill::before { /* scanline grit, like the prompt panel */
+  content: ''; position: absolute; inset: 0; clip-path: inherit; pointer-events: none;
+  background: var(--hud-scan); opacity: 0.45; mix-blend-mode: soft-light;
+}
+#hud[data-healthbar="styled"] #hud-health-fill::after { /* slow sweeping sheen across the fill */
+  content: ''; position: absolute; inset: 0; clip-path: inherit; pointer-events: none;
+  background: linear-gradient(100deg, transparent 38%, rgba(255,186,168,0.26) 50%, transparent 62%);
+  background-size: 220% 100%; animation: hpSheen 4.5s linear infinite;
+}
+@keyframes hpSheen { to { background-position: -220% 0; } }
 
 /* round banner — "THE DEAD RISE": painted, bloody, with a violent focus-in jolt */
 #hud #hud-banner {
