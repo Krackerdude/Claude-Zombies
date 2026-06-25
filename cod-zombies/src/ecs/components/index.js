@@ -143,6 +143,15 @@ export class ZombieTag {
     this.walkAmt = 0;
     this.atkAmt = 0;
     this.tearAmt = 0;
+
+    // hit reactions (set in damageZombie, consumed by ZombieAnimSystem)
+    this.flinch = 0; // 0..1 transient flinch intensity (decays each frame)
+    this.flinchPart = 'chest'; // head | chest | pelvis | legs — where the shot landed
+    this.flinchSign = 1; // lateral jerk direction
+    // explosion knockdown
+    this.knockTime = 0; // counts down while knocked; >0 means down/recovering
+    this.knockTotal = 0; // the duration this knockdown started with (anim progress)
+    this.tearCd = 0; // per-zombie barrier-tear cooldown
   }
 }
 

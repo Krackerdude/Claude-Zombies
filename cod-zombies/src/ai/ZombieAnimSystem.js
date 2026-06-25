@@ -37,8 +37,62 @@ export class ZombieAnimSystem extends System {
       const rig = this.world.get(id, Renderable).object3d;
       const J = rig.userData?.joints;
       if (!J) continue;
+      if (z.state === 'knocked') { this.#poseKnock(z, rig.userData.rest, J); continue; }
       this.#poseOne(z, rig.userData.rest, J, dt);
     }
+  }
+
+  /** Explosion knockdown: slam onto the back, writhe, sit up onto hands & knees,
+   *  then climb back to the feet — all from the hip pivot so it never fights the
+   *  Transform sync that owns the rig's world position/facing. */
+  #poseKnock(z, rest, J) {
+    const k = z.knockTotal > 0 ? 1 - z.knockTime / z.knockTotal : 1; // 0..1 progress
+    const seg = (a, b) => Math.min(1, Math.max(0, (k - a) / (b - a)));
+    const sm = (t) => t * t * (3 - 2 * t);
+    const fall = sm(seg(0.0, 0.13));      // slammed flat
+    const recover = sm(seg(0.5, 0.8));    // sit up / roll onto hands & knees
+    const stand = sm(seg(0.82, 1.0));     // rise to the feet
+    const writhe = Math.sin(z.knockTime * 7) * 0.06 * fall * (1 - recover);
+
+    // whole-body pitch: upright -> flat on the back -> over onto the front -> up
+    let pitch = lerp(0, -1.5, fall);
+    pitch = lerp(pitch, 1.1, recover);
+    pitch = lerp(pitch, 0, stand);
+    let hipY = lerp(rest.hipY, 0.32, fall);
+    hipY = lerp(hipY, 0.5, recover);
+    hipY = lerp(hipY, rest.hipY, stand);
+    J.hips.position.y = hipY;
+    J.hips.rotation.set(pitch, 0, writhe);
+
+    J.torso.rotation.x = rest.torso + 0.25 * fall * (1 - recover) - 0.3 * recover;
+    J.torso.rotation.z = writhe * 0.5;
+    J.head.rotation.x = 0.35 * fall * (1 - stand) - 0.2 * recover;
+    J.head.rotation.z = writhe;
+
+    const legUp = fall * (1 - recover);
+    J.thighL.rotation.set(lerp(0, 0.7, legUp) - 0.5 * recover, 0, 0);
+    J.thighR.rotation.set(lerp(0, 0.5, legUp) - 0.4 * recover, 0, 0);
+    J.kneeL.rotation.x = lerp(0, 1.0, legUp) + 0.6 * recover;
+    J.kneeR.rotation.x = lerp(0, 0.8, legUp) + 0.6 * recover;
+
+    const armOut = fall * (1 - recover);
+    J.shoulderL.rotation.set(lerp(rest.shoulder, -0.3, fall), 0, lerp(rest.shoulderZ, 1.0, armOut));
+    J.shoulderR.rotation.set(lerp(rest.shoulder, -0.3, fall), 0, lerp(-rest.shoulderZ, -1.0, armOut));
+    J.elbowL.rotation.x = rest.elbow + 0.5 * recover;
+    J.elbowR.rotation.x = rest.elbow + 0.5 * recover;
+  }
+
+  /** Transient localized recoil from the last shot, added on top of the gait. */
+  #flinch(z, J, dt) {
+    if (z.flinch <= 0.001) { z.flinch = 0; return; }
+    const f = z.flinch, s = z.flinchSign;
+    switch (z.flinchPart) {
+      case 'head': J.head.rotation.x -= f * 0.55; J.head.rotation.z += f * 0.4 * s; break;
+      case 'pelvis': J.hips.rotation.x -= f * 0.22; J.hips.position.y -= f * 0.03; J.torso.rotation.z += f * 0.15 * s; break;
+      case 'legs': J.hips.position.y -= f * 0.05; J.kneeL.rotation.x += f * 0.5; J.thighL.rotation.x += f * 0.2; break;
+      default: J.torso.rotation.x -= f * 0.4; J.torso.rotation.z += f * 0.25 * s; J.head.rotation.x -= f * 0.2; break; // chest
+    }
+    z.flinch *= Math.max(0, 1 - dt * 11); // fast decay (~0.2s)
   }
 
   #poseOne(z, rest, J, dt) {
@@ -108,5 +162,8 @@ export class ZombieAnimSystem extends System {
     // forward through the chop (added on top of the gait pose, so it decays out)
     if (J.torso) J.torso.rotation.x += z.atkAmt * (-0.18 * swRaise + 0.55 * swDown);
     if (J.head) J.head.rotation.x += z.atkAmt * (0.45 * swDown - 0.15 * swRaise);
+
+    // localized hit recoil, layered on last so it reads through any gait/swipe
+    this.#flinch(z, J, dt);
   }
 }

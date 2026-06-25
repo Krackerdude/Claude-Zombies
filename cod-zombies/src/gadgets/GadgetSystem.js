@@ -4,7 +4,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { Action } from '../config/keybinds.js';
 import { Transform, PlayerTag, ZombieTag } from '../ecs/components/index.js';
 import { damageZombie } from '../weapons/damage.js';
-import { PlayerCombat } from '../config/zombies.js';
+import { PlayerCombat, ZombieConfig } from '../config/zombies.js';
 import { paintedMetal } from '../rendering/materials/surfaces.js';
 
 // Shared frag-grenade parts, built once and reused by every throw. Body uses the
@@ -170,8 +170,9 @@ export class GadgetSystem extends System {
       const dx = t.x - pos.x, dy = t.y - pos.y, dz = t.z - pos.z;
       const d = Math.hypot(dx, dy, dz);
       if (d > RADIUS) continue;
-      const dmg = DAMAGE * (1 - d / RADIUS); // falloff: edge zombies may survive
-      const killed = damageZombie(ctx, id, dmg, { award: false, dir: { x: dx, z: dz }, force: 1.6 });
+      const falloff = 1 - d / RADIUS; // edge zombies may survive
+      const dmg = DAMAGE * falloff;
+      const killed = damageZombie(ctx, id, dmg, { award: false, dir: { x: dx, z: dz }, force: 1.6, knockChance: ZombieConfig.knockChance * (0.4 + 0.6 * falloff) });
       this.#events.emit('fx:blood', { x: t.x, y: t.y + 1.1, z: t.z, dx, dz });
       pts += 10 + (killed ? 50 : 0); // 10 for a hit, +50 for a kill
     }

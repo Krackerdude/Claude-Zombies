@@ -415,14 +415,14 @@ export class WeaponSystem extends System {
       // every bullet penetrates, hitting each zombie it passes through once
       const hits = this.#rayZombies(o, _dir, Math.min(weapon.data.range, wallDist));
       let pen = 0;
-      for (const { id, tca, headshot } of hits) {
+      for (const { id, tca, headshot, part } of hits) {
         anyHit = true;
         const falloff = Math.pow(0.5, pen); // -50% damage per zombie already pierced
         const pk = this.#perks;
         const hsMul = headshot ? weapon.data.headshotMultiplier * (pk ? pk.headshotMul() : 1) : 1;
         const dMul = pk ? pk.damageMul(weapon.data.category) : 1;
         const dmg = weapon.data.damage * hsMul * dMul * falloff;
-        if (damageZombie(this.#ctx, id, dmg, { headshot, dir: _dir })) anyKill = true;
+        if (damageZombie(this.#ctx, id, dmg, { headshot, dir: _dir, part })) anyKill = true;
         pen++;
       }
 
@@ -562,19 +562,21 @@ export class WeaponSystem extends System {
    */
   #rayZombies(o, dir, range) {
     const out = [];
+    const PARTS = ['chest', 'pelvis', 'legs']; // matches HITBOXES order
     for (const id of this.world.query(ZombieTag, Transform)) {
       const t = this.world.get(id, Transform);
       const x = t.position.x, y = t.position.y, z = t.position.z;
-      let best = Infinity, head = false;
+      let best = Infinity, head = false, part = 'chest';
 
       const th = this.#raySphere(o, dir, x, y + 1.62, z, 0.24); // head
-      if (th >= 0 && th < best) { best = th; head = true; }
+      if (th >= 0 && th < best) { best = th; head = true; part = 'head'; }
       // body: chest, pelvis, shins
-      for (const [cy, cr] of HITBOXES) {
+      for (let i = 0; i < HITBOXES.length; i++) {
+        const [cy, cr] = HITBOXES[i];
         const tb = this.#raySphere(o, dir, x, y + cy, z, cr);
-        if (tb >= 0 && tb < best) { best = tb; head = false; }
+        if (tb >= 0 && tb < best) { best = tb; head = false; part = PARTS[i]; }
       }
-      if (best !== Infinity && best <= range) out.push({ id, tca: best, headshot: head });
+      if (best !== Infinity && best <= range) out.push({ id, tca: best, headshot: head, part });
     }
     out.sort((a, b) => a.tca - b.tca);
     return out;

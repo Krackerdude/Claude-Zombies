@@ -80,7 +80,9 @@ export class ProjectileSystem extends System {
         const d2 = dx * dx + dz * dz;
         if (d2 <= r2) {
           const falloff = 1 - Math.sqrt(d2) / p.splashRadius;
-          damageZombie(ctx, id, p.splashDamage * (0.5 + 0.5 * falloff), { dir: { x: dx, z: dz }, force: 1.6 }); // blown outward
+          // survivors near the blast have a strong chance to be knocked flat;
+          // those at the edge a lesser one (scaled by the falloff).
+          damageZombie(ctx, id, p.splashDamage * (0.5 + 0.5 * falloff), { dir: { x: dx, z: dz }, force: 1.6, knockChance: ZombieConfig.knockChance * (0.4 + 0.6 * falloff) }); // blown outward
           this.#events.emit('fx:blood', { x: t.position.x, y: t.position.y + 1.1, z: t.position.z, dx, dz });
         }
       }
