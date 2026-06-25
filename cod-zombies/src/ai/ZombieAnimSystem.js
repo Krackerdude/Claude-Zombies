@@ -188,8 +188,11 @@ export class ZombieAnimSystem extends System {
     shR = lerp(shR, atkShoulder, z.atkAmt);
     J.shoulderL.rotation.x = shL;
     J.shoulderR.rotation.x = shR;
-    J.shoulderL.rotation.z = lerp(G.armSplay, 0.2, z.atkAmt);
-    J.shoulderR.rotation.z = lerp(-G.armSplay, -0.2, z.atkAmt);
+    // splay arms OUTWARD from the body at rest (the signs were inverted, which
+    // swung the forearms inward and clipped them through the torso); the attack
+    // still pulls them in/forward for the overhead chop.
+    J.shoulderL.rotation.z = lerp(-G.armSplay, 0.2, z.atkAmt);
+    J.shoulderR.rotation.z = lerp(G.armSplay, -0.2, z.atkAmt);
 
     const swRaise = Math.sin(Math.min(1, swProg) * Math.PI); // 0..1..0
     J.elbowL.rotation.x = rest.elbow + z.tearAmt * Math.max(0, claw) * 0.6 + z.atkAmt * (0.2 + swRaise * 0.6);
