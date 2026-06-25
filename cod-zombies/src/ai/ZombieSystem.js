@@ -78,6 +78,15 @@ export class ZombieSystem extends System {
   // --- per-zombie FSM -----------------------------------------------------
 
   #tickZombie(z, t, playerPos, player, goalCell, dt) {
+    // Knocked flat by an explosion: inert (no movement, no swiping) while it
+    // falls, writhes and climbs back up. Checked first so it always recovers
+    // even if a stun / zombie-blood would otherwise short-circuit the tick.
+    if (z.state === 'knocked') {
+      z.knockTime -= dt;
+      z.swipe = 0;
+      if (z.knockTime <= 0) { z.knockTime = 0; z.state = 'pathing'; z.replan = 0; }
+      return;
+    }
     // Electric Cherry: stunned zombies are frozen in place
     if (z.state !== 'spawning' && this.#time.elapsed < z.stunUntil) {
       if (z.state === 'attack') { z.state = 'pathing'; z.swipe = 0; }

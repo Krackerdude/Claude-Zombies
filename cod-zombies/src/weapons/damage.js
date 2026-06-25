@@ -1,5 +1,5 @@
 import { ZombieTag, CorpseTag, Transform, RigidBodyRef } from '../ecs/components/index.js';
-import { PlayerCombat } from '../config/zombies.js';
+import { PlayerCombat, ZombieConfig } from '../config/zombies.js';
 import { Service } from '../core/ServiceLocator.js';
 
 /**
@@ -9,7 +9,7 @@ import { Service } from '../core/ServiceLocator.js';
  * `opts.dir` is the killing bullet's direction — used to launch the ragdoll.
  * Returns true if this hit was the killing blow.
  */
-export function damageZombie(ctx, id, amount, { award = true, headshot = false, dir = null, force = 1 } = {}) {
+export function damageZombie(ctx, id, amount, { award = true, headshot = false, dir = null, force = 1, part = null, knockChance = 0 } = {}) {
   const z = ctx.world.get(id, ZombieTag);
   if (!z || z.state === 'dead') return false;
 
@@ -37,8 +37,23 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
     ctx.spawn.notifyKilled();
     ctx.events.emit('zombie:killed', { headshot, x: t ? t.position.x : 0, z: t ? t.position.z : 0 });
     killed = true;
-  } else if (award) {
-    ctx.player.points += PlayerCombat.pointsPerHit * mul; // 10 per non-lethal hit
+  } else {
+    // --- survived the hit: localized flinch (scaled by the gun's damage), and
+    //     maybe an explosion knockdown ---
+    const f = Math.min(1, ZombieConfig.flinchMin + amount * ZombieConfig.flinchPerDamage + (headshot ? 0.12 : 0));
+    if (f > z.flinch) {                       // strongest recent hit wins (rapid fire won't shrink it)
+      z.flinch = f;
+      z.flinchPart = part || (headshot ? 'head' : 'chest');
+      z.flinchSign = dir ? (dir.x >= 0 ? 1 : -1) : (Math.random() < 0.5 ? 1 : -1);
+    }
+    // knockdown: only from explosions (knockChance>0), only if up + not stunned
+    if (knockChance > 0 && z.knockTime <= 0 && z.state !== 'spawning' && Math.random() < knockChance) {
+      z.state = 'knocked';
+      z.knockTime = ZombieConfig.knockDuration;
+      z.knockTotal = ZombieConfig.knockDuration;
+      z.swipe = 0; z.swung = false;
+    }
+    if (award) ctx.player.points += PlayerCombat.pointsPerHit * mul; // 10 per non-lethal hit
   }
   if (award) ctx.events.emit('score:changed', { points: ctx.player.points });
   return killed;
