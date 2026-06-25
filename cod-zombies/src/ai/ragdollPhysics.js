@@ -156,18 +156,17 @@ export function buildRagdoll(rig, physics, c, t) {
   // joints don't have to reconcile wildly conflicting spins (that fights the
   // solver and detonates the ragdoll). The whole corpse pitches in the shot
   // direction and rolls a little, then gravity + terrain take over.
-  // Mostly a crumple: the horizontal shove from the shot plus only a SMALL,
-  // capped upward pop (so they don't sink, but never get enough airtime to
-  // backflip or bounce hard on landing).
-  const launch = { x: c.vx * 0.8, y: Math.min(1.1, Math.max(0.35, c.vy * 0.45)), z: c.vz * 0.8 };
-  // ONE gentle tumble shared by the whole corpse — axis horizontal and
-  // perpendicular to the push, so it face-plants / back-flops the way it was
-  // hit, with a touch of roll. Kept SMALL (and capped) so it topples rather
-  // than spins all the way over. Gravity does most of the toppling.
+  // Mostly a crumple in place: a gentle horizontal shove in the shot direction
+  // and only a tiny upward pop (so they don't start sunk). Big launches were
+  // sending them airborne enough to backflip and to slam down hard.
+  const clamp = (v, a) => Math.max(-a, Math.min(a, v));
+  const launch = { x: c.vx * 0.5, y: Math.min(0.6, Math.max(0.15, c.vy * 0.3)), z: c.vz * 0.5 };
+  // ONE small shared tumble, axis horizontal + perpendicular to the push so it
+  // topples the way it was hit; capped low so it never cartwheels over.
   const tumble = {
-    x: Math.max(-1.4, Math.min(1.4, c.vz * 0.35 + rand(0.2))),
-    y: rand(0.3),
-    z: Math.max(-1.4, Math.min(1.4, -c.vx * 0.35 + rand(0.2))),
+    x: clamp(c.vz * 0.25 + rand(0.15), 0.9),
+    y: rand(0.2),
+    z: clamp(-c.vx * 0.25 + rand(0.15), 0.9),
   };
   for (const key in bodies) {
     physics.setLinearVelocity(bodies[key], launch);
@@ -272,7 +271,31 @@ export function syncRagdoll(rig, t, data, physics) {
   drive(J.shoulderR, bodies.torso, bodies.armR);
   drive(J.thighL, bodies.pelvis, bodies.legL);
   drive(J.thighR, bodies.pelvis, bodies.legR);
+
+  // floor backstop: whatever the physics settled to, never let the RENDERED
+  // corpse sink below the ground. Bake the rig at the new pose, find the lowest
+  // body part, and if its surface is under the floor lift the whole rig
+  // straight up by the deficit (vertical only — the pose is untouched). This
+  // guarantees no half-buried corpses even if a body penetrated the floor.
+  rig.position.copy(t.position);
+  rig.quaternion.copy(t.quaternion);
+  rig.updateMatrixWorld(true);
+  let lowest = Infinity;
+  for (const j of FLOOR_SAMPLE) {
+    const node = J[j];
+    if (!node) continue;
+    node.getWorldPosition(_v);
+    if (_v.y < lowest) lowest = _v.y;
+  }
+  const deficit = LIMB_HALF + FLOOR_Y - lowest; // surface = jointY - LIMB_HALF
+  if (deficit > 0) t.position.y += deficit;
 }
+
+// joints sampled for the floor backstop, and the approx limb half-thickness
+// (so we clamp the limb SURFACE, not its centreline, to the floor)
+const FLOOR_SAMPLE = ['hips', 'torso', 'head', 'elbowL', 'elbowR', 'handL', 'handR', 'kneeL', 'kneeR', 'footL', 'footR'];
+const LIMB_HALF = 0.1;
+const FLOOR_Y = 0.0;
 
 /** Tear down all bodies + joints (freezes the rig in its last simulated pose). */
 export function disposeRagdoll(physics, data) {
