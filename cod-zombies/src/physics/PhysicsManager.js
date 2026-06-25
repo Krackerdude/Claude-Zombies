@@ -194,6 +194,22 @@ export class PhysicsManager {
     handle?.body?.setAngvel({ x: w.x, y: w.y, z: w.z }, true);
   }
 
+  angularVelocity(handle) {
+    return handle.body.angvel();
+  }
+
+  /** Hard-set a body's orientation (used to enforce ragdoll joint limits as a
+   *  position correction each step). */
+  setBodyRotation(handle, q) {
+    handle?.body?.setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }, true);
+  }
+
+  /** Hard-set a body's origin without touching its velocity (re-pins a ragdoll
+   *  joint anchor after a limit re-orient so the joint doesn't yank it). */
+  setBodyTranslation(handle, p) {
+    handle?.body?.setTranslation({ x: p.x, y: p.y, z: p.z }, true);
+  }
+
   bodyTransform(handle) {
     const p = handle.body.translation();
     const q = handle.body.rotation();

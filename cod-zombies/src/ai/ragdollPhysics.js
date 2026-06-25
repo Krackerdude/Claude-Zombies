@@ -53,6 +53,11 @@ const _qLocal = new THREE.Quaternion();
 const _twist = new THREE.Quaternion();
 const _swing = new THREE.Quaternion();
 const _qTmp = new THREE.Quaternion();
+const _qP = new THREE.Quaternion();
+const _qC = new THREE.Quaternion();
+const _qRel = new THREE.Quaternion();
+const _qOrig = new THREE.Quaternion();
+const _qNew = new THREE.Quaternion();
 const _hipOffset = new THREE.Vector3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
@@ -172,17 +177,64 @@ export function buildRagdoll(rig, physics, c, t) {
   return { bodies, joints, hipY };
 }
 
+// Joint -> ROM table, in the order limits must be enforced (a parent before its
+// children, so children read the already-corrected parent orientation).
+const LIMIT_ORDER = [
+  ['pelvis', 'torso', 'torso'],
+  ['torso', 'head', 'head'],
+  ['torso', 'armL', 'arm'],
+  ['torso', 'armR', 'arm'],
+  ['pelvis', 'legL', 'leg'],
+  ['pelvis', 'legR', 'leg'],
+];
+
+/**
+ * Enforce anatomical joint limits on the PHYSICS bodies (Rapier spherical
+ * joints are free ball joints with no stops, so without this the corpse settles
+ * into impossible poses — torso balanced upright, limbs splayed up). Each step,
+ * for every joint we measure the child's orientation relative to its parent; if
+ * it's outside the swing cone / twist range we snap it back to the boundary and
+ * bleed off the angular velocity that drove it past, exactly like a joint stop.
+ * Because the bodies themselves stay in range, the visual (which follows them
+ * 1:1) lies flat instead of clipping/contorting.
+ */
+export function enforceLimits(physics, data) {
+  const { bodies } = data;
+  for (const [pk, ck, lk] of LIMIT_ORDER) {
+    const pb = bodies[pk], cb = bodies[ck];
+    const p = physics.bodyTransform(pb);
+    const c = physics.bodyTransform(cb);
+    _qP.set(p.q.x, p.q.y, p.q.z, p.q.w);
+    _qC.set(c.q.x, c.q.y, c.q.z, c.q.w);
+    _qParentInv.copy(_qP).invert();
+    _qRel.multiplyQuaternions(_qParentInv, _qC);
+    _qOrig.copy(_qRel);
+    clampSwingTwist(_qRel, ROM[lk]);
+    if (Math.abs(_qOrig.dot(_qRel)) < 0.99995) { // was outside the allowed range
+      _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
+      physics.setBodyRotation(cb, _qNew);
+      physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)
+      const w = physics.angularVelocity(cb);     // kill the energy at the stop
+      physics.setAngularVelocity(cb, { x: w.x * 0.2, y: w.y * 0.2, z: w.z * 0.2 });
+    }
+  }
+}
+
 /**
  * Read the simulated bodies back onto the rig. The pelvis body is authoritative
  * for the root transform (written into the Transform so render interpolation
  * still works); every other driven joint's LOCAL rotation is the relative
- * rotation between its parent body and its own body, so the rig exactly tracks
- * the physics articulation.
+ * rotation between its parent body and its own body, so the rig tracks the
+ * physics articulation 1:1 (no separate visual clamp — the bodies are already
+ * within their limits, so the rig can't diverge from where they actually rest).
  */
 export function syncRagdoll(rig, t, data, physics) {
   const J = rig.userData?.joints;
   if (!J || !data) return;
   const { bodies } = data;
+
+  // keep the physics bodies anatomically posed first, then mirror them
+  enforceLimits(physics, data);
 
   const pelvis = physics.bodyTransform(bodies.pelvis);
   const pelvisQ = _qParentInv.set(pelvis.q.x, pelvis.q.y, pelvis.q.z, pelvis.q.w);
@@ -196,23 +248,22 @@ export function syncRagdoll(rig, t, data, physics) {
   J.hips.position.set(0, data.hipY, 0);
   J.hips.rotation.set(0, 0, 0);
 
-  // childLocal = parentBodyQuat^-1 * childBodyQuat, clamped to the joint's ROM
-  const drive = (joint, parentBody, childBody, lim) => {
+  // childLocal = parentBodyQuat^-1 * childBodyQuat (bodies already within ROM)
+  const drive = (joint, parentBody, childBody) => {
     const p = physics.bodyTransform(parentBody);
     const cc = physics.bodyTransform(childBody);
     _qParentInv.set(p.q.x, p.q.y, p.q.z, p.q.w).invert();
     _qChild.set(cc.q.x, cc.q.y, cc.q.z, cc.q.w);
     _qLocal.multiplyQuaternions(_qParentInv, _qChild);
-    clampSwingTwist(_qLocal, lim);
     joint.quaternion.copy(_qLocal);
   };
 
-  drive(J.torso, bodies.pelvis, bodies.torso, ROM.torso);
-  drive(J.head, bodies.torso, bodies.head, ROM.head);
-  drive(J.shoulderL, bodies.torso, bodies.armL, ROM.arm);
-  drive(J.shoulderR, bodies.torso, bodies.armR, ROM.arm);
-  drive(J.thighL, bodies.pelvis, bodies.legL, ROM.leg);
-  drive(J.thighR, bodies.pelvis, bodies.legR, ROM.leg);
+  drive(J.torso, bodies.pelvis, bodies.torso);
+  drive(J.head, bodies.torso, bodies.head);
+  drive(J.shoulderL, bodies.torso, bodies.armL);
+  drive(J.shoulderR, bodies.torso, bodies.armR);
+  drive(J.thighL, bodies.pelvis, bodies.legL);
+  drive(J.thighR, bodies.pelvis, bodies.legR);
 }
 
 /** Tear down all bodies + joints (freezes the rig in its last simulated pose). */
