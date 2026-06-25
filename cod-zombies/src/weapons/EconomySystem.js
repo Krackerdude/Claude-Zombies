@@ -195,7 +195,8 @@ export class EconomySystem extends System {
     const pk = this.world.services.has(Service.Perks) ? this.world.services.get(Service.Perks) : null;
     const res = barrier.repair((1 / 60) * (pk ? pk.repairMul() : 1));
     if (!res.added) return;
-    player.points += BarrierConfig.pointsPerBoard;
+    const pw = this.world.services.has(Service.Powerups) ? this.world.services.get(Service.Powerups) : null;
+    player.points += BarrierConfig.pointsPerBoard * (pw ? pw.pointsMultiplier() : 1);
     this.#events.emit('score:changed', { points: player.points });
     this.#events.emit('barrier:changed', { id: barrier.id, boards: barrier.boards });
     if (res.closed) this.#events.emit('nav:changed', { barrier: barrier.id });

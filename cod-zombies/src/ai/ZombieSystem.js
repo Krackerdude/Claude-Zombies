@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { Transform, PlayerTag, ZombieTag, RigidBodyRef } from '../ecs/components/index.js';
 import { Service } from '../core/ServiceLocator.js';
-import { ZombieConfig, PlayerCombat } from '../config/zombies.js';
+import { ZombieConfig, PlayerCombat, BarrierConfig } from '../config/zombies.js';
 import { ZOMBIE_AGENT } from './NavGraph.js';
 import { MoveState } from '../player/MoveState.js';
 
@@ -129,13 +129,19 @@ export class ZombieSystem extends System {
         // its boards hit zero, since tear() can no longer report "opened".
         if (!b || b.open) { z.barrierTarget = null; z.state = 'pathing'; z.replan = 0; break; }
         this.#face(t, b.position.x - t.position.x, b.position.z - t.position.z, dt);
-        const res = b.tear(dt);
-        if (res.removed) this.#events.emit('barrier:changed', { id: b.id, boards: b.boards });
-        if (res.opened) {
-          this.#events.emit('nav:changed', { barrier: b.id });
-          z.barrierTarget = null;
-          z.state = 'pathing';
-          z.replan = 0;
+        // per-zombie tear timing: each zombie waits out its own cooldown before
+        // ripping a board, so a crowd on one window can't strip it in a blink.
+        z.tearCd = (z.tearCd ?? BarrierConfig.boardTearTime) - dt;
+        if (z.tearCd <= 0) {
+          const res = b.removeBoard();
+          z.tearCd = BarrierConfig.boardTearCooldown;
+          if (res.removed) this.#events.emit('barrier:changed', { id: b.id, boards: b.boards });
+          if (res.opened) {
+            this.#events.emit('nav:changed', { barrier: b.id });
+            z.barrierTarget = null;
+            z.state = 'pathing';
+            z.replan = 0;
+          }
         }
         break;
       }
@@ -213,6 +219,7 @@ export class ZombieSystem extends System {
         if (this.#flatDist2(t.position, wp.x, wp.z) <= ZombieConfig.reachThreshold + 0.6) {
           z.barrierTarget = barrier;
           z.state = 'teardown';
+          z.tearCd = BarrierConfig.boardTearTime; // wind-up before the first rip
           return;
         }
         tx = wp.x; tz = wp.z;

@@ -194,7 +194,9 @@ const defs = {
     splashDamage: 1300, splashRadius: 5.2, magazineSize: 4, ammoStockSize: 20, reloadTime: 4.6,
     focusOnly: true, adsFov: 65, cost: 0, boxOnly: true,
     viewmodel: { length: 0.94, color: 0x5e6440, accent: 0x6a6f76 } },
-  deathMachine: { Class: WeaponBase, category: C.SPECIAL, name: 'DEATH MACHINE', damage: 160, fireRate: 1000, magazineSize: 300, cost: 0, boxOnly: true },
+  // Death Machine "aims" with the simple focus zoom (no model raise) — the
+  // oversized minigun never crowds the screen.
+  deathMachine: { Class: WeaponBase, category: C.SPECIAL, name: 'DEATH MACHINE', damage: 160, fireRate: 1000, magazineSize: 300, focusOnly: true, adsFov: 62, cost: 0, boxOnly: true },
   rayGun: {
     Class: ProjectileWeapon, category: C.WONDER, name: 'RAY GUN',
     damage: 1000, magazineSize: 20, fireRate: 140, projectileSpeed: 45,

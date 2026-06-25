@@ -95,6 +95,8 @@ export class MovementController {
     if (tag.grounded && (tag.state === MoveState.WALK || tag.state === MoveState.SPRINT)) {
       tag.diveLock = Math.max(0, (tag.diveLock || 0) - dt);
     }
+    // slide-recovery counts down whenever we're not mid-slide
+    if (tag.state !== MoveState.SLIDE) tag.slideLock = Math.max(0, (tag.slideLock || 0) - dt);
     tag.getUpT = Math.max(0, (tag.getUpT || 0) - dt); // rising-from-prone weight timer
   }
 
@@ -150,6 +152,7 @@ export class MovementController {
         this.#horizSpeed() <= PlayerConfig.slideMinSpeed;
       if (ending) {
         tag.slideTime = 0;
+        tag.slideLock = PlayerConfig.slideRecovery; // must recover before sliding again
         this.#groundedResolve(intent);
       }
       return;
@@ -186,7 +189,7 @@ export class MovementController {
     // #applyMovement) shouldn't drop a crouch press from a slide into a crouch.
     const fast = tag.state === MoveState.SPRINT || this.#horizSpeed() >= PlayerConfig.walkSpeed * 0.7;
 
-    if (sprinting && intent.crouchEdge && fast) { this.#startSlide(true); return; }
+    if (sprinting && intent.crouchEdge && fast && tag.slideLock <= 0) { this.#startSlide(true); return; }
     if (sprinting && intent.proneEdge && tag.diveLock <= 0) { this.#startDive(); return; }
 
     let desired = intent.wantProne ? 'prone' : intent.wantCrouch ? 'crouch' : 'stand';
@@ -199,7 +202,7 @@ export class MovementController {
   }
 
   #resolveLanding(intent) {
-    if (intent.sprintHeld && intent.wantCrouch && this.#horizSpeed() > PlayerConfig.walkSpeed * 1.05) {
+    if (intent.sprintHeld && intent.wantCrouch && this.#horizSpeed() > PlayerConfig.walkSpeed * 1.05 && this.#tag.slideLock <= 0) {
       this.#startSlide(true);
       return;
     }

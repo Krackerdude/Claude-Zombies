@@ -392,9 +392,15 @@ export class WeaponSystem extends System {
     // world-space muzzle (gun barrel tip) for tracers + shell ejection. Dual-wield
     // alternates the lateral offset each shot so the tracer/FX leave the gun that
     // actually fired (the weapon owns the side; the viewmodel flash reads the same).
+    // As ADS rises the gun centres on the sight line, so ease the lateral + drop
+    // offsets to ~0 — otherwise aimed tracers leave from the hip-right and read as
+    // "stuck off to the right".
+    const ads = weapon.adsProgress || 0;
     let mx = 0.12;
     if (weapon.data.dualWield) { weapon._dualSide = !weapon._dualSide; mx = weapon._dualSide ? 0.12 : -0.12; }
-    _muz.copy(o).addScaledVector(_fwd, 0.5).addScaledVector(_right, mx).addScaledVector(_up, -0.08);
+    else mx *= (1 - ads);
+    const my = -0.08 * (1 - ads * 0.85);
+    _muz.copy(o).addScaledVector(_fwd, 0.5).addScaledVector(_right, mx).addScaledVector(_up, my);
     if (this.#fx) this.#fx.spawnMuzzle(_muz, _fwd, _right, _up);
 
     for (let s = 0; s < count; s++) {
@@ -453,6 +459,7 @@ export class WeaponSystem extends System {
     for (const h of hits) {
       if (!h.face || h.distance < 0.5) continue;     // clear the player capsule
       if (this.#fxIgnored(h.object)) continue;        // never put holes on zombies/corpses
+      if (this.#hidden(h.object)) continue;           // torn-off (invisible) planks: no floating decals
       pick = h; break;
     }
     if (pick) {
@@ -469,6 +476,13 @@ export class WeaponSystem extends System {
 
   #fxIgnored(obj) {
     for (let o = obj; o; o = o.parent) if (o.userData && o.userData.noBulletFx) return true;
+    return false;
+  }
+
+  /** True if the object (or any ancestor) is hidden — e.g. a torn-off plank, so a
+   *  shot through the empty window doesn't leave a floating decal/particle. */
+  #hidden(obj) {
+    for (let o = obj; o; o = o.parent) if (o.visible === false) return true;
     return false;
   }
 
