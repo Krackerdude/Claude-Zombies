@@ -82,19 +82,51 @@ export class ZombieAnimSystem extends System {
     J.elbowR.rotation.x = rest.elbow + 0.5 * recover;
   }
 
-  /** Transient localized recoil from the last shot, added on top of the gait —
-   *  a small, quick jolt that snaps back in ~a tenth of a second. Only touches
-   *  joints the gait resets every frame, so it can never accumulate. */
+  /** Localized hit recoil, layered on top of the gait. A proper IMPULSE — a fast
+   *  punch-in to a big amplitude, then a smooth spring-back with a touch of
+   *  follow-through over ~0.3s — so it reads with real oomph. Only touches joints
+   *  the gait resets every frame, so it can never accumulate. */
   #flinch(z, J, dt) {
-    if (z.flinch <= 0.001) { z.flinch = 0; return; }
-    const f = z.flinch, s = z.flinchSign;
+    if (z.flinch <= 0) return;
+    z.flinchT += dt;
+    const DUR = 0.32;
+    if (z.flinchT >= DUR) { z.flinch = 0; z.flinchT = 0; return; }
+    const u = z.flinchT / DUR; // 0..1 through the impulse
+    // difference-of-exponentials impulse: 0 -> quick peak (~u 0.17) -> soft tail.
+    // *3 normalises the peak to ~1, then a damped sine adds the spring overshoot.
+    const e = (Math.exp(-3.5 * u) - Math.exp(-9 * u)) * 3.0;
+    const env = z.flinch * (e - 0.18 * Math.sin(u * 9.0) * Math.exp(-4 * u)); // overshoot/settle
+    const s = z.flinchSign;
+
     switch (z.flinchPart) {
-      case 'head': J.head.rotation.x -= f * 0.4; J.head.rotation.z += f * 0.3 * s; break;
-      case 'pelvis': J.hips.rotation.x -= f * 0.16; J.hips.position.y -= f * 0.025; J.torso.rotation.z += f * 0.12 * s; break;
-      case 'legs': J.hips.position.y -= f * 0.04; J.kneeL.rotation.x += f * 0.4; J.thighL.rotation.x += f * 0.18; break;
-      default: J.torso.rotation.x -= f * 0.3; J.torso.rotation.z += f * 0.2 * s; J.head.rotation.x -= f * 0.15; break; // chest
+      case 'head':
+        J.head.rotation.x -= env * 1.15;            // head snaps back hard
+        J.head.rotation.z += env * 0.8 * s;
+        J.torso.rotation.x -= env * 0.3;            // a little carries into the torso
+        J.hips.position.z -= env * 0.05;
+        break;
+      case 'pelvis':
+        J.hips.rotation.x -= env * 0.5;             // hips buck
+        J.hips.position.y -= env * 0.06;
+        J.hips.position.z -= env * 0.1;             // whole body kicks back
+        J.torso.rotation.z += env * 0.3 * s;
+        break;
+      case 'legs':
+        J.hips.position.y -= env * 0.13;            // leg buckles, body drops + kicks back
+        J.hips.position.z -= env * 0.08;
+        J.kneeL.rotation.x += env * 0.7;
+        J.thighL.rotation.x += env * 0.35;
+        J.hips.rotation.z += env * 0.18 * s;
+        break;
+      default: // chest
+        J.torso.rotation.x -= env * 0.85;           // torso rocks back
+        J.torso.rotation.z += env * 0.55 * s;
+        J.head.rotation.x -= env * 0.5;             // head whips with it
+        J.shoulderL.rotation.x -= env * 0.5;        // arms fling
+        J.shoulderR.rotation.x -= env * 0.5;
+        J.hips.position.z -= env * 0.12;            // whole body recoils back
+        break;
     }
-    z.flinch *= Math.max(0, 1 - dt * 24); // very fast decay (~0.1s)
   }
 
   #poseOne(z, rest, J, dt) {
@@ -120,8 +152,10 @@ export class ZombieAnimSystem extends System {
 
     // hips: bob + counter-sway, with a limp hitch + lean onto the good leg
     const hitch = G.limp ? Math.max(0, -s) * 0.04 * w : 0;
-    J.hips.position.y = rest.hipY + (Math.abs(s) * 0.035 - 0.018) * w - hitch;
-    J.hips.rotation.x = 0; // baseline so the pelvis flinch is a transient offset, not cumulative
+    // set the whole hip transform each frame as the baseline, so the flinch's
+    // additive rotation/position kicks are transient and never accumulate
+    J.hips.position.set(0, rest.hipY + (Math.abs(s) * 0.035 - 0.018) * w - hitch, 0);
+    J.hips.rotation.x = 0;
     J.hips.rotation.y = s * 0.06 * w;
     J.hips.rotation.z = G.limp ? Math.max(0, -s) * 0.07 * w : 0;
 
