@@ -195,8 +195,11 @@ export class ZombieAnimSystem extends System {
     J.shoulderR.rotation.z = lerp(G.armSplay, -0.2, z.atkAmt);
 
     const swRaise = Math.sin(Math.min(1, swProg) * Math.PI); // 0..1..0
-    J.elbowL.rotation.x = rest.elbow + z.tearAmt * Math.max(0, claw) * 0.6 + z.atkAmt * (0.2 + swRaise * 0.6);
-    J.elbowR.rotation.x = rest.elbow + z.tearAmt * Math.max(0, -claw) * 0.6 + z.atkAmt * (0.2 + swRaise * 0.6);
+    // elbows hang nearly STRAIGHT through the gaits (stiff zombie reach); the
+    // bend only eases in for the attack/tear, so the swing pose is unchanged
+    const elbowBase = lerp(0.05, rest.elbow, Math.max(z.atkAmt, z.tearAmt));
+    J.elbowL.rotation.x = elbowBase + z.tearAmt * Math.max(0, claw) * 0.6 + z.atkAmt * (0.2 + swRaise * 0.6);
+    J.elbowR.rotation.x = elbowBase + z.tearAmt * Math.max(0, -claw) * 0.6 + z.atkAmt * (0.2 + swRaise * 0.6);
 
     // weighty lunge: rear back on the wind-up, then pitch the torso + head
     // forward through the chop (added on top of the gait pose, so it decays out)
