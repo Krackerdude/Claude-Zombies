@@ -16,7 +16,8 @@ function box(w, h, d, mat, x = 0, y = 0, z = 0) {
 }
 function pivot(x, y, z) { const g = new THREE.Group(); g.position.set(x, y, z); return g; }
 
-export function buildZombieRig(skin) {
+export function buildZombieRig(look) {
+  const skin = look.skin || look; // accept a full "look" or a bare skin (legacy)
   const root = new THREE.Group();
   const J = {};
 
@@ -59,6 +60,14 @@ export function buildZombieRig(skin) {
   J.shoulderL = L.sh; J.elbowL = L.el; J.handL = L.hand;
   J.shoulderR = R.sh; J.elbowR = R.el; J.handR = R.hand;
 
+  // --- modular cosmetics (only when a full "look" was passed) ---
+  if (look && look.skin) {
+    addHair(head, look, box);
+    addBeard(head, look, box);
+    addHat(head, look, box);
+    addClothing(torso, look, skin, box);
+  }
+
   // --- legs ---
   const leg = (side) => {
     const hx = side * 0.1;
@@ -78,4 +87,112 @@ export function buildZombieRig(skin) {
   root.userData.rest = { shoulder: -1.15, shoulderZ: 0.12, elbow: 0.35, torso: 0.16, hipY: HIP_Y };
   root.userData.noBulletFx = true; // bullets that strike zombies make blood, never holes/debris
   return root;
+}
+
+// Cosmetics are children of the head/torso joints so they animate with the body.
+// Head-local: skull box is centred ~y0.2, front face z0.11, top y0.32.
+
+function addHair(head, look, box) {
+  const m = look.hairMat;
+  if (!m || !look.hair || look.hair === 'bald') return;
+  switch (look.hair) {
+    case 'buzz':
+      head.add(box(0.226, 0.04, 0.226, m, 0, 0.305, -0.002));
+      break;
+    case 'short':
+      head.add(box(0.236, 0.075, 0.236, m, 0, 0.31, -0.008));
+      break;
+    case 'messy':
+      head.add(box(0.252, 0.1, 0.252, m, 0, 0.31, 0));
+      head.add(box(0.07, 0.07, 0.07, m, 0.1, 0.37, 0.05));
+      head.add(box(0.06, 0.06, 0.06, m, -0.09, 0.36, -0.06));
+      head.add(box(0.06, 0.06, 0.06, m, 0.02, 0.38, -0.02));
+      break;
+    case 'mohawk':
+      head.add(box(0.05, 0.15, 0.25, m, 0, 0.37, 0));
+      break;
+    case 'balding':
+      head.add(box(0.24, 0.04, 0.11, m, 0, 0.3, -0.085));            // back fringe
+      for (const sx of [-1, 1]) head.add(box(0.035, 0.11, 0.2, m, sx * 0.115, 0.2, -0.015)); // side hair
+      break;
+    case 'long':
+      head.add(box(0.242, 0.075, 0.242, m, 0, 0.31, 0));
+      for (const sx of [-1, 1]) head.add(box(0.05, 0.22, 0.2, m, sx * 0.122, 0.15, -0.02)); // hangs at sides
+      head.add(box(0.22, 0.24, 0.05, m, 0, 0.13, -0.125));          // down the back
+      break;
+    case 'bun':
+      head.add(box(0.236, 0.06, 0.236, m, 0, 0.31, 0));
+      head.add(box(0.1, 0.1, 0.1, m, 0, 0.38, -0.07));              // top-knot
+      break;
+  }
+}
+
+function addBeard(head, look, box) {
+  const m = look.beardMat;
+  if (!m || !look.beard || look.beard === 'none') return;
+  switch (look.beard) {
+    case 'stubble':
+      head.add(box(0.206, 0.11, 0.035, m, 0, 0.12, 0.1));
+      break;
+    case 'goatee':
+      head.add(box(0.07, 0.09, 0.05, m, 0, 0.075, 0.115));
+      break;
+    case 'full':
+      head.add(box(0.205, 0.14, 0.06, m, 0, 0.11, 0.09));
+      head.add(box(0.16, 0.08, 0.05, m, 0, 0.035, 0.09));           // hangs off the chin
+      for (const sx of [-1, 1]) head.add(box(0.04, 0.13, 0.06, m, sx * 0.1, 0.17, 0.055)); // sideburns
+      break;
+  }
+}
+
+function addHat(head, look, box) {
+  const m = look.hatMat;
+  if (!m || !look.hat || look.hat === 'none') return;
+  switch (look.hat) {
+    case 'cap':
+      head.add(box(0.236, 0.08, 0.236, m, 0, 0.34, -0.01));         // dome
+      head.add(box(0.2, 0.025, 0.13, m, 0, 0.315, 0.16));           // bill
+      break;
+    case 'beanie':
+      head.add(box(0.248, 0.15, 0.248, m, 0, 0.34, 0));             // pulled-down knit
+      break;
+    case 'hardhat':
+      head.add(box(0.252, 0.11, 0.252, m, 0, 0.355, 0));            // shell
+      head.add(box(0.3, 0.02, 0.3, m, 0, 0.31, 0));                 // brim ring
+      break;
+  }
+}
+
+function addClothing(torso, look, skin, box) {
+  const m = look.topMat;
+  if (!m || !look.top || look.top === 'plain') return;
+  switch (look.top) {
+    case 'hoodie':
+      torso.add(box(0.34, 0.2, 0.16, m, 0, 0.5, -0.1));             // hood bunched behind the neck
+      torso.add(box(0.42, 0.5, 0.03, m, 0, 0.26, 0.135));           // hoodie front
+      torso.add(box(0.22, 0.12, 0.04, m, 0, 0.15, 0.14));           // kangaroo pocket
+      break;
+    case 'jacket': {
+      torso.add(box(0.44, 0.5, 0.04, m, 0, 0.26, 0.12));            // jacket body
+      torso.add(box(0.04, 0.5, 0.03, skin.shirt, 0, 0.26, 0.155));  // open shirt strip down the middle
+      for (const sx of [-1, 1]) {                                    // lapels
+        const lap = box(0.08, 0.3, 0.03, m, sx * 0.11, 0.36, 0.15);
+        lap.rotation.z = sx * 0.22;
+        torso.add(lap);
+      }
+      break;
+    }
+    case 'vest':
+      torso.add(box(0.43, 0.44, 0.03, m, 0, 0.28, 0.13));           // vest front panel
+      torso.add(box(0.05, 0.44, 0.02, skin.shirt, 0, 0.28, 0.15));  // shirt showing at the opening
+      break;
+    case 'tie':
+      torso.add(box(0.055, 0.3, 0.02, m, 0, 0.27, 0.142));          // tie
+      torso.add(box(0.075, 0.05, 0.03, m, 0, 0.46, 0.142));         // knot
+      break;
+    case 'apron':
+      torso.add(box(0.3, 0.42, 0.02, m, 0, 0.2, 0.135));            // apron front
+      torso.add(box(0.14, 0.06, 0.02, m, 0, 0.5, 0.12));            // neck bib
+      break;
+  }
 }

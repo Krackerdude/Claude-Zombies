@@ -23,6 +23,7 @@ import { weaponCost, weaponCategory } from '../weapons/catalog.js';
 import { makeChalkTexture, makeGlowTexture } from '../util/chalk.js';
 import { PlayerTag, Transform } from '../ecs/components/index.js';
 import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../rendering/materials/surfaces.js';
+import { prewarmZombieCosmetics } from './zombieAssets.js';
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../rendering/AmbientParticles.js';
 import { DecalSystem } from '../rendering/DecalSystem.js';
@@ -308,6 +309,10 @@ export function buildArena(engine) {
   engine.world.registerSystem(perkSystem);
   engine.world.registerSystem(new EconomySystem());
   engine.world.registerSystem(new MysteryBoxSystem());
+
+  // park every shared zombie material (skins + hair/cloth cosmetics) hidden in
+  // the scene so the load-time prewarm compiles them and the first wave is smooth
+  prewarmZombieCosmetics(scene);
 
   return { nav, playerId };
 }
