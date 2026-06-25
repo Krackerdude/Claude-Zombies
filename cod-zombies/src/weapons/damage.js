@@ -40,12 +40,12 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
   } else {
     // --- survived the hit: localized flinch (scaled by the gun's damage), and
     //     maybe an explosion knockdown ---
-    const f = Math.min(1, ZombieConfig.flinchMin + amount * ZombieConfig.flinchPerDamage + (headshot ? 0.12 : 0));
-    if (f > z.flinch) {                       // strongest recent hit wins (rapid fire won't shrink it)
-      z.flinch = f;
-      z.flinchPart = part || (headshot ? 'head' : 'chest');
-      z.flinchSign = dir ? (dir.x >= 0 ? 1 : -1) : (Math.random() < 0.5 ? 1 : -1);
-    }
+    const f = Math.min(1.3, ZombieConfig.flinchMin + amount * ZombieConfig.flinchPerDamage + (headshot ? 0.2 : 0));
+    // every hit (re)fires the impulse so rapid fire keeps them visibly rocking
+    z.flinch = Math.max(f, z.flinch * 0.6);
+    z.flinchT = 0;
+    z.flinchPart = part || (headshot ? 'head' : 'chest');
+    z.flinchSign = dir ? (dir.x >= 0 ? 1 : -1) : (Math.random() < 0.5 ? 1 : -1);
     // knockdown: only from explosions (knockChance>0), only if up + not stunned
     if (knockChance > 0 && z.knockTime <= 0 && z.state !== 'spawning' && Math.random() < knockChance) {
       z.state = 'knocked';

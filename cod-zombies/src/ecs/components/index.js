@@ -145,7 +145,8 @@ export class ZombieTag {
     this.tearAmt = 0;
 
     // hit reactions (set in damageZombie, consumed by ZombieAnimSystem)
-    this.flinch = 0; // 0..1 transient flinch intensity (decays each frame)
+    this.flinch = 0; // flinch intensity for the current impulse (0 = none)
+    this.flinchT = 0; // seconds elapsed in the current flinch impulse
     this.flinchPart = 'chest'; // head | chest | pelvis | legs — where the shot landed
     this.flinchSign = 1; // lateral jerk direction
     // explosion knockdown
