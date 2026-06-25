@@ -196,6 +196,7 @@ export class CorpseTag {
     this.limp = 0; // limbs go slack
     this.j = null; // per-joint ragdoll state (lazily seeded by CorpseSystem)
     this.bias = 0;
+    this.ragdoll = null; // real Rapier ragdoll handle (bodies+joints), when supported
   }
 }
 

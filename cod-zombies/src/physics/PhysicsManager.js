@@ -1,6 +1,28 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PhysicsConfig } from '../config/index.js';
 
+// Collision groups (membership<<16 | filter). ENV = world geometry (default
+// 0xFFFF membership covers it), ACTOR = player/zombie capsules, RAGDOLL = corpse
+// segments. Actors collide with ENV + ACTOR (not ragdolls, so corpses can't
+// block/shove them); ragdolls collide with ENV + other RAGDOLLs (terrain + piles).
+const ENV = 0x0001, ACTOR = 0x0002, RAGDOLL = 0x0004;
+const GROUP_ACTOR = (ACTOR << 16) | (ENV | ACTOR);
+const GROUP_RAGDOLL = (RAGDOLL << 16) | (ENV | RAGDOLL);
+
+/** World point -> a body's local frame (conjugate-quat rotate of the offset). */
+function _localAnchor(w, p, q) {
+  const vx = w.x - p.x, vy = w.y - p.y, vz = w.z - p.z;
+  const ix = -q.x, iy = -q.y, iz = -q.z, iw = q.w; // conjugate of a unit quat
+  const tx = 2 * (iy * vz - iz * vy);
+  const ty = 2 * (iz * vx - ix * vz);
+  const tz = 2 * (ix * vy - iy * vx);
+  return {
+    x: vx + iw * tx + (iy * tz - iz * ty),
+    y: vy + iw * ty + (iz * tx - ix * tz),
+    z: vz + iw * tz + (ix * ty - iy * tx),
+  };
+}
+
 /**
  * The ONLY module that imports Rapier directly. Everything else talks to
  * physics through this facade, so swapping the engine (cannon-es, a future
@@ -77,7 +99,8 @@ export class PhysicsManager {
     return { body, collider, type: 'dynamic' };
   }
 
-  /** Kinematic capsule for a character controller (player). */
+  /** Kinematic capsule for a character controller (player + zombies). Tagged in
+   *  the ACTOR collision group so ragdoll corpses never block or shove it. */
   createCharacterCapsule(position, { radius, halfHeight }) {
     const bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(
       position.x,
@@ -85,9 +108,75 @@ export class PhysicsManager {
       position.z,
     );
     const body = this.world.createRigidBody(bodyDesc);
-    const colliderDesc = RAPIER.ColliderDesc.capsule(halfHeight, radius);
+    const colliderDesc = RAPIER.ColliderDesc.capsule(halfHeight, radius)
+      .setCollisionGroups(GROUP_ACTOR);
     const collider = this.world.createCollider(colliderDesc, body);
     return { body, collider, type: 'kinematic' };
+  }
+
+  // --- ragdoll primitives (real articulated corpses) ----------------------
+  // Flag the facade so callers can fall back to the procedural corpse when the
+  // physics backend is a headless stub that lacks these.
+  ragdollCapable = true;
+
+  /** A dynamic box limb segment for a ragdoll: collides with the world + other
+   *  ragdolls (RAGDOLL group), but NOT with actors, so corpses don't block the
+   *  player/horde. Damped so piles settle + sleep instead of jittering. The body
+   *  origin sits at the limb's JOINT pivot; `offset` shifts the box down the limb
+   *  in the body's local frame so the collider actually wraps the bone. */
+  createRagdollBox(position, quat, halfExtents, { density = 1.1, offset = null } = {}) {
+    const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
+      .setTranslation(position.x, position.y, position.z)
+      .setLinearDamping(0.35)
+      .setAngularDamping(0.6)
+      .setCcdEnabled(true);
+    if (quat) bodyDesc.setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w });
+    const body = this.world.createRigidBody(bodyDesc);
+    const colliderDesc = RAPIER.ColliderDesc.cuboid(halfExtents.x, halfExtents.y, halfExtents.z)
+      .setDensity(density)
+      .setRestitution(0.05)
+      .setFriction(0.9)
+      .setCollisionGroups(GROUP_RAGDOLL);
+    if (offset) colliderDesc.setTranslation(offset.x, offset.y, offset.z);
+    const collider = this.world.createCollider(colliderDesc, body);
+    return { body, collider, type: 'dynamic' };
+  }
+
+  /** Spherical (ball) joint anchoring two ragdoll segments at a shared world
+   *  point; contacts between the directly-jointed pair are disabled so they
+   *  don't fight at the socket (other segments still self-collide). */
+  createSphericalJoint(handleA, handleB, worldAnchor) {
+    const a = handleA.body, b = handleB.body;
+    const la = a.translation(), lb = b.translation();
+    const qa = a.rotation(), qb = b.rotation();
+    const anchorA = _localAnchor(worldAnchor, la, qa);
+    const anchorB = _localAnchor(worldAnchor, lb, qb);
+    const params = RAPIER.JointData.spherical(anchorA, anchorB);
+    params.contactsEnabled = false;
+    const joint = this.world.createImpulseJoint(params, a, b, true);
+    return joint;
+  }
+
+  applyImpulse(handle, imp) {
+    handle?.body?.applyImpulse({ x: imp.x, y: imp.y, z: imp.z }, true);
+  }
+
+  setLinearVelocity(handle, v) {
+    handle?.body?.setLinvel({ x: v.x, y: v.y, z: v.z }, true);
+  }
+
+  setAngularVelocity(handle, w) {
+    handle?.body?.setAngvel({ x: w.x, y: w.y, z: w.z }, true);
+  }
+
+  bodyTransform(handle) {
+    const p = handle.body.translation();
+    const q = handle.body.rotation();
+    return { p, q };
+  }
+
+  removeJoint(joint) {
+    if (joint) this.world.removeImpulseJoint(joint, true);
   }
 
   /**
