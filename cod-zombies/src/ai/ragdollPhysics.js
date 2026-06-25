@@ -25,11 +25,14 @@ import * as THREE from 'three';
 // settle on the ground instead of catching on box corners and vibrating; the
 // torso/pelvis stay boxes (they come to rest on a broad flat face — stable).
 const SEG = {
-  pelvis: { shape: { type: 'box', hx: 0.17, hy: 0.10, hz: 0.12 }, off: { x: 0, y: -0.02, z: 0 }, mass: 30 },
+  pelvis: { shape: { type: 'box', hx: 0.17, hy: 0.10, hz: 0.12 }, off: { x: 0, y: -0.02, z: 0 }, mass: 24 },
   torso: { shape: { type: 'box', hx: 0.20, hy: 0.26, hz: 0.13 }, off: { x: 0, y: 0.20, z: 0 }, mass: 16 },
   head: { shape: { type: 'ball', radius: 0.13 }, off: { x: 0, y: 0.18, z: 0 }, mass: 5 },
-  arm: { shape: { type: 'capsule', halfHeight: 0.26, radius: 0.075 }, off: { x: 0, y: -0.30, z: 0 }, mass: 3 },
-  leg: { shape: { type: 'capsule', halfHeight: 0.32, radius: 0.10 }, off: { x: 0, y: -0.42, z: 0 }, mass: 6 },
+  // capsule reaches from the shoulder pivot down past the hand (~0.67 m total)
+  arm: { shape: { type: 'capsule', halfHeight: 0.28, radius: 0.075 }, off: { x: 0, y: -0.32, z: 0 }, mass: 3 },
+  // capsule reaches from the hip pivot all the way to the foot (~0.92 m total),
+  // so the SHIN + FOOT have collision and don't punch through the floor
+  leg: { shape: { type: 'capsule', halfHeight: 0.36, radius: 0.10 }, off: { x: 0, y: -0.46, z: 0 }, mass: 6 },
 };
 
 // Anatomical range-of-motion per driven joint, measured from the neutral
@@ -153,16 +156,18 @@ export function buildRagdoll(rig, physics, c, t) {
   // joints don't have to reconcile wildly conflicting spins (that fights the
   // solver and detonates the ragdoll). The whole corpse pitches in the shot
   // direction and rolls a little, then gravity + terrain take over.
-  const launch = { x: c.vx, y: Math.max(1.0, c.vy), z: c.vz };
+  // Mostly a crumple: the horizontal shove from the shot plus only a SMALL,
+  // capped upward pop (so they don't sink, but never get enough airtime to
+  // backflip or bounce hard on landing).
+  const launch = { x: c.vx * 0.8, y: Math.min(1.1, Math.max(0.35, c.vy * 0.45)), z: c.vz * 0.8 };
   // ONE gentle tumble shared by the whole corpse — axis horizontal and
   // perpendicular to the push, so it face-plants / back-flops the way it was
-  // hit, with a touch of roll. Kept small so the joints don't have to fight a
-  // violent spin (that was the "tweak for a second" twitch). Gravity does most
-  // of the toppling.
+  // hit, with a touch of roll. Kept SMALL (and capped) so it topples rather
+  // than spins all the way over. Gravity does most of the toppling.
   const tumble = {
-    x: c.vz * 0.5 + rand(0.3),
-    y: rand(0.5),
-    z: -c.vx * 0.5 + rand(0.3),
+    x: Math.max(-1.4, Math.min(1.4, c.vz * 0.35 + rand(0.2))),
+    y: rand(0.3),
+    z: Math.max(-1.4, Math.min(1.4, -c.vx * 0.35 + rand(0.2))),
   };
   for (const key in bodies) {
     physics.setLinearVelocity(bodies[key], launch);
@@ -210,7 +215,10 @@ export function enforceLimits(physics, data) {
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    if (Math.abs(_qOrig.dot(_qRel)) < 0.99995) { // was outside the allowed range
+    // deadband: only correct when CLEARLY past the limit (~5deg), so a limb
+    // resting against the floor right at a stop doesn't get re-snapped every
+    // frame (that re-snapping vs. the contact was the residual landing spaz)
+    if (Math.abs(_qOrig.dot(_qRel)) < 0.9990) { // was outside the allowed range
       _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
       physics.setBodyRotation(cb, _qNew);
       physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)

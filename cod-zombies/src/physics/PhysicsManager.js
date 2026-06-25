@@ -152,8 +152,8 @@ export class PhysicsManager {
   createRagdollPart(position, quat, shape, { mass = null, density = 1.1, offset = null, group = GROUP_RAGDOLL } = {}) {
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(position.x, position.y, position.z)
-      .setLinearDamping(0.4)
-      .setAngularDamping(0.85);
+      .setLinearDamping(0.55)
+      .setAngularDamping(0.9);
     if (quat) bodyDesc.setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w });
     const body = this.world.createRigidBody(bodyDesc);
     let cd;
