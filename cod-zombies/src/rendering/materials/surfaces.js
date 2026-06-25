@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ps1Snap } from '../ps1.js';
 import { makeNormalTexture } from '../../util/textures.js';
+import { woodGrain, gunEnv } from '../../weapons/gunMaterials.js';
 
 /**
  * Shared environment materials. Per the overhaul directive: build ONE material
@@ -36,12 +37,20 @@ export function brickWall(color = 0x2a323d, repeat = [3, 2]) {
   }));
 }
 
-/** Boarded-window planks — long grain + seams. One shared instance for them all. */
-export function plankWood(color = 0x5a4632) {
+/** Boarded-window planks — now matched to the weapon-grade walnut: the shared
+ *  wood-grain diffuse + a faint varnish sheen over the plank relief normal, on a
+ *  warmer reclaimed-timber tone. (Grain map needs a canvas, so headless builds
+ *  fall back to the plain relief.) One shared instance for them all. */
+export function plankWood(color = 0x6b4a2a) {
   _plankNormal = normal(_plankNormal, { size: 256, freq: 6, strength: 1.0, kind: 'planks' });
+  const hasCanvas = typeof document !== 'undefined';
+  const grain = hasCanvas ? woodGrain() : null; // shared cached texture — don't mutate it
   return ps1Snap(new THREE.MeshStandardMaterial({
-    color, roughness: 1.0, metalness: 0.0,
-    normalMap: _plankNormal, normalScale: new THREE.Vector2(0.7, 0.7),
+    color, roughness: 0.86, metalness: 0.0,
+    map: grain || undefined,
+    normalMap: _plankNormal, normalScale: new THREE.Vector2(0.85, 0.85),
+    bumpMap: grain || undefined, bumpScale: grain ? 0.12 : 0,
+    envMap: hasCanvas ? gunEnv() : undefined, envMapIntensity: 0.16,
   }));
 }
 

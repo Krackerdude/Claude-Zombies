@@ -266,6 +266,7 @@ export const PlayerConfig = {
   slideMaxTime: 0.6, // short + snappy; ends here (while still fast) rather than crawling out
   slideSteerSpeed: 3.0, // curve influence only — kept below slideMinSpeed so it never floors the slide
   slideSteerAccel: 16,
+  slideRecovery: 0.75, // after a slide ends, must "recover" this long before sliding again
 
   // sprint fatigue (BO3): sprint ~4s, then forced ~1s walk before sprinting again
   sprintMaxTime: 4.0,

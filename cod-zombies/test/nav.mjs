@@ -50,7 +50,7 @@ const costOf = (path, agent) => {
   return c;
 };
 const closedCost = costOf(zPath, ZOMBIE);
-for (let i = 0; i < window.maxBoards; i++) window.tear(1); // rip every board
+for (let i = 0; i < window.maxBoards; i++) window.removeBoard(); // rip every board
 assert(window.open, 'window fully torn = open');
 const pPathOpen = nav.findPath(leftCell, rightCell, PLAYER);
 assert(pPathOpen !== null, 'player can path once the window is open');
@@ -60,7 +60,7 @@ assert(openCost < closedCost, `zombie path is cheaper once open (${openCost.toFi
 console.log('\n[5] boards: six tears to open, repair re-closes');
 const b2 = new Barrier({ id: 't', position: { x: 0, z: 0 } });
 let opened = 0, removed = 0;
-for (let i = 0; i < 200; i++) { const r = b2.tear(1 / 30); if (r.removed) removed++; if (r.opened) opened++; }
+for (let i = 0; i < 200; i++) { const r = b2.removeBoard(); if (r.removed) removed++; if (r.opened) opened++; }
 assert(b2.open && opened === 1 && removed === b2.maxBoards, `tears all ${b2.maxBoards} boards, opens exactly once (removed ${removed})`);
 const rep = b2.repair(1);
 assert(rep.added && rep.closed && b2.boards === 1 && !b2.open, 'a repair rebuilds a board and re-closes the window');

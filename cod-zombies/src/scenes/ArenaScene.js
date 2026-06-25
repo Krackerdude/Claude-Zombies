@@ -122,7 +122,9 @@ export function buildArena(engine) {
   const nav = new NavGraph(BOUNDS);
   const wallMat = brickWall(0x2a323d, [6, 3]);
   // one shared plank material for every boarded window (all the same stock)
-  const plankMat = plankWood(0x5a4632);
+  const plankMat = plankWood(0x6b4a2a);
+  // dark rusty iron for the corner nails, shared across every board
+  const nailMat = new THREE.MeshStandardMaterial({ color: 0x2a2622, roughness: 0.6, metalness: 0.8 });
 
   const wall = (minX, minZ, maxX, maxZ, h = 3) => {
     const sx = maxX - minX, sz = maxZ - minZ;
@@ -156,23 +158,43 @@ export function buildArena(engine) {
     const hz = Math.max((footprint.maxZ - footprint.minZ) / 2, 0.5);
     physics.createStaticBox({ x: cx, y: 1.4, z: cz }, { x: hx, y: 1.4, z: hz });
 
-    // plank visuals — one mesh per board, stacked up the gap
+    // plank visuals — one GROUP per board (warped board + corner nails), stacked
+    // up the gap. Each board is hand-jittered so no two read alike: a little
+    // skew, length/thickness variance, and a slight warp tilt.
     const alongX = (footprint.maxX - footprint.minX) >= (footprint.maxZ - footprint.minZ);
-    const w = alongX ? (footprint.maxX - footprint.minX) + 0.5 : 0.16;
-    const d = alongX ? 0.16 : (footprint.maxZ - footprint.minZ) + 0.5;
+    const span = alongX ? (footprint.maxX - footprint.minX) + 0.5 : (footprint.maxZ - footprint.minZ) + 0.5;
+    const rnd = (a, b) => a + Math.random() * (b - a);
     const planks = [];
     for (let i = 0; i < barrier.maxBoards; i++) {
-      const plank = new THREE.Mesh(
-        new THREE.BoxGeometry(w, 0.2, d),
-        plankMat,
-      );
-      plank.position.set(cx, 0.5 + i * 0.32, cz);
-      plank.userData.homeY = plank.position.y;
-      const tilt = (i % 2 ? 1 : -1) * 0.05;
-      if (alongX) plank.rotation.z = tilt; else plank.rotation.x = tilt;
-      plank.castShadow = true;
-      scene.add(plank);
-      planks.push(plank);
+      const group = new THREE.Group();
+      const w = (alongX ? span : 0.16) * (alongX ? rnd(0.93, 1.02) : 1);
+      const d = (alongX ? 0.16 : span) * (alongX ? 1 : rnd(0.93, 1.02));
+      const th = rnd(0.17, 0.23); // board thickness varies
+
+      const board = new THREE.Mesh(new THREE.BoxGeometry(w, th, d), plankMat);
+      board.castShadow = true;
+      board.rotation.y = rnd(-0.05, 0.05); // slight yaw warp
+      group.add(board);
+
+      // four corner nails — small dark iron heads punched into the ends
+      const nailGeo = new THREE.CylinderGeometry(0.02, 0.024, 0.05, 6);
+      const ex = alongX ? w / 2 - 0.12 : 0.05;
+      const ez = alongX ? 0.05 : d / 2 - 0.12;
+      for (const sx of [-1, 1]) for (const so of [-1, 1]) {
+        const nail = new THREE.Mesh(nailGeo, nailMat);
+        nail.rotation.x = Math.PI / 2; // head faces out the front of the board
+        nail.position.set(alongX ? sx * ex : so * 0.05, rnd(-0.02, 0.02), alongX ? so * 0.05 : sx * ez);
+        nail.castShadow = true;
+        group.add(nail);
+      }
+
+      group.position.set(cx, 0.5 + i * 0.32, cz);
+      const tilt = (i % 2 ? 1 : -1) * rnd(0.04, 0.09); // warp tilt, alternating
+      if (alongX) group.rotation.z = tilt; else group.rotation.x = tilt;
+      group.userData.homeY = group.position.y;
+      group.userData.homeRot = group.rotation.clone();
+      scene.add(group);
+      planks.push(group);
     }
     barrierPlanks.set(barrier, planks);
     return barrier;
@@ -184,7 +206,7 @@ export function buildArena(engine) {
   addWindow('win_w', { minX: -B - 0.5, minZ: -WH, maxX: -B + 0.5, maxZ: WH }, 0x5a4632);
 
   // planks rise out of the ground and snap into place when repaired
-  engine.world.registerSystem(new BarrierFxSystem(barrierPlanks, events));
+  engine.world.registerSystem(new BarrierFxSystem(barrierPlanks, events, scene));
 
   // dynamic-light atmosphere: gutter the warm bulbs, breathe the cool fills.
   // The shared normal maps join the tunable-texture set for anisotropy control.

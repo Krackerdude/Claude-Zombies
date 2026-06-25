@@ -25,12 +25,11 @@ export class Barrier {
   /** Passable on the nav graph once fully torn. */
   get open() { return this.boards <= 0; }
 
-  /** Zombie rips at the boards. @returns {{removed:boolean, opened:boolean}} */
-  tear(dt) {
+  /** Rip a single board off immediately (timing is now owned per-zombie so a
+   *  crowd can't share one accumulator and strip the whole window at once).
+   *  @returns {{removed:boolean, opened:boolean}} */
+  removeBoard() {
     if (this.boards <= 0) return { removed: false, opened: false };
-    this.tearAcc += dt;
-    if (this.tearAcc < BarrierConfig.boardTearTime) return { removed: false, opened: false };
-    this.tearAcc = 0;
     this.boards--;
     return { removed: true, opened: this.boards <= 0 };
   }

@@ -43,8 +43,9 @@ export const ZombieConfig = {
 
 export const BarrierConfig = {
   maxBoards: 6, // hits to fully tear a window open (CoD-style)
-  boardTearTime: 0.45, // seconds a zombie spends ripping one board
-  boardRepairTime: 0.5, // seconds the player spends rebuilding one board
+  boardTearTime: 0.45, // wind-up before a zombie rips its FIRST board
+  boardTearCooldown: 1.0, // a zombie must wait this long before ripping another board
+  boardRepairTime: 1.0, // seconds the player holds to rebuild one board (sequential, ~1s each)
   repairReach: 2.4, // how close the player must be to repair (m)
   pointsPerBoard: 10, // score for each board rebuilt
 };
