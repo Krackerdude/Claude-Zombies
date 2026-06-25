@@ -52,6 +52,9 @@ export function buildRagdoll(rig, physics, c, t) {
   rig.quaternion.copy(t.quaternion);
   rig.updateMatrixWorld(true);
 
+  // one collision group for the whole corpse: it piles on terrain + other
+  // corpses but never self-collides (overlapping limb boxes would detonate it)
+  const group = physics.allocRagdollGroup();
   const make = (joint, spec) => {
     joint.getWorldPosition(_v);
     joint.getWorldQuaternion(_q);
@@ -59,7 +62,7 @@ export function buildRagdoll(rig, physics, c, t) {
       { x: _v.x, y: _v.y, z: _v.z },
       { x: _q.x, y: _q.y, z: _q.z, w: _q.w },
       spec.half,
-      { density: spec.density, offset: spec.off },
+      { density: spec.density, offset: spec.off, group },
     );
   };
 
@@ -85,19 +88,28 @@ export function buildRagdoll(rig, physics, c, t) {
     physics.createSphericalJoint(bodies.pelvis, bodies.legR, anchorAt(J.thighR)),
   ];
 
-  // launch: the killing impulse becomes the bodies' initial velocity, with the
-  // torso/head getting the upward pop and every segment a different random spin
-  // so no two corpses fall the same way
-  const launch = { x: c.vx, y: Math.max(1.5, c.vy), z: c.vz };
-  const spin = 4 + Math.min(6, Math.hypot(c.vx, c.vy, c.vz));
+  // launch: the killing impulse becomes the bodies' initial velocity. Every
+  // body shares ONE tumble (plus a tiny per-limb jitter) so the spherical
+  // joints don't have to reconcile wildly conflicting spins (that fights the
+  // solver and detonates the ragdoll). The whole corpse pitches in the shot
+  // direction and rolls a little, then gravity + terrain take over.
+  const launch = { x: c.vx, y: Math.max(1.2, c.vy), z: c.vz };
+  // tumble axis ~ horizontal, perpendicular to the push, so it face-plants /
+  // back-flops the way it was hit, with a random roll mixed in
+  const tumble = {
+    x: c.vz * 0.9 + rand(0.6),
+    y: rand(1.2),
+    z: -c.vx * 0.9 + rand(0.6),
+  };
   for (const key in bodies) {
-    const b = bodies[key];
-    physics.setLinearVelocity(b, launch);
-    physics.setAngularVelocity(b, { x: rand(spin), y: rand(spin * 0.6), z: rand(spin) });
+    physics.setLinearVelocity(bodies[key], launch);
+    physics.setAngularVelocity(bodies[key], {
+      x: tumble.x + rand(0.5), y: tumble.y + rand(0.5), z: tumble.z + rand(0.5),
+    });
   }
-  // a sharper kick on the upper body sells the "knocked off its feet" read
-  physics.setLinearVelocity(bodies.torso, { x: c.vx * 1.15, y: launch.y + 0.8, z: c.vz * 1.15 });
-  physics.setLinearVelocity(bodies.head, { x: c.vx * 1.2, y: launch.y + 1.0, z: c.vz * 1.2 });
+  // a modest extra pop on the upper body sells "knocked off its feet" without
+  // overwhelming the neck/spine joints
+  physics.setLinearVelocity(bodies.head, { x: c.vx, y: launch.y + 0.6, z: c.vz });
 
   // forearms/shins are rigid extensions of the single arm/leg body — settle the
   // elbows/knees to a slack near-straight bend once, so limbs read naturally
