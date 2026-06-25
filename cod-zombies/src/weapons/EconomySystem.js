@@ -153,8 +153,12 @@ export class EconomySystem extends System {
     box.state = 'spinning';
     box.timer = EconomyConfig.boxSpinTime;
     box.cycle = 0.05;
-    box.result = BOX_POOL[(Math.random() * BOX_POOL.length) | 0];
-    box.display = BOX_POOL[0];
+    // never roll a gun the player already owns (fall back to the full pool only
+    // in the impossible case they somehow own everything in it)
+    const pool = BOX_POOL.filter((k) => !this.#weapons.owns(k));
+    const roll = pool.length ? pool : BOX_POOL;
+    box.result = roll[(Math.random() * roll.length) | 0];
+    box.display = roll[0];
     this.#events.emit('box:spin', { key: box.display });
   }
 

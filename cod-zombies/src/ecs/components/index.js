@@ -82,6 +82,7 @@ export class PlayerTag {
     this.jumpBuffer = 0; // counts down after a jump press
     this.slideTime = 0; // elapsed slide time
     this.slideLock = 0; // slide-recovery cooldown; can't slide again until it hits 0
+    this.slideBuffer = 0; // buffered sprint-slide intent (so a 1-frame dip can't drop it)
     this.airJumps = 0;
     this.proneForced = false; // post-dive prone latch, cleared by a stance command
     this.airCap = 99; // horizontal speed cap while airborne (set at jump = launch speed)

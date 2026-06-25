@@ -49,7 +49,22 @@ export class RenderManager {
    * explosion / first box open" freeze). Runs once during the loading screen.
    */
   prewarm(scene) {
-    try { this.renderer?.compile?.(scene, this.camera); } catch { /* non-fatal */ }
+    try {
+      // 1) warm every shader program (compile only walks the graph).
+      this.renderer?.compile?.(scene, this.camera);
+      // 2) force ONE render with every object visible + unculled so their GPU
+      //    geometry buffers upload now. compile() doesn't upload buffers, and a
+      //    normal render frustum-culls the across-the-map box, so without this
+      //    the first box spin uploads ~50 weapon models' worth of buffers in a
+      //    single frame (the "first open" hitch). Restore exact state after.
+      const restore = [];
+      scene.traverse((o) => {
+        restore.push([o, o.visible, o.frustumCulled]);
+        o.visible = true; o.frustumCulled = false;
+      });
+      this.renderer?.render?.(scene, this.camera);
+      for (const [o, v, f] of restore) { o.visible = v; o.frustumCulled = f; }
+    } catch { /* non-fatal */ }
   }
 
   async init() {

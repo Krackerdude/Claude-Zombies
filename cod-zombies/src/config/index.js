@@ -267,6 +267,7 @@ export const PlayerConfig = {
   slideSteerSpeed: 3.0, // curve influence only — kept below slideMinSpeed so it never floors the slide
   slideSteerAccel: 16,
   slideRecovery: 0.75, // after a slide ends, must "recover" this long before sliding again
+  slideBufferTime: 0.2, // a sprint-slide press persists this long so a 1-frame dip can't eat it
 
   // sprint fatigue (BO3): sprint ~4s, then forced ~1s walk before sprinting again
   sprintMaxTime: 4.0,

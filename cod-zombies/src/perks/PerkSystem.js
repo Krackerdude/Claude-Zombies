@@ -59,7 +59,10 @@ export class PerkSystem extends System {
       rig.position.set(x, 0, z);
       rig.rotation.y = Math.atan2(-x, -z); // face room center
       this.#scene.add(rig);
-      this.#physics.createStaticBox({ x, y: def.h / 2, z }, { x: 0.5, y: def.h / 2, z: 0.4 });
+      // collider raised ~1m above the machine so the player can't jump on top
+      // (footprint unchanged; bullets ignore physics colliders).
+      const colH = def.h + 1.0;
+      this.#physics.createStaticBox({ x, y: colH / 2, z }, { x: 0.5, y: colH / 2, z: 0.4 });
       this.#machines.push({ id, def, x, z, rig });
     }
 
