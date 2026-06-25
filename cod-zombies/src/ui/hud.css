@@ -161,7 +161,8 @@
   --wpn-energy: 79, 224, 214;   /* cold cyan core */
   position: absolute; right: calc(34px + var(--hud-inset)); bottom: calc(44px + var(--hud-inset)); z-index: 21;
   display: flex; flex-direction: column; align-items: flex-end; gap: 9px; pointer-events: none;
-  transform: scale(var(--hud-scale)); transform-origin: bottom right;
+  /* 1.35 base bump (widget read ~35% too small) — still multiplied by the user's HUD Scale. */
+  transform: scale(calc(var(--hud-scale) * 1.35)); transform-origin: bottom right;
 }
 .wpn-widget { display: flex; align-items: center; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.6)); }
 
