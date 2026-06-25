@@ -82,17 +82,19 @@ export class ZombieAnimSystem extends System {
     J.elbowR.rotation.x = rest.elbow + 0.5 * recover;
   }
 
-  /** Transient localized recoil from the last shot, added on top of the gait. */
+  /** Transient localized recoil from the last shot, added on top of the gait —
+   *  a small, quick jolt that snaps back in ~a tenth of a second. Only touches
+   *  joints the gait resets every frame, so it can never accumulate. */
   #flinch(z, J, dt) {
     if (z.flinch <= 0.001) { z.flinch = 0; return; }
     const f = z.flinch, s = z.flinchSign;
     switch (z.flinchPart) {
-      case 'head': J.head.rotation.x -= f * 0.55; J.head.rotation.z += f * 0.4 * s; break;
-      case 'pelvis': J.hips.rotation.x -= f * 0.22; J.hips.position.y -= f * 0.03; J.torso.rotation.z += f * 0.15 * s; break;
-      case 'legs': J.hips.position.y -= f * 0.05; J.kneeL.rotation.x += f * 0.5; J.thighL.rotation.x += f * 0.2; break;
-      default: J.torso.rotation.x -= f * 0.4; J.torso.rotation.z += f * 0.25 * s; J.head.rotation.x -= f * 0.2; break; // chest
+      case 'head': J.head.rotation.x -= f * 0.4; J.head.rotation.z += f * 0.3 * s; break;
+      case 'pelvis': J.hips.rotation.x -= f * 0.16; J.hips.position.y -= f * 0.025; J.torso.rotation.z += f * 0.12 * s; break;
+      case 'legs': J.hips.position.y -= f * 0.04; J.kneeL.rotation.x += f * 0.4; J.thighL.rotation.x += f * 0.18; break;
+      default: J.torso.rotation.x -= f * 0.3; J.torso.rotation.z += f * 0.2 * s; J.head.rotation.x -= f * 0.15; break; // chest
     }
-    z.flinch *= Math.max(0, 1 - dt * 11); // fast decay (~0.2s)
+    z.flinch *= Math.max(0, 1 - dt * 24); // very fast decay (~0.1s)
   }
 
   #poseOne(z, rest, J, dt) {
@@ -119,6 +121,7 @@ export class ZombieAnimSystem extends System {
     // hips: bob + counter-sway, with a limp hitch + lean onto the good leg
     const hitch = G.limp ? Math.max(0, -s) * 0.04 * w : 0;
     J.hips.position.y = rest.hipY + (Math.abs(s) * 0.035 - 0.018) * w - hitch;
+    J.hips.rotation.x = 0; // baseline so the pelvis flinch is a transient offset, not cumulative
     J.hips.rotation.y = s * 0.06 * w;
     J.hips.rotation.z = G.limp ? Math.max(0, -s) * 0.07 * w : 0;
 
