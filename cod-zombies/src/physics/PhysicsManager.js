@@ -54,6 +54,10 @@ export class PhysicsManager {
     const g = PhysicsConfig.gravity;
     this.world = new RAPIER.World(new RAPIER.Vector3(g.x, g.y, g.z));
     this.world.timestep = PhysicsConfig.fixedStep;
+    // More solver iterations keep the ragdoll's offset-COM limbs (long boxes on
+    // position-only spherical joints) from oscillating — kills the in-air
+    // jitter. The kinematic player is controller-driven, so it's unaffected.
+    this.world.numSolverIterations = 12;
 
     // A reusable character controller for kinematic capsules (player, later
     // possibly humanoid zombies). offset = skin width.

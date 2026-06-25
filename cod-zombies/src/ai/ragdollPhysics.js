@@ -28,14 +28,65 @@ const SEG = {
   leg: { half: { x: 0.09, y: 0.42, z: 0.10 }, off: { x: 0, y: -0.42, z: 0 }, density: 1.0 },
 };
 
+// Anatomical range-of-motion per driven joint, measured from the neutral
+// (straight/hanging) local pose. `swing` is the max cone half-angle the limb's
+// long axis (local Y) may tip away from neutral; `twist` is the signed rotation
+// allowed AROUND that long axis. These dead-zones stop the physics body from
+// driving the rig into impossible poses — most importantly the head no longer
+// spins in circles (its twist is clamped to a small range). Radians.
+const ROM = {
+  torso: { swing: 0.55, twistMin: -0.45, twistMax: 0.45 }, // spine: small lean/rotate
+  head: { swing: 0.85, twistMin: -0.70, twistMax: 0.70 },  // neck: nod/tilt, limited turn
+  arm: { swing: 1.85, twistMin: -1.20, twistMax: 1.20 },   // shoulder: very mobile
+  leg: { swing: 1.20, twistMin: -0.55, twistMax: 0.55 },   // hip: forward/back, little splay
+};
+
 const _v = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _qParentInv = new THREE.Quaternion();
 const _qChild = new THREE.Quaternion();
 const _qLocal = new THREE.Quaternion();
+const _twist = new THREE.Quaternion();
+const _swing = new THREE.Quaternion();
+const _qTmp = new THREE.Quaternion();
 const _hipOffset = new THREE.Vector3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
+
+/**
+ * Clamp a joint-local rotation to a swing cone + twist range about the limb's
+ * long axis (local Y), in place. Swing-twist decomposition: split the rotation
+ * into a turn AROUND Y (twist) and the remaining tip AWAY from Y (swing), clamp
+ * each, recombine. Keeps the rendered skeleton anatomically plausible no matter
+ * what the free physics body does.
+ */
+function clampSwingTwist(q, lim) {
+  if (q.w < 0) { q.x = -q.x; q.y = -q.y; q.z = -q.z; q.w = -q.w; } // shortest arc
+  // twist = component around Y
+  const tl = Math.hypot(q.y, q.w);
+  if (tl < 1e-6) _twist.set(0, 0, 0, 1);
+  else _twist.set(0, q.y / tl, 0, q.w / tl);
+  // swing = q * twist^-1  (twist is unit -> inverse is conjugate)
+  _swing.copy(q).multiply(_qTmp.set(0, -_twist.y, 0, _twist.w));
+
+  // clamp swing cone
+  let sw = Math.min(1, Math.abs(_swing.w));
+  const swingAngle = 2 * Math.acos(sw);
+  if (swingAngle > lim.swing) {
+    const axisLen = Math.hypot(_swing.x, _swing.z); // y ~ 0 after decomposition
+    if (axisLen > 1e-6) {
+      const half = lim.swing * 0.5;
+      const s = Math.sin(half) / axisLen * (_swing.w < 0 ? -1 : 1);
+      _swing.set(_swing.x * s, 0, _swing.z * s, Math.cos(half));
+    }
+  }
+  // clamp twist around Y
+  let twistAngle = 2 * Math.atan2(_twist.y, _twist.w);
+  const cl = Math.min(lim.twistMax, Math.max(lim.twistMin, twistAngle));
+  if (cl !== twistAngle) _twist.set(0, Math.sin(cl * 0.5), 0, Math.cos(cl * 0.5));
+
+  q.copy(_swing).multiply(_twist);
+}
 
 /**
  * Build the seven-body ragdoll at the rig's current world pose and launch it.
@@ -93,23 +144,21 @@ export function buildRagdoll(rig, physics, c, t) {
   // joints don't have to reconcile wildly conflicting spins (that fights the
   // solver and detonates the ragdoll). The whole corpse pitches in the shot
   // direction and rolls a little, then gravity + terrain take over.
-  const launch = { x: c.vx, y: Math.max(1.2, c.vy), z: c.vz };
-  // tumble axis ~ horizontal, perpendicular to the push, so it face-plants /
-  // back-flops the way it was hit, with a random roll mixed in
+  const launch = { x: c.vx, y: Math.max(1.0, c.vy), z: c.vz };
+  // ONE gentle tumble shared by the whole corpse — axis horizontal and
+  // perpendicular to the push, so it face-plants / back-flops the way it was
+  // hit, with a touch of roll. Kept small so the joints don't have to fight a
+  // violent spin (that was the "tweak for a second" twitch). Gravity does most
+  // of the toppling.
   const tumble = {
-    x: c.vz * 0.9 + rand(0.6),
-    y: rand(1.2),
-    z: -c.vx * 0.9 + rand(0.6),
+    x: c.vz * 0.5 + rand(0.3),
+    y: rand(0.5),
+    z: -c.vx * 0.5 + rand(0.3),
   };
   for (const key in bodies) {
     physics.setLinearVelocity(bodies[key], launch);
-    physics.setAngularVelocity(bodies[key], {
-      x: tumble.x + rand(0.5), y: tumble.y + rand(0.5), z: tumble.z + rand(0.5),
-    });
+    physics.setAngularVelocity(bodies[key], tumble);
   }
-  // a modest extra pop on the upper body sells "knocked off its feet" without
-  // overwhelming the neck/spine joints
-  physics.setLinearVelocity(bodies.head, { x: c.vx, y: launch.y + 0.6, z: c.vz });
 
   // forearms/shins are rigid extensions of the single arm/leg body — settle the
   // elbows/knees to a slack near-straight bend once, so limbs read naturally
@@ -143,22 +192,23 @@ export function syncRagdoll(rig, t, data, physics) {
   J.hips.position.set(0, data.hipY, 0);
   J.hips.rotation.set(0, 0, 0);
 
-  // childLocal = parentBodyQuat^-1 * childBodyQuat
-  const drive = (joint, parentBody, childBody) => {
+  // childLocal = parentBodyQuat^-1 * childBodyQuat, clamped to the joint's ROM
+  const drive = (joint, parentBody, childBody, lim) => {
     const p = physics.bodyTransform(parentBody);
     const cc = physics.bodyTransform(childBody);
     _qParentInv.set(p.q.x, p.q.y, p.q.z, p.q.w).invert();
     _qChild.set(cc.q.x, cc.q.y, cc.q.z, cc.q.w);
     _qLocal.multiplyQuaternions(_qParentInv, _qChild);
+    clampSwingTwist(_qLocal, lim);
     joint.quaternion.copy(_qLocal);
   };
 
-  drive(J.torso, bodies.pelvis, bodies.torso);
-  drive(J.head, bodies.torso, bodies.head);
-  drive(J.shoulderL, bodies.torso, bodies.armL);
-  drive(J.shoulderR, bodies.torso, bodies.armR);
-  drive(J.thighL, bodies.pelvis, bodies.legL);
-  drive(J.thighR, bodies.pelvis, bodies.legR);
+  drive(J.torso, bodies.pelvis, bodies.torso, ROM.torso);
+  drive(J.head, bodies.torso, bodies.head, ROM.head);
+  drive(J.shoulderL, bodies.torso, bodies.armL, ROM.arm);
+  drive(J.shoulderR, bodies.torso, bodies.armR, ROM.arm);
+  drive(J.thighL, bodies.pelvis, bodies.legL, ROM.leg);
+  drive(J.thighR, bodies.pelvis, bodies.legR, ROM.leg);
 }
 
 /** Tear down all bodies + joints (freezes the rig in its last simulated pose). */
