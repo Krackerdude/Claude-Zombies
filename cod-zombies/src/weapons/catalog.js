@@ -128,6 +128,12 @@ const defs = {
   mog12: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'MOG 12', damage: 36, pellets: 8,
     headshotMultiplier: 3.0, magazineSize: 4, ammoStockSize: 32, fireRate: 80, cost: 0, boxOnly: true,
     viewmodel: { length: 0.5, color: 0x222428, accent: 0xd83426 } },
+  // HAYMAKER 12 (BO3): fully-automatic drum-fed shotgun. KRM-like pellet damage
+  // but auto fire, a big 16-shell drum and a larger reserve.
+  haymaker: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'HAYMAKER', fireMode: 'auto',
+    damage: 34, pellets: 8, headshotMultiplier: 3.0, magazineSize: 16, ammoStockSize: 96,
+    reloadType: 'magazine', reloadTime: 3.4, fireRate: 300, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.6, color: 0x3a3f46, accent: 0x16181c } },
   // STAKEOUT: cut-down pump shotgun. KRM-like but a stronger base pellet damage
   // (48) traded for a smaller 6-shell mag and a lighter 48 reserve.
   stakeout: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'STAKEOUT', damage: 48, pellets: 8,
