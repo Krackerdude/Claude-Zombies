@@ -18,7 +18,7 @@ const ease = (cur, target, dt, rate) => cur + (target - cur) * Math.min(1, dt * 
  * still ease for smooth state changes. Visual only — runs in update().
  */
 const GAITS = {
-  shamble: { stride: 0.30, knee: 0.50, lurch: 0.05, lean: 0.05, armReach: -0.20, armSplay: 0.38, armDrift: 0.06, headLoll: 0.12, rate: 0.95, limp: true },
+  shamble: { stride: 0.30, knee: 0.50, lurch: 0.05, lean: 0.05, armReach: -0.20, armSplay: 0.1, armDrift: 0.06, headLoll: 0.12, rate: 0.95, limp: true },
   walk: { stride: 0.55, knee: 0.80, lurch: 0.10, lean: 0.06, armReach: -1.50, armSplay: 0.10, armDrift: 0.10, headLoll: 0.04, rate: 1.0, limp: false },
   run: { stride: 0.70, knee: 0.95, lurch: 0.16, lean: 0.08, armReach: -1.15, armSplay: 0.12, armDrift: 0.12, headLoll: 0.0, rate: 1.15, limp: false },
 };
