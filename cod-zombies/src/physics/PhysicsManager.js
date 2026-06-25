@@ -141,25 +141,29 @@ export class PhysicsManager {
     return ((membership << 16) | filter) >>> 0;
   }
 
-  /** A dynamic box limb segment for a ragdoll: collides with the world + other
+  /** A dynamic limb segment for a ragdoll: collides with the world + other
    *  ragdolls (RAGDOLL group), but NOT with actors, so corpses don't block the
-   *  player/horde. Damped so piles settle + sleep instead of jittering. The body
-   *  origin sits at the limb's JOINT pivot; `offset` shifts the box down the limb
-   *  in the body's local frame so the collider actually wraps the bone. */
-  createRagdollBox(position, quat, halfExtents, { density = 1.1, offset = null, group = GROUP_RAGDOLL } = {}) {
+   *  player/horde. The body origin sits at the limb's JOINT pivot; `offset`
+   *  shifts the collider down the bone in local space so it wraps the limb.
+   *  `shape` picks the collider: a box (torso/pelvis rest flat on it), a capsule
+   *  (arms/legs — they roll + settle instead of catching on box edges and
+   *  vibrating), or a ball (head). `mass` is set explicitly in kg so no segment
+   *  ends up weighing grams (which makes floor contacts detonate). */
+  createRagdollPart(position, quat, shape, { mass = null, density = 1.1, offset = null, group = GROUP_RAGDOLL } = {}) {
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(position.x, position.y, position.z)
       .setLinearDamping(0.4)
-      .setAngularDamping(0.8);
+      .setAngularDamping(0.85);
     if (quat) bodyDesc.setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w });
     const body = this.world.createRigidBody(bodyDesc);
-    const colliderDesc = RAPIER.ColliderDesc.cuboid(halfExtents.x, halfExtents.y, halfExtents.z)
-      .setDensity(density)
-      .setRestitution(0.0)
-      .setFriction(0.95)
-      .setCollisionGroups(group);
-    if (offset) colliderDesc.setTranslation(offset.x, offset.y, offset.z);
-    const collider = this.world.createCollider(colliderDesc, body);
+    let cd;
+    if (shape.type === 'capsule') cd = RAPIER.ColliderDesc.capsule(shape.halfHeight, shape.radius);
+    else if (shape.type === 'ball') cd = RAPIER.ColliderDesc.ball(shape.radius);
+    else cd = RAPIER.ColliderDesc.cuboid(shape.hx, shape.hy, shape.hz);
+    cd.setRestitution(0.0).setFriction(0.95).setCollisionGroups(group);
+    if (offset) cd.setTranslation(offset.x, offset.y, offset.z);
+    const collider = this.world.createCollider(cd, body);
+    if (mass != null) collider.setMass(mass); else collider.setDensity(density);
     return { body, collider, type: 'dynamic' };
   }
 

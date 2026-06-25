@@ -17,15 +17,19 @@ import * as THREE from 'three';
  * corpse in CorpseSystem.
  */
 
-// Per-segment collider spec: half-extents of the box + offset down the bone from
-// the joint pivot (the body origin sits AT the pivot so joints line up with the
-// rig). Tuned to roughly wrap each limb of the ~1.8 m box humanoid.
+// Per-segment spec: collider shape + offset down the bone from the joint pivot
+// (the body origin sits AT the pivot so joints line up with the rig), and an
+// explicit mass in kg. The PELVIS is by far the heaviest so the whole corpse's
+// centre of mass sits at the waist and it topples/anchors like a real body;
+// limbs are light. Arms/legs are CAPSULES and the head a BALL so they roll and
+// settle on the ground instead of catching on box corners and vibrating; the
+// torso/pelvis stay boxes (they come to rest on a broad flat face — stable).
 const SEG = {
-  pelvis: { half: { x: 0.17, y: 0.10, z: 0.12 }, off: { x: 0, y: -0.02, z: 0 }, density: 1.4 },
-  torso: { half: { x: 0.20, y: 0.26, z: 0.13 }, off: { x: 0, y: 0.20, z: 0 }, density: 1.2 },
-  head: { half: { x: 0.12, y: 0.13, z: 0.12 }, off: { x: 0, y: 0.18, z: 0 }, density: 1.0 },
-  arm: { half: { x: 0.07, y: 0.30, z: 0.07 }, off: { x: 0, y: -0.30, z: 0 }, density: 0.9 },
-  leg: { half: { x: 0.09, y: 0.42, z: 0.10 }, off: { x: 0, y: -0.42, z: 0 }, density: 1.0 },
+  pelvis: { shape: { type: 'box', hx: 0.17, hy: 0.10, hz: 0.12 }, off: { x: 0, y: -0.02, z: 0 }, mass: 30 },
+  torso: { shape: { type: 'box', hx: 0.20, hy: 0.26, hz: 0.13 }, off: { x: 0, y: 0.20, z: 0 }, mass: 16 },
+  head: { shape: { type: 'ball', radius: 0.13 }, off: { x: 0, y: 0.18, z: 0 }, mass: 5 },
+  arm: { shape: { type: 'capsule', halfHeight: 0.26, radius: 0.075 }, off: { x: 0, y: -0.30, z: 0 }, mass: 3 },
+  leg: { shape: { type: 'capsule', halfHeight: 0.32, radius: 0.10 }, off: { x: 0, y: -0.42, z: 0 }, mass: 6 },
 };
 
 // Anatomical range-of-motion per driven joint, measured from the neutral
@@ -109,11 +113,11 @@ export function buildRagdoll(rig, physics, c, t) {
   const make = (joint, spec) => {
     joint.getWorldPosition(_v);
     joint.getWorldQuaternion(_q);
-    return physics.createRagdollBox(
+    return physics.createRagdollPart(
       { x: _v.x, y: _v.y, z: _v.z },
       { x: _q.x, y: _q.y, z: _q.z, w: _q.w },
-      spec.half,
-      { density: spec.density, offset: spec.off, group },
+      spec.shape,
+      { mass: spec.mass, offset: spec.off, group },
     );
   };
 
