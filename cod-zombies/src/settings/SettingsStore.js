@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { defaultSettings } from './defaults.js';
 import { RenderConfig, PostFXConfig, ParticleConfig, DecalConfig, AtmosphereConfig, RimConfig, WeatherConfig } from '../config/index.js';
 import { setRimIntensity } from '../rendering/rimLight.js';
+import { applyPS1, ps1GridForAmount } from '../rendering/ps1.js';
 import { Service } from '../core/ServiceLocator.js';
 
 // v5: added the `gameplay` category (stylized health bar toggle).
@@ -171,6 +172,9 @@ export class SettingsStore {
     WeatherConfig.rain.enabled = g.rain !== false;
     WeatherConfig.mist.enabled = g.rain !== false;
     WeatherConfig.lightning.enabled = g.lightning !== false;
+
+    // PS1 vertex snapping — retune every snapped material live (no recompile).
+    applyPS1(g.vertexSnap !== false, ps1GridForAmount(g.vertexSnapAmount));
 
     // CSS overlay: the fallback when the WebGL stack is off (or unavailable).
     // When the pipeline owns these effects, zero the CSS layer to avoid stacking.
