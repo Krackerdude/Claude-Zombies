@@ -95,11 +95,14 @@
 }
 
 /* --- round counter (left) + perks (right), under the player widget --- */
-#hud-row { display: flex; align-items: flex-end; gap: 14px; }
+/* `position: relative` anchors the ABSOLUTELY-positioned perks; pulling the
+   perks out of the flow means resizing/moving them can never shift the round
+   counter (it kept dragging along when they shared the flex row). */
+#hud-row { display: flex; align-items: flex-end; gap: 14px; position: relative; }
 
 #hud-round-widget { position: relative; line-height: 0.8; margin-left: 12px; }
 #hud-round {
-  font-family: 'Anton', Impact, sans-serif; font-size: 4.6rem; line-height: 0.8; letter-spacing: -0.01em;
+  font-family: 'Anton', Impact, sans-serif; font-size: 5.5rem; line-height: 0.8; letter-spacing: -0.01em;
   /* The tight line-height lets the glyph overflow its box; since the gradient is
      clipped to that box (background-clip:text), the overflowing bottom tip would
      render unfilled = "cut off". Pad the box out past the glyph (so the whole
@@ -121,12 +124,14 @@
 }
 /* --- perks row --- (CoD-zombies shield badges: darker, gritty, flat-top /
    pointed-bottom crest; nudged right off the round number, tight together) */
-#hud-perks { display: flex; align-items: flex-end; gap: 4px; padding-bottom: 5px; margin-left: 22px; }
+/* perks float free of the round (absolute), so changing them never moves it.
+   left = further right of the number; bottom (negative) = a touch lower. */
+#hud-perks { position: absolute; left: 108px; bottom: -4px; display: flex; align-items: flex-end; gap: 5px; }
 .perk-chip {
-  position: relative; width: 42px; height: 47px;
+  position: relative; width: 50px; height: 56px;
   clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.62rem; color: #f0f0f0;
+  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.74rem; color: #f0f0f0;
   text-shadow: 0 1px 2px #000; isolation: isolate;
   filter: drop-shadow(0 0 1px rgba(0,0,0,0.95)) drop-shadow(0 2px 4px rgba(0,0,0,0.72));
   animation: perkpop 0.4s cubic-bezier(.2,.9,.2,1);
