@@ -97,6 +97,16 @@ export class MovementController {
     }
     // slide-recovery counts down whenever we're not mid-slide
     if (tag.state !== MoveState.SLIDE) tag.slideLock = Math.max(0, (tag.slideLock || 0) - dt);
+
+    // buffer a sprint-slide press: the edge is only live for one fixed step, and
+    // if a one-frame speed/sprint dip makes the slide miss its window that press
+    // is silently lost (the "slide randomly stops working" bug). Latching it for
+    // a short window lets it fire as soon as the conditions line up.
+    if (intent.crouchEdge && (intent.sprintHeld || tag.state === MoveState.SPRINT)) {
+      tag.slideBuffer = PlayerConfig.slideBufferTime;
+    } else {
+      tag.slideBuffer = Math.max(0, (tag.slideBuffer || 0) - dt);
+    }
     tag.getUpT = Math.max(0, (tag.getUpT || 0) - dt); // rising-from-prone weight timer
   }
 
@@ -189,10 +199,21 @@ export class MovementController {
     // #applyMovement) shouldn't drop a crouch press from a slide into a crouch.
     const fast = tag.state === MoveState.SPRINT || this.#horizSpeed() >= PlayerConfig.walkSpeed * 0.7;
 
-    if (sprinting && intent.crouchEdge && fast && tag.slideLock <= 0) { this.#startSlide(true); return; }
+    // Buffered sprint-slide: fires as soon as the player is fast + able, even if
+    // the exact press frame had a momentary speed/sprint dip (the reliable fix
+    // for "slide randomly stops working").
+    if (tag.slideBuffer > 0 && fast && tag.canSprint && !tag.noSprint && tag.slideLock <= 0) {
+      tag.slideBuffer = 0;
+      this.#startSlide(true);
+      return;
+    }
     if (sprinting && intent.proneEdge && tag.diveLock <= 0) { this.#startDive(); return; }
 
-    let desired = intent.wantProne ? 'prone' : intent.wantCrouch ? 'crouch' : 'stand';
+    // Mid-sprint crouch while sliding is on cooldown: do NOTHING (keep sprinting)
+    // rather than dropping into a crouch — irritating when you meant to slide.
+    const suppressCrouch = sprinting && tag.slideLock > 0;
+
+    let desired = intent.wantProne ? 'prone' : (intent.wantCrouch && !suppressCrouch) ? 'crouch' : 'stand';
     if (desired === 'stand' && !this.#canStand()) desired = 'crouch';
     this.#setStance(desired);
 

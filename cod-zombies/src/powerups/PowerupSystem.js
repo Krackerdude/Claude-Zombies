@@ -19,7 +19,11 @@ const MAX_PER_ROUND = 4;
 const PICKUP_RADIUS = 1.7;
 const FLOAT_Y = 0.95; // waist height
 const LIFETIME = 25;
-const _tintOrig = new WeakMap();
+// Every material we've tinted for Zombie Blood, mapped to its original emissive.
+// A real (iterable) Map — NOT a WeakMap keyed off live zombies — so we can revert
+// ALL of them on expiry even if the zombies wearing a (shared/pooled) material
+// have since died (otherwise that material stays stuck yellow forever).
+const _tintMap = new Map();
 
 /**
  * Power-up drops + effects. ~2% of kills drop one (max 4/round). The four core
@@ -175,24 +179,20 @@ export class PowerupSystem extends System {
 
   #setTint(on) {
     if (on) {
+      // tint every live zombie yellow, remembering each material's original
+      // emissive the first time we touch it (new spawns get caught next frame).
       for (const id of this.world.query(ZombieTag, Renderable)) {
         this.world.get(id, Renderable).object3d.traverse((o) => {
           if (!o.isMesh || !o.material?.emissive) return;
-          if (!_tintOrig.has(o.material)) _tintOrig.set(o.material, { c: o.material.emissive.getHex(), i: o.material.emissiveIntensity });
+          if (!_tintMap.has(o.material)) _tintMap.set(o.material, { c: o.material.emissive.getHex(), i: o.material.emissiveIntensity });
           o.material.emissive.setHex(0xffe23a);
           o.material.emissiveIntensity = 0.7;
         });
       }
     } else {
-      for (const id of this.world.query(ZombieTag, Renderable)) {
-        this.world.get(id, Renderable).object3d.traverse((o) => {
-          if (o.isMesh && o.material && _tintOrig.has(o.material)) {
-            const v = _tintOrig.get(o.material);
-            o.material.emissive.setHex(v.c); o.material.emissiveIntensity = v.i;
-            _tintOrig.delete(o.material);
-          }
-        });
-      }
+      // restore EVERY material we tinted, regardless of which zombies survive.
+      for (const [mat, v] of _tintMap) { mat.emissive.setHex(v.c); mat.emissiveIntensity = v.i; }
+      _tintMap.clear();
     }
   }
 

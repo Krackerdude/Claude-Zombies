@@ -266,7 +266,9 @@ export function buildArena(engine) {
   const boxRig = buildMysteryBox();
   boxRig.position.copy(boxPos);
   scene.add(boxRig);
-  physics.createStaticBox({ x: boxPos.x, y: 0.66, z: boxPos.z }, { x: 1.0, y: 0.66, z: 0.42 });
+  // collider extends well above the lid so the player can't jump up and stand on
+  // the box (footprint unchanged; only the top is raised — bullets ignore it).
+  physics.createStaticBox({ x: boxPos.x, y: 1.3, z: boxPos.z }, { x: 1.0, y: 1.3, z: 0.42 });
 
   // live state is published here by the EconomySystem; the MysteryBoxSystem reads it
   const economy = {
