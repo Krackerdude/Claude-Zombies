@@ -164,6 +164,7 @@ export class PhysicsManager {
     let cd;
     if (shape.type === 'capsule') cd = RAPIER.ColliderDesc.capsule(shape.halfHeight, shape.radius);
     else if (shape.type === 'ball') cd = RAPIER.ColliderDesc.ball(shape.radius);
+    else if (shape.round) cd = RAPIER.ColliderDesc.roundCuboid(shape.hx, shape.hy, shape.hz, shape.round);
     else cd = RAPIER.ColliderDesc.cuboid(shape.hx, shape.hy, shape.hz);
     // moderate friction: too much grabs a planted foot/hand on a moving corpse
     // and trips it into a flip; too little and it slides forever

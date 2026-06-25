@@ -25,8 +25,10 @@ import * as THREE from 'three';
 // settle on the ground instead of catching on box corners and vibrating; the
 // torso/pelvis stay boxes (they come to rest on a broad flat face — stable).
 const SEG = {
-  pelvis: { shape: { type: 'box', hx: 0.17, hy: 0.10, hz: 0.12 }, off: { x: 0, y: -0.02, z: 0 }, mass: 24 },
-  torso: { shape: { type: 'box', hx: 0.20, hy: 0.26, hz: 0.13 }, off: { x: 0, y: 0.20, z: 0 }, mass: 16 },
+  // rounded boxes (border radius) so the heavy trunk can't balance on a sharp
+  // corner and prop the whole corpse up — it rolls onto a flat face and settles
+  pelvis: { shape: { type: 'box', hx: 0.12, hy: 0.06, hz: 0.08, round: 0.05 }, off: { x: 0, y: -0.02, z: 0 }, mass: 24 },
+  torso: { shape: { type: 'box', hx: 0.15, hy: 0.21, hz: 0.08, round: 0.05 }, off: { x: 0, y: 0.20, z: 0 }, mass: 16 },
   head: { shape: { type: 'ball', radius: 0.13 }, off: { x: 0, y: 0.18, z: 0 }, mass: 5 },
   // capsule reaches from the shoulder pivot down past the hand (~0.67 m total)
   arm: { shape: { type: 'capsule', halfHeight: 0.28, radius: 0.075 }, off: { x: 0, y: -0.32, z: 0 }, mass: 3 },
@@ -61,6 +63,7 @@ const _qC = new THREE.Quaternion();
 const _qRel = new THREE.Quaternion();
 const _qOrig = new THREE.Quaternion();
 const _qNew = new THREE.Quaternion();
+const _qSoft = new THREE.Quaternion();
 const _hipOffset = new THREE.Vector3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
@@ -197,10 +200,12 @@ const LIMIT_ORDER = [
  * joints are free ball joints with no stops, so without this the corpse settles
  * into impossible poses — torso balanced upright, limbs splayed up). Each step,
  * for every joint we measure the child's orientation relative to its parent; if
- * it's outside the swing cone / twist range we snap it back to the boundary and
- * bleed off the angular velocity that drove it past, exactly like a joint stop.
- * Because the bodies themselves stay in range, the visual (which follows them
- * 1:1) lies flat instead of clipping/contorting.
+ * it's outside the swing cone / twist range we EASE it back toward the boundary
+ * (a soft spring stop), not snap it. Snapping teleported the bodies every frame
+ * — fresh corpses have many joints far past their limits in the death pose, so
+ * hard-snapping them all imparted momentum (the "jittery flip") and glitched.
+ * Easing topples them over smoothly. Because the bodies stay roughly in range,
+ * the visual (which follows them 1:1) lies flat instead of contorting.
  */
 export function enforceLimits(physics, data) {
   const { bodies } = data;
@@ -214,15 +219,14 @@ export function enforceLimits(physics, data) {
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    // deadband: only correct when CLEARLY past the limit (~5deg), so a limb
-    // resting against the floor right at a stop doesn't get re-snapped every
-    // frame (that re-snapping vs. the contact was the residual landing spaz)
-    if (Math.abs(_qOrig.dot(_qRel)) < 0.9990) { // was outside the allowed range
-      _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
-      physics.setBodyRotation(cb, _qNew);
-      physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)
-      const w = physics.angularVelocity(cb);     // kill the energy at the stop
-      physics.setAngularVelocity(cb, { x: w.x * 0.2, y: w.y * 0.2, z: w.z * 0.2 });
+    if (Math.abs(_qOrig.dot(_qRel)) < 0.99985) { // outside the allowed range
+      _qNew.multiplyQuaternions(_qP, _qRel);      // fully-corrected child target
+      // ease only part-way there this frame: a gentle stop, not a teleport
+      _qSoft.copy(_qC).slerp(_qNew, 0.25);
+      physics.setBodyRotation(cb, _qSoft);
+      physics.setBodyTranslation(cb, c.p);        // re-pin the joint anchor (= origin)
+      const w = physics.angularVelocity(cb);      // bleed energy at the stop
+      physics.setAngularVelocity(cb, { x: w.x * 0.5, y: w.y * 0.5, z: w.z * 0.5 });
     }
   }
 }
