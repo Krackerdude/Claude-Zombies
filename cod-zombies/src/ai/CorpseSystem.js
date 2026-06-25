@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { CorpseTag, Transform, Renderable } from '../ecs/components/index.js';
 import { Service } from '../core/ServiceLocator.js';
+import { buildRagdoll, syncRagdoll, disposeRagdoll } from './ragdollPhysics.js';
 
 const GRAV = 18;
 const LIFETIME = 10; // seconds upright on the ground before it sinks away
@@ -22,17 +23,56 @@ const FLOOR_Y = 0.05;
  */
 export class CorpseSystem extends System {
   #events;
+  #physics;
 
   init() {
     this.#events = this.world.services.get(Service.Events);
+    this.#physics = this.world.services.has(Service.Physics)
+      ? this.world.services.get(Service.Physics) : null;
     // clear bodies when the run ends so they don't linger into the next one
     // (only on return to menu — pause + scoreboard keep the frozen scene intact)
     this.#events.on('state:change', ({ state }) => { if (state === 'menu') this.#clear(); });
   }
 
-  #clear() { for (const id of [...this.world.query(CorpseTag)]) this.world.destroyEntity(id); }
+  #clear() {
+    for (const id of [...this.world.query(CorpseTag)]) {
+      const c = this.world.get(id, CorpseTag);
+      if (c?.ragdoll) { disposeRagdoll(this.#physics, c.ragdoll); c.ragdoll = null; }
+      this.world.destroyEntity(id);
+    }
+  }
 
   fixedUpdate(dt) {
+    // real articulated physics ragdolls when the backend supports it; the
+    // headless test stub falls through to the procedural corpse below
+    if (this.#physics?.ragdollCapable) { this.#updatePhysics(dt); return; }
+    this.#updateProcedural(dt);
+  }
+
+  /** Real Rapier ragdoll: build on the first tick, then drive the rig from the
+   *  simulated bodies until lifetime, then dispose + sink the frozen pose away. */
+  #updatePhysics(dt) {
+    for (const id of this.world.query(CorpseTag, Transform, Renderable)) {
+      const c = this.world.get(id, CorpseTag);
+      const t = this.world.get(id, Transform);
+      const rig = this.world.get(id, Renderable).object3d;
+      t.cachePrevious();
+      c.life += dt;
+
+      if (c.life <= LIFETIME) {
+        if (!c.ragdoll) c.ragdoll = buildRagdoll(rig, this.#physics, c, t);
+        if (c.ragdoll) syncRagdoll(rig, t, c.ragdoll, this.#physics);
+      } else {
+        // lifetime up: stop simulating (freeze the last heap pose), sink + shrink
+        if (c.ragdoll) { disposeRagdoll(this.#physics, c.ragdoll); c.ragdoll = null; }
+        t.position.y -= 0.7 * dt;
+        rig.scale.multiplyScalar(Math.pow(0.3, dt));
+        if (c.life > LIFETIME + SINK_TIME) this.world.destroyEntity(id);
+      }
+    }
+  }
+
+  #updateProcedural(dt) {
     for (const id of this.world.query(CorpseTag, Transform, Renderable)) {
       const c = this.world.get(id, CorpseTag);
       const t = this.world.get(id, Transform);
