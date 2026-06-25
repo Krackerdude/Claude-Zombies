@@ -8,6 +8,12 @@ import { PhysicsConfig } from '../config/index.js';
 const ENV = 0x0001, ACTOR = 0x0002, RAGDOLL = 0x0004;
 const GROUP_ACTOR = (ACTOR << 16) | (ENV | ACTOR);
 const GROUP_RAGDOLL = (RAGDOLL << 16) | (ENV | RAGDOLL);
+// Ragdoll INSTANCE groups: bits 2..15 form a rotating pool. A corpse's seven
+// segments all share one instance bit; their filter is ENV + every OTHER
+// instance bit, so a corpse collides with terrain + other corpses (piles up)
+// but NOT with its own siblings — the limb boxes overlap heavily at the joints,
+// and self-collision there just makes the solver detonate the ragdoll.
+const RAGDOLL_ALL = 0xFFFC; // bits 2..15
 
 /** World point -> a body's local frame (conjugate-quat rotate of the offset). */
 function _localAnchor(w, p, q) {
@@ -118,25 +124,36 @@ export class PhysicsManager {
   // Flag the facade so callers can fall back to the procedural corpse when the
   // physics backend is a headless stub that lacks these.
   ragdollCapable = true;
+  #ragdollGroupCursor = 0;
+
+  /** Allocate the next per-corpse collision group (membership = one instance
+   *  bit, filter = ENV + all OTHER instance bits). Pass the result to every
+   *  segment of one ragdoll so it piles on terrain/other corpses but never
+   *  self-collides. */
+  allocRagdollGroup() {
+    const bit = 1 << (2 + (this.#ragdollGroupCursor++ % 14)); // 0x0004..0x8000
+    const membership = bit;
+    const filter = ENV | (RAGDOLL_ALL & ~bit);
+    return ((membership << 16) | filter) >>> 0;
+  }
 
   /** A dynamic box limb segment for a ragdoll: collides with the world + other
    *  ragdolls (RAGDOLL group), but NOT with actors, so corpses don't block the
    *  player/horde. Damped so piles settle + sleep instead of jittering. The body
    *  origin sits at the limb's JOINT pivot; `offset` shifts the box down the limb
    *  in the body's local frame so the collider actually wraps the bone. */
-  createRagdollBox(position, quat, halfExtents, { density = 1.1, offset = null } = {}) {
+  createRagdollBox(position, quat, halfExtents, { density = 1.1, offset = null, group = GROUP_RAGDOLL } = {}) {
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(position.x, position.y, position.z)
-      .setLinearDamping(0.35)
-      .setAngularDamping(0.6)
-      .setCcdEnabled(true);
+      .setLinearDamping(0.4)
+      .setAngularDamping(0.8);
     if (quat) bodyDesc.setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w });
     const body = this.world.createRigidBody(bodyDesc);
     const colliderDesc = RAPIER.ColliderDesc.cuboid(halfExtents.x, halfExtents.y, halfExtents.z)
       .setDensity(density)
-      .setRestitution(0.05)
-      .setFriction(0.9)
-      .setCollisionGroups(GROUP_RAGDOLL);
+      .setRestitution(0.0)
+      .setFriction(0.95)
+      .setCollisionGroups(group);
     if (offset) colliderDesc.setTranslation(offset.x, offset.y, offset.z);
     const collider = this.world.createCollider(colliderDesc, body);
     return { body, collider, type: 'dynamic' };
