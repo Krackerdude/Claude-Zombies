@@ -54,10 +54,15 @@ export class PhysicsManager {
     const g = PhysicsConfig.gravity;
     this.world = new RAPIER.World(new RAPIER.Vector3(g.x, g.y, g.z));
     this.world.timestep = PhysicsConfig.fixedStep;
-    // More solver iterations keep the ragdoll's offset-COM limbs (long boxes on
-    // position-only spherical joints) from oscillating — kills the in-air
+    // More solver iterations keep the ragdoll's offset-COM limbs on
+    // position-only spherical joints from oscillating — kills the in-air
     // jitter. The kinematic player is controller-driven, so it's unaffected.
-    this.world.numSolverIterations = 12;
+    this.world.numSolverIterations = 14;
+    // Stiffer contacts so a heavy pelvis doesn't sink into the floor at rest
+    // (that was the corpse looking half-buried).
+    if (this.world.integrationParameters) {
+      this.world.integrationParameters.contact_natural_frequency = 60;
+    }
 
     // A reusable character controller for kinematic capsules (player, later
     // possibly humanoid zombies). offset = skin width.
@@ -160,7 +165,9 @@ export class PhysicsManager {
     if (shape.type === 'capsule') cd = RAPIER.ColliderDesc.capsule(shape.halfHeight, shape.radius);
     else if (shape.type === 'ball') cd = RAPIER.ColliderDesc.ball(shape.radius);
     else cd = RAPIER.ColliderDesc.cuboid(shape.hx, shape.hy, shape.hz);
-    cd.setRestitution(0.0).setFriction(0.95).setCollisionGroups(group);
+    // moderate friction: too much grabs a planted foot/hand on a moving corpse
+    // and trips it into a flip; too little and it slides forever
+    cd.setRestitution(0.0).setFriction(0.5).setCollisionGroups(group);
     if (offset) cd.setTranslation(offset.x, offset.y, offset.z);
     const collider = this.world.createCollider(cd, body);
     if (mass != null) collider.setMass(mass); else collider.setDensity(density);
