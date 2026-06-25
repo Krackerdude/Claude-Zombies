@@ -64,6 +64,9 @@ export const defaultSettings = {
     proneMode: 'toggle',
     sprintMode: 'hold',
   },
+  gameplay: {
+    stylizedHealthBar: true, // reskin the health bar to match the interaction prompt
+  },
 };
 
 /** Human labels + option lists for the UI, kept beside the data they drive. */
