@@ -126,7 +126,7 @@
    pointed-bottom crest; nudged right off the round number, tight together) */
 /* perks float free of the round (absolute), so changing them never moves it.
    left = further right of the number; bottom (negative) = a touch lower. */
-#hud-perks { position: absolute; left: 108px; bottom: -4px; display: flex; align-items: flex-end; gap: 5px; }
+#hud-perks { position: absolute; left: 108px; bottom: -20px; display: flex; align-items: flex-end; gap: 5px; }
 .perk-chip {
   position: relative; width: 50px; height: 56px;
   clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
