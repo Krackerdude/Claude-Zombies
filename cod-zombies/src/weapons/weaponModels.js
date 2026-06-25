@@ -2907,6 +2907,63 @@ function mog12() {
   return { group: g, muzzle: -0.51 };
 }
 
+// --- STAKEOUT — cut-down sawed-off pump shotgun (no stock). A bright PERFORATED
+//     steel heat-shield (rows of drilled holes) over the barrel, a brown
+//     leather-wrapped forend holding spare brass + a red shell, a worn blued
+//     receiver with a diagonal leather strap, an under-barrel pump slide, a
+//     checkered pistol grip and a trigger. Compact. ---
+function stakeout() {
+  const g = new THREE.Group();
+  const shroud = gunMetal(0x8a8e94, { metal: 0.72, rough: 0.32 });  // bright perforated shroud
+  const blued = gunMetal(0x3a3f46, { metal: 0.68, rough: 0.34 });   // worn blued receiver
+  const bluedDk = gunMetal(0x23272d, { metal: 0.66, rough: 0.42 });
+  const barrelMat = gunDark(0x16181c);
+  const leather = gunWood(0x6e4428);                                // forend wrap / straps
+  const leatherDk = gunWood(0x4a2e16);
+  const brass = gunMetal(0xb08a3c, { metal: 0.82, rough: 0.32 });   // spare shells
+  const redShell = gunMetal(0x9a3a2a, { metal: 0.3, rough: 0.55 }); // red shotshell
+  const grip = gunGrip(0x1f2227);
+  const dark = gunDark(0x0c0d10);
+
+  // === barrel + bright PERFORATED heat-shield + bore ===
+  g.add(at(tube(0.013, 0.013, 0.34, barrelMat), 0, 0.028, -0.4));
+  g.add(at(tube(0.024, 0.024, 0.3, shroud, 18), 0, 0.028, -0.42));   // shroud
+  g.add(at(tube(0.013, 0.013, 0.02, dark, 12), 0, 0.028, -0.57));    // bore
+  // drilled holes: a top row + two side rows down the shroud
+  for (let i = 0; i < 7; i++) {
+    g.add(at(tube(0.005, 0.005, 0.012, dark, 8), 0, 0.052, -0.3 - i * 0.036, Math.PI / 2)); // top
+    for (const sx of [-1, 1]) g.add(at(tube(0.005, 0.005, 0.012, dark, 8), sx * 0.024, 0.028, -0.3 - i * 0.036, 0, Math.PI / 2)); // sides
+  }
+
+  // === brown leather-wrapped forend (where shroud meets receiver) ===
+  g.add(at(tube(0.027, 0.027, 0.1, leather, 16), 0, 0.026, -0.22));
+  for (const wz of [-0.18, -0.26]) g.add(at(tube(0.028, 0.028, 0.01, leatherDk, 16), 0, 0.026, wz)); // binding rings
+  // spare shells tucked in the wrap (brass heads + a red one)
+  g.add(at(tube(0.012, 0.012, 0.03, brass, 12), 0.028, 0.03, -0.2, 0, Math.PI / 2));
+  g.add(at(tube(0.012, 0.012, 0.03, redShell, 12), 0.028, 0.0, -0.2, 0, Math.PI / 2));
+
+  // === under-barrel pump slide ===
+  g.add(at(box(0.03, 0.03, 0.12, bluedDk), 0, -0.01, -0.36));
+  for (let i = 0; i < 3; i++) g.add(at(box(0.034, 0.034, 0.006, dark), 0, -0.01, -0.4 + i * 0.03)); // grooves
+  g.add(at(box(0.012, 0.05, 0.03, bluedDk), 0, -0.04, -0.3));        // slide arm down to the action
+
+  // === worn blued receiver + diagonal leather strap ===
+  g.add(at(box(0.046, 0.07, 0.18, blued), 0, 0.014, -0.04));
+  g.add(at(box(0.042, 0.024, 0.14, bluedDk), 0, 0.05, -0.04));       // top step
+  g.add(at(box(0.012, 0.024, 0.04, bluedDk), 0.026, 0.02, 0.0));     // ejection port (right)
+  g.add(at(box(0.05, 0.018, 0.14, leather), 0, 0.01, -0.02, 0, 0, 0.5)); // diagonal strap
+  g.add(at(box(0.05, 0.014, 0.04, leatherDk), 0, -0.02, 0.04, 0, 0, 0.5)); // strap tail
+
+  // === checkered pistol grip + trigger guard (no stock) ===
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.06, 0.08, 0.36));
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.118, 0.105, 0.36)); // grip cap
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bluedDk);
+  g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
+  g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));         // trigger
+
+  return { group: g, muzzle: -0.57 };
+}
+
 // --- DOUBLE-BARREL — classic side-by-side coach gun. Two deep-blued barrels
 //     joined by a top rib (front bead), a reddish-brown wood forend, a blued
 //     break-action receiver with engraved case-hardened side plates + a top
@@ -2996,6 +3053,7 @@ export function buildWeaponModel(weapon) {
   if (weapon.data.name === 'GALIL') return galil();
   if (weapon.data.name === 'KRM-262') return krm();
   if (weapon.data.name === 'MOG 12') return mog12();
+  if (weapon.data.name === 'STAKEOUT') return stakeout();
   if (weapon.data.name === 'DOUBLE-BARREL') return doubleBarrel();
   if (weapon.data.name === 'OLYMPIA') return olympia();
   if (weapon.data.name === 'BALLISTA') return ballista();

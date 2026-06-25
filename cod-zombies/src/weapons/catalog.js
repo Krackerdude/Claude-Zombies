@@ -128,6 +128,11 @@ const defs = {
   mog12: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'MOG 12', damage: 36, pellets: 8,
     headshotMultiplier: 3.0, magazineSize: 4, ammoStockSize: 32, fireRate: 80, cost: 0, boxOnly: true,
     viewmodel: { length: 0.5, color: 0x222428, accent: 0xd83426 } },
+  // STAKEOUT: cut-down pump shotgun. KRM-like but a stronger base pellet damage
+  // (48) traded for a smaller 6-shell mag and a lighter 48 reserve.
+  stakeout: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'STAKEOUT', damage: 48, pellets: 8,
+    headshotMultiplier: 3.0, magazineSize: 6, ammoStockSize: 48, fireRate: 80, cost: 0, boxOnly: true,
+    viewmodel: { length: 0.54, color: 0x3a3f46, accent: 0x6e4428 } },
   // DOUBLE-BARREL: classic side-by-side break-action. Double the KRM's pellet
   // damage, a 2-shell break action and a small 36 reserve.
   doubleBarrel: { Class: ShotgunWeapon, category: C.SHOTGUN, name: 'DOUBLE-BARREL', fireMode: 'semi',
