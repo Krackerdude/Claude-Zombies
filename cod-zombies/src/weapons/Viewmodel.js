@@ -80,6 +80,7 @@ export class Viewmodel {
   #pin;
   #monkey;
   #windKey;
+  #arnie;
   #bottle = null;
   #bottleColor = -1;
   #key;
@@ -189,6 +190,11 @@ export class Viewmodel {
     this.#windKey = this.#monkey.userData.windKey;
     this.#monkey.visible = false;
     this.#vmScene.add(this.#monkey);
+
+    // held Lil' Arnie jar (tactical) — shaken before the throw
+    this.#arnie = buildVmArnieJar();
+    this.#arnie.visible = false;
+    this.#vmScene.add(this.#arnie);
   }
 
   setWeapon(weapon) {
@@ -399,10 +405,13 @@ export class Viewmodel {
       this.#pin.visible = true; this.#pin.position.set(0.075, 0.03, 0); this.#pin.rotation.z = 0;
     }
 
-    // tactical monkey bomb: once the gun is stowed, draw the monkey up into the
-    // hand and crank its wind-up key (the cymbals twitch as it winds), then it
-    // vanishes as the gun comes back up — the real monkey has been thrown
-    this.#monkey.visible = !!tacticalCook && this.#holster > 0.85;
+    // tacticals: once the gun is stowed, draw the held item up and run its
+    // "pin"-gate animation, then it vanishes as the gun returns — the real one
+    // has been thrown. Monkey winds its key; Arnie's jar gets shaken.
+    const tcKind = tacticalCook?.kind;
+    const shown = !!tacticalCook && this.#holster > 0.85;
+    this.#monkey.visible = shown && tcKind !== 'arnie';
+    this.#arnie.visible = shown && tcKind === 'arnie';
     if (this.#monkey.visible) {
       const gt = Math.max(0, tacticalCook.t - 0.16);     // local time once the gun is down
       const draw = Math.min(1, gt / 0.4);                // raise into the hold
@@ -419,6 +428,24 @@ export class Viewmodel {
       const A = this.#monkey.userData;
       if (A.armL) A.armL.rotation.z = 0.5 + clash;
       if (A.armR) A.armR.rotation.z = -0.5 - clash;
+    }
+    if (this.#arnie.visible) {
+      const gt = Math.max(0, tacticalCook.t - 0.16);
+      const draw = Math.min(1, gt / 0.4);
+      // hard shake: a fast rattle that ramps up as you wind it, the parasite
+      // sloshing inside; settles to a hold for the throw
+      const shake = Math.min(1, gt / 0.5);
+      const amp = 0.018 * shake;
+      _koff.set(
+        lerp(0.22, 0.13, draw) + Math.sin(gt * 47) * amp,
+        lerp(-0.34, -0.18, draw) + Math.sin(this.#bob) * 0.012 + Math.sin(gt * 39) * amp,
+        lerp(-0.46, -0.36, draw),
+      );
+      this.#arnie.position.copy(_koff);
+      _e.set(0.1 + Math.sin(gt * 41) * 0.12 * shake, 0.4, Math.sin(gt * 53) * 0.14 * shake);
+      this.#arnie.quaternion.setFromEuler(_e);
+      const seed = this.#arnie.userData.seed; // the parasite jostles in the fluid
+      if (seed) seed.position.set(Math.sin(gt * 33) * 0.02, seed.userData.y + Math.sin(gt * 27) * 0.015, Math.cos(gt * 30) * 0.02);
     }
 
     // perk drink: pop the cap, raise the bottle to the mouth, bubbles, then toss
@@ -618,5 +645,32 @@ function buildVmMonkey() {
   key.position.set(0.055, 0.03, -0.02);
   g.add(key);
   g.userData.windKey = key;
+  return g;
+}
+
+// First-person Lil' Arnie jar held while shaking up a throw. A glass jar (brass
+// lid, wood slats, glowing fluid) with the curled parasite seed sloshing inside.
+function buildVmArnieJar() {
+  const glass = new THREE.MeshStandardMaterial({ color: 0xbfeede, transparent: true, opacity: 0.34, roughness: 0.1 });
+  const fluid = new THREE.MeshStandardMaterial({ color: 0x7fd6c0, emissive: 0x1c5a4a, emissiveIntensity: 0.5, transparent: true, opacity: 0.5, roughness: 0.2 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0x9a7b34, metalness: 0.7, roughness: 0.4 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.85 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0x6fae3a, roughness: 0.5 });
+  const eye = new THREE.MeshStandardMaterial({ color: 0xd8e85a, emissive: 0x8a9a20, emissiveIntensity: 0.9, roughness: 0.3 });
+
+  const g = new THREE.Group();
+  const H = 0.16, R = 0.072;
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 16, 1, true), glass); cyl.position.y = 0; g.add(cyl);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(R, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), glass); dome.position.y = H / 2; g.add(dome);
+  const fl = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.9, R * 0.9, H * 0.82, 16), fluid); fl.position.y = -0.005; g.add(fl);
+  // the parasite seed: a little curled body + two beady eyes
+  const seed = new THREE.Group();
+  const sb = new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 8), skin); sb.scale.set(1, 0.8, 1.3); seed.add(sb);
+  for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), eye); e.position.set(sx * 0.014, 0.012, 0.03); seed.add(e); }
+  for (let i = 0; i < 4; i++) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.003, 0.05, 6), skin); t.position.set((i - 1.5) * 0.012, -0.02, 0.01); t.rotation.x = 0.6; seed.add(t); }
+  seed.position.set(0, -0.01, 0); seed.userData.y = -0.01; g.add(seed); g.userData.seed = seed;
+  // brass lid + wood slats
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.008, R + 0.008, 0.022, 16), brass); lid.position.y = H / 2 + 0.01; g.add(lid);
+  for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; const slat = new THREE.Mesh(new THREE.BoxGeometry(0.012, H + 0.02, 0.012), wood); slat.position.set(Math.cos(a) * R, 0, Math.sin(a) * R); g.add(slat); }
   return g;
 }

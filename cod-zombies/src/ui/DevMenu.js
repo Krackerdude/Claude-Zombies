@@ -54,6 +54,7 @@ export class DevMenu {
 
     html += '<div class="dev-sec"><div class="dev-title">Tacticals</div><div class="dev-row">';
     html += '<button class="dev-btn" data-tactical="monkey">Monkey Bomb</button>';
+    html += '<button class="dev-btn" data-tactical="arnie">Lil\' Arnie</button>';
     html += '</div></div>';
 
     html += '<div class="dev-sec"><div class="dev-title">Barriers</div><div class="dev-row">';
