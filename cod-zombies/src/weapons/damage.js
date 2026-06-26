@@ -1,7 +1,7 @@
 import { ZombieTag, CorpseTag, Transform, RigidBodyRef, Renderable } from '../ecs/components/index.js';
 import { PlayerCombat, ZombieConfig } from '../config/zombies.js';
 import { Service } from '../core/ServiceLocator.js';
-import { severLimb } from '../ai/dismember.js';
+import { severLimb, severLowerBody } from '../ai/dismember.js';
 
 const LIMB_PARTS = { armL: 1, armR: 1, legL: 1, legR: 1 };
 
@@ -24,6 +24,12 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
     z.limbs[part] = false;
     const rig = ctx.world.get(id, Renderable)?.object3d;
     if (rig) severLimb(rig, part);
+    // losing ANY leg drops the zombie to the floor as a crawler
+    if (part === 'legL' || part === 'legR') {
+      z.crawler = true;
+      if (z.state === 'teardown') { z.state = 'pathing'; z.barrierTarget = null; z.replan = 0; } // can't tear from the floor
+      if (!z.limbs.legL && !z.limbs.legR && rig) severLowerBody(rig); // both gone: cut off at the waist
+    }
   }
 
   const pu = ctx.world.services.has(Service.Powerups) ? ctx.world.services.get(Service.Powerups) : null;
@@ -46,7 +52,7 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
       ctx.world.remove(id, RigidBodyRef);
     }
     ctx.world.remove(id, ZombieTag);
-    ctx.world.add(id, new CorpseTag(dir || { x: 0, z: 1 }, baseYaw, force));
+    ctx.world.add(id, new CorpseTag(dir || { x: 0, z: 1 }, baseYaw, force, z.limbs));
     ctx.spawn.notifyKilled();
     ctx.events.emit('zombie:killed', { headshot, x: t ? t.position.x : 0, z: t ? t.position.z : 0 });
     killed = true;

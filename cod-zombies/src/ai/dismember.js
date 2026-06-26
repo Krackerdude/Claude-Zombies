@@ -52,3 +52,27 @@ export function severLimb(rig, limb) {
   bone.position.set(spec.x, spec.y, spec.z + 0.05);
   parent.add(bone);
 }
+
+/** Both legs gone: cut the body off at the waist — a grotesque gore mass with
+ *  dangling organs and exposed spine where the lower body was (BO3 crawler). */
+export function severLowerBody(rig) {
+  const J = rig.userData?.joints;
+  if (!J || !J.hips || J.hips.userData.lowerSevered) return;
+  J.hips.userData.lowerSevered = true;
+  const hips = J.hips;
+  // raw meat mass capping the waist
+  const mass = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.22), goreMat());
+  mass.position.set(0, -0.12, 0.01);
+  hips.add(mass);
+  // exposed spine stub
+  const spine = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.14, 0.055), boneMat());
+  spine.position.set(0, -0.1, -0.05);
+  hips.add(spine);
+  // dangling organs/entrails
+  for (let i = 0; i < 4; i++) {
+    const len = 0.1 + Math.random() * 0.12;
+    const e = new THREE.Mesh(new THREE.BoxGeometry(0.05, len, 0.05), goreMat());
+    e.position.set((Math.random() - 0.5) * 0.2, -0.18 - len * 0.4, (Math.random() - 0.5) * 0.16);
+    hips.add(e);
+  }
+}

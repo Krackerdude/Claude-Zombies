@@ -67,9 +67,9 @@ export class ZombieSystem extends System {
       const t = this.world.get(id, Transform);
       t.cachePrevious();
       this.#tickZombie(z, t, pt.position, player, goalCell, dt);
-      // keep the player-blocking capsule glued to the zombie
+      // keep the player-blocking capsule glued to the zombie (lower for crawlers)
       const ref = this.world.get(id, RigidBodyRef);
-      if (ref?.body) this.#physics.setKinematicTarget(ref.body, { x: t.position.x, y: 0.9, z: t.position.z });
+      if (ref?.body) this.#physics.setKinematicTarget(ref.body, { x: t.position.x, y: z.crawler ? 0.5 : 0.9, z: t.position.z });
     }
 
     this.#navDirty = false;
@@ -223,8 +223,8 @@ export class ZombieSystem extends System {
       const cell = this.#nav.cellAt(wp.x, wp.z);
       const barrier = this.#nav.barrierOf(cell);
 
-      if (barrier && !barrier.open && barrier.teardownable) {
-        // approach the window, then rip it down
+      if (barrier && !barrier.open && barrier.teardownable && !z.crawler) {
+        // approach the window, then rip it down (crawlers can't tear from the floor)
         if (this.#flatDist2(t.position, wp.x, wp.z) <= ZombieConfig.reachThreshold + 0.6) {
           z.barrierTarget = barrier;
           z.state = 'teardown';
@@ -266,7 +266,7 @@ export class ZombieSystem extends System {
       }
     }
 
-    const step = z.speed * dt;
+    const step = z.speed * (z.crawler ? 0.42 : 1) * dt; // crawlers drag slowly
     let mx = dx + sx * ZombieConfig.separationStrength;
     let mz = dz + sz * ZombieConfig.separationStrength;
     const ml = Math.hypot(mx, mz) || 1;
