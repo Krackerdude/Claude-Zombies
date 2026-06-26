@@ -68,7 +68,8 @@ export class SpawnManager {
     const p = this.#pickSpawn();
     const gait = pickGait(this.#stats.round);
     const speed = Gaits[gait].speed * (0.9 + Math.random() * 0.2); // slight per-zombie jitter
-    this.#factory.zombie(new THREE.Vector3(p.x, 0, p.z), { health: this.#stats.health, speed, gait });
+    const variant = (Math.random() * 4) | 0; // 1 of 4 subtle animation personalities
+    this.#factory.zombie(new THREE.Vector3(p.x, 0, p.z), { health: this.#stats.health, speed, gait, variant });
     this.alive++;
     this.queue--;
     this.#emitCount();
