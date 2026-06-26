@@ -305,6 +305,45 @@ export class PhysicsManager {
     if (handle?.body) this.world.removeRigidBody(handle.body);
   }
 
+  // --- debug introspection (F3 overlay) -----------------------------------
+
+  /** Rapier's line-list debug geometry for every collider + joint:
+   *  { vertices: Float32Array (xyz pairs), colors: Float32Array (rgba per vert) }. */
+  debugLines() {
+    const b = this.world.debugRender();
+    return { vertices: b.vertices, colors: b.colors };
+  }
+
+  /** Flat [x,y,z, ...] world centre-of-mass of every DYNAMIC body. */
+  debugComs() {
+    const out = [];
+    this.world.forEachRigidBody((body) => {
+      if (!body.isDynamic()) return;
+      const c = body.worldCom();
+      out.push(c.x, c.y, c.z);
+    });
+    return out;
+  }
+
+  /** Flat [x,y,z, ...] world contact points currently in the solver (each pair
+   *  visited once). Reveals exactly where/whether bodies are touching. */
+  debugContacts() {
+    const out = [];
+    this.world.forEachCollider((collider) => {
+      this.world.contactPairsWith(collider, (other) => {
+        if (collider.handle >= other.handle) return; // one direction per pair
+        this.world.contactPair(collider, other, (manifold) => {
+          const n = manifold.numSolverContacts();
+          for (let i = 0; i < n; i++) {
+            const p = manifold.solverContactPoint(i);
+            if (p) out.push(p.x, p.y, p.z);
+          }
+        });
+      });
+    });
+    return out;
+  }
+
   dispose() {
     this.world?.free?.();
     this.world = null;
