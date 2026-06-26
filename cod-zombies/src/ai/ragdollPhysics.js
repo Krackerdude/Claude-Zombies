@@ -63,7 +63,8 @@ const _qC = new THREE.Quaternion();
 const _qRel = new THREE.Quaternion();
 const _qOrig = new THREE.Quaternion();
 const _qNew = new THREE.Quaternion();
-const _qSoft = new THREE.Quaternion();
+const _qInv = new THREE.Quaternion();
+const _axisV = new THREE.Vector3();
 const _hipOffset = new THREE.Vector3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
@@ -118,9 +119,8 @@ export function buildRagdoll(rig, physics, c, t) {
   rig.quaternion.copy(t.quaternion);
   rig.updateMatrixWorld(true);
 
-  // one collision group for the whole corpse: it piles on terrain + other
-  // corpses but never self-collides (overlapping limb boxes would detonate it)
-  const group = physics.allocRagdollGroup();
+  // every segment collides with the environment only (default ragdoll group):
+  // no corpse-corpse, no player, no self collision
   const make = (joint, spec) => {
     joint.getWorldPosition(_v);
     joint.getWorldQuaternion(_q);
@@ -128,7 +128,7 @@ export function buildRagdoll(rig, physics, c, t) {
       { x: _v.x, y: _v.y, z: _v.z },
       { x: _q.x, y: _q.y, z: _q.z, w: _q.w },
       spec.shape,
-      { mass: spec.mass, offset: spec.off, group },
+      { mass: spec.mass, offset: spec.off },
     );
   };
 
@@ -198,14 +198,15 @@ const LIMIT_ORDER = [
 /**
  * Enforce anatomical joint limits on the PHYSICS bodies (Rapier spherical
  * joints are free ball joints with no stops, so without this the corpse settles
- * into impossible poses — torso balanced upright, limbs splayed up). Each step,
- * for every joint we measure the child's orientation relative to its parent; if
- * it's outside the swing cone / twist range we EASE it back toward the boundary
- * (a soft spring stop), not snap it. Snapping teleported the bodies every frame
- * — fresh corpses have many joints far past their limits in the death pose, so
- * hard-snapping them all imparted momentum (the "jittery flip") and glitched.
- * Easing topples them over smoothly. Because the bodies stay roughly in range,
- * the visual (which follows them 1:1) lies flat instead of contorting.
+ * into impossible poses — torso balanced upright, limbs splayed up).
+ *
+ * This is VELOCITY-based: when a joint is past its swing cone / twist range we
+ * steer the child body back with a corrective angular velocity (and damp the
+ * spin), never teleporting its position or orientation. Teleporting bodies —
+ * which the previous version did every frame a joint was out of range — kept
+ * waking them and re-seeding the floor contact solver, which was the "tweak the
+ * moment they hit the ground". Only touching angular velocity leaves the
+ * contact + joint constraints undisturbed, so corpses settle clean.
  */
 export function enforceLimits(physics, data) {
   const { bodies } = data;
@@ -219,15 +220,26 @@ export function enforceLimits(physics, data) {
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    if (Math.abs(_qOrig.dot(_qRel)) < 0.99985) { // outside the allowed range
-      _qNew.multiplyQuaternions(_qP, _qRel);      // fully-corrected child target
-      // ease only part-way there this frame: a gentle stop, not a teleport
-      _qSoft.copy(_qC).slerp(_qNew, 0.25);
-      physics.setBodyRotation(cb, _qSoft);
-      physics.setBodyTranslation(cb, c.p);        // re-pin the joint anchor (= origin)
-      const w = physics.angularVelocity(cb);      // bleed energy at the stop
-      physics.setAngularVelocity(cb, { x: w.x * 0.5, y: w.y * 0.5, z: w.z * 0.5 });
-    }
+    if (Math.abs(_qOrig.dot(_qRel)) >= 0.99985) continue; // within range
+
+    // correction rotation (parent frame) that takes the current relative
+    // orientation back to the clamped one: corr = clamped * orig^-1
+    _qInv.copy(_qOrig).invert();
+    _qNew.multiplyQuaternions(_qRel, _qInv);
+    if (_qNew.w < 0) { _qNew.x = -_qNew.x; _qNew.y = -_qNew.y; _qNew.z = -_qNew.z; _qNew.w = -_qNew.w; }
+    const sin = Math.sqrt(Math.max(0, 1 - _qNew.w * _qNew.w));
+    if (sin < 1e-4) continue;
+    const angle = 2 * Math.acos(Math.min(1, _qNew.w));   // how far past the stop
+    // correction axis in world space (rotate the parent-frame axis by parent q)
+    _axisV.set(_qNew.x / sin, _qNew.y / sin, _qNew.z / sin).applyQuaternion(_qP);
+
+    const gain = 14;              // 1/s — how hard the stop pushes back
+    const w = physics.angularVelocity(cb);
+    physics.setAngularVelocity(cb, {
+      x: w.x * 0.85 + _axisV.x * angle * gain,
+      y: w.y * 0.85 + _axisV.y * angle * gain,
+      z: w.z * 0.85 + _axisV.z * angle * gain,
+    });
   }
 }
 
