@@ -64,11 +64,12 @@ let _A = null;
 function arnieParts() {
   if (_A) return _A;
   _A = {
-    skin: new THREE.MeshStandardMaterial({ color: 0x6fae3a, roughness: 0.55, metalness: 0.0 }),
-    belly: new THREE.MeshStandardMaterial({ color: 0xa7c96b, roughness: 0.5 }),
-    dark: new THREE.MeshStandardMaterial({ color: 0x3d6b25, roughness: 0.6 }),
-    eye: new THREE.MeshStandardMaterial({ color: 0xd8e85a, emissive: 0x8a9a20, emissiveIntensity: 0.8, roughness: 0.3 }),
-    pupil: new THREE.MeshStandardMaterial({ color: 0x101808, roughness: 0.4 }),
+    // gross sickly flesh with a wet sheen (low roughness + a touch of spec)
+    skin: new THREE.MeshStandardMaterial({ color: 0x6f6d49, roughness: 0.2, metalness: 0.15 }),
+    skin2: new THREE.MeshStandardMaterial({ color: 0x4c4d32, roughness: 0.22, metalness: 0.12 }), // mottled darker patches
+    sclera: new THREE.MeshStandardMaterial({ color: 0xcfc858, emissive: 0x6a6a18, emissiveIntensity: 0.7, roughness: 0.12, metalness: 0.1 }),
+    pupil: new THREE.MeshStandardMaterial({ color: 0x0c0c06, roughness: 0.25 }),
+    maw: new THREE.MeshStandardMaterial({ color: 0x140e08, roughness: 0.5 }),
     glass: new THREE.MeshStandardMaterial({ color: 0xbfeede, transparent: true, opacity: 0.32, roughness: 0.1, metalness: 0.0 }),
     brass: new THREE.MeshStandardMaterial({ color: 0x9a7b34, metalness: 0.7, roughness: 0.4 }),
     wood: new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.85 }),
@@ -77,16 +78,35 @@ function arnieParts() {
   return _A;
 }
 
-/** A tentacle: an upper segment on a pivot, plus a mid segment on its own pivot
- *  at the tip, so it can whip in two joints. Returns the root pivot, with the
- *  mid pivot stashed on userData for the flail animation. */
-function buildTentacle(P, len) {
+/** An eye: a sickly sclera with a pupil pushed out along its outward normal. A
+ *  `slit` eye gets a tall vertical slit pupil (the big central one). */
+function addEye(parent, x, y, z, r, P, slit = false) {
+  const sclera = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), P.sclera);
+  sclera.position.set(x, y, z); parent.add(sclera);
+  // outward normal (radial from the body's vertical axis, biased forward)
+  const nx = x, ny = (y - 0.7) * 0.4, nz = z + 0.12;
+  const nl = Math.hypot(nx, ny, nz) || 1;
+  const pup = new THREE.Mesh(new THREE.SphereGeometry(r * 0.46, 8, 8), P.pupil);
+  if (slit) pup.scale.set(0.4, 1.25, 0.6); // vertical reptilian slit
+  pup.position.set(x + (nx / nl) * r * 0.72, y + (ny / nl) * r * 0.72, z + (nz / nl) * r * 0.72);
+  parent.add(pup);
+  return sclera;
+}
+
+/** A tentacle: an upper segment on a pivot + a mid segment on its own tip pivot,
+ *  so it whips in two joints. A couple of small spines give the eldritch look.
+ *  Returns the root pivot, with the mid pivot stashed on userData for flailing. */
+function buildTentacle(P, len, rad = 0.06) {
   const root = new THREE.Group();
   const seg = (l, r0, r1) => new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, l, 7), P.skin);
-  const up = seg(len, 0.06, 0.045); up.position.y = len / 2; root.add(up);
+  const up = seg(len, rad, rad * 0.72); up.position.y = len / 2; root.add(up);
+  for (let i = 0; i < 2; i++) { // spine nubs
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(rad * 0.4, rad * 1.3, 5), P.skin2);
+    sp.position.set(rad * 0.8, len * (0.3 + i * 0.35), 0); sp.rotation.z = -Math.PI / 2; root.add(sp);
+  }
   const mid = new THREE.Group(); mid.position.y = len; root.add(mid);
-  const lo = seg(len * 0.85, 0.045, 0.02); lo.position.y = (len * 0.85) / 2; mid.add(lo);
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 5), P.dark); tip.position.y = len * 0.85; mid.add(tip);
+  const lo = seg(len * 0.85, rad * 0.72, rad * 0.3); lo.position.y = (len * 0.85) / 2; mid.add(lo);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(rad * 0.4, 6, 5), P.skin2); tip.position.y = len * 0.85; mid.add(tip);
   root.userData.mid = mid;
   return root;
 }
@@ -99,38 +119,58 @@ export function buildArnieJar() {
   const g = new THREE.Group();
   const glass = [];
 
-  // --- parasite (hidden until the jar shatters) ---
+  // --- parasite: an eldritch horror (hidden until the jar shatters) ---
+  // a wet bulbous mass with ONE great central eye, clusters of lesser eyes all
+  // over it, and a maw at the crown that splits into three ooze-spewing
+  // tentacles. Origin at the feet, rises ~1.4.
   const parasite = new THREE.Group();
   parasite.visible = false;
   parasite.scale.setScalar(0.16);
-  // bulbous body (origin at the feet, rises ~1.4)
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 12), P.skin);
-  body.scale.set(1, 1.35, 0.95); body.position.y = 0.72; parasite.add(body);
-  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.36, 12, 10), P.belly);
-  belly.scale.set(1, 1.1, 0.7); belly.position.set(0, 0.6, 0.28); parasite.add(belly);
-  // big bulging eyes + dark pupils, front upper
-  for (const sx of [-1, 1]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), P.eye);
-    eye.position.set(sx * 0.22, 1.12, 0.34); parasite.add(eye);
-    const pup = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 7), P.pupil);
-    pup.position.set(sx * 0.24, 1.12, 0.48); parasite.add(pup);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 14), P.skin);
+  body.scale.set(1.05, 1.25, 1.0); body.position.y = 0.7; parasite.add(body);
+  // irregular fleshy lumps so it's a misshapen mass, not a smooth egg
+  for (const L of [[0.3, 0.55, 0.34, 0.26], [-0.34, 0.62, 0.28, 0.24], [0.0, 0.34, 0.4, 0.3], [-0.26, 0.95, -0.3, 0.22], [0.32, 1.0, -0.24, 0.2]]) {
+    const lump = new THREE.Mesh(new THREE.SphereGeometry(L[3], 10, 9), Math.random() < 0.5 ? P.skin : P.skin2);
+    lump.position.set(L[0], L[1], L[2]); lump.scale.set(1, 0.85, 0.9); parasite.add(lump);
   }
-  // gaping maw (the ooze source) — a dark recess with a lower lip anchor
-  const maw = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 9), P.pupil);
-  maw.scale.set(1, 0.7, 0.6); maw.position.set(0, 0.86, 0.42); parasite.add(maw);
-  const mouth = new THREE.Object3D(); mouth.position.set(0, 0.82, 0.52); parasite.add(mouth);
-  // tentacles ringing the upper body, splayed outward + up
+
+  // THE great central eye, front-and-centre, with a vertical slit
+  addEye(parasite, 0, 0.82, 0.46, 0.27, P, true);
+  // subsets of smaller eyes scattered all over the body/sides
+  const EYES = [
+    [-0.34, 1.06, 0.26, 0.1], [0.36, 1.02, 0.22, 0.11], [-0.18, 1.2, 0.18, 0.07],
+    [0.2, 1.24, 0.12, 0.06], [-0.42, 0.78, 0.12, 0.09], [0.44, 0.72, 0.1, 0.08],
+    [-0.3, 0.5, 0.32, 0.07], [0.28, 0.46, 0.34, 0.075], [0.0, 0.5, 0.5, 0.06],
+    [-0.48, 0.95, -0.18, 0.07], [0.46, 0.9, -0.22, 0.065], [0.12, 1.32, -0.05, 0.055],
+  ];
+  for (const e of EYES) addEye(parasite, e[0], e[1], e[2], e[3], P);
+
+  // crown maw: a dark gaping opening at the top, ringed by a fleshy lip; the
+  // three tentacles erupt from it and the ooze shoots from here
+  const maw = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), P.maw);
+  maw.scale.set(1, 0.8, 1); maw.position.set(0, 1.28, 0.04); parasite.add(maw);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.05, 8, 14), P.skin2);
+  lip.rotation.x = Math.PI / 2; lip.position.set(0, 1.3, 0.04); parasite.add(lip);
+  const mouth = new THREE.Object3D(); mouth.position.set(0, 1.34, 0.06); parasite.add(mouth);
+
+  // the three crown tentacles splitting up out of the maw, + lesser writhers
   const tentacles = [];
-  const N = 6;
-  for (let k = 0; k < N; k++) {
-    const a = (k / N) * Math.PI * 2;
-    const ten = buildTentacle(P, 0.55 + (k % 2) * 0.12);
-    ten.position.set(Math.cos(a) * 0.34, 0.95 + Math.sin(a * 2) * 0.05, Math.sin(a) * 0.26);
-    ten.userData.baseX = -0.5 + Math.sin(a) * 0.3; // splay up/out
-    ten.userData.baseZ = Math.cos(a) * 0.6;
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI * 2 - Math.PI / 2;
+    const ten = buildTentacle(P, 0.8, 0.09);
+    ten.position.set(Math.cos(a) * 0.08, 1.3, Math.sin(a) * 0.08);
+    ten.userData.baseX = -0.55; ten.userData.baseZ = 0; // lean up/out from vertical
     ten.rotation.set(ten.userData.baseX, a, ten.userData.baseZ);
-    parasite.add(ten);
-    tentacles.push(ten);
+    parasite.add(ten); tentacles.push(ten);
+  }
+  for (let k = 0; k < 4; k++) {            // smaller writhing tentacles round the mass
+    const a = (k / 4) * Math.PI * 2 + 0.6;
+    const ten = buildTentacle(P, 0.42, 0.05);
+    ten.position.set(Math.cos(a) * 0.42, 0.6 + (k % 2) * 0.18, Math.sin(a) * 0.34);
+    ten.userData.baseX = -0.2 + Math.sin(a) * 0.4;
+    ten.userData.baseZ = Math.cos(a) * 0.7;
+    ten.rotation.set(ten.userData.baseX, a, ten.userData.baseZ);
+    parasite.add(ten); tentacles.push(ten);
   }
   g.add(parasite);
 
@@ -142,9 +182,17 @@ export function buildArnieJar() {
   dome.position.y = jarH + 0.02; glass.push(dome);
   const fluid = new THREE.Mesh(new THREE.CylinderGeometry(jarR * 0.92, jarR * 0.92, jarH * 0.8, 16), P.fluid);
   fluid.position.y = jarH * 0.45 + 0.02; glass.push(fluid);
-  // a little curled parasite seed visible inside the fluid before it bursts
-  const seed = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), P.skin);
-  seed.scale.set(1, 0.8, 1.2); seed.position.y = jarH * 0.4 + 0.02; glass.push(seed);
+  // a little curled parasite seed visible inside the fluid before it bursts —
+  // same sickly flesh + a single beady slit eye and a couple of nub tentacles
+  const seed = new THREE.Group();
+  const sbody = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), P.skin);
+  sbody.scale.set(1, 0.85, 1.2); seed.add(sbody);
+  addEye(seed, 0, 0.02, 0.07, 0.04, P, true);
+  for (let i = 0; i < 3; i++) {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.006, 0.09, 6), P.skin);
+    t.position.set((i - 1) * 0.03, -0.05, -0.02); t.rotation.x = 0.7 + i * 0.2; seed.add(t);
+  }
+  seed.position.y = jarH * 0.4 + 0.02; glass.push(seed);
   // brass lid + wood slats (the SoE jar)
   const lid = new THREE.Mesh(new THREE.CylinderGeometry(jarR + 0.015, jarR + 0.015, 0.05, 16), P.brass);
   lid.position.y = jarH + 0.05; glass.push(lid);

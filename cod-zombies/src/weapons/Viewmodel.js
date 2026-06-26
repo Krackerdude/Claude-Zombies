@@ -655,18 +655,21 @@ function buildVmArnieJar() {
   const fluid = new THREE.MeshStandardMaterial({ color: 0x7fd6c0, emissive: 0x1c5a4a, emissiveIntensity: 0.5, transparent: true, opacity: 0.5, roughness: 0.2 });
   const brass = new THREE.MeshStandardMaterial({ color: 0x9a7b34, metalness: 0.7, roughness: 0.4 });
   const wood = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.85 });
-  const skin = new THREE.MeshStandardMaterial({ color: 0x6fae3a, roughness: 0.5 });
-  const eye = new THREE.MeshStandardMaterial({ color: 0xd8e85a, emissive: 0x8a9a20, emissiveIntensity: 0.9, roughness: 0.3 });
+  // sickly wet flesh + glossy sclera, matching the world parasite
+  const skin = new THREE.MeshStandardMaterial({ color: 0x6f6d49, roughness: 0.2, metalness: 0.15 });
+  const sclera = new THREE.MeshStandardMaterial({ color: 0xcfc858, emissive: 0x6a6a18, emissiveIntensity: 0.7, roughness: 0.12, metalness: 0.1 });
+  const pupil = new THREE.MeshStandardMaterial({ color: 0x0c0c06, roughness: 0.25 });
 
   const g = new THREE.Group();
   const H = 0.16, R = 0.072;
   const cyl = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 16, 1, true), glass); cyl.position.y = 0; g.add(cyl);
   const dome = new THREE.Mesh(new THREE.SphereGeometry(R, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), glass); dome.position.y = H / 2; g.add(dome);
   const fl = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.9, R * 0.9, H * 0.82, 16), fluid); fl.position.y = -0.005; g.add(fl);
-  // the parasite seed: a little curled body + two beady eyes
+  // the parasite seed: a curled fleshy body with one beady slit eye + nub tentacles
   const seed = new THREE.Group();
-  const sb = new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 8), skin); sb.scale.set(1, 0.8, 1.3); seed.add(sb);
-  for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), eye); e.position.set(sx * 0.014, 0.012, 0.03); seed.add(e); }
+  const sb = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), skin); sb.scale.set(1, 0.82, 1.25); seed.add(sb);
+  const sc = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), sclera); sc.position.set(0, 0.008, 0.03); seed.add(sc);
+  const pp = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8), pupil); pp.scale.set(0.45, 1.2, 0.6); pp.position.set(0, 0.008, 0.046); seed.add(pp);
   for (let i = 0; i < 4; i++) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.003, 0.05, 6), skin); t.position.set((i - 1.5) * 0.012, -0.02, 0.01); t.rotation.x = 0.6; seed.add(t); }
   seed.position.set(0, -0.01, 0); seed.userData.y = -0.01; g.add(seed); g.userData.seed = seed;
   // brass lid + wood slats
