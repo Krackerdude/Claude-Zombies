@@ -33,7 +33,10 @@ const SEG = {
   torso: { shape: { type: 'box', hx: 0.20, hy: 0.26, hz: 0.13 }, off: { x: 0, y: 0.20, z: 0 }, mass: 14 },
   head: { shape: { type: 'ball', radius: 0.13 }, off: { x: 0, y: 0.18, z: 0 }, mass: 5 },
   arm: { shape: { type: 'capsule', halfHeight: 0.26, radius: 0.075 }, off: { x: 0, y: -0.30, z: 0 }, mass: 4 },
-  leg: { shape: { type: 'capsule', halfHeight: 0.32, radius: 0.10 }, off: { x: 0, y: -0.42, z: 0 }, mass: 8 },
+  // capsule lengthened + dropped so it reaches the FOOT (~0.92m below the hip),
+  // not just the shin — the lower leg/foot had no collider before, which is why
+  // it clipped through the floor (CCD can't help a collision that isn't there).
+  leg: { shape: { type: 'capsule', halfHeight: 0.36, radius: 0.10 }, off: { x: 0, y: -0.46, z: 0 }, mass: 8 },
 };
 
 // Anatomical range-of-motion per driven joint, measured from the neutral
