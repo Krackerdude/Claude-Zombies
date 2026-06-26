@@ -308,18 +308,28 @@ console.log('\n[11] head vs body hitboxes register distinctly');
 guard('a ray through the head reports a headshot; through the chest does not', () => {
   freshRun();
   tick(3);
-  const zid = [...world.query(ZombieTag)][0];
+  const zid = [...world.query(ZombieTag, Renderable)][0];
   if (zid === undefined) throw new Error('no zombie');
   const t = world.get(zid, Transform);
-  // fire a synthetic ray from 5m away straight at the head height, then chest
+  // sample the head's and chest's ACTUAL world positions from the posed rig, so
+  // the probe is independent of whatever gait/lunge frame the zombie is in (a
+  // fixed height is brittle — an attacking zombie pitches its head down/forward)
+  const rig = world.get(zid, Renderable).object3d;
+  rig.position.copy(t.position);
+  rig.quaternion.copy(t.quaternion);
+  rig.updateMatrixWorld(true);
+  const J = rig.userData.joints;
+  const headW = J.head.localToWorld(new THREE.Vector3(0, 0.2, 0)); // skull centre
+  const chestW = J.torso.localToWorld(new THREE.Vector3(0, 0.26, 0)); // chest centre
+
+  // fire each ray horizontally THROUGH the sampled point (from 5m out front)
   const ws = services.get(Service.Weapons);
-  const ray = (yOff) => {
-    const o = { x: t.position.x, y: t.position.y + yOff, z: t.position.z - 5 };
-    const dir = { x: 0, y: 0, z: 1 };
-    return ws.rayProbe(o, dir, 20);
+  const ray = (p) => {
+    const o = { x: p.x, y: p.y, z: p.z - 5 };
+    return ws.rayProbe(o, { x: 0, y: 0, z: 1 }, 20).find((h) => h.id === zid);
   };
-  const head = ray(1.62).find((h) => h.id === zid);
-  const chest = ray(1.15).find((h) => h.id === zid);
+  const head = ray(headW);
+  const chest = ray(chestW);
   if (!head || !head.headshot) throw new Error('head ray did not register as a headshot');
   if (!chest || chest.headshot) throw new Error('chest ray wrongly flagged as a headshot');
 });
