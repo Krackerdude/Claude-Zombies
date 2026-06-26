@@ -759,17 +759,19 @@ function buildVmSyringe() {
   return g;
 }
 
-// Held WraithFire canister — a squat steel cylinder with a blue-glowing window.
+// Held WraithFire canister — a lantern: a bright cyan glow-core caged in brass
+// bars so the glow SHOWS (don't bury it in an opaque shell -> reads as black).
 function buildVmWraith() {
-  const shell = new THREE.MeshStandardMaterial({ color: 0x26303a, metalness: 0.6, roughness: 0.4 });
   const brass = new THREE.MeshStandardMaterial({ color: 0x9a7b34, metalness: 0.7, roughness: 0.4 });
-  const glow = new THREE.MeshBasicMaterial({ color: 0x4ad6ff });
+  const glow = new THREE.MeshBasicMaterial({ color: 0x6fe0ff });
+  const halo = new THREE.MeshBasicMaterial({ color: 0x49c6ff, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false });
   const g = new THREE.Group();
-  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.13, 12), shell));
-  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.085, 12), glow));
-  const capT = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.05, 0.02, 12), brass); capT.position.y = 0.075; g.add(capT);
-  const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.056, 0.02, 12), brass); capB.position.y = -0.075; g.add(capB);
-  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 8), brass); fuse.position.y = 0.1; g.add(fuse);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.12, 12), glow));
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.14, 12), halo));
+  const capT = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.05, 0.022, 12), brass); capT.position.y = 0.07; g.add(capT);
+  const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.056, 0.022, 12), brass); capB.position.y = -0.07; g.add(capB);
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.13, 6), brass); bar.position.set(Math.cos(a) * 0.05, 0, Math.sin(a) * 0.05); g.add(bar); }
+  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.03, 8), brass); fuse.position.y = 0.1; g.add(fuse);
   return g;
 }
 
