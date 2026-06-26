@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildWeaponModel } from './weaponModels.js';
 import { buildPerkBottle } from '../perks/perks.js';
+import { buildHomunculus } from '../gadgets/tacticalModels.js';
 import { gunMetal, gunGrip, gunDark } from './gunMaterials.js';
 import { paintedMetal } from '../rendering/materials/surfaces.js';
 
@@ -81,6 +82,8 @@ export class Viewmodel {
   #monkey;
   #windKey;
   #arnie;
+  #homunc;
+  #syringe;
   #bottle = null;
   #bottleColor = -1;
   #key;
@@ -195,6 +198,15 @@ export class Viewmodel {
     this.#arnie = buildVmArnieJar();
     this.#arnie.visible = false;
     this.#vmScene.add(this.#arnie);
+
+    // held Homunculus (tactical) — injected with serum before the throw
+    this.#homunc = buildHomunculus();
+    this.#homunc.scale.setScalar(0.17);
+    this.#homunc.visible = false;
+    this.#vmScene.add(this.#homunc);
+    this.#syringe = buildVmSyringe();
+    this.#syringe.visible = false;
+    this.#vmScene.add(this.#syringe);
   }
 
   setWeapon(weapon) {
@@ -410,8 +422,10 @@ export class Viewmodel {
     // has been thrown. Monkey winds its key; Arnie's jar gets shaken.
     const tcKind = tacticalCook?.kind;
     const shown = !!tacticalCook && this.#holster > 0.85;
-    this.#monkey.visible = shown && tcKind !== 'arnie';
+    this.#monkey.visible = shown && tcKind === 'monkey';
     this.#arnie.visible = shown && tcKind === 'arnie';
+    this.#homunc.visible = shown && tcKind === 'homunculus';
+    this.#syringe.visible = this.#homunc.visible;
     if (this.#monkey.visible) {
       const gt = Math.max(0, tacticalCook.t - 0.16);     // local time once the gun is down
       const draw = Math.min(1, gt / 0.4);                // raise into the hold
@@ -446,6 +460,27 @@ export class Viewmodel {
       this.#arnie.quaternion.setFromEuler(_e);
       const seed = this.#arnie.userData.seed; // the parasite jostles in the fluid
       if (seed) seed.position.set(Math.sin(gt * 33) * 0.02, seed.userData.y + Math.sin(gt * 27) * 0.015, Math.cos(gt * 30) * 0.02);
+    }
+    if (this.#homunc.visible) {
+      const gt = Math.max(0, tacticalCook.t - 0.16);
+      const draw = Math.min(1, gt / 0.4);
+      const rage = Math.min(1, gt / 0.6);                  // the serum takes hold
+      _koff.set(lerp(0.2, 0.12, draw), lerp(-0.4, -0.22, draw) + Math.sin(this.#bob) * 0.012, lerp(-0.52, -0.42, draw));
+      this.#homunc.position.copy(_koff);
+      // face the player, with a rising rage shudder once injected
+      _e.set(Math.sin(gt * 40) * 0.06 * rage, Math.PI, Math.sin(gt * 46) * 0.09 * rage);
+      this.#homunc.quaternion.setFromEuler(_e);
+      const J = this.#homunc.userData;
+      if (J.armL) J.armL.rotation.set(-0.3 + Math.sin(gt * 22) * 1.0 * rage, 0, 0.4);
+      if (J.armR) J.armR.rotation.set(-0.6 + Math.cos(gt * 20) * 0.9 * rage, 0, -0.25);
+      if (J.legL) J.legL.rotation.x = Math.sin(gt * 24) * 0.6 * rage;
+      if (J.legR) J.legR.rotation.x = Math.cos(gt * 23) * 0.6 * rage;
+      if (J.head) J.head.rotation.z = Math.sin(gt * 28) * 0.25 * rage;
+      // syringe: jab into him from the side, then depress the plunger
+      const jab = Math.min(1, gt / 0.3), plunge = Math.max(0, Math.min(1, (gt - 0.25) / 0.35));
+      this.#syringe.position.set(_koff.x + lerp(0.18, 0.06, jab), _koff.y + 0.04, _koff.z + 0.04);
+      const pl = this.#syringe.userData.plunger;
+      if (pl) pl.position.y = pl.userData.y - plunge * 0.028;
     }
 
     // perk drink: pop the cap, raise the bottle to the mouth, bubbles, then toss
@@ -675,5 +710,21 @@ function buildVmArnieJar() {
   // brass lid + wood slats
   const lid = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.008, R + 0.008, 0.022, 16), brass); lid.position.y = H / 2 + 0.01; g.add(lid);
   for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; const slat = new THREE.Mesh(new THREE.BoxGeometry(0.012, H + 0.02, 0.012), wood); slat.position.set(Math.cos(a) * R, 0, Math.sin(a) * R); g.add(slat); }
+  return g;
+}
+
+// A serum syringe jabbed into the Homunculus during its wind-up (the "pin" gate).
+function buildVmSyringe() {
+  const glass = new THREE.MeshStandardMaterial({ color: 0xbfe0e0, transparent: true, opacity: 0.4, roughness: 0.15 });
+  const serum = new THREE.MeshStandardMaterial({ color: 0x86d24a, emissive: 0x3a6a14, emissiveIntensity: 0.7, transparent: true, opacity: 0.75, roughness: 0.2 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 0.8, roughness: 0.3 });
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.08, 12), glass));
+  const fluid = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.06, 12), serum); fluid.position.y = -0.005; g.add(fluid);
+  const plunger = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.02, 12), steel); plunger.position.y = 0.05; plunger.userData.y = 0.05; g.add(plunger);
+  const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.006, 0.05), steel); thumb.position.y = 0.075; g.add(thumb);
+  const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.07, 6), steel); needle.position.y = -0.075; g.add(needle);
+  g.rotation.set(0.2, 0, 1.15); // needle angled down-left toward the gremlin's body
+  g.userData.plunger = plunger;
   return g;
 }
