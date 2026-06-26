@@ -21,14 +21,17 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
   // already die this hit (handled below — the roll is before the lethal check so
   // a corpse can spawn already missing the limb).
   if (dismemberChance > 0 && part && LIMB_PARTS[part] && z.limbs?.[part] && Math.random() < dismemberChance) {
-    z.limbs[part] = false;
     const rig = ctx.world.get(id, Renderable)?.object3d;
-    if (rig) severLimb(rig, part);
-    // losing ANY leg drops the zombie to the floor as a crawler
     if (part === 'legL' || part === 'legR') {
+      // shooting off a leg takes the whole lower body: instant gory crawler,
+      // cut off at the waist (no single-leg hopping state)
+      z.limbs.legL = false; z.limbs.legR = false;
       z.crawler = true;
       if (z.state === 'teardown') { z.state = 'pathing'; z.barrierTarget = null; z.replan = 0; } // can't tear from the floor
-      if (!z.limbs.legL && !z.limbs.legR && rig) severLowerBody(rig); // both gone: cut off at the waist
+      if (rig) { severLimb(rig, 'legL'); severLimb(rig, 'legR'); severLowerBody(rig); }
+    } else {
+      z.limbs[part] = false;
+      if (rig) severLimb(rig, part);
     }
   }
 
