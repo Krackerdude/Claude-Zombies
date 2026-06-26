@@ -152,8 +152,14 @@ export class PhysicsManager {
   createRagdollPart(position, quat, shape, { mass = null, density = 1.1, offset = null, group = GROUP_RAGDOLL } = {}) {
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(position.x, position.y, position.z)
-      .setLinearDamping(0.4)
-      .setAngularDamping(0.85);
+      .setLinearDamping(0.5)
+      // higher angular drag bleeds off the spin that builds at the joints when a
+      // limb hits the floor, so segments settle instead of buzzing/whirling
+      .setAngularDamping(1.4)
+      // continuous collision detection: a fast-launched limb can't tunnel into
+      // or punch through the floor (a deep penetration is what the contact
+      // solver reacts to violently — the spaz)
+      .setCcdEnabled(true);
     if (quat) bodyDesc.setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w });
     const body = this.world.createRigidBody(bodyDesc);
     let cd;

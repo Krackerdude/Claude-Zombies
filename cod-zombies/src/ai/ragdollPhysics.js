@@ -24,12 +24,16 @@ import * as THREE from 'three';
 // limbs are light. Arms/legs are CAPSULES and the head a BALL so they roll and
 // settle on the ground instead of catching on box corners and vibrating; the
 // torso/pelvis stay boxes (they come to rest on a broad flat face — stable).
+// Masses (kg) chosen for SENSIBLE ratios across the joints: the pelvis is still
+// the heaviest (so the centre of mass sits at the waist and the body topples
+// like a real one), but no segment is more than ~4x a body it's jointed to.
+// The old 10:1 pelvis:arm ratio made the solver unstable at the shoulder.
 const SEG = {
-  pelvis: { shape: { type: 'box', hx: 0.17, hy: 0.10, hz: 0.12 }, off: { x: 0, y: -0.02, z: 0 }, mass: 30 },
-  torso: { shape: { type: 'box', hx: 0.20, hy: 0.26, hz: 0.13 }, off: { x: 0, y: 0.20, z: 0 }, mass: 16 },
+  pelvis: { shape: { type: 'box', hx: 0.17, hy: 0.10, hz: 0.12 }, off: { x: 0, y: -0.02, z: 0 }, mass: 16 },
+  torso: { shape: { type: 'box', hx: 0.20, hy: 0.26, hz: 0.13 }, off: { x: 0, y: 0.20, z: 0 }, mass: 14 },
   head: { shape: { type: 'ball', radius: 0.13 }, off: { x: 0, y: 0.18, z: 0 }, mass: 5 },
-  arm: { shape: { type: 'capsule', halfHeight: 0.26, radius: 0.075 }, off: { x: 0, y: -0.30, z: 0 }, mass: 3 },
-  leg: { shape: { type: 'capsule', halfHeight: 0.32, radius: 0.10 }, off: { x: 0, y: -0.42, z: 0 }, mass: 6 },
+  arm: { shape: { type: 'capsule', halfHeight: 0.26, radius: 0.075 }, off: { x: 0, y: -0.30, z: 0 }, mass: 4 },
+  leg: { shape: { type: 'capsule', halfHeight: 0.32, radius: 0.10 }, off: { x: 0, y: -0.42, z: 0 }, mass: 8 },
 };
 
 // Anatomical range-of-motion per driven joint, measured from the neutral
@@ -224,12 +228,7 @@ export function enforceLimits(physics, data) {
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    // Deadband (~5deg): only correct when CLEARLY past the limit. With a razor
-    // tolerance, a limb that the floor holds a hair past its stop (e.g. the heel
-    // landing at an angle, harder with a high-force kill) got hard-clamped every
-    // frame while the contact shoved it back past — that per-frame fight was the
-    // spaz. A few degrees of slack lets it rest instead of buzzing.
-    if (Math.abs(_qOrig.dot(_qRel)) < 0.9990) { // clearly outside the allowed range
+    if (Math.abs(_qOrig.dot(_qRel)) < 0.99995) { // was outside the allowed range
       _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
       physics.setBodyRotation(cb, _qNew);
       physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)
