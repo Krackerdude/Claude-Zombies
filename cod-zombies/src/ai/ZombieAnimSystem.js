@@ -201,10 +201,16 @@ export class ZombieAnimSystem extends System {
     J.elbowL.rotation.x = elbowBase + z.tearAmt * Math.max(0, claw) * 0.6 + z.atkAmt * (0.2 + swRaise * 0.6);
     J.elbowR.rotation.x = elbowBase + z.tearAmt * Math.max(0, -claw) * 0.6 + z.atkAmt * (0.2 + swRaise * 0.6);
 
+    // missing arms change the attack. A severed arm is already hidden, so a
+    // one-armed zombie automatically chops with its remaining arm; if BOTH arms
+    // are gone it can't claw, so it lunges/headbutts harder with the whole body.
+    const noArms = z.limbs && !z.limbs.armL && !z.limbs.armR;
+    const lunge = noArms ? 2.2 : 1; // headbutt drive
     // weighty lunge: rear back on the wind-up, then pitch the torso + head
     // forward through the chop (added on top of the gait pose, so it decays out)
-    if (J.torso) J.torso.rotation.x += z.atkAmt * (-0.18 * swRaise + 0.55 * swDown);
-    if (J.head) J.head.rotation.x += z.atkAmt * (0.45 * swDown - 0.15 * swRaise);
+    if (J.torso) J.torso.rotation.x += z.atkAmt * (-0.18 * swRaise + 0.55 * swDown) * lunge;
+    if (J.head) J.head.rotation.x += z.atkAmt * (0.45 * swDown - 0.15 * swRaise) * lunge;
+    if (noArms && J.hips) J.hips.position.z += z.atkAmt * swDown * 0.12; // whole body pitches in
 
     // localized hit recoil, layered on last so it reads through any gait/swipe
     this.#flinch(z, J, dt);

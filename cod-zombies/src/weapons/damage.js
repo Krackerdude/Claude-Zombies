@@ -1,6 +1,9 @@
-import { ZombieTag, CorpseTag, Transform, RigidBodyRef } from '../ecs/components/index.js';
+import { ZombieTag, CorpseTag, Transform, RigidBodyRef, Renderable } from '../ecs/components/index.js';
 import { PlayerCombat, ZombieConfig } from '../config/zombies.js';
 import { Service } from '../core/ServiceLocator.js';
+import { severLimb } from '../ai/dismember.js';
+
+const LIMB_PARTS = { armL: 1, armR: 1, legL: 1, legR: 1 };
 
 /**
  * Single place that applies damage to a zombie and resolves scoring/kills, so
@@ -9,9 +12,19 @@ import { Service } from '../core/ServiceLocator.js';
  * `opts.dir` is the killing bullet's direction — used to launch the ragdoll.
  * Returns true if this hit was the killing blow.
  */
-export function damageZombie(ctx, id, amount, { award = true, headshot = false, dir = null, force = 1, part = null, knockChance = 0, flinchScale = 1 } = {}) {
+export function damageZombie(ctx, id, amount, { award = true, headshot = false, dir = null, force = 1, part = null, knockChance = 0, flinchScale = 1, dismemberChance = 0 } = {}) {
   const z = ctx.world.get(id, ZombieTag);
   if (!z || z.state === 'dead') return false;
+
+  // dismemberment: a limb hit can shoot that limb clean off (chance scales with
+  // caliber, passed in by the weapon). Only an attached limb, only if it didn't
+  // already die this hit (handled below — the roll is before the lethal check so
+  // a corpse can spawn already missing the limb).
+  if (dismemberChance > 0 && part && LIMB_PARTS[part] && z.limbs?.[part] && Math.random() < dismemberChance) {
+    z.limbs[part] = false;
+    const rig = ctx.world.get(id, Renderable)?.object3d;
+    if (rig) severLimb(rig, part);
+  }
 
   const pu = ctx.world.services.has(Service.Powerups) ? ctx.world.services.get(Service.Powerups) : null;
   const mul = pu ? pu.pointsMultiplier() : 1;

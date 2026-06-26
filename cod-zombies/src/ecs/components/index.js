@@ -138,6 +138,9 @@ export class ZombieTag {
     this.entryBarrier = null; // committed window (nearest to spawn) — never changes
     this.agent = null; // per-zombie nav agent { tearsBarriers, viaBarrier }
 
+    // dismemberment — which limbs are still attached (set false when shot off)
+    this.limbs = { armL: true, armR: true, legL: true, legR: true };
+
     // procedural animation state (driven by ZombieAnimSystem)
     this.animTime = Math.random() * Math.PI * 2; // desynced phase
     this.walkAmt = 0;
