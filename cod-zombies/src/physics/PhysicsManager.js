@@ -292,6 +292,22 @@ export class PhysicsManager {
     if (handle?.body) this.world.removeRigidBody(handle.body);
   }
 
+  /** Is this body's collider currently touching anything (i.e. the floor, since
+   *  ragdolls only collide with ENV)? Used to switch the whole corpse to the
+   *  soft, non-teleporting limit path the moment it makes ground contact. */
+  bodyTouching(handle) {
+    const collider = handle?.collider;
+    if (!collider) return false;
+    let touching = false;
+    this.world.contactPairsWith(collider, (other) => {
+      if (touching) return;
+      this.world.contactPair(collider, other, (manifold) => {
+        if (manifold.numContacts() > 0) touching = true;
+      });
+    });
+    return touching;
+  }
+
   // --- debug introspection (F3 overlay) -----------------------------------
 
   /** Rapier's line-list debug geometry for every collider + joint:
