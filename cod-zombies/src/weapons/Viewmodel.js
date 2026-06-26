@@ -201,10 +201,11 @@ export class Viewmodel {
 
     // held Homunculus (tactical) — injected with serum before the throw
     this.#homunc = buildHomunculus();
-    this.#homunc.scale.setScalar(0.17);
+    this.#homunc.scale.setScalar(0.42); // a substantial creature in the hand, not a figurine
     this.#homunc.visible = false;
     this.#vmScene.add(this.#homunc);
     this.#syringe = buildVmSyringe();
+    this.#syringe.scale.setScalar(1.6);
     this.#syringe.visible = false;
     this.#vmScene.add(this.#syringe);
   }
@@ -465,7 +466,8 @@ export class Viewmodel {
       const gt = Math.max(0, tacticalCook.t - 0.16);
       const draw = Math.min(1, gt / 0.4);
       const rage = Math.min(1, gt / 0.6);                  // the serum takes hold
-      _koff.set(lerp(0.2, 0.12, draw), lerp(-0.4, -0.22, draw) + Math.sin(this.#bob) * 0.012, lerp(-0.52, -0.42, draw));
+      // bigger model -> held a touch lower + further so the whole gremlin frames
+      _koff.set(lerp(0.16, 0.1, draw), lerp(-0.66, -0.48, draw) + Math.sin(this.#bob) * 0.012, lerp(-0.74, -0.64, draw));
       this.#homunc.position.copy(_koff);
       // face the player, with a rising rage shudder once injected
       _e.set(Math.sin(gt * 40) * 0.06 * rage, Math.PI, Math.sin(gt * 46) * 0.09 * rage);
@@ -476,9 +478,9 @@ export class Viewmodel {
       if (J.legL) J.legL.rotation.x = Math.sin(gt * 24) * 0.6 * rage;
       if (J.legR) J.legR.rotation.x = Math.cos(gt * 23) * 0.6 * rage;
       if (J.head) J.head.rotation.z = Math.sin(gt * 28) * 0.25 * rage;
-      // syringe: jab into him from the side, then depress the plunger
+      // syringe: jab into his torso from the side, then depress the plunger
       const jab = Math.min(1, gt / 0.3), plunge = Math.max(0, Math.min(1, (gt - 0.25) / 0.35));
-      this.#syringe.position.set(_koff.x + lerp(0.18, 0.06, jab), _koff.y + 0.04, _koff.z + 0.04);
+      this.#syringe.position.set(_koff.x + lerp(0.24, 0.1, jab), _koff.y + 0.26, _koff.z + 0.06);
       const pl = this.#syringe.userData.plunger;
       if (pl) pl.position.y = pl.userData.y - plunge * 0.028;
     }

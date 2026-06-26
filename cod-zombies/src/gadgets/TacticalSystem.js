@@ -48,8 +48,9 @@ const ARNIE = {
 const HOMUNC = {
   life: 11.0,           // seconds of rampage
   reach: 2.0,           // club swing radius (m)
-  swing: 0.8,           // seconds per club swing
-  impact: 0.62,         // point in the swing the club connects
+  speed: 3.2,           // he HUNTS — runs the horde down (m/s)
+  swing: 0.7,           // seconds per club swing
+  impact: 0.55,         // point in the swing the club connects
   legFrac: 0.18,        // chunk of max health a leg-shot does (leaves them alive as crawlers)
   killDmg: 100000,      // the follow-up swing that finishes a downed crawler
 };
@@ -155,10 +156,10 @@ export class TacticalSystem extends System {
         if (m.timer <= 0) { this.#events.emit('lure:clear', { id: m.lureId }); this.#detonate(m.mesh.position); this.#remove(i); }
       } else if (m.kind === 'homunculus') {
         this.#tickHomunc(m, dt);
-        if (m.timer <= 0) { this.#events.emit('lure:clear', { id: m.lureId }); this.#remove(i); }
+        if (m.timer <= 0) { this.#events.emit('lure:clear', { id: m.lureId }); this.#burstGibs(m.mesh.position, 0.6, 20, 1.0); this.#remove(i); }
       } else {
         this.#tickArnie(m, dt);
-        if (m.timer <= 0) { this.#events.emit('lure:clear', { id: m.lureId }); this.#dissolveArnie(m); this.#remove(i); }
+        if (m.timer <= 0) { this.#events.emit('lure:clear', { id: m.lureId }); this.#burstGibs(m.mesh.position, 0.8, 26, 1.35); this.#remove(i); }
       }
     }
   }
@@ -224,24 +225,62 @@ export class TacticalSystem extends System {
     if (J.head) J.head.rotation.z = Math.sin(t * 21) * 0.3;
   }
 
-  /** On the ground: plant, turn, and chop the spiked club at the swarm on a
-   *  cadence — destroying legs first, then finishing the crawlers. */
+  /** On the ground he HUNTS: runs down the nearest zombie (the horde is still
+   *  drawn to him), facing it, then swings his club LEFT-TO-RIGHT across them —
+   *  legs first, then finishing the crawlers. No spinning, no bouncing. */
   #tickHomunc(m, dt) {
     const J = m.mesh.userData, t = m.age;
-    m.mesh.rotation.y += dt * 1.1;                 // wheel around so he hits the whole swarm
-    m.mesh.position.y = Math.abs(Math.sin(t * 7)) * 0.04; // angry little bounce
+    const pos = m.mesh.position; pos.y = 0;
 
+    // chase the nearest zombie, stopping once it's within club reach
+    const target = this.#nearestZombie(pos);
+    let moving = false;
+    if (target) {
+      const dx = target.x - pos.x, dz = target.z - pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      m.mesh.rotation.y = this.#turn(m.mesh.rotation.y, Math.atan2(dx, dz), dt * 7);
+      if (d > HOMUNC.reach * 0.75) { const s = HOMUNC.speed * dt; pos.x += (dx / d) * s; pos.z += (dz / d) * s; moving = true; }
+    }
+    // keep the lure glued to his moving position so the horde keeps converging
+    this.#events.emit('lure:set', { id: m.lureId, x: pos.x, z: pos.z });
+
+    // running stride (legs alternate while he closes; braced when swinging)
+    if (J.legL) J.legL.rotation.x = moving ? Math.sin(t * 13) * 0.5 : -0.15;
+    if (J.legR) J.legR.rotation.x = moving ? Math.sin(t * 13 + Math.PI) * 0.5 : -0.15;
+
+    // club swing: a flat horizontal sweep across the front, alternating the side
+    // it comes from each swing
     m.swingT += dt;
-    if (m.swingT >= HOMUNC.swing) { m.swingT -= HOMUNC.swing; m.didHit = false; }
+    if (m.swingT >= HOMUNC.swing) { m.swingT -= HOMUNC.swing; m.didHit = false; m.swingDir = -(m.swingDir || 1); }
+    const dir = m.swingDir || 1;
     const ph = m.swingT / HOMUNC.swing;
-    // wind the club up overhead, then chop it down hard across the front
-    const armX = ph < 0.42 ? lerp(-0.6, -2.7, ph / 0.42) : lerp(-2.7, 0.9, (ph - 0.42) / 0.58);
-    if (J.armR) J.armR.rotation.set(armX, 0, -0.2);
-    if (J.armL) J.armL.rotation.set(-0.4 + Math.sin(t * 9) * 0.5, 0, 0.4); // off-arm flails
-    if (J.head) J.head.rotation.x = 0.1 + Math.sin(t * 6) * 0.12;
-    if (J.legL) J.legL.rotation.x = -0.2; if (J.legR) J.legR.rotation.x = -0.2; // braced stance
+    const armY = ph < 0.32 ? lerp(0, 1.25 * dir, ph / 0.32) : lerp(1.25 * dir, -1.4 * dir, (ph - 0.32) / 0.68);
+    if (J.armR) J.armR.rotation.set(-1.4, armY, 0);            // arm out, club swept side to side
+    if (J.armL) J.armL.rotation.set(-0.5, 0, 0.5 + Math.sin(t * 9) * 0.2);
+    if (J.head) J.head.rotation.set(0.12, armY * 0.35, 0);     // head tracks the swing
+    if (!m.didHit && ph >= HOMUNC.impact) { m.didHit = true; this.#homuncSwing(pos); }
+  }
 
-    if (!m.didHit && ph >= HOMUNC.impact) { m.didHit = true; this.#homuncSwing(m.mesh.position); }
+  #nearestZombie(pos) {
+    let best = Infinity, bx = 0, bz = 0, found = false;
+    for (const id of this.world.query(ZombieTag, Transform)) {
+      const t = this.world.get(id, Transform).position;
+      const d = (t.x - pos.x) ** 2 + (t.z - pos.z) ** 2;
+      if (d < best) { best = d; bx = t.x; bz = t.z; found = true; }
+    }
+    return found ? { x: bx, z: bz } : null;
+  }
+  #turn(cur, target, maxStep) {
+    let diff = target - cur;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    if (diff > maxStep) diff = maxStep; else if (diff < -maxStep) diff = -maxStep;
+    return cur + diff;
+  }
+  /** Burst a tactical into a spray of meaty gibs (shared GibSystem). */
+  #burstGibs(pos, y, count, scale) {
+    this.#events.emit('zombie:gib', { x: pos.x, y, z: pos.z, dir: null, count, speed: 4.2, scale });
+    this.#events.emit('fx:blood', { x: pos.x, y, z: pos.z, dx: 0, dz: 0 });
+    this.#events.emit('fx:shake', {});
   }
 
   #homuncSwing(pos) {
@@ -288,11 +327,10 @@ export class TacticalSystem extends System {
 
   #tickArnie(m, dt) {
     const J = m.mesh.userData;
-    // mutate to full size right after the jar shatters
+    // mutate to full size right after the jar shatters, then stay full until it
+    // bursts into gibs at the end (no shrinking away)
     m.grow = Math.min(1, m.grow + dt / ARNIE.growTime);
-    const dying = m.timer < 1.2;                      // last beat: shrivel + sink
-    const scale = (0.16 + 1.04 * m.grow) * (dying ? Math.max(0.15, m.timer / 1.2) : 1); // ~1.2 full -> ~1.7m tall
-    if (J.parasite) J.parasite.scale.setScalar(scale);
+    if (J.parasite) J.parasite.scale.setScalar(0.16 + 1.04 * m.grow); // ~1.2 full -> ~1.7m tall
 
     // flail the tentacles + writhe the body
     const tt = m.age;
@@ -315,12 +353,11 @@ export class TacticalSystem extends System {
       const tgt = ARNIE.reach * 0.9;
       const cur = m.puddle.scale.x;
       m.puddle.scale.setScalar(Math.min(tgt, cur + dt * 1.4));
-      if (dying) m.puddle.material.opacity = 0.42 * Math.max(0, m.timer / 1.2);
     }
 
     // dribble ooze from the mouth
     m.oozeT -= dt;
-    if (m.oozeT <= 0 && J.mouth && m.grow > 0.4 && !dying) {
+    if (m.oozeT <= 0 && J.mouth && m.grow > 0.4) {
       m.oozeT = 0.06;
       J.mouth.getWorldPosition(_wp);
       this.#spawnOoze(_wp.x, _wp.y, _wp.z);
@@ -328,7 +365,7 @@ export class TacticalSystem extends System {
 
     // tentacle damage: shred (and dismember) zombies within reach on a cadence
     m.hitT -= dt;
-    if (m.hitT <= 0 && m.grow > 0.5 && !dying) {
+    if (m.hitT <= 0 && m.grow > 0.5) {
       m.hitT = ARNIE.hitEvery;
       this.#arnieShred(m.mesh.position);
     }
@@ -352,12 +389,6 @@ export class TacticalSystem extends System {
       if (killed) pts += 60;
     }
     this.#award(ctx, pts, mul);
-  }
-
-  #dissolveArnie(m) {
-    if (m.puddle) { this.#scene.remove(m.puddle); m.puddle = null; }
-    const p = m.mesh.position;
-    this.#events.emit('fx:blood', { x: p.x, y: 0.5, z: p.z, dx: 0, dz: 0 });
   }
 
   // --- ooze particles ---------------------------------------------------------
