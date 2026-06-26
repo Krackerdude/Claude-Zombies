@@ -68,4 +68,5 @@ export const Service = Object.freeze({
   Economy: 'economy',
   Powerups: 'powerups',
   Perks: 'perks',
+  Tactical: 'tactical',
 });

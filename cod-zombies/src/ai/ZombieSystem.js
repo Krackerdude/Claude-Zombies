@@ -36,6 +36,7 @@ export class ZombieSystem extends System {
   #lastHpEmit = -1;
   #physics;
   #pu;
+  #lures = new Map(); // active monkey-bomb lures (id -> {x,z}); pulls the horde
 
   init() {
     this.#gameState = this.world.services.get(Service.GameState);
@@ -48,6 +49,20 @@ export class ZombieSystem extends System {
     this.#physics = this.world.services.get(Service.Physics);
     this.#pu = this.world.services.has(Service.Powerups) ? this.world.services.get(Service.Powerups) : null;
     this.#events.on('nav:changed', () => { this.#navDirty = true; });
+    // monkey-bomb lures: while any are active, zombies swarm the nearest one
+    // instead of the player (and their swipes hit it harmlessly)
+    this.#events.on('lure:set', ({ id, x, z }) => this.#lures.set(id, { x, z }));
+    this.#events.on('lure:clear', ({ id }) => this.#lures.delete(id));
+  }
+
+  /** Nearest active lure to (x,z), or null if none. */
+  #nearestLure(x, z) {
+    let best = null, bestD = Infinity;
+    for (const L of this.#lures.values()) {
+      const d = (L.x - x) ** 2 + (L.z - z) ** 2;
+      if (d < bestD) { bestD = d; best = L; }
+    }
+    return best;
   }
 
   fixedUpdate(dt) {
@@ -60,13 +75,21 @@ export class ZombieSystem extends System {
 
     this.#regen(player, dt);
 
-    const goalCell = this.#nav.nearestWalkable(pt.position.x, pt.position.z, ZOMBIE_AGENT);
+    const playerGoal = this.#nav.nearestWalkable(pt.position.x, pt.position.z, ZOMBIE_AGENT);
+    const lured = this.#lures.size > 0;
 
     for (const id of this.world.query(ZombieTag, Transform)) {
       const z = this.world.get(id, ZombieTag);
       const t = this.world.get(id, Transform);
       t.cachePrevious();
-      this.#tickZombie(z, t, pt.position, player, goalCell, dt);
+      // a monkey bomb out-prioritises the player: chase the nearest lure and
+      // claw at it (no damage to the player) until it blows
+      let chasePos = pt.position, goalCell = playerGoal, isLured = false;
+      if (lured) {
+        const L = this.#nearestLure(t.position.x, t.position.z);
+        if (L) { chasePos = L; goalCell = this.#nav.nearestWalkable(L.x, L.z, ZOMBIE_AGENT); isLured = true; }
+      }
+      this.#tickZombie(z, t, chasePos, player, goalCell, dt, isLured);
       // keep the player-blocking capsule glued to the zombie (lower for crawlers)
       const ref = this.world.get(id, RigidBodyRef);
       if (ref?.body) this.#physics.setKinematicTarget(ref.body, { x: t.position.x, y: z.crawler ? 0.6 : 0.9, z: t.position.z });
@@ -77,7 +100,7 @@ export class ZombieSystem extends System {
 
   // --- per-zombie FSM -----------------------------------------------------
 
-  #tickZombie(z, t, playerPos, player, goalCell, dt) {
+  #tickZombie(z, t, playerPos, player, goalCell, dt, lured = false) {
     // Knocked flat by an explosion: inert (no movement, no swiping) while it
     // falls, writhes and climbs back up. Checked first so it always recovers
     // even if a stun / zombie-blood would otherwise short-circuit the tick.
@@ -165,7 +188,7 @@ export class ZombieSystem extends System {
             z.swung = true;
             const sliding = player.state === MoveState.SLIDE || player.state === MoveState.DIVE;
             const knifed = this.#time.elapsed < z.harmlessUntil;
-            if (!sliding && !knifed) { // slide to duck a swipe; a knifed zombie can't connect
+            if (!lured && !sliding && !knifed) { // swiping a monkey bomb hurts no one; slide/knife also negate
               this.#damagePlayer(player, ZombieConfig.attackDamage);
               player.slowUntil = this.#time.elapsed + ZombieConfig.swipeSlowDuration; // brief slow on contact
               this.#events.emit('player:damaged', { x: t.position.x - playerPos.x, z: t.position.z - playerPos.z });

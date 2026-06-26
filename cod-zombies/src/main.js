@@ -213,6 +213,14 @@ async function main() {
     events.on('fx:zombieblood', ({ on }) => { if (elBlood) elBlood.classList.toggle('show', !!on); });
     const elLethal = document.getElementById('hud-lethal-count');
     events.on('lethal:count', ({ count }) => { if (elLethal) elLethal.textContent = count; });
+    // tactical slot (opposite side of the gun widget) — hidden until you hold one
+    const elTac = document.getElementById('hud-tac');
+    const elTacN = document.getElementById('hud-tactical-count');
+    events.on('tactical:equip', () => { if (elTac) elTac.hidden = false; });
+    events.on('tactical:count', ({ count, type }) => {
+      if (elTac) elTac.hidden = !type;
+      if (elTacN) elTacN.textContent = count;
+    });
 
     // low health: blood creeps in from the corners + the world desaturates,
     // building below 50% and clearing as health regenerates
