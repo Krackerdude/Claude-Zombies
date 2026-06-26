@@ -220,14 +220,10 @@ const LIMIT_ORDER = [
 // relative spin driving it further past, so it settles instead of bouncing. The
 // torque is turned into a per-step angular impulse by * DT, and the impulse is
 // HARD-CAPPED so a bad/extreme value can never diverge to NaN and crash.
-// STIFF must beat the gravity torque on the heavy upper body, or the spine
-// spring can't hold the limit and the torso folds forward past anatomy. The cap
-// likewise has to sit ABOVE that gravity load (~1 impulse/step at the waist) or
-// it clips the hold below what's needed. MAX_ANGVEL backstops the higher cap.
-const LIMIT_STIFF = 220.0;
-const LIMIT_DAMP = 26.0;        // ~critical at this stiffness; no oscillation
+const LIMIT_STIFF = 55.0;
+const LIMIT_DAMP = 26.0;        // strong: stops limbs oscillating/jittering at the limit
 const LIMIT_DT = 1 / 60;        // matches PhysicsConfig.fixedStep
-const LIMIT_MAX_IMPULSE = 1.5;  // ceiling on |angular impulse| per step (MAX_ANGVEL backstops)
+const LIMIT_MAX_IMPULSE = 0.9;  // ceiling on |angular impulse| per step (MAX_ANGVEL backstops)
 const MAX_ANGVEL = 7;           // rad/s ceiling on any segment's spin (anti-windup)
 
 /**
