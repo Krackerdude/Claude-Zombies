@@ -7,13 +7,12 @@ import { PhysicsConfig } from '../config/index.js';
 // block/shove them); ragdolls collide with ENV + other RAGDOLLs (terrain + piles).
 const ENV = 0x0001, ACTOR = 0x0002, RAGDOLL = 0x0004;
 const GROUP_ACTOR = (ACTOR << 16) | (ENV | ACTOR);
-const GROUP_RAGDOLL = (RAGDOLL << 16) | (ENV | RAGDOLL);
-// Ragdoll INSTANCE groups: bits 2..15 form a rotating pool. A corpse's seven
-// segments all share one instance bit; their filter is ENV + every OTHER
-// instance bit, so a corpse collides with terrain + other corpses (piles up)
-// but NOT with its own siblings — the limb boxes overlap heavily at the joints,
-// and self-collision there just makes the solver detonate the ragdoll.
-const RAGDOLL_ALL = 0xFFFC; // bits 2..15
+// Ragdoll corpses collide with the ENVIRONMENT ONLY: filter = ENV alone, so a
+// corpse never touches another corpse, its own overlapping segments, the player,
+// or live zombies (ACTOR). Dead bodies are non-interactive props — the intended
+// gameplay, and it also keeps the solver from ever fighting corpse-vs-corpse or
+// self contacts.
+const GROUP_RAGDOLL = (RAGDOLL << 16) | ENV;
 
 /** World point -> a body's local frame (conjugate-quat rotate of the offset). */
 function _localAnchor(w, p, q) {
@@ -128,18 +127,6 @@ export class PhysicsManager {
   // Flag the facade so callers can fall back to the procedural corpse when the
   // physics backend is a headless stub that lacks these.
   ragdollCapable = true;
-  #ragdollGroupCursor = 0;
-
-  /** Allocate the next per-corpse collision group (membership = one instance
-   *  bit, filter = ENV + all OTHER instance bits). Pass the result to every
-   *  segment of one ragdoll so it piles on terrain/other corpses but never
-   *  self-collides. */
-  allocRagdollGroup() {
-    const bit = 1 << (2 + (this.#ragdollGroupCursor++ % 14)); // 0x0004..0x8000
-    const membership = bit;
-    const filter = ENV | (RAGDOLL_ALL & ~bit);
-    return ((membership << 16) | filter) >>> 0;
-  }
 
   /** A dynamic limb segment for a ragdoll: collides with the world + other
    *  ragdolls (RAGDOLL group), but NOT with actors, so corpses don't block the
