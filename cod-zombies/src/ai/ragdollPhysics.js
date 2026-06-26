@@ -215,12 +215,15 @@ const LIMIT_ORDER = [
   ['pelvis', 'legR', 'leg'],
 ];
 
-// Spring/damper joint-limit stop. STIFF pulls a limb back toward its cone
-// boundary in proportion to how far past it is; DAMP bleeds the relative spin
-// that's driving it further past, so it settles at the limit instead of
-// bouncing. Both are angular-IMPULSE coefficients (applied once per fixed step).
-const LIMIT_STIFF = 4.0;
-const LIMIT_DAMP = 0.8;
+// Spring/damper joint-limit stop, in TORQUE units. STIFF pulls a limb back
+// toward its cone boundary in proportion to how far past it is; DAMP bleeds the
+// relative spin driving it further past, so it settles instead of bouncing. The
+// torque is turned into a per-step angular impulse by * DT, and the impulse is
+// HARD-CAPPED so a bad/extreme value can never diverge to NaN and crash.
+const LIMIT_STIFF = 55.0;
+const LIMIT_DAMP = 6.0;
+const LIMIT_DT = 1 / 60;        // matches PhysicsConfig.fixedStep
+const LIMIT_MAX_IMPULSE = 0.5;  // safety ceiling on |angular impulse| per step
 
 /**
  * Enforce anatomical joint limits on the PHYSICS bodies. Rapier spherical joints
@@ -262,12 +265,13 @@ export function enforceLimits(physics, data) {
     const wc = physics.angularVelocity(cb), wp = physics.angularVelocity(pb);
     const wRel = (wc.x - wp.x) * _axisV.x + (wc.y - wp.y) * _axisV.y + (wc.z - wp.z) * _axisV.z;
 
-    // one-sided spring+damper: only ever push back toward the limit
-    let mag = LIMIT_STIFF * angle - LIMIT_DAMP * wRel;
-    if (mag <= 0) continue;
-    const tx = _axisV.x * mag, ty = _axisV.y * mag, tz = _axisV.z * mag;
-    physics.applyTorqueImpulse(cb, { x: tx, y: ty, z: tz });
-    physics.applyTorqueImpulse(pb, { x: -tx, y: -ty, z: -tz });
+    // one-sided spring+damper -> angular impulse for this step, hard-capped.
+    // `!(mag > 0)` also skips NaN, so an already-bad body can't propagate.
+    let mag = (LIMIT_STIFF * angle - LIMIT_DAMP * wRel) * LIMIT_DT;
+    if (!(mag > 0)) continue;
+    if (mag > LIMIT_MAX_IMPULSE) mag = LIMIT_MAX_IMPULSE;
+    // child only — the heavier parent stays an anchor (no chain feedback loop)
+    physics.applyTorqueImpulse(cb, { x: _axisV.x * mag, y: _axisV.y * mag, z: _axisV.z * mag });
   }
 }
 
