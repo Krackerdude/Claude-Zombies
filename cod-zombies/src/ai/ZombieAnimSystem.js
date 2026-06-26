@@ -88,41 +88,45 @@ export class ZombieAnimSystem extends System {
    *  track the player, with a reach-up slash for its attack. `crawlAmt` eases the
    *  fall-to-the-floor from the moment it loses a leg. */
   #poseCrawl(z, rest, J, dt) {
-    z.crawlAmt = ease(z.crawlAmt, 1, dt, 4); // collapse onto the floor over ~0.5s
+    z.crawlAmt = ease(z.crawlAmt, 1, dt, 4); // settle into the prop over ~0.5s
     const c = z.crawlAmt;
     const walking = z.state === 'pathing' || z.state === 'spawning';
     const swiping = z.swipe > 0;
     z.atkAmt = ease(z.atkAmt, swiping ? 1 : 0, dt, 14);
     z.walkAmt = ease(z.walkAmt, walking ? 1 : 0, dt, 6);
-    z.animTime += dt * (5 + z.speed * 2) * z.walkAmt;
+    z.animTime += dt * (4.5 + z.speed * 2) * z.walkAmt;
     const p = z.animTime;
-    const drag = Math.sin(p);
+    const cyc = Math.sin(p);
 
-    // body prone + low: hips drop to the floor and pitch forward so the trunk
-    // lies along the ground, with a little side-to-side drag sway
-    J.hips.position.set(0, lerp(rest.hipY, 0.24, c), 0);
-    J.hips.rotation.set(lerp(0, 1.3, c), drag * 0.06 * c * z.walkAmt, drag * 0.06 * c * z.walkAmt);
-    J.torso.rotation.set(rest.torso + lerp(0, 0.2, c) + Math.sin(p * 1.0) * 0.04 * z.walkAmt, 0, 0);
-    J.head.rotation.set(lerp(0.06, -0.55, c), 0, drag * 0.06 * z.walkAmt); // head up, scanning ahead
+    // BO3 sphinx prop: waist low on the floor, the whole upper body RAISED on
+    // the arms and leaning toward the player, head up scanning. Reads tall above
+    // the corpses instead of collapsing face-down.
+    J.hips.position.set(0, lerp(rest.hipY, 0.34, c), 0);
+    J.hips.rotation.set(lerp(0, 0.5, c), cyc * 0.05 * c * z.walkAmt, 0);     // lean forward, slight sway
+    J.torso.rotation.set(rest.torso - 0.12 * c, 0, cyc * 0.05 * z.walkAmt);  // arch the chest up
+    J.head.rotation.set(lerp(0.06, -0.6, c), 0, 0);                          // head up, eyes forward
 
-    // arms claw the ground: one reaches forward while the other pulls back
-    const reach = (ph) => lerp(-1.15, -2.55, (Math.sin(ph) + 1) * 0.5);   // pulled..reached
-    const swProg = swiping ? 1 - z.swipe / ZombieConfig.swipeTime : 0;     // 0->1 swing
-    const swUp = Math.min(1, swProg / 0.4);                                 // raise the arm
-    const swDown = Math.max(0, swProg - 0.4) / 0.6;                         // chop down
-    const atkSh = lerp(-2.7, -0.5, swDown);                                 // reach up then slash down
+    // arms straight, planting the hands on the ground forward to PROP the chest
+    // up; they reach forward and pull back to drag the body along
+    const planted = lerp(rest.shoulder, 0.3, c);                  // -> ~straight down to the floor (world)
+    const reachL = planted - Math.max(0, cyc) * 0.55 * z.walkAmt; // reach forward then pull
+    const reachR = planted - Math.max(0, -cyc) * 0.55 * z.walkAmt;
+    const swProg = swiping ? 1 - z.swipe / ZombieConfig.swipeTime : 0;
+    const swUp = Math.min(1, swProg / 0.4), swDown = Math.max(0, swProg - 0.4) / 0.6;
+    const atkSh = lerp(-2.4, 0.2, swDown);                        // rear an arm up, then swipe down
+    const splay = lerp(0, 0.35, c);
     if (J.shoulderL.visible) {
-      J.shoulderL.rotation.set(lerp(lerp(rest.shoulder, reach(p), c), atkSh, z.atkAmt), 0, 0.22 * c);
-      J.elbowL.rotation.x = lerp(rest.elbow, 0.55, c) + z.atkAmt * swUp * 0.4;
+      J.shoulderL.rotation.set(lerp(reachL, atkSh, z.atkAmt), 0, splay);
+      J.elbowL.rotation.x = lerp(rest.elbow, 0.15, c) + z.atkAmt * swUp * 0.5; // arm extended to prop
     }
     if (J.shoulderR.visible) {
-      J.shoulderR.rotation.set(lerp(lerp(rest.shoulder, reach(p + Math.PI), c), atkSh, z.atkAmt), 0, -0.22 * c);
-      J.elbowR.rotation.x = lerp(rest.elbow, 0.55, c) + z.atkAmt * swUp * 0.4;
+      J.shoulderR.rotation.set(lerp(reachR, atkSh, z.atkAmt), 0, -splay);
+      J.elbowR.rotation.x = lerp(rest.elbow, 0.15, c) + z.atkAmt * swUp * 0.5;
     }
 
-    // a remaining leg trails limp behind; both gone -> hidden (nothing to pose)
-    if (J.thighL.visible) { J.thighL.rotation.set(lerp(0, 0.35, c), 0, lerp(0, 0.18, c)); J.kneeL.rotation.x = lerp(0, 0.8, c); }
-    if (J.thighR.visible) { J.thighR.rotation.set(lerp(0, 0.35, c), 0, lerp(0, -0.18, c)); J.kneeR.rotation.x = lerp(0, 0.8, c); }
+    // a remaining leg (rare now) trails limp behind; severed ones are skipped
+    if (J.thighL.visible) { J.thighL.rotation.set(lerp(0, 0.3, c), 0, 0.15 * c); J.kneeL.rotation.x = lerp(0, 0.7, c); }
+    if (J.thighR.visible) { J.thighR.rotation.set(lerp(0, 0.3, c), 0, -0.15 * c); J.kneeR.rotation.x = lerp(0, 0.7, c); }
 
     this.#flinch(z, J, dt);
   }

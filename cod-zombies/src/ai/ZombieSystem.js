@@ -69,7 +69,7 @@ export class ZombieSystem extends System {
       this.#tickZombie(z, t, pt.position, player, goalCell, dt);
       // keep the player-blocking capsule glued to the zombie (lower for crawlers)
       const ref = this.world.get(id, RigidBodyRef);
-      if (ref?.body) this.#physics.setKinematicTarget(ref.body, { x: t.position.x, y: z.crawler ? 0.5 : 0.9, z: t.position.z });
+      if (ref?.body) this.#physics.setKinematicTarget(ref.body, { x: t.position.x, y: z.crawler ? 0.6 : 0.9, z: t.position.z });
     }
 
     this.#navDirty = false;
