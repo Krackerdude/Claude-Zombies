@@ -49,6 +49,13 @@ const ARC_UP = 4.0;
 const GRAVITY = 18;
 const RADIUS = 4.5;        // blast radius (m)
 const DAMAGE = 1300;       // center damage; falls off to the edge
+// Semtex cluster: sticks to whatever it hits (ground / zombie), then on the
+// blast flings three bomblets that airburst on the next ground touch
+const SEMTEX = {
+  mainRadius: 3.6, mainDamage: 1100,
+  count: 3, bombletRadius: 2.8, bombletDamage: 700,
+  stickDist: 0.7, // how close to a zombie it'll stick mid-flight
+};
 // WraithFire: a contact grenade that lays a pool of spectral blue fire
 const WRAITH = {
   fuse: 3.0,             // safety fuse if it never touches ground
@@ -104,7 +111,7 @@ export class GadgetSystem extends System {
 
   /** Dev hook: swap the equipped lethal (replaces the grenade). Count is shared. */
   giveLethal(kind) {
-    if (kind !== 'frag' && kind !== 'wraithfire') return;
+    if (kind !== 'frag' && kind !== 'wraithfire' && kind !== 'semtex') return;
     this.#lethalKind = kind;
     this.#count = MAX_NADES;
     this.#events.emit('lethal:equip', { kind });
@@ -155,13 +162,13 @@ export class GadgetSystem extends System {
 
   #throw(fuse) {
     const kind = this.#lethalKind;
-    const mesh = kind === 'wraithfire' ? wraithModel() : grenadeModel();
+    const mesh = kind === 'wraithfire' ? wraithModel() : kind === 'semtex' ? semtexModel() : grenadeModel();
     const o = this.#camera.position;
     mesh.position.set(o.x, o.y - 0.1, o.z);
     this.#scene.add(mesh);
     _fwd.set(0, 0, -1).applyQuaternion(this.#camera.quaternion);
     this.#nades.push({
-      mesh, kind, fuse: kind === 'wraithfire' ? WRAITH.fuse : fuse,
+      mesh, kind, fuse: kind === 'wraithfire' ? WRAITH.fuse : fuse, stuck: false, stickId: -1, ox: 0, oy: 0, oz: 0,
       vx: _fwd.x * THROW_SPEED, vy: _fwd.y * THROW_SPEED + ARC_UP, vz: _fwd.z * THROW_SPEED,
     });
   }
@@ -170,28 +177,64 @@ export class GadgetSystem extends System {
     for (let i = this.#nades.length - 1; i >= 0; i--) {
       const n = this.#nades[i];
       n.fuse -= dt;
+
+      // --- Semtex: sticks to the first surface (ground or a zombie) it touches ---
+      if (n.kind === 'semtex' && n.stuck) {
+        if (n.stickId >= 0) { // riding a zombie/corpse — follow it, or blow if it's gone
+          const zt = this.world.get(n.stickId, Transform);
+          if (zt) n.mesh.position.set(zt.position.x + n.ox, zt.position.y + n.oy, zt.position.z + n.oz);
+          else n.fuse = Math.min(n.fuse, 0);
+        }
+        if (n.fuse <= 0) { this.#clusterBurst(n.mesh.position, player); this.#scene.remove(n.mesh); this.#nades.splice(i, 1); }
+        continue;
+      }
+
       n.vy -= GRAVITY * dt;
       n.mesh.position.x += n.vx * dt;
       n.mesh.position.y += n.vy * dt;
       n.mesh.position.z += n.vz * dt;
-      if (n.mesh.position.y <= 0.07) {
-        if (n.kind === 'wraithfire') { // CONTACT: bursts into a fire pool on impact
-          this.#ignitePool({ x: n.mesh.position.x, y: 0, z: n.mesh.position.z });
-          this.#scene.remove(n.mesh); this.#nades.splice(i, 1); continue;
+
+      if (n.kind === 'semtex') { // stick to a zombie it flies into
+        const hit = this.#nearestStick(n.mesh.position);
+        if (hit) {
+          const zt = this.world.get(hit, Transform).position;
+          n.stuck = true; n.stickId = hit;
+          n.ox = n.mesh.position.x - zt.x; n.oy = n.mesh.position.y - zt.y; n.oz = n.mesh.position.z - zt.z;
+          continue;
         }
+      }
+
+      if (n.mesh.position.y <= 0.07) {
+        if (n.kind === 'wraithfire') { this.#ignitePool({ x: n.mesh.position.x, y: 0, z: n.mesh.position.z }); this.#scene.remove(n.mesh); this.#nades.splice(i, 1); continue; }
+        if (n.kind === 'bomblet') { this.#explode(n.mesh.position, player, SEMTEX.bombletRadius, SEMTEX.bombletDamage); this.#scene.remove(n.mesh); this.#nades.splice(i, 1); continue; }
+        if (n.kind === 'semtex') { n.mesh.position.y = 0.05; n.stuck = true; n.stickId = -1; continue; } // sticks flat to the floor
         n.mesh.position.y = 0.07; // frag bounces + rolls
         n.vy = Math.abs(n.vy) * 0.35;
         n.vx *= 0.6; n.vz *= 0.6;
       }
       n.mesh.rotation.x += n.vx * dt * 2;
       n.mesh.rotation.z += n.vz * dt * 2;
-      if (n.fuse <= 0) { // frag fuse, or WraithFire airburst safety
+      if (n.fuse <= 0) {
         if (n.kind === 'wraithfire') this.#ignitePool({ x: n.mesh.position.x, y: 0, z: n.mesh.position.z });
+        else if (n.kind === 'semtex') this.#clusterBurst(n.mesh.position, player);
+        else if (n.kind === 'bomblet') this.#explode(n.mesh.position, player, SEMTEX.bombletRadius, SEMTEX.bombletDamage);
         else this.#explode(n.mesh.position, player);
         this.#scene.remove(n.mesh);
         this.#nades.splice(i, 1);
       }
     }
+  }
+
+  /** Nearest zombie within sticking distance of a point, or null. */
+  #nearestStick(pos) {
+    let best = SEMTEX.stickDist * SEMTEX.stickDist, hit = null;
+    for (const id of this.world.query(ZombieTag, Transform)) {
+      const t = this.world.get(id, Transform).position;
+      const dx = t.x - pos.x, dy = (t.y + 1.0) - pos.y, dz = t.z - pos.z; // aim at torso height
+      const d = dx * dx + dy * dy + dz * dz;
+      if (d < best) { best = d; hit = id; }
+    }
+    return hit;
   }
 
   // --- WraithFire: spectral blue fire pools -----------------------------------
@@ -271,7 +314,7 @@ export class GadgetSystem extends System {
     this.#burning.push({ group: flames, rig, t: 0, burnStart: 1.2, life: 2.4 });
   }
 
-  #explode(pos, player) {
+  #explode(pos, player, radius = RADIUS, damage = DAMAGE) {
     const ctx = { world: this.world, spawn: this.#spawn, events: this.#events, player };
     const pu = this.world.services.has(Service.Powerups) ? this.world.services.get(Service.Powerups) : null;
     const mul = pu ? pu.pointsMultiplier() : 1;
@@ -280,17 +323,33 @@ export class GadgetSystem extends System {
       const t = this.world.get(id, Transform).position;
       const dx = t.x - pos.x, dy = t.y - pos.y, dz = t.z - pos.z;
       const d = Math.hypot(dx, dy, dz);
-      if (d > RADIUS) continue;
-      const falloff = 1 - d / RADIUS; // edge zombies may survive
-      const dmg = DAMAGE * falloff;
-      const killed = damageZombie(ctx, id, dmg, { award: false, dir: { x: dx, z: dz }, force: 1.6, knockChance: ZombieConfig.knockChance * (0.4 + 0.6 * falloff) });
+      if (d > radius) continue;
+      const falloff = 1 - d / radius; // edge zombies may survive
+      const killed = damageZombie(ctx, id, damage * falloff, { award: false, dir: { x: dx, z: dz }, force: 1.6, knockChance: ZombieConfig.knockChance * (0.4 + 0.6 * falloff) });
       this.#events.emit('fx:blood', { x: t.x, y: t.y + 1.1, z: t.z, dx, dz });
       pts += 10 + (killed ? 50 : 0); // 10 for a hit, +50 for a kill
     }
-    if (pts) { player.points += pts * mul; this.#events.emit('score:changed', { points: player.points }); }
+    if (player && pts) { player.points += pts * mul; this.#events.emit('score:changed', { points: player.points }); }
 
     // shared explosion fx (handler adds the screen shake)
     this.#events.emit('fx:explosion', { x: pos.x, y: pos.y, z: pos.z, kind: 'frag' });
+  }
+
+  // --- Semtex cluster bomb ----------------------------------------------------
+
+  /** Main blast, then fling 3 bomblets that airburst on the next ground touch. */
+  #clusterBurst(pos, player) {
+    this.#explode(pos, player, SEMTEX.mainRadius, SEMTEX.mainDamage);
+    for (let i = 0; i < SEMTEX.count; i++) {
+      const mesh = bombletModel();
+      mesh.position.set(pos.x, pos.y + 0.1, pos.z);
+      this.#scene.add(mesh);
+      const a = Math.random() * Math.PI * 2, sp = 3 + Math.random() * 4;
+      this.#nades.push({
+        mesh, kind: 'bomblet', fuse: 2.0,
+        vx: Math.cos(a) * sp, vy: 3 + Math.random() * 2.5, vz: Math.sin(a) * sp,
+      });
+    }
   }
 
   #killPlayer(player) {
@@ -350,6 +409,38 @@ function wraithModel() {
   const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.056, 0.022, 12), P.brass); capB.position.y = -0.07; g.add(capB);
   for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.13, 6), P.brass); bar.position.set(Math.cos(a) * 0.05, 0, Math.sin(a) * 0.05); g.add(bar); }
   const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.03, 8), P.brass); fuse.position.y = 0.1; g.add(fuse);
+  return g;
+}
+
+// --- Semtex cluster models ---------------------------------------------------
+let _semtexParts = null;
+function semtexParts() {
+  if (!_semtexParts) _semtexParts = {
+    putty: new THREE.MeshStandardMaterial({ color: 0x6b7a32, roughness: 0.85, metalness: 0.0 }), // olive plastic explosive
+    band: new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.6 }),                   // caution band
+    dark: new THREE.MeshStandardMaterial({ color: 0x20241a, roughness: 0.6, metalness: 0.3 }),    // detonator
+    led: new THREE.MeshBasicMaterial({ color: 0xff2a2a }),                                        // blinking light
+  };
+  return _semtexParts;
+}
+/** A flat brick of semtex with a detonator + red LED + sticky caution band. */
+function semtexModel() {
+  const P = semtexParts();
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.085), P.putty); g.add(body);
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.122, 0.018, 0.087), P.band); band.position.y = 0.008; g.add(band);
+  const det = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.05), P.dark); det.position.y = 0.04; g.add(det);
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 5), P.led); led.position.set(0.02, 0.056, 0.02); g.add(led);
+  const prong = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.03, 6), P.dark); prong.position.set(-0.015, 0.06, 0); g.add(prong);
+  return g;
+}
+let _bombletGeo = null;
+function bombletModel() {
+  const P = semtexParts();
+  if (!_bombletGeo) _bombletGeo = new THREE.IcosahedronGeometry(0.03, 0);
+  const g = new THREE.Group();
+  const ball = new THREE.Mesh(_bombletGeo, P.dark); g.add(ball);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 5), P.led); dot.position.set(0, 0.028, 0); g.add(dot);
   return g;
 }
 

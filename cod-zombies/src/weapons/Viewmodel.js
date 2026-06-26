@@ -86,6 +86,7 @@ export class Viewmodel {
   #syringe;
   #wraith;
   #wraithFlame;
+  #semtex;
   #bottle = null;
   #bottleColor = -1;
   #key;
@@ -218,6 +219,11 @@ export class Viewmodel {
     this.#wraithFlame = buildVmFlames();
     this.#wraithFlame.visible = false;
     this.#vmScene.add(this.#wraithFlame);
+
+    // held Semtex cluster (lethal) — armed by pressing a button before the throw
+    this.#semtex = buildVmSemtex();
+    this.#semtex.visible = false;
+    this.#vmScene.add(this.#semtex);
   }
 
   setWeapon(weapon) {
@@ -412,9 +418,22 @@ export class Viewmodel {
     // lethal: only after the gun has lowered off-screen. Frag pulls its pin;
     // WraithFire destabilises and bursts into blue flame in the hand.
     const cookKind = cook?.kind;
-    this.#grenade.visible = !!cook && cookKind !== 'wraithfire' && this.#holster > 0.85;
+    this.#grenade.visible = !!cook && (cookKind === 'frag' || !cookKind) && this.#holster > 0.85;
     this.#wraith.visible = !!cook && cookKind === 'wraithfire' && this.#holster > 0.85;
     this.#wraithFlame.visible = this.#wraith.visible;
+    this.#semtex.visible = !!cook && cookKind === 'semtex' && this.#holster > 0.85;
+    if (this.#semtex.visible) {
+      const gt = Math.max(0, cook.t - 0.16);
+      const draw = Math.min(1, gt / 0.35);
+      _koff.set(lerp(0.2, 0.12, draw), lerp(-0.27, -0.17, draw) + Math.sin(this.#bob) * 0.01, lerp(-0.42, -0.34, draw));
+      this.#semtex.position.copy(_koff);
+      this.#semtex.rotation.set(0.35, -0.5 + gt * 0.6, 0);
+      // ARM IT: a thumb presses the detonator button down, then the LED blinks fast
+      const press = Math.min(1, gt / 0.22);
+      const btn = this.#semtex.userData.button, led = this.#semtex.userData.led;
+      if (btn) btn.position.y = btn.userData.y - press * 0.014;
+      if (led) led.visible = press >= 1 ? (Math.sin(gt * 30) > -0.2) : true; // solid then armed-blink
+    }
     if (this.#wraith.visible) {
       const gt = Math.max(0, cook.t - 0.16);
       const draw = Math.min(1, gt / 0.35);
@@ -772,6 +791,23 @@ function buildVmWraith() {
   const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.056, 0.022, 12), brass); capB.position.y = -0.07; g.add(capB);
   for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.13, 6), brass); bar.position.set(Math.cos(a) * 0.05, 0, Math.sin(a) * 0.05); g.add(bar); }
   const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.03, 8), brass); fuse.position.y = 0.1; g.add(fuse);
+  return g;
+}
+
+// Held Semtex brick — an olive plastic-explosive slab with a detonator button
+// (pressed to arm) and a red LED. userData exposes the button + LED.
+function buildVmSemtex() {
+  const putty = new THREE.MeshStandardMaterial({ color: 0x6b7a32, roughness: 0.85 });
+  const band = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.6 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x20241a, roughness: 0.6, metalness: 0.3 });
+  const led = new THREE.MeshBasicMaterial({ color: 0xff2a2a });
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.1), putty));
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.142, 0.02, 0.102), band); stripe.position.y = 0.01; g.add(stripe);
+  const det = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.06), dark); det.position.y = 0.045; g.add(det);
+  const button = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.014, 10), dark); button.position.y = 0.066; button.userData.y = 0.066; g.add(button);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), led); lamp.position.set(0.04, 0.05, 0.03); g.add(lamp);
+  g.userData = { button, led: lamp };
   return g;
 }
 
