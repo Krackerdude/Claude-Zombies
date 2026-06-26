@@ -65,6 +65,8 @@ const _qC = new THREE.Quaternion();
 const _qRel = new THREE.Quaternion();
 const _qOrig = new THREE.Quaternion();
 const _qNew = new THREE.Quaternion();
+const _qInv = new THREE.Quaternion();
+const _axisV = new THREE.Vector3();
 const _hipOffset = new THREE.Vector3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
@@ -213,26 +215,29 @@ const LIMIT_ORDER = [
   ['pelvis', 'legR', 'leg'],
 ];
 
+// Spring/damper joint-limit stop. STIFF pulls a limb back toward its cone
+// boundary in proportion to how far past it is; DAMP bleeds the relative spin
+// that's driving it further past, so it settles at the limit instead of
+// bouncing. Both are angular-IMPULSE coefficients (applied once per fixed step).
+const LIMIT_STIFF = 4.0;
+const LIMIT_DAMP = 0.8;
+
 /**
- * Enforce anatomical joint limits on the PHYSICS bodies (Rapier spherical
- * joints are free ball joints with no stops, so without this the corpse settles
- * into impossible poses — torso balanced upright, limbs splayed up). Each step,
- * for every joint we measure the child's orientation relative to its parent; if
- * it's outside the swing cone / twist range we snap it back to the boundary and
- * bleed off the angular velocity that drove it past, exactly like a joint stop.
- * Because the bodies themselves stay in range, the visual (which follows them
- * 1:1) lies flat instead of clipping/contorting.
+ * Enforce anatomical joint limits on the PHYSICS bodies. Rapier spherical joints
+ * are free ball joints with no stops, so without this the corpse settles into
+ * impossible poses (head spun round, torso propped, limbs in the body).
+ *
+ * Done with TORQUES, not teleports: when a joint is past its swing/twist cone we
+ * apply a restoring angular impulse (a real cone-twist stop) to the child and an
+ * equal-opposite one to the parent. A torque is just another force the solver
+ * balances against gravity, the joints AND any ground contact — so it can NEVER
+ * detonate a contact the way the old teleport did on a non-flat landing. The
+ * bodies stay near their limits, and the visual follows them 1:1.
  */
 export function enforceLimits(physics, data) {
   const { bodies } = data;
   for (const [pk, ck, lk] of LIMIT_ORDER) {
     const pb = bodies[pk], cb = bodies[ck];
-    // A segment that is touching the floor is left ALONE — no clamp at all.
-    // Hard-teleporting a body that's pinned by a ground contact is the
-    // explosion (worst when one foot lands before the other); the soft path was
-    // worse still. The physics handles the contacting limb; every airborne
-    // segment is clamped exactly like the near-perfect baseline.
-    if (physics.bodyTouching(cb)) continue;
     const p = physics.bodyTransform(pb);
     const c = physics.bodyTransform(cb);
     _qP.set(p.q.x, p.q.y, p.q.z, p.q.w);
@@ -241,13 +246,28 @@ export function enforceLimits(physics, data) {
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    if (Math.abs(_qOrig.dot(_qRel)) < 0.99995) { // was outside the allowed range
-      _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
-      physics.setBodyRotation(cb, _qNew);
-      physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)
-      const w = physics.angularVelocity(cb);     // kill the energy at the stop
-      physics.setAngularVelocity(cb, { x: w.x * 0.2, y: w.y * 0.2, z: w.z * 0.2 });
-    }
+    if (Math.abs(_qOrig.dot(_qRel)) >= 0.99995) continue; // within the cone
+
+    // correction rotation (parent frame) from the current relative orientation
+    // back to the clamped one, as an axis (world) + angle (how far past).
+    _qInv.copy(_qOrig).invert();
+    _qNew.multiplyQuaternions(_qRel, _qInv);
+    if (_qNew.w < 0) { _qNew.x = -_qNew.x; _qNew.y = -_qNew.y; _qNew.z = -_qNew.z; _qNew.w = -_qNew.w; }
+    const sin = Math.sqrt(Math.max(0, 1 - _qNew.w * _qNew.w));
+    if (sin < 1e-4) continue;
+    const angle = 2 * Math.acos(Math.min(1, _qNew.w));
+    _axisV.set(_qNew.x / sin, _qNew.y / sin, _qNew.z / sin).applyQuaternion(_qP); // world axis
+
+    // relative angular velocity (child - parent) projected on the stop axis
+    const wc = physics.angularVelocity(cb), wp = physics.angularVelocity(pb);
+    const wRel = (wc.x - wp.x) * _axisV.x + (wc.y - wp.y) * _axisV.y + (wc.z - wp.z) * _axisV.z;
+
+    // one-sided spring+damper: only ever push back toward the limit
+    let mag = LIMIT_STIFF * angle - LIMIT_DAMP * wRel;
+    if (mag <= 0) continue;
+    const tx = _axisV.x * mag, ty = _axisV.y * mag, tz = _axisV.z * mag;
+    physics.applyTorqueImpulse(cb, { x: tx, y: ty, z: tz });
+    physics.applyTorqueImpulse(pb, { x: -tx, y: -ty, z: -tz });
   }
 }
 

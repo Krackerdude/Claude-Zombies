@@ -179,6 +179,12 @@ export class PhysicsManager {
     handle?.body?.applyImpulse({ x: imp.x, y: imp.y, z: imp.z }, true);
   }
 
+  /** Angular impulse about the body's centre of mass — used as a spring/damper
+   *  joint-limit stop (a torque can't detonate a contact the way a teleport can). */
+  applyTorqueImpulse(handle, t) {
+    handle?.body?.applyTorqueImpulse({ x: t.x, y: t.y, z: t.z }, true);
+  }
+
   setLinearVelocity(handle, v) {
     handle?.body?.setLinvel({ x: v.x, y: v.y, z: v.z }, true);
   }
