@@ -205,12 +205,6 @@ export function buildRagdoll(rig, physics, c, t) {
 }
 
 // Joint -> ROM table, in the order limits must be enforced (a parent before its
-// A segment whose body origin is below this height is treated as "on/near the
-// floor" and is exempt from hard limit-enforcement (so it can't fight a ground
-// contact). Well above a lying corpse's segment heights (~0.1-0.15), well below
-// an upright/falling one's.
-const GROUND_GATE = 0.55;
-
 // children, so children read the already-corrected parent orientation).
 const LIMIT_ORDER = [
   ['pelvis', 'torso', 'torso'],
@@ -233,6 +227,18 @@ const LIMIT_ORDER = [
  */
 export function enforceLimits(physics, data) {
   const { bodies } = data;
+  // Decide hard-vs-soft ONCE for the whole corpse, by actual ground contact.
+  // The moment ANY segment touches the floor, the entire body uses the soft
+  // (velocity) path — never a hard teleport. Hard-teleporting an air segment
+  // while another segment is pinned by a contact tugs through the joints into
+  // that contact and explodes; it's worst when ONE foot lands before the other
+  // (one leg hard, the planted leg's contact pinned). A per-corpse decision
+  // keeps both legs in the same mode so that asymmetric landing stays stable.
+  let grounded = false;
+  for (const k in bodies) {
+    if (physics.bodyTouching(bodies[k])) { grounded = true; break; }
+  }
+
   for (const [pk, ck, lk] of LIMIT_ORDER) {
     const pb = bodies[pk], cb = bodies[ck];
     const p = physics.bodyTransform(pb);
@@ -245,8 +251,8 @@ export function enforceLimits(physics, data) {
     clampSwingTwist(_qRel, ROM[lk]);
     const past = Math.abs(_qOrig.dot(_qRel)) < 0.99995; // outside the allowed range
 
-    if (c.p.y < GROUND_GATE) {
-      // ON THE GROUND: never hard-set a contacting body (that's the explosion).
+    if (grounded) {
+      // CORPSE IS ON THE GROUND: never hard-set any body (that's the explosion).
       // Damp it hard (kills the settle jitter) and, if it's past a limit, steer
       // it back GENTLY via angular velocity only — a ground contact resolves a
       // velocity change normally instead of fighting an impossible teleport.
