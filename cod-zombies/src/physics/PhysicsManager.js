@@ -5,6 +5,10 @@ import { PhysicsConfig } from '../config/index.js';
 // 0xFFFF membership covers it), ACTOR = player/zombie capsules, RAGDOLL = corpse
 // segments. Actors collide with ENV + ACTOR (not ragdolls, so corpses can't
 // block/shove them); ragdolls collide with ENV + other RAGDOLLs (terrain + piles).
+// Physics substeps per game tick. 2 => effective ~120Hz, which catches fast
+// limb/ground contacts before deep penetration (no explosive bounce-out).
+const SUBSTEPS = 2;
+
 const ENV = 0x0001, ACTOR = 0x0002, RAGDOLL = 0x0004;
 const GROUP_ACTOR = (ACTOR << 16) | (ENV | ACTOR);
 const GROUP_RAGDOLL = (RAGDOLL << 16) | (ENV | RAGDOLL);
@@ -53,7 +57,12 @@ export class PhysicsManager {
   constructor() {
     const g = PhysicsConfig.gravity;
     this.world = new RAPIER.World(new RAPIER.Vector3(g.x, g.y, g.z));
-    this.world.timestep = PhysicsConfig.fixedStep;
+    // Run the simulation at 2x the game's fixed tick (effective ~120Hz) by
+    // stepping the world twice per update with a half timestep. The finer step
+    // catches a fast-falling limb's ground contact BEFORE it penetrates deep,
+    // so the solver doesn't have to fire a big explosive correction (the
+    // bounce/flip on landing). Total simulated time per tick is unchanged.
+    this.world.timestep = PhysicsConfig.fixedStep / SUBSTEPS;
     // More solver iterations keep the ragdoll's offset-COM limbs (long boxes on
     // position-only spherical joints) from oscillating — kills the in-air
     // jitter. The kinematic player is controller-driven, so it's unaffected.
@@ -70,7 +79,7 @@ export class PhysicsManager {
   }
 
   step() {
-    this.world.step();
+    for (let i = 0; i < SUBSTEPS; i++) this.world.step();
   }
 
   // --- body factories -----------------------------------------------------
