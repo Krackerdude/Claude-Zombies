@@ -130,6 +130,8 @@ export class WeaponSystem extends System {
   #meleeCd = 0;
   #meleeTarget = null;
   #cooking = false;
+  #tacticalCooking = false;
+  #tacticalCookT = 0;
   #time;
   #drinkActive = false;
   #drinkT = 0;
@@ -173,6 +175,7 @@ export class WeaponSystem extends System {
     this.#nav = this.world.services.get(Service.Nav);
     this.#time = this.world.services.get(Service.Time);
     this.#events.on('gadget:cook', ({ active }) => { this.#cooking = active; });
+    this.#events.on('tactical:cook', ({ active }) => { this.#tacticalCooking = active; });
     // route every explosion through the shared FX (fiery for frag/rocket, purple for PHD)
     this.#events.on('fx:explosion', (e) => {
       if (!this.#fx) return;
@@ -248,7 +251,7 @@ export class WeaponSystem extends System {
     // melee (F): lowers the gun + knife slash; suppresses firing/aiming
     const meleeing = this.#tickMelee(dt);
     const pk = this.#perks;
-    const busy = meleeing || this.#cooking || this.#swapT > 0 || (pk && (pk.drinking || pk.downed)); // gun stowed / out of action
+    const busy = meleeing || this.#cooking || this.#tacticalCooking || this.#swapT > 0 || (pk && (pk.drinking || pk.downed)); // gun stowed / out of action
 
     // can't aim while sprinting/sliding/diving (or mid-melee/cook/drink)
     const blocked = player.state === MoveState.SPRINT || player.state === MoveState.SLIDE || player.state === MoveState.DIVE;
@@ -289,6 +292,7 @@ export class WeaponSystem extends System {
     const speed = player ? Math.hypot(player.velocity.x, player.velocity.z) : 0;
     if (this.#drinkActive) this.#drinkT += dt; else this.#drinkT = 0;
     if (this.#cooking) this.#cookT += dt; else this.#cookT = 0;
+    if (this.#tacticalCooking) this.#tacticalCookT += dt; else this.#tacticalCookT = 0;
     // drink camera move: lean head back during the chug, snap + roll-jerk on the toss
     if (player) {
       if (this.#drinkActive) {
@@ -315,6 +319,7 @@ export class WeaponSystem extends System {
       prone: !!player && player.state === MoveState.PRONE,
       melee: this.#meleeTimer > 0 ? 1 - this.#meleeTimer / MELEE_TIME : 0,
       cook: this.#cooking ? { t: this.#cookT } : null,
+      tacticalCook: this.#tacticalCooking ? { t: this.#tacticalCookT } : null,
       drink: this.#drinkActive ? { t: this.#drinkT, color: this.#drinkColor } : null,
       swayMul: pk ? pk.swayMul() : 1,
       swapDown: this.#swapDown(),
