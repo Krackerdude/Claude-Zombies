@@ -175,16 +175,21 @@ export function buildRagdoll(rig, physics, c, t) {
   // solver and detonates the ragdoll). The whole corpse pitches in the shot
   // direction and rolls a little, then gravity + terrain take over.
   const launch = { x: c.vx, y: Math.max(1.0, c.vy), z: c.vz };
-  // ONE gentle tumble shared by the whole corpse — axis horizontal and
-  // perpendicular to the push, so it face-plants / back-flops the way it was
-  // hit, with a touch of roll. Kept small so the joints don't have to fight a
-  // violent spin (that was the "tweak for a second" twitch). Gravity does most
-  // of the toppling.
-  const tumble = {
-    x: c.vz * 0.5 + rand(0.3),
-    y: rand(0.5),
-    z: -c.vx * 0.5 + rand(0.3),
-  };
+  // ONE shared tumble — axis horizontal and perpendicular to the push, so it
+  // face-plants / back-flops the way it was hit, with a touch of roll. The OLD
+  // version scaled with the (variable, sometimes large) kill force and had a
+  // big random term, so the SAME shot could roll a gentle topple OR a violent
+  // spin — the 50/50 — and a fast spin whips a limb hard enough to tunnel.
+  // Smaller coefficients + a HARD CAP on the total spin standardise it: every
+  // corpse gets a consistent gentle tumble, none can ever spin fast. Gravity
+  // does the real toppling.
+  const SPIN_CAP = 1.3; // rad/s ceiling on launch spin
+  let tx = c.vz * 0.28 + rand(0.18);
+  let ty = rand(0.22);
+  let tz = -c.vx * 0.28 + rand(0.18);
+  const tmag = Math.hypot(tx, ty, tz);
+  if (tmag > SPIN_CAP) { const k = SPIN_CAP / tmag; tx *= k; ty *= k; tz *= k; }
+  const tumble = { x: tx, y: ty, z: tz };
   for (const key in bodies) {
     physics.setLinearVelocity(bodies[key], launch);
     physics.setAngularVelocity(bodies[key], tumble);
