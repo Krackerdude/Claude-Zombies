@@ -227,18 +227,6 @@ const LIMIT_ORDER = [
  */
 export function enforceLimits(physics, data) {
   const { bodies } = data;
-  // Decide hard-vs-soft ONCE for the whole corpse, by actual ground contact.
-  // The moment ANY segment touches the floor, the entire body uses the soft
-  // (velocity) path — never a hard teleport. Hard-teleporting an air segment
-  // while another segment is pinned by a contact tugs through the joints into
-  // that contact and explodes; it's worst when ONE foot lands before the other
-  // (one leg hard, the planted leg's contact pinned). A per-corpse decision
-  // keeps both legs in the same mode so that asymmetric landing stays stable.
-  let grounded = false;
-  for (const k in bodies) {
-    if (physics.bodyTouching(bodies[k])) { grounded = true; break; }
-  }
-
   for (const [pk, ck, lk] of LIMIT_ORDER) {
     const pb = bodies[pk], cb = bodies[ck];
     const p = physics.bodyTransform(pb);
@@ -251,8 +239,13 @@ export function enforceLimits(physics, data) {
     clampSwingTwist(_qRel, ROM[lk]);
     const past = Math.abs(_qOrig.dot(_qRel)) < 0.99995; // outside the allowed range
 
-    if (grounded) {
-      // CORPSE IS ON THE GROUND: never hard-set any body (that's the explosion).
+    // Gate THIS segment only, by ITS OWN ground contact. A segment touching the
+    // floor must never be hard-teleported — that fights its contact and
+    // explodes (worst when one foot lands before the other). It gets the soft
+    // velocity path instead. Every airborne segment still gets the normal hard
+    // clamp, so the falling pose is shaped exactly like the baseline.
+    if (physics.bodyTouching(cb)) {
+      // THIS SEGMENT is on the floor: never hard-set it (that's the explosion).
       // Damp it hard (kills the settle jitter) and, if it's past a limit, steer
       // it back GENTLY via angular velocity only — a ground contact resolves a
       // velocity change normally instead of fighting an impossible teleport.
