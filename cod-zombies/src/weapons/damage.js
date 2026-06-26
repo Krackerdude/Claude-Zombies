@@ -9,7 +9,7 @@ import { Service } from '../core/ServiceLocator.js';
  * `opts.dir` is the killing bullet's direction — used to launch the ragdoll.
  * Returns true if this hit was the killing blow.
  */
-export function damageZombie(ctx, id, amount, { award = true, headshot = false, dir = null, force = 1, part = null, knockChance = 0 } = {}) {
+export function damageZombie(ctx, id, amount, { award = true, headshot = false, dir = null, force = 1, part = null, knockChance = 0, flinchScale = 1 } = {}) {
   const z = ctx.world.get(id, ZombieTag);
   if (!z || z.state === 'dead') return false;
 
@@ -40,7 +40,10 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
   } else {
     // --- survived the hit: localized flinch (scaled by the gun's damage), and
     //     maybe an explosion knockdown ---
-    const f = Math.min(1.3, ZombieConfig.flinchMin + amount * ZombieConfig.flinchPerDamage + (headshot ? 0.2 : 0));
+    // flinchScale << 1 for automatic/burst weapons, so rapid fire doesn't make
+    // them undulate; the cap + gentler per-damage slope keep caliber from
+    // dominating the reaction.
+    const f = Math.min(1.1, ZombieConfig.flinchMin + amount * ZombieConfig.flinchPerDamage + (headshot ? 0.2 : 0)) * flinchScale;
     // every hit (re)fires the impulse so rapid fire keeps them visibly rocking
     z.flinch = Math.max(f, z.flinch * 0.6);
     z.flinchT = 0;
