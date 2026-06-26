@@ -25,16 +25,11 @@ import * as THREE from 'three';
 // settle on the ground instead of catching on box corners and vibrating; the
 // torso/pelvis stay boxes (they come to rest on a broad flat face — stable).
 const SEG = {
-  // rounded boxes (border radius) so the heavy trunk can't balance on a sharp
-  // corner and prop the whole corpse up — it rolls onto a flat face and settles
-  pelvis: { shape: { type: 'box', hx: 0.12, hy: 0.06, hz: 0.08, round: 0.05 }, off: { x: 0, y: -0.02, z: 0 }, mass: 24 },
-  torso: { shape: { type: 'box', hx: 0.15, hy: 0.21, hz: 0.08, round: 0.05 }, off: { x: 0, y: 0.20, z: 0 }, mass: 16 },
+  pelvis: { shape: { type: 'box', hx: 0.17, hy: 0.10, hz: 0.12 }, off: { x: 0, y: -0.02, z: 0 }, mass: 30 },
+  torso: { shape: { type: 'box', hx: 0.20, hy: 0.26, hz: 0.13 }, off: { x: 0, y: 0.20, z: 0 }, mass: 16 },
   head: { shape: { type: 'ball', radius: 0.13 }, off: { x: 0, y: 0.18, z: 0 }, mass: 5 },
-  // capsule reaches from the shoulder pivot down past the hand (~0.67 m total)
-  arm: { shape: { type: 'capsule', halfHeight: 0.28, radius: 0.075 }, off: { x: 0, y: -0.32, z: 0 }, mass: 3 },
-  // capsule reaches from the hip pivot all the way to the foot (~0.92 m total),
-  // so the SHIN + FOOT have collision and don't punch through the floor
-  leg: { shape: { type: 'capsule', halfHeight: 0.36, radius: 0.10 }, off: { x: 0, y: -0.46, z: 0 }, mass: 6 },
+  arm: { shape: { type: 'capsule', halfHeight: 0.26, radius: 0.075 }, off: { x: 0, y: -0.30, z: 0 }, mass: 3 },
+  leg: { shape: { type: 'capsule', halfHeight: 0.32, radius: 0.10 }, off: { x: 0, y: -0.42, z: 0 }, mass: 6 },
 };
 
 // Anatomical range-of-motion per driven joint, measured from the neutral
@@ -44,16 +39,10 @@ const SEG = {
 // driving the rig into impossible poses — most importantly the head no longer
 // spins in circles (its twist is clamped to a small range). Radians.
 const ROM = {
-  // A single max cone half-angle (radians) the joint may deviate from its
-  // neutral pose, in ANY direction. One simple, singularity-free number per
-  // joint — no swing/twist split. The spine is generous (deep forward fold);
-  // the limbs are tight so a limp arm/leg just hangs near the body and can't
-  // swing across into the torso, and the head can't loll/turn far enough to
-  // bury in the chest or spin.
-  torso: 1.30,
-  head: 0.80,
-  arm: 1.00,
-  leg: 1.00,
+  torso: { swing: 0.55, twistMin: -0.45, twistMax: 0.45 }, // spine: small lean/rotate
+  head: { swing: 0.85, twistMin: -0.70, twistMax: 0.70 },  // neck: nod/tilt, limited turn
+  arm: { swing: 1.85, twistMin: -1.20, twistMax: 1.20 },   // shoulder: very mobile
+  leg: { swing: 1.20, twistMin: -0.55, twistMax: 0.55 },   // hip: forward/back, little splay
 };
 
 const _v = new THREE.Vector3();
@@ -61,35 +50,51 @@ const _q = new THREE.Quaternion();
 const _qParentInv = new THREE.Quaternion();
 const _qChild = new THREE.Quaternion();
 const _qLocal = new THREE.Quaternion();
+const _twist = new THREE.Quaternion();
+const _swing = new THREE.Quaternion();
+const _qTmp = new THREE.Quaternion();
+const _qP = new THREE.Quaternion();
+const _qC = new THREE.Quaternion();
+const _qRel = new THREE.Quaternion();
+const _qOrig = new THREE.Quaternion();
+const _qNew = new THREE.Quaternion();
 const _hipOffset = new THREE.Vector3();
-const _bbox = new THREE.Box3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
 
 /**
- * Clamp a rotation so it deviates at most `maxAngle` from identity, in place.
- * If it's already within the cone, untouched; otherwise it's pulled back along
- * the SAME (shortest-arc) axis to exactly the boundary. This is continuous
- * everywhere — no swing/twist decomposition, so no singularity that flips
- * frame-to-frame (that was making the rendered limbs twist + vibrate).
+ * Clamp a joint-local rotation to a swing cone + twist range about the limb's
+ * long axis (local Y), in place. Swing-twist decomposition: split the rotation
+ * into a turn AROUND Y (twist) and the remaining tip AWAY from Y (swing), clamp
+ * each, recombine. Keeps the rendered skeleton anatomically plausible no matter
+ * what the free physics body does.
  */
-function clampCone(q, maxAngle) {
-  if (q.w < 0) { q.x = -q.x; q.y = -q.y; q.z = -q.z; q.w = -q.w; } // shortest arc, w>=0
-  const cosHalf = Math.cos(maxAngle * 0.5);
-  if (q.w >= cosHalf) return;                  // within the cone
-  const vlen = Math.hypot(q.x, q.y, q.z);
-  if (vlen < 1e-6) return;                      // ~180deg, axis ill-defined; leave it
-  const s = Math.sin(maxAngle * 0.5) / vlen;    // rescale axis part to the boundary
-  q.set(q.x * s, q.y * s, q.z * s, cosHalf);
-}
+function clampSwingTwist(q, lim) {
+  if (q.w < 0) { q.x = -q.x; q.y = -q.y; q.z = -q.z; q.w = -q.w; } // shortest arc
+  // twist = component around Y
+  const tl = Math.hypot(q.y, q.w);
+  if (tl < 1e-6) _twist.set(0, 0, 0, 1);
+  else _twist.set(0, q.y / tl, 0, q.w / tl);
+  // swing = q * twist^-1  (twist is unit -> inverse is conjugate)
+  _swing.copy(q).multiply(_qTmp.set(0, -_twist.y, 0, _twist.w));
 
-/** Clamp a rig joint's LOCAL rotation into its anatomical cone in place (used
- *  once at spawn so the ragdoll starts within limits instead of reeling in). */
-function clampJointLocal(joint, maxAngle) {
-  if (!joint) return;
-  _qLocal.copy(joint.quaternion);
-  clampCone(_qLocal, maxAngle);
-  joint.quaternion.copy(_qLocal);
+  // clamp swing cone
+  let sw = Math.min(1, Math.abs(_swing.w));
+  const swingAngle = 2 * Math.acos(sw);
+  if (swingAngle > lim.swing) {
+    const axisLen = Math.hypot(_swing.x, _swing.z); // y ~ 0 after decomposition
+    if (axisLen > 1e-6) {
+      const half = lim.swing * 0.5;
+      const s = Math.sin(half) / axisLen * (_swing.w < 0 ? -1 : 1);
+      _swing.set(_swing.x * s, 0, _swing.z * s, Math.cos(half));
+    }
+  }
+  // clamp twist around Y
+  let twistAngle = 2 * Math.atan2(_twist.y, _twist.w);
+  const cl = Math.min(lim.twistMax, Math.max(lim.twistMin, twistAngle));
+  if (cl !== twistAngle) _twist.set(0, Math.sin(cl * 0.5), 0, Math.cos(cl * 0.5));
+
+  q.copy(_swing).multiply(_twist);
 }
 
 /**
@@ -107,21 +112,9 @@ export function buildRagdoll(rig, physics, c, t) {
   rig.quaternion.copy(t.quaternion);
   rig.updateMatrixWorld(true);
 
-  // CLAMP the death pose into anatomical range up-front. A zombie dies
-  // mid-animation (arms raised, twisted), so the bodies would otherwise spawn
-  // well outside their joint limits and visibly "compress/untwist" back into
-  // range over the first half-second. Clamping the rig's joints here means the
-  // ragdoll STARTS already-natural and just flops under gravity.
-  clampJointLocal(J.torso, ROM.torso);
-  clampJointLocal(J.head, ROM.head);
-  clampJointLocal(J.shoulderL, ROM.arm);
-  clampJointLocal(J.shoulderR, ROM.arm);
-  clampJointLocal(J.thighL, ROM.leg);
-  clampJointLocal(J.thighR, ROM.leg);
-  rig.updateMatrixWorld(true); // re-bake with the clamped pose before spawning
-
-  // every segment collides with the environment only (default ragdoll group):
-  // no corpse-corpse, no player, no self collision
+  // one collision group for the whole corpse: it piles on terrain + other
+  // corpses but never self-collides (overlapping limb boxes would detonate it)
+  const group = physics.allocRagdollGroup();
   const make = (joint, spec) => {
     joint.getWorldPosition(_v);
     joint.getWorldQuaternion(_q);
@@ -129,7 +122,7 @@ export function buildRagdoll(rig, physics, c, t) {
       { x: _v.x, y: _v.y, z: _v.z },
       { x: _q.x, y: _q.y, z: _q.z, w: _q.w },
       spec.shape,
-      { mass: spec.mass, offset: spec.off },
+      { mass: spec.mass, offset: spec.off, group },
     );
   };
 
@@ -160,17 +153,16 @@ export function buildRagdoll(rig, physics, c, t) {
   // joints don't have to reconcile wildly conflicting spins (that fights the
   // solver and detonates the ragdoll). The whole corpse pitches in the shot
   // direction and rolls a little, then gravity + terrain take over.
-  // Mostly a crumple in place: a gentle horizontal shove in the shot direction
-  // and only a tiny upward pop (so they don't start sunk). Big launches were
-  // sending them airborne enough to backflip and to slam down hard.
-  const clamp = (v, a) => Math.max(-a, Math.min(a, v));
-  const launch = { x: c.vx * 0.5, y: Math.min(0.6, Math.max(0.15, c.vy * 0.3)), z: c.vz * 0.5 };
-  // ONE small shared tumble, axis horizontal + perpendicular to the push so it
-  // topples the way it was hit; capped low so it never cartwheels over.
+  const launch = { x: c.vx, y: Math.max(1.0, c.vy), z: c.vz };
+  // ONE gentle tumble shared by the whole corpse — axis horizontal and
+  // perpendicular to the push, so it face-plants / back-flops the way it was
+  // hit, with a touch of roll. Kept small so the joints don't have to fight a
+  // violent spin (that was the "tweak for a second" twitch). Gravity does most
+  // of the toppling.
   const tumble = {
-    x: clamp(c.vz * 0.25 + rand(0.15), 0.9),
-    y: rand(0.2),
-    z: clamp(-c.vx * 0.25 + rand(0.15), 0.9),
+    x: c.vz * 0.5 + rand(0.3),
+    y: rand(0.5),
+    z: -c.vx * 0.5 + rand(0.3),
   };
   for (const key in bodies) {
     physics.setLinearVelocity(bodies[key], launch);
@@ -185,22 +177,64 @@ export function buildRagdoll(rig, physics, c, t) {
   return { bodies, joints, hipY };
 }
 
+// Joint -> ROM table, in the order limits must be enforced (a parent before its
+// children, so children read the already-corrected parent orientation).
+const LIMIT_ORDER = [
+  ['pelvis', 'torso', 'torso'],
+  ['torso', 'head', 'head'],
+  ['torso', 'armL', 'arm'],
+  ['torso', 'armR', 'arm'],
+  ['pelvis', 'legL', 'leg'],
+  ['pelvis', 'legR', 'leg'],
+];
+
+/**
+ * Enforce anatomical joint limits on the PHYSICS bodies (Rapier spherical
+ * joints are free ball joints with no stops, so without this the corpse settles
+ * into impossible poses — torso balanced upright, limbs splayed up). Each step,
+ * for every joint we measure the child's orientation relative to its parent; if
+ * it's outside the swing cone / twist range we snap it back to the boundary and
+ * bleed off the angular velocity that drove it past, exactly like a joint stop.
+ * Because the bodies themselves stay in range, the visual (which follows them
+ * 1:1) lies flat instead of clipping/contorting.
+ */
+export function enforceLimits(physics, data) {
+  const { bodies } = data;
+  for (const [pk, ck, lk] of LIMIT_ORDER) {
+    const pb = bodies[pk], cb = bodies[ck];
+    const p = physics.bodyTransform(pb);
+    const c = physics.bodyTransform(cb);
+    _qP.set(p.q.x, p.q.y, p.q.z, p.q.w);
+    _qC.set(c.q.x, c.q.y, c.q.z, c.q.w);
+    _qParentInv.copy(_qP).invert();
+    _qRel.multiplyQuaternions(_qParentInv, _qC);
+    _qOrig.copy(_qRel);
+    clampSwingTwist(_qRel, ROM[lk]);
+    if (Math.abs(_qOrig.dot(_qRel)) < 0.99995) { // was outside the allowed range
+      _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
+      physics.setBodyRotation(cb, _qNew);
+      physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)
+      const w = physics.angularVelocity(cb);     // kill the energy at the stop
+      physics.setAngularVelocity(cb, { x: w.x * 0.2, y: w.y * 0.2, z: w.z * 0.2 });
+    }
+  }
+}
+
 /**
  * Read the simulated bodies back onto the rig. The pelvis body is authoritative
  * for the root transform (written into the Transform so render interpolation
  * still works); every other driven joint's LOCAL rotation is the relative
- * rotation between its parent and child body, CLAMPED to its anatomical range.
- *
- * Crucially the clamp is applied to the RENDERED skeleton only — the physics
- * bodies are never touched. They're free spherical joints + gravity, which is
- * rock-stable and never spazzes; we just don't *draw* the limbs anywhere a real
- * body couldn't put them. So even if a body sags into the torso or spins, the
- * visible limb stays out of the body and the head can't rotate past its range.
+ * rotation between its parent body and its own body, so the rig tracks the
+ * physics articulation 1:1 (no separate visual clamp — the bodies are already
+ * within their limits, so the rig can't diverge from where they actually rest).
  */
 export function syncRagdoll(rig, t, data, physics) {
   const J = rig.userData?.joints;
   if (!J || !data) return;
   const { bodies } = data;
+
+  // keep the physics bodies anatomically posed first, then mirror them
+  enforceLimits(physics, data);
 
   const pelvis = physics.bodyTransform(bodies.pelvis);
   const pelvisQ = _qParentInv.set(pelvis.q.x, pelvis.q.y, pelvis.q.z, pelvis.q.w);
@@ -214,39 +248,23 @@ export function syncRagdoll(rig, t, data, physics) {
   J.hips.position.set(0, data.hipY, 0);
   J.hips.rotation.set(0, 0, 0);
 
-  // childLocal = parentBodyQuat^-1 * childBodyQuat, then CLAMP it to the joint's
-  // anatomical range before drawing (visual only — physics is untouched)
-  const drive = (joint, parentBody, childBody, lim) => {
+  // childLocal = parentBodyQuat^-1 * childBodyQuat (bodies already within ROM)
+  const drive = (joint, parentBody, childBody) => {
     const p = physics.bodyTransform(parentBody);
     const cc = physics.bodyTransform(childBody);
     _qParentInv.set(p.q.x, p.q.y, p.q.z, p.q.w).invert();
     _qChild.set(cc.q.x, cc.q.y, cc.q.z, cc.q.w);
     _qLocal.multiplyQuaternions(_qParentInv, _qChild);
-    clampCone(_qLocal, lim);
     joint.quaternion.copy(_qLocal);
   };
 
-  drive(J.torso, bodies.pelvis, bodies.torso, ROM.torso);
-  drive(J.head, bodies.torso, bodies.head, ROM.head);
-  drive(J.shoulderL, bodies.torso, bodies.armL, ROM.arm);
-  drive(J.shoulderR, bodies.torso, bodies.armR, ROM.arm);
-  drive(J.thighL, bodies.pelvis, bodies.legL, ROM.leg);
-  drive(J.thighR, bodies.pelvis, bodies.legR, ROM.leg);
-
-  // floor backstop: whatever the physics settled to, never let the RENDERED
-  // corpse sink below the ground. Bake the rig at the new pose, take its true
-  // world bounding box, and if its LOWEST vertex is under the floor lift the
-  // whole rig straight up by exactly that much (vertical only — the pose is
-  // untouched). Using the AABB (not sampled joints) means no part — thick torso,
-  // lower leg, anything — can poke through, however the bodies actually settled.
-  rig.position.copy(t.position);
-  rig.quaternion.copy(t.quaternion);
-  rig.updateMatrixWorld(true);
-  _bbox.setFromObject(rig);
-  if (_bbox.min.y < FLOOR_Y) t.position.y += FLOOR_Y - _bbox.min.y;
+  drive(J.torso, bodies.pelvis, bodies.torso);
+  drive(J.head, bodies.torso, bodies.head);
+  drive(J.shoulderL, bodies.torso, bodies.armL);
+  drive(J.shoulderR, bodies.torso, bodies.armR);
+  drive(J.thighL, bodies.pelvis, bodies.legL);
+  drive(J.thighR, bodies.pelvis, bodies.legR);
 }
-
-const FLOOR_Y = 0.0;
 
 /** Tear down all bodies + joints (freezes the rig in its last simulated pose). */
 export function disposeRagdoll(physics, data) {

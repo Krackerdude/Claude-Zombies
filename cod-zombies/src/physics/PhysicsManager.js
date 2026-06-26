@@ -7,12 +7,13 @@ import { PhysicsConfig } from '../config/index.js';
 // block/shove them); ragdolls collide with ENV + other RAGDOLLs (terrain + piles).
 const ENV = 0x0001, ACTOR = 0x0002, RAGDOLL = 0x0004;
 const GROUP_ACTOR = (ACTOR << 16) | (ENV | ACTOR);
-// Ragdoll corpses collide ONLY with the environment (terrain/walls): their
-// filter is ENV alone, so they never touch the player/zombie capsules (ACTOR),
-// each other, or their own overlapping limb segments. Corpse-corpse and
-// self-collision were the main sources of ground "tweak-out", and gameplay
-// wants the dead to be non-interactive props anyway.
-const GROUP_RAGDOLL = (RAGDOLL << 16) | ENV;
+const GROUP_RAGDOLL = (RAGDOLL << 16) | (ENV | RAGDOLL);
+// Ragdoll INSTANCE groups: bits 2..15 form a rotating pool. A corpse's seven
+// segments all share one instance bit; their filter is ENV + every OTHER
+// instance bit, so a corpse collides with terrain + other corpses (piles up)
+// but NOT with its own siblings — the limb boxes overlap heavily at the joints,
+// and self-collision there just makes the solver detonate the ragdoll.
+const RAGDOLL_ALL = 0xFFFC; // bits 2..15
 
 /** World point -> a body's local frame (conjugate-quat rotate of the offset). */
 function _localAnchor(w, p, q) {
@@ -53,10 +54,10 @@ export class PhysicsManager {
     const g = PhysicsConfig.gravity;
     this.world = new RAPIER.World(new RAPIER.Vector3(g.x, g.y, g.z));
     this.world.timestep = PhysicsConfig.fixedStep;
-    // More solver iterations keep the ragdoll's offset-COM limbs on
-    // position-only spherical joints from oscillating — kills the in-air
+    // More solver iterations keep the ragdoll's offset-COM limbs (long boxes on
+    // position-only spherical joints) from oscillating — kills the in-air
     // jitter. The kinematic player is controller-driven, so it's unaffected.
-    this.world.numSolverIterations = 14;
+    this.world.numSolverIterations = 12;
 
     // A reusable character controller for kinematic capsules (player, later
     // possibly humanoid zombies). offset = skin width.
@@ -127,6 +128,18 @@ export class PhysicsManager {
   // Flag the facade so callers can fall back to the procedural corpse when the
   // physics backend is a headless stub that lacks these.
   ragdollCapable = true;
+  #ragdollGroupCursor = 0;
+
+  /** Allocate the next per-corpse collision group (membership = one instance
+   *  bit, filter = ENV + all OTHER instance bits). Pass the result to every
+   *  segment of one ragdoll so it piles on terrain/other corpses but never
+   *  self-collides. */
+  allocRagdollGroup() {
+    const bit = 1 << (2 + (this.#ragdollGroupCursor++ % 14)); // 0x0004..0x8000
+    const membership = bit;
+    const filter = ENV | (RAGDOLL_ALL & ~bit);
+    return ((membership << 16) | filter) >>> 0;
+  }
 
   /** A dynamic limb segment for a ragdoll: collides with the world + other
    *  ragdolls (RAGDOLL group), but NOT with actors, so corpses don't block the
@@ -139,18 +152,15 @@ export class PhysicsManager {
   createRagdollPart(position, quat, shape, { mass = null, density = 1.1, offset = null, group = GROUP_RAGDOLL } = {}) {
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(position.x, position.y, position.z)
-      .setLinearDamping(0.55)
-      .setAngularDamping(0.9);
+      .setLinearDamping(0.4)
+      .setAngularDamping(0.85);
     if (quat) bodyDesc.setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w });
     const body = this.world.createRigidBody(bodyDesc);
     let cd;
     if (shape.type === 'capsule') cd = RAPIER.ColliderDesc.capsule(shape.halfHeight, shape.radius);
     else if (shape.type === 'ball') cd = RAPIER.ColliderDesc.ball(shape.radius);
-    else if (shape.round) cd = RAPIER.ColliderDesc.roundCuboid(shape.hx, shape.hy, shape.hz, shape.round);
     else cd = RAPIER.ColliderDesc.cuboid(shape.hx, shape.hy, shape.hz);
-    // moderate friction: too much grabs a planted foot/hand on a moving corpse
-    // and trips it into a flip; too little and it slides forever
-    cd.setRestitution(0.0).setFriction(0.5).setCollisionGroups(group);
+    cd.setRestitution(0.0).setFriction(0.95).setCollisionGroups(group);
     if (offset) cd.setTranslation(offset.x, offset.y, offset.z);
     const collider = this.world.createCollider(cd, body);
     if (mass != null) collider.setMass(mass); else collider.setDensity(density);
