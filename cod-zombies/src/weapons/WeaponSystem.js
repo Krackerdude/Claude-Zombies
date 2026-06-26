@@ -23,6 +23,8 @@ function dismemberChanceFor(damage) {
   return 0.10 + t * 0.15;
 }
 
+const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
 const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _up = new THREE.Vector3();
@@ -37,6 +39,8 @@ const _muz = new THREE.Vector3();
 const _nrm = new THREE.Vector3();
 const _col = new THREE.Color();
 const _explo = new THREE.Vector3();
+const _ja = new THREE.Vector3(); // bone-hitbox joint A
+const _jb = new THREE.Vector3(); // bone-hitbox joint B
 
 // explosion palettes — frag/rocket burn fiery, PHD goes purple
 const EXPLO = {
@@ -99,9 +103,6 @@ function makeEnergyBolt(color) {
   return g;
 }
 
-// body hitbox spheres relative to the zombie's feet: [centreY, radius]
-// (head + arms + legs are dedicated, facing-aware spheres in #rayZombies)
-const HITBOXES = [[1.15, 0.34], [0.7, 0.34]]; // chest, pelvis
 
 /**
  * Owns the player's arsenal and turns input into shots. Each frame it builds a
@@ -568,59 +569,101 @@ export class WeaponSystem extends System {
   }
 
   /**
-   * Zombie hits along a ray, nearest-first, each zombie once (penetration). Each
-   * zombie is approximated by a stack of spheres — a dedicated HEAD sphere plus
-   * chest / pelvis / legs — so headshots require actually hitting the head.
-   * Returns { id, tca, headshot }.
+   * Zombie hits along a ray, nearest-first, each zombie once (penetration).
+   * FORM-ACCURATE: the body is a set of capsules along the actual ANIMATED rig
+   * bones — head, chest, waist, and upper+lower arm / thigh+shin per limb — read
+   * live each shot, so the hitboxes track the pose (and the crawl) and a
+   * dismembered limb has none. A cheap bounding-sphere broad-phase skips zombies
+   * the ray can't reach before any matrix work. Returns { id, tca, headshot, part }.
    */
   #rayZombies(o, dir, range) {
     const out = [];
-    const PARTS = ['chest', 'pelvis']; // matches HITBOXES order
+    const ox = o.x, oy = o.y, oz = o.z, dx = dir.x, dy = dir.y, dz = dir.z;
     for (const id of this.world.query(ZombieTag, Transform)) {
       const t = this.world.get(id, Transform);
-      const z = this.world.get(id, ZombieTag);
       const x = t.position.x, py = t.position.y, pz = t.position.z;
+      // broad phase: a single bounding sphere around the whole body
+      if (this.#raySphere(o, dir, x, py + 0.9, pz, 1.3) < 0) continue;
+
+      const z = this.world.get(id, ZombieTag);
+      const rig = this.world.get(id, Renderable)?.object3d;
+      const J = rig?.userData?.joints;
       let best = Infinity, head = false, part = 'chest';
 
-      const th = this.#raySphere(o, dir, x, py + 1.62, pz, 0.24); // head
-      if (th >= 0 && th < best) { best = th; head = true; part = 'head'; }
-      // body: chest, pelvis, shins
-      for (let i = 0; i < HITBOXES.length; i++) {
-        const [cy, cr] = HITBOXES[i];
-        const tb = this.#raySphere(o, dir, x, py + cy, pz, cr);
-        if (tb >= 0 && tb < best) { best = tb; head = false; part = PARTS[i]; }
+      if (J) {
+        // pose the rig at the zombie's authoritative transform so the bone
+        // capsules sit exactly where the body is this tick (render re-syncs it)
+        rig.position.copy(t.position);
+        rig.quaternion.copy(t.quaternion);
+        rig.updateMatrixWorld(true);
+
+        const seg = (pax, pay, paz, pbx, pby, pbz, r, partName, isHead) => {
+          const tt = this.#raySegment(ox, oy, oz, dx, dy, dz, range, pax, pay, paz, pbx, pby, pbz, r);
+          if (tt >= 0 && tt < best) { best = tt; part = partName; head = isHead; }
+        };
+        const bone = (jA, jB, r, partName) => {
+          if (!jA || !jB) return;
+          jA.getWorldPosition(_ja); jB.getWorldPosition(_jb);
+          seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, r, partName, false);
+        };
+
+        // head: neck base -> skull top (dedicated, so headshots need the head)
+        _ja.set(0, 0.04, 0); J.head.localToWorld(_ja);
+        _jb.set(0, 0.30, 0); J.head.localToWorld(_jb);
+        seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, 0.13, 'head', true);
+        // chest: waist -> NECK BASE (stops below the head so its cap can't steal
+        // a headshot), then waist -> hips
+        _ja.set(0, -0.1, 0); J.head.localToWorld(_ja); // neck base
+        J.torso.getWorldPosition(_jb);                 // waist
+        seg(_jb.x, _jb.y, _jb.z, _ja.x, _ja.y, _ja.z, 0.18, 'chest', false);
+        bone(J.hips, J.torso, 0.17, 'pelvis');
+        // arms + legs, only the sections still attached
+        if (z.limbs?.armL) { bone(J.shoulderL, J.elbowL, 0.085, 'armL'); bone(J.elbowL, J.handL, 0.075, 'armL'); }
+        if (z.limbs?.armR) { bone(J.shoulderR, J.elbowR, 0.085, 'armR'); bone(J.elbowR, J.handR, 0.075, 'armR'); }
+        if (z.limbs?.legL) { bone(J.thighL, J.kneeL, 0.105, 'legL'); bone(J.kneeL, J.footL, 0.095, 'legL'); }
+        if (z.limbs?.legR) { bone(J.thighR, J.kneeR, 0.105, 'legR'); bone(J.kneeR, J.footR, 0.095, 'legR'); }
+      } else {
+        // no rig (shouldn't happen): coarse head + body spheres
+        const th = this.#raySphere(o, dir, x, py + 1.62, pz, 0.24);
+        if (th >= 0 && th < best) { best = th; head = true; part = 'head'; }
+        const tb = this.#raySphere(o, dir, x, py + 1.0, pz, 0.36);
+        if (tb >= 0 && tb < best) { best = tb; head = false; part = 'chest'; }
       }
-      // arms: small spheres offset to the zombie's sides (facing-aware), only
-      // while still attached — so a side shot can take a specific arm off
-      const q = t.quaternion;
-      const yaw = 2 * Math.atan2(q.y, q.w);
-      const rx = Math.cos(yaw), rz = -Math.sin(yaw); // zombie's local +x in world
-      const ARM_OFF = 0.3, ARM_Y = 1.2, ARM_R = 0.17;
-      if (z.limbs?.armR) {
-        const ta = this.#raySphere(o, dir, x + rx * ARM_OFF, py + ARM_Y, pz + rz * ARM_OFF, ARM_R);
-        if (ta >= 0 && ta < best) { best = ta; head = false; part = 'armR'; }
-      }
-      if (z.limbs?.armL) {
-        const ta = this.#raySphere(o, dir, x - rx * ARM_OFF, py + ARM_Y, pz - rz * ARM_OFF, ARM_R);
-        if (ta >= 0 && ta < best) { best = ta; head = false; part = 'armL'; }
-      }
-      // legs: low side-by-side spheres (also facing-aware). A crawler's legs are
-      // already gone, so it can only be hit on the torso/arms.
-      if (!z.crawler) {
-        const LEG_OFF = 0.13, LEG_Y = 0.42, LEG_R = 0.2;
-        if (z.limbs?.legR) {
-          const tl = this.#raySphere(o, dir, x + rx * LEG_OFF, py + LEG_Y, pz + rz * LEG_OFF, LEG_R);
-          if (tl >= 0 && tl < best) { best = tl; head = false; part = 'legR'; }
-        }
-        if (z.limbs?.legL) {
-          const tl = this.#raySphere(o, dir, x - rx * LEG_OFF, py + LEG_Y, pz - rz * LEG_OFF, LEG_R);
-          if (tl >= 0 && tl < best) { best = tl; head = false; part = 'legL'; }
-        }
-      }
+
       if (best !== Infinity && best <= range) out.push({ id, tca: best, headshot: head, part });
     }
     out.sort((a, b) => a.tca - b.tca);
     return out;
+  }
+
+  /** Ray (o + s*dir, s in [0,range]) vs a capsule of radius r around segment
+   *  A-B. Returns the ray distance at closest approach if it grazes the capsule,
+   *  else -1. Closest-points-between-two-segments (ray clamped to its length). */
+  #raySegment(ox, oy, oz, dx, dy, dz, range, ax, ay, az, bx, by, bz, r) {
+    const d1x = dx * range, d1y = dy * range, d1z = dz * range; // ray as a segment
+    const d2x = bx - ax, d2y = by - ay, d2z = bz - az;          // bone segment
+    const rx = ox - ax, ry = oy - ay, rz = oz - az;
+    const a = d1x * d1x + d1y * d1y + d1z * d1z;
+    const e = d2x * d2x + d2y * d2y + d2z * d2z;
+    const f = d2x * rx + d2y * ry + d2z * rz;
+    const cc = d1x * rx + d1y * ry + d1z * rz;
+    const EPS = 1e-9;
+    let s, tt;
+    if (a <= EPS) { s = 0; tt = e <= EPS ? 0 : clamp01(f / e); }
+    else if (e <= EPS) { tt = 0; s = clamp01(-cc / a); }
+    else {
+      const bb = d1x * d2x + d1y * d2y + d1z * d2z;
+      const denom = a * e - bb * bb;
+      s = denom > EPS ? clamp01((bb * f - cc * e) / denom) : 0;
+      tt = (bb * s + f) / e;
+      if (tt < 0) { tt = 0; s = clamp01(-cc / a); }
+      else if (tt > 1) { tt = 1; s = clamp01((bb - cc) / a); }
+    }
+    const px = (ox + d1x * s) - (ax + d2x * tt);
+    const py = (oy + d1y * s) - (ay + d2y * tt);
+    const pz = (oz + d1z * s) - (az + d2z * tt);
+    if (px * px + py * py + pz * pz > r * r) return -1;
+    return s * range; // distance along the ray to closest approach
   }
 
   // --- inventory / economy API -------------------------------------------
