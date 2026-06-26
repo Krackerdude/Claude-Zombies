@@ -66,6 +66,7 @@ const _qNew = new THREE.Quaternion();
 const _qInv = new THREE.Quaternion();
 const _axisV = new THREE.Vector3();
 const _hipOffset = new THREE.Vector3();
+const _bbox = new THREE.Box3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
 
@@ -202,13 +203,17 @@ const LIMIT_ORDER = [
  *
  * This is VELOCITY-based: when a joint is past its swing cone / twist range we
  * steer the child body back with a corrective angular velocity (and damp the
- * spin), never teleporting its position or orientation. Teleporting bodies —
- * which the previous version did every frame a joint was out of range — kept
- * waking them and re-seeding the floor contact solver, which was the "tweak the
- * moment they hit the ground". Only touching angular velocity leaves the
- * contact + joint constraints undisturbed, so corpses settle clean.
+ * spin), never teleporting its position or orientation.
+ *
+ * `strength` (0..1) FADES the whole thing out over the corpse's first second.
+ * The limits matter while the body is toppling (so it doesn't settle propped or
+ * with its head spun round) — but once it has landed they only fight the floor
+ * contact, which kept waking the bodies and was the "tweak on the ground". By
+ * the time it's down, strength has faded to 0: no more corrective velocity, the
+ * bodies stop being woken, and they sleep flat.
  */
-export function enforceLimits(physics, data) {
+export function enforceLimits(physics, data, strength) {
+  if (strength <= 0) return;
   const { bodies } = data;
   for (const [pk, ck, lk] of LIMIT_ORDER) {
     const pb = bodies[pk], cb = bodies[ck];
@@ -220,7 +225,7 @@ export function enforceLimits(physics, data) {
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    if (Math.abs(_qOrig.dot(_qRel)) >= 0.99985) continue; // within range
+    if (Math.abs(_qOrig.dot(_qRel)) >= 0.9994) continue; // within range (~4deg slop)
 
     // correction rotation (parent frame) that takes the current relative
     // orientation back to the clamped one: corr = clamped * orig^-1
@@ -233,12 +238,12 @@ export function enforceLimits(physics, data) {
     // correction axis in world space (rotate the parent-frame axis by parent q)
     _axisV.set(_qNew.x / sin, _qNew.y / sin, _qNew.z / sin).applyQuaternion(_qP);
 
-    const gain = 14;              // 1/s — how hard the stop pushes back
+    const gain = 9 * strength;    // 1/s — how hard the stop pushes back (fades out)
     const w = physics.angularVelocity(cb);
     physics.setAngularVelocity(cb, {
-      x: w.x * 0.85 + _axisV.x * angle * gain,
-      y: w.y * 0.85 + _axisV.y * angle * gain,
-      z: w.z * 0.85 + _axisV.z * angle * gain,
+      x: w.x * 0.9 + _axisV.x * angle * gain,
+      y: w.y * 0.9 + _axisV.y * angle * gain,
+      z: w.z * 0.9 + _axisV.z * angle * gain,
     });
   }
 }
@@ -251,13 +256,15 @@ export function enforceLimits(physics, data) {
  * physics articulation 1:1 (no separate visual clamp — the bodies are already
  * within their limits, so the rig can't diverge from where they actually rest).
  */
-export function syncRagdoll(rig, t, data, physics) {
+export function syncRagdoll(rig, t, data, physics, life = 0) {
   const J = rig.userData?.joints;
   if (!J || !data) return;
   const { bodies } = data;
 
-  // keep the physics bodies anatomically posed first, then mirror them
-  enforceLimits(physics, data);
+  // shape the pose with joint limits while it topples, then fade the
+  // enforcement out by ~1s so it stops fighting the floor once landed
+  const strength = Math.max(0, Math.min(1, (1.1 - life) / 0.9));
+  enforceLimits(physics, data, strength);
 
   const pelvis = physics.bodyTransform(bodies.pelvis);
   const pelvisQ = _qParentInv.set(pelvis.q.x, pelvis.q.y, pelvis.q.z, pelvis.q.w);
@@ -289,28 +296,18 @@ export function syncRagdoll(rig, t, data, physics) {
   drive(J.thighR, bodies.pelvis, bodies.legR);
 
   // floor backstop: whatever the physics settled to, never let the RENDERED
-  // corpse sink below the ground. Bake the rig at the new pose, find the lowest
-  // body part, and if its surface is under the floor lift the whole rig
-  // straight up by the deficit (vertical only — the pose is untouched). This
-  // guarantees no half-buried corpses even if a body penetrated the floor.
+  // corpse sink below the ground. Bake the rig at the new pose, take its true
+  // world bounding box, and if its LOWEST vertex is under the floor lift the
+  // whole rig straight up by exactly that much (vertical only — the pose is
+  // untouched). Using the AABB (not sampled joints) means no part — thick torso,
+  // lower leg, anything — can poke through, however the bodies actually settled.
   rig.position.copy(t.position);
   rig.quaternion.copy(t.quaternion);
   rig.updateMatrixWorld(true);
-  let lowest = Infinity;
-  for (const j of FLOOR_SAMPLE) {
-    const node = J[j];
-    if (!node) continue;
-    node.getWorldPosition(_v);
-    if (_v.y < lowest) lowest = _v.y;
-  }
-  const deficit = LIMB_HALF + FLOOR_Y - lowest; // surface = jointY - LIMB_HALF
-  if (deficit > 0) t.position.y += deficit;
+  _bbox.setFromObject(rig);
+  if (_bbox.min.y < FLOOR_Y) t.position.y += FLOOR_Y - _bbox.min.y;
 }
 
-// joints sampled for the floor backstop, and the approx limb half-thickness
-// (so we clamp the limb SURFACE, not its centreline, to the floor)
-const FLOOR_SAMPLE = ['hips', 'torso', 'head', 'elbowL', 'elbowR', 'handL', 'handR', 'kneeL', 'kneeR', 'footL', 'footR'];
-const LIMB_HALF = 0.1;
 const FLOOR_Y = 0.0;
 
 /** Tear down all bodies + joints (freezes the rig in its last simulated pose). */
