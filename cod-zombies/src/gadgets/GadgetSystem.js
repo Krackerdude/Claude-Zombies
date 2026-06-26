@@ -201,8 +201,7 @@ export class GadgetSystem extends System {
     group.position.set(pos.x, 0.02, pos.z);
     this.#scene.add(group);
     this.#firePools.push({ group, x: pos.x, z: pos.z, t: 0, dmgT: 0 });
-    this.#events.emit('fx:explosion', { x: pos.x, y: 0.2, z: pos.z, kind: 'frag' });
-    this.#events.emit('fx:shake', {});
+    this.#events.emit('fx:shake', {}); // blue fire reads on its own; no orange fireball
   }
 
   /** Animate + expire fire pools and burning corpses; while playing, the pools
@@ -226,9 +225,21 @@ export class GadgetSystem extends System {
     for (let i = this.#burning.length - 1; i >= 0; i--) {
       const b = this.#burning[i];
       b.t += dt;
-      animateFlames(b.group, b.t * 1.5);
-      setFlameOpacity(b.group, b.t > b.life - 0.8 ? Math.max(0, (b.life - b.t) / 0.8) : 1);
-      if (b.t >= b.life) { b.group.removeFromParent(); disposeFlames(b.group); this.#burning.splice(i, 1); }
+      animateFlames(b.group, b.t * 1.4);
+      const k = b.t < 0.25 ? b.t / 0.25 : 1; // flare up fast
+      setFlameOpacity(b.group, k);
+      // BURN AWAY: once the ragdoll has had a moment to fall, the corpse shrinks
+      // into the flames and vanishes over the final stretch
+      if (b.rig && b.t > b.burnStart) {
+        const p = Math.min(1, (b.t - b.burnStart) / (b.life - b.burnStart));
+        const s = Math.max(0.001, 1 - p);
+        b.rig.scale.setScalar(s);
+        setFlameOpacity(b.group, 1 - p);
+      }
+      if (b.t >= b.life) {
+        if (b.rig) b.rig.visible = false;     // gone — CorpseSystem reaps the husk later
+        b.group.removeFromParent(); disposeFlames(b.group); this.#burning.splice(i, 1);
+      }
     }
   }
 
@@ -250,15 +261,14 @@ export class GadgetSystem extends System {
     if (player && pts) { player.points += pts * mul; this.#events.emit('score:changed', { points: player.points }); }
   }
 
-  /** Set a freshly-killed zombie's corpse alight — flames cling to the ragdoll
-   *  as it falls and burn out over a couple of seconds. */
+  /** Set a freshly-killed zombie's corpse alight — flames engulf the ragdoll as
+   *  it falls, then it chars and burns away (shrinks into the fire) over ~2.4s. */
   #igniteCorpse(id) {
     const rig = this.world.get(id, Renderable)?.object3d;
-    const torso = rig?.userData?.joints?.torso;
-    if (!torso) return;
+    if (!rig?.userData?.joints) return;
     const flames = buildCorpseFlames();
-    torso.add(flames);
-    this.#burning.push({ group: flames, t: 0, life: 2.6 });
+    rig.add(flames); // on the ROOT so it covers + scales with the whole body
+    this.#burning.push({ group: flames, rig, t: 0, burnStart: 1.2, life: 2.4 });
   }
 
   #explode(pos, player) {
@@ -323,22 +333,23 @@ export class GadgetSystem extends System {
 // they can fade independently.
 let _wraithParts = null;
 function wraithModel() {
-  // a squat canister with blue-glowing windows + a fuse cap
+  // a lantern: a bright cyan glow-core in a brass cage so the glow actually
+  // SHOWS (the old version buried it inside an opaque shell -> read as black)
   if (!_wraithParts) {
     _wraithParts = {
-      shell: new THREE.MeshStandardMaterial({ color: 0x26303a, metalness: 0.6, roughness: 0.4 }),
       brass: new THREE.MeshStandardMaterial({ color: 0x9a7b34, metalness: 0.7, roughness: 0.4 }),
-      glow: new THREE.MeshBasicMaterial({ color: 0x4ad6ff }),
+      glow: new THREE.MeshBasicMaterial({ color: 0x6fe0ff }),
+      halo: new THREE.MeshBasicMaterial({ color: 0x49c6ff, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }),
     };
   }
   const P = _wraithParts;
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.13, 12), P.shell);
-  const win = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.08, 12), P.glow);
-  const capT = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.02, 12), P.brass); capT.position.y = 0.075;
-  const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.02, 12), P.brass); capB.position.y = -0.075;
-  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 8), P.brass); fuse.position.y = 0.1;
-  g.add(body, win, capT, capB, fuse);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.12, 12), P.glow));       // glowing core
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.14, 12), P.halo));       // additive bloom
+  const capT = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.05, 0.022, 12), P.brass); capT.position.y = 0.07; g.add(capT);
+  const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.056, 0.022, 12), P.brass); capB.position.y = -0.07; g.add(capB);
+  for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.13, 6), P.brass); bar.position.set(Math.cos(a) * 0.05, 0, Math.sin(a) * 0.05); g.add(bar); }
+  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.03, 8), P.brass); fuse.position.y = 0.1; g.add(fuse);
   return g;
 }
 
@@ -365,30 +376,31 @@ function buildFirePool(radius) {
     const m = new THREE.Mesh(_coneGeo, Math.random() < 0.35 ? core : outer);
     m.scale.set(0.14 + Math.random() * 0.1, h, 0.14 + Math.random() * 0.1);
     m.position.set(Math.cos(a) * rr, h * 0.5, Math.sin(a) * rr);
-    m.userData.h = h; m.userData.ph = Math.random() * 6.28; m.userData.r = m.scale.x;
+    m.userData.h = h; m.userData.ph = Math.random() * 6.28; m.userData.r = m.scale.x; m.userData.by = 0; // sits on the ground
     g.add(m); tongues.push(m);
   }
-  // a soft blue light sitting in the fire
-  const light = new THREE.PointLight(0x49b8ff, 6, radius * 3, 2);
-  light.position.y = 0.4; g.userData.light = light; g.userData.lightBase = 6; g.add(light);
+  // NOTE: deliberately no dynamic PointLight — adding/removing lights at runtime
+  // forces THREE to recompile every material's shader (the per-throw freeze). The
+  // additive flame cones read as glowing on their own.
   g.userData.tongues = tongues;
   return g;
 }
-/** A small clutch of flames that cling to a burning corpse's torso. */
+/** Flames that engulf a whole burning corpse — tongues spread over the body so
+ *  the ragdoll visibly chars and burns away. Attached to the rig ROOT. */
 function buildCorpseFlames() {
   const g = new THREE.Group();
-  const outer = flameMat(0x2a7bff, 0.85), core = flameMat(0xbfeeff, 0.9);
+  const outer = flameMat(0x2a7bff, 0.9), core = flameMat(0xcdf2ff, 0.95);
   g.userData.mats = [outer, core];
   const tongues = [];
-  for (let i = 0; i < 6; i++) {
-    const h = 0.3 + Math.random() * 0.3;
+  for (let i = 0; i < 14; i++) {
+    const h = 0.28 + Math.random() * 0.4;
     const m = new THREE.Mesh(_coneGeo, Math.random() < 0.4 ? core : outer);
-    m.scale.set(0.1, h, 0.1);
-    m.position.set((Math.random() - 0.5) * 0.34, 0.1 + Math.random() * 0.3, (Math.random() - 0.5) * 0.24);
-    m.userData.h = h; m.userData.ph = Math.random() * 6.28; m.userData.r = m.scale.x;
+    m.scale.set(0.12, h, 0.12);
+    // spread up the body (feet to head) and around it
+    m.position.set((Math.random() - 0.5) * 0.5, 0.2 + Math.random() * 1.25, (Math.random() - 0.5) * 0.34);
+    m.userData.h = h; m.userData.ph = Math.random() * 6.28; m.userData.r = m.scale.x; m.userData.by = m.position.y;
     g.add(m); tongues.push(m);
   }
-  const light = new THREE.PointLight(0x49b8ff, 2.5, 3, 2); light.position.y = 0.4; g.userData.light = light; g.userData.lightBase = 2.5; g.add(light);
   g.userData.tongues = tongues;
   return g;
 }
@@ -398,16 +410,14 @@ function animateFlames(g, t) {
     const f = 0.7 + 0.3 * Math.sin(t * 12 + m.userData.ph) + 0.15 * Math.sin(t * 23 + m.userData.ph * 2);
     m.scale.y = m.userData.h * f;
     m.scale.x = m.scale.z = m.userData.r * (0.85 + 0.2 * f);
-    m.position.y = m.scale.y * 0.5;
+    m.position.y = m.userData.by + m.scale.y * 0.5;
     m.rotation.y += 0.06;
   }
-  if (g.userData.light) g.userData.light.intensity = (g.userData.lightBase || 6) * (g.userData.opK ?? 1) * (0.8 + 0.3 * Math.sin(t * 18));
 }
 function setFlameOpacity(g, k) {
   const base = [0.85, 0.9, 0.5];
   const mats = g.userData.mats; if (!mats) return;
   for (let i = 0; i < mats.length; i++) mats[i].opacity = (base[i] ?? 0.85) * k;
-  g.userData.opK = k; // animateFlames folds this into the light intensity
 }
 function disposeFlames(g) {
   for (const m of g.userData.mats || []) m.dispose();
