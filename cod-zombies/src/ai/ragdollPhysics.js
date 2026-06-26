@@ -221,9 +221,9 @@ const LIMIT_ORDER = [
 // torque is turned into a per-step angular impulse by * DT, and the impulse is
 // HARD-CAPPED so a bad/extreme value can never diverge to NaN and crash.
 const LIMIT_STIFF = 55.0;
-const LIMIT_DAMP = 18.0;        // strong: stops the limb oscillating across the limit
+const LIMIT_DAMP = 26.0;        // strong: stops limbs oscillating/jittering at the limit
 const LIMIT_DT = 1 / 60;        // matches PhysicsConfig.fixedStep
-const LIMIT_MAX_IMPULSE = 0.7;  // safety ceiling on |angular impulse| per step
+const LIMIT_MAX_IMPULSE = 0.9;  // ceiling on |angular impulse| per step (MAX_ANGVEL backstops)
 const MAX_ANGVEL = 7;           // rad/s ceiling on any segment's spin (anti-windup)
 
 /**
