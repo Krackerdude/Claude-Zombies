@@ -216,9 +216,9 @@ async function main() {
     // tactical slot (opposite side of the gun widget) — hidden until you hold one
     const elTac = document.getElementById('hud-tac');
     const elTacN = document.getElementById('hud-tactical-count');
-    events.on('tactical:equip', () => { if (elTac) elTac.hidden = false; });
+    events.on('tactical:equip', ({ type }) => { if (elTac) { elTac.hidden = false; elTac.dataset.kind = type || 'monkey'; } });
     events.on('tactical:count', ({ count, type }) => {
-      if (elTac) elTac.hidden = !type;
+      if (elTac) { elTac.hidden = !type; if (type) elTac.dataset.kind = type; }
       if (elTacN) elTacN.textContent = count;
     });
 
