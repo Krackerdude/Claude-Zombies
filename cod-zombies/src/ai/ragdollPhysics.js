@@ -65,6 +65,8 @@ const _qC = new THREE.Quaternion();
 const _qRel = new THREE.Quaternion();
 const _qOrig = new THREE.Quaternion();
 const _qNew = new THREE.Quaternion();
+const _qInv = new THREE.Quaternion();
+const _axisV = new THREE.Vector3();
 const _hipOffset = new THREE.Vector3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
@@ -236,19 +238,40 @@ export function enforceLimits(physics, data) {
     const pb = bodies[pk], cb = bodies[ck];
     const p = physics.bodyTransform(pb);
     const c = physics.bodyTransform(cb);
-    // Don't enforce on a segment that's down near the floor. Hard-clamping a
-    // body that's simultaneously pinned by a ground contact is an impossible
-    // constraint — the solver resolves it explosively (the blow-up on contact).
-    // The limits still shape the pose while it falls; once it's on the ground it
-    // just rests.
-    if (c.p.y < GROUND_GATE) continue;
     _qP.set(p.q.x, p.q.y, p.q.z, p.q.w);
     _qC.set(c.q.x, c.q.y, c.q.z, c.q.w);
     _qParentInv.copy(_qP).invert();
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    if (Math.abs(_qOrig.dot(_qRel)) < 0.99995) { // was outside the allowed range
+    const past = Math.abs(_qOrig.dot(_qRel)) < 0.99995; // outside the allowed range
+
+    if (c.p.y < GROUND_GATE) {
+      // ON THE GROUND: never hard-set a contacting body (that's the explosion).
+      // Damp it hard (kills the settle jitter) and, if it's past a limit, steer
+      // it back GENTLY via angular velocity only — a ground contact resolves a
+      // velocity change normally instead of fighting an impossible teleport.
+      // This still holds the head/limbs near anatomical so they don't flop.
+      const w = physics.angularVelocity(cb);
+      let ax = w.x * 0.55, ay = w.y * 0.55, az = w.z * 0.55;
+      if (past) {
+        _qInv.copy(_qOrig).invert();
+        _qNew.multiplyQuaternions(_qRel, _qInv); // correction rotation (parent frame)
+        if (_qNew.w < 0) { _qNew.x = -_qNew.x; _qNew.y = -_qNew.y; _qNew.z = -_qNew.z; _qNew.w = -_qNew.w; }
+        const sin = Math.sqrt(Math.max(0, 1 - _qNew.w * _qNew.w));
+        if (sin > 1e-4) {
+          const angle = 2 * Math.acos(Math.min(1, _qNew.w));
+          _axisV.set(_qNew.x / sin, _qNew.y / sin, _qNew.z / sin).applyQuaternion(_qP);
+          const gain = 6;
+          ax += _axisV.x * angle * gain; ay += _axisV.y * angle * gain; az += _axisV.z * angle * gain;
+        }
+      }
+      physics.setAngularVelocity(cb, { x: ax, y: ay, z: az });
+      continue;
+    }
+
+    if (past) {
+      // IN THE AIR: hard clamp to the boundary — shapes the falling pose.
       _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
       physics.setBodyRotation(cb, _qNew);
       physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)
