@@ -9,6 +9,7 @@ import { RoundManager } from '../ai/RoundManager.js';
 import { ZombieSystem } from '../ai/ZombieSystem.js';
 import { ZombieAnimSystem } from '../ai/ZombieAnimSystem.js';
 import { CorpseSystem } from '../ai/CorpseSystem.js';
+import { PhysicsDebugSystem } from '../rendering/PhysicsDebugSystem.js';
 import { RoundSystem } from '../ai/RoundSystem.js';
 import { WeaponSystem } from '../weapons/WeaponSystem.js';
 import { ProjectileSystem } from '../weapons/ProjectileSystem.js';
@@ -297,6 +298,7 @@ export function buildArena(engine) {
   engine.world.registerSystem(new ZombieAnimSystem());
   engine.world.registerSystem(new CorpseSystem());
   engine.world.registerSystem(new RoundSystem());
+  engine.world.registerSystem(new PhysicsDebugSystem()); // F3 collider/COM/contact overlay
 
   // --- weapons + economy ---
   const weaponSystem = new WeaponSystem();
