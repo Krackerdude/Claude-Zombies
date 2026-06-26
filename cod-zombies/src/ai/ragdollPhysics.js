@@ -44,10 +44,14 @@ const SEG = {
 // driving the rig into impossible poses — most importantly the head no longer
 // spins in circles (its twist is clamped to a small range). Radians.
 const ROM = {
-  torso: { swing: 0.55, twistMin: -0.45, twistMax: 0.45 }, // spine: small lean/rotate
-  head: { swing: 0.85, twistMin: -0.70, twistMax: 0.70 },  // neck: nod/tilt, limited turn
-  arm: { swing: 1.85, twistMin: -1.20, twistMax: 1.20 },   // shoulder: very mobile
-  leg: { swing: 1.20, twistMin: -0.55, twistMax: 0.55 },   // hip: forward/back, little splay
+  // spine bends a LOT forward when a body folds/collapses (think slumping over),
+  // so the swing cone is generous; only the TWIST stays tight so the torso can't
+  // wring around. A tight swing here was fighting the natural ~90deg waist fold
+  // and producing the "compression twist".
+  torso: { swing: 1.35, twistMin: -0.45, twistMax: 0.45 },
+  head: { swing: 0.95, twistMin: -0.65, twistMax: 0.65 },  // neck: nod/tilt, limited turn
+  arm: { swing: 1.95, twistMin: -1.25, twistMax: 1.25 },   // shoulder: very mobile
+  leg: { swing: 1.40, twistMin: -0.55, twistMax: 0.55 },   // hip: fold forward/back
 };
 
 const _v = new THREE.Vector3();
