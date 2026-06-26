@@ -65,8 +65,6 @@ const _qC = new THREE.Quaternion();
 const _qRel = new THREE.Quaternion();
 const _qOrig = new THREE.Quaternion();
 const _qNew = new THREE.Quaternion();
-const _qInv = new THREE.Quaternion();
-const _axisV = new THREE.Vector3();
 const _hipOffset = new THREE.Vector3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
@@ -229,6 +227,12 @@ export function enforceLimits(physics, data) {
   const { bodies } = data;
   for (const [pk, ck, lk] of LIMIT_ORDER) {
     const pb = bodies[pk], cb = bodies[ck];
+    // A segment that is touching the floor is left ALONE — no clamp at all.
+    // Hard-teleporting a body that's pinned by a ground contact is the
+    // explosion (worst when one foot lands before the other); the soft path was
+    // worse still. The physics handles the contacting limb; every airborne
+    // segment is clamped exactly like the near-perfect baseline.
+    if (physics.bodyTouching(cb)) continue;
     const p = physics.bodyTransform(pb);
     const c = physics.bodyTransform(cb);
     _qP.set(p.q.x, p.q.y, p.q.z, p.q.w);
@@ -237,39 +241,7 @@ export function enforceLimits(physics, data) {
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    const past = Math.abs(_qOrig.dot(_qRel)) < 0.99995; // outside the allowed range
-
-    // Gate THIS segment only, by ITS OWN ground contact. A segment touching the
-    // floor must never be hard-teleported — that fights its contact and
-    // explodes (worst when one foot lands before the other). It gets the soft
-    // velocity path instead. Every airborne segment still gets the normal hard
-    // clamp, so the falling pose is shaped exactly like the baseline.
-    if (physics.bodyTouching(cb)) {
-      // THIS SEGMENT is on the floor: never hard-set it (that's the explosion).
-      // Damp it hard (kills the settle jitter) and, if it's past a limit, steer
-      // it back GENTLY via angular velocity only — a ground contact resolves a
-      // velocity change normally instead of fighting an impossible teleport.
-      // This still holds the head/limbs near anatomical so they don't flop.
-      const w = physics.angularVelocity(cb);
-      let ax = w.x * 0.55, ay = w.y * 0.55, az = w.z * 0.55;
-      if (past) {
-        _qInv.copy(_qOrig).invert();
-        _qNew.multiplyQuaternions(_qRel, _qInv); // correction rotation (parent frame)
-        if (_qNew.w < 0) { _qNew.x = -_qNew.x; _qNew.y = -_qNew.y; _qNew.z = -_qNew.z; _qNew.w = -_qNew.w; }
-        const sin = Math.sqrt(Math.max(0, 1 - _qNew.w * _qNew.w));
-        if (sin > 1e-4) {
-          const angle = 2 * Math.acos(Math.min(1, _qNew.w));
-          _axisV.set(_qNew.x / sin, _qNew.y / sin, _qNew.z / sin).applyQuaternion(_qP);
-          const gain = 6;
-          ax += _axisV.x * angle * gain; ay += _axisV.y * angle * gain; az += _axisV.z * angle * gain;
-        }
-      }
-      physics.setAngularVelocity(cb, { x: ax, y: ay, z: az });
-      continue;
-    }
-
-    if (past) {
-      // IN THE AIR: hard clamp to the boundary — shapes the falling pose.
+    if (Math.abs(_qOrig.dot(_qRel)) < 0.99995) { // was outside the allowed range
       _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
       physics.setBodyRotation(cb, _qNew);
       physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)
