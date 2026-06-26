@@ -142,17 +142,21 @@ export function severLowerBody(rig) {
   // jagged rib stumps splaying out of the sides
   wound.add(shard(M, -0.14, 0.06, -0.02, 0.1, { x: 0, z: 0.8 }));
   wound.add(shard(M, 0.14, 0.06, -0.02, 0.1, { x: 0, z: -0.8 }));
-  // glistening organ mass spilling out the front
-  wound.add(chunk(M.gut, 0, -0.04, 0.08, 0.16, 0.1, 0.1, 0.3));
-  wound.add(chunk(M.fat, _rnd(0.12), -0.02, 0.08, 0.06, 0.06, 0.06, 0.5));
+  // glistening organ mass slumping out and back (the crawler drags forward, so
+  // the spill is pulled toward the rear, -z)
+  wound.add(chunk(M.gut, 0, -0.05, -0.06, 0.16, 0.1, 0.12, 0.3));
+  wound.add(chunk(M.fat, _rnd(0.12), -0.03, -0.06, 0.06, 0.06, 0.06, 0.5));
 
-  // long ropey entrails dangling/dragging beneath the cut
+  // long ropey entrails dragging out BEHIND the crawler along the ground — they
+  // trail back (-z) and lie low rather than dangling straight down. Box length
+  // runs along local y, so a ~90° tilt about x lays each rope back along -z.
   for (let i = 0; i < 6; i++) {
-    const len = 0.16 + Math.random() * 0.22;
+    const len = 0.2 + Math.random() * 0.26;
     const e = new THREE.Mesh(_chunkGeo, M.gut);
     e.scale.set(0.03 + Math.random() * 0.02, len, 0.03 + Math.random() * 0.02);
-    e.position.set(_rnd(0.26), -0.08 - len * 0.45, 0.04 + _rnd(0.16));
-    e.rotation.set(_rnd(0.6), _rnd(0.6), _rnd(0.6));
+    // anchor at the cut, then stream back and slightly down
+    e.position.set(_rnd(0.22), -0.06 - len * 0.12, -0.08 - len * 0.4);
+    e.rotation.set(1.3 + _rnd(0.5), _rnd(0.4), _rnd(0.5)); // tipped back to trail
     wound.add(e);
   }
   hips.add(wound);

@@ -114,11 +114,11 @@ export class ZombieAnimSystem extends System {
     const swProg = swiping ? 1 - z.swipe / ZombieConfig.swipeTime : 0;
     const swUp = Math.min(1, swProg / 0.4), swDown = Math.max(0, swProg - 0.4) / 0.6;
     const atkSh = lerp(-2.4, 0.2, swDown);                        // rear an arm up, then swipe down
-    // plant the hands WIDE and forward to prop the chest like a sphinx. NOTE the
-    // signs: outward splay is L negative / R positive (same convention as the
-    // standing gait) — the old code had them flipped, which dragged both arms
-    // inward and gave the pinched, tucked look.
-    const splay = lerp(0, 0.5, c);
+    // plant the hands forward and a touch out to prop the chest like a sphinx.
+    // NOTE the signs: outward splay is L negative / R positive (same convention
+    // as the standing gait). Keep the splay SMALL — too much swings the arms out
+    // sideways and lifts the hands off the floor; we want them reaching down.
+    const splay = lerp(0, 0.18, c);
     if (J.shoulderL.visible) {
       J.shoulderL.rotation.set(lerp(reachL, atkSh, z.atkAmt), 0, -splay);
       J.elbowL.rotation.x = lerp(rest.elbow, 0.15, c) + z.atkAmt * swUp * 0.5; // arm extended to prop
