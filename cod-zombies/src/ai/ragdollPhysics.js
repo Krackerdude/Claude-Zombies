@@ -204,6 +204,12 @@ export function buildRagdoll(rig, physics, c, t) {
 }
 
 // Joint -> ROM table, in the order limits must be enforced (a parent before its
+// A segment whose body origin is below this height is treated as "on/near the
+// floor" and is exempt from hard limit-enforcement (so it can't fight a ground
+// contact). Well above a lying corpse's segment heights (~0.1-0.15), well below
+// an upright/falling one's.
+const GROUND_GATE = 0.55;
+
 // children, so children read the already-corrected parent orientation).
 const LIMIT_ORDER = [
   ['pelvis', 'torso', 'torso'],
@@ -230,6 +236,12 @@ export function enforceLimits(physics, data) {
     const pb = bodies[pk], cb = bodies[ck];
     const p = physics.bodyTransform(pb);
     const c = physics.bodyTransform(cb);
+    // Don't enforce on a segment that's down near the floor. Hard-clamping a
+    // body that's simultaneously pinned by a ground contact is an impossible
+    // constraint — the solver resolves it explosively (the blow-up on contact).
+    // The limits still shape the pose while it falls; once it's on the ground it
+    // just rests.
+    if (c.p.y < GROUND_GATE) continue;
     _qP.set(p.q.x, p.q.y, p.q.z, p.q.w);
     _qC.set(c.q.x, c.q.y, c.q.z, c.q.w);
     _qParentInv.copy(_qP).invert();
