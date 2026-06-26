@@ -25,6 +25,7 @@ export const Action = Object.freeze({
   AIM: 'AIM',
   MELEE: 'MELEE',
   LETHAL: 'LETHAL',
+  TACTICAL: 'TACTICAL',
   FLASHLIGHT: 'FLASHLIGHT',
   PAUSE: 'PAUSE',
 });
@@ -46,6 +47,7 @@ export const defaultBindings = {
   [Action.AIM]: ['Mouse2'],
   [Action.MELEE]: ['KeyF'],
   [Action.LETHAL]: ['KeyG'],
+  [Action.TACTICAL]: ['KeyT'],
   [Action.FLASHLIGHT]: ['KeyK'],
   [Action.PAUSE]: ['Escape'],
 };

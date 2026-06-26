@@ -18,6 +18,7 @@ import { buildMysteryBox } from './mysteryBox.js';
 import { MysteryBoxSystem } from './MysteryBoxSystem.js';
 import { PowerupSystem } from '../powerups/PowerupSystem.js';
 import { GadgetSystem } from '../gadgets/GadgetSystem.js';
+import { TacticalSystem } from '../gadgets/TacticalSystem.js';
 import { PerkSystem } from '../perks/PerkSystem.js';
 import { BarrierFxSystem } from './BarrierFxSystem.js';
 import { weaponCost, weaponCategory } from '../weapons/catalog.js';
@@ -309,6 +310,9 @@ export function buildArena(engine) {
   engine.world.registerSystem(weaponSystem);
   engine.world.registerSystem(new ProjectileSystem());
   engine.world.registerSystem(new GadgetSystem());
+  const tacticalSystem = new TacticalSystem();
+  engine.services.register(Service.Tactical, tacticalSystem);
+  engine.world.registerSystem(tacticalSystem);
   const perkSystem = new PerkSystem();
   engine.services.register(Service.Perks, perkSystem);
   engine.world.registerSystem(perkSystem);

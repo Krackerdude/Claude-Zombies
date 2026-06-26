@@ -15,6 +15,8 @@ const KEYBIND_ACTIONS = [
   [Action.AIM, 'Aim'],
   [Action.RELOAD, 'Reload'],
   [Action.INTERACT, 'Interact'],
+  [Action.LETHAL, 'Lethal'],
+  [Action.TACTICAL, 'Tactical'],
 ];
 
 const TABS = [
