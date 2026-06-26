@@ -270,6 +270,27 @@
   background: radial-gradient(50% 60% at 50% 70%, #eafdff, #6fcbff 60%, rgba(74,184,255,0)); inset: auto;
 }
 .wpn-nade[data-kind="wraithfire"] .nade-n { color: #dff3ff; text-shadow: 0 0 9px rgba(74,184,255,0.6), 0 2px 3px #000; }
+
+/* Semtex cluster: an olive brick with a blinking red detonator light */
+.wpn-nade[data-kind="semtex"] .nade-glyph {
+  width: 16px; height: 11px; border-radius: 3px;
+  background: linear-gradient(#7d8e3c, #5b6a2a 55%, #44511f);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), inset 0 0 0 1px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.6);
+}
+/* caution band across the brick */
+.wpn-nade[data-kind="semtex"] .nade-glyph::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 3px;
+  transform: translateY(-50%); background: repeating-linear-gradient(45deg, #d8b020 0 3px, #2a2410 3px 6px); opacity: 0.85;
+}
+/* detonator + blinking LED on top */
+.wpn-nade[data-kind="semtex"] .nade-glyph::before {
+  content: ''; position: absolute; left: 64%; top: -4px; width: 4px; height: 4px;
+  transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(#ff5a4a, #b00c0c); box-shadow: 0 0 5px rgba(255,60,40,0.8);
+  animation: semtexBlink 0.7s steps(1) infinite;
+}
+@keyframes semtexBlink { 50% { opacity: 0.25; } }
+.wpn-nade[data-kind="semtex"] .nade-n { color: #e9efcf; text-shadow: 0 0 9px rgba(160,200,80,0.45), 0 2px 3px #000; }
 .nade-n {
   font-family: 'Anton', Impact, sans-serif; font-size: 1.5rem; line-height: 1; color: #eaf3cf;
   text-shadow: 0 0 9px rgba(150,200,90,0.45), 0 2px 3px #000;
