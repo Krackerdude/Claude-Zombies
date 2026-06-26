@@ -78,6 +78,8 @@ export class Viewmodel {
   #knife;
   #grenade;
   #pin;
+  #monkey;
+  #windKey;
   #bottle = null;
   #bottleColor = -1;
   #key;
@@ -180,6 +182,13 @@ export class Viewmodel {
     this.#grenade.add(this.#pin);
     this.#grenade.visible = false;
     this.#vmScene.add(this.#grenade);
+
+    // held cymbal monkey (tactical) — a compact in-hand version with a wind-up
+    // key on its side that cranks while you charge the throw (the "pin pull")
+    this.#monkey = buildVmMonkey();
+    this.#windKey = this.#monkey.userData.windKey;
+    this.#monkey.visible = false;
+    this.#vmScene.add(this.#monkey);
   }
 
   setWeapon(weapon) {
@@ -327,7 +336,8 @@ export class Viewmodel {
 
     // "put the gun down" actions: pull fully down + to the right, off-screen.
     // Eased so the gun visibly lowers before the action's own animation begins.
-    const holsterTarget = (cook || drink) ? 1 : 0;
+    const tacticalCook = opts.tacticalCook;
+    const holsterTarget = (cook || drink || tacticalCook) ? 1 : 0;
     this.#holster = damp(this.#holster, holsterTarget, 14, dt);
     const holster = Math.max(this.#holster, opts.swapDown || 0);
     if (holster > 0) { _off.y -= holster * 0.6; _off.x += holster * 0.4; _off.z += holster * 0.05; }
@@ -387,6 +397,28 @@ export class Viewmodel {
       }
     } else {
       this.#pin.visible = true; this.#pin.position.set(0.075, 0.03, 0); this.#pin.rotation.z = 0;
+    }
+
+    // tactical monkey bomb: once the gun is stowed, draw the monkey up into the
+    // hand and crank its wind-up key (the cymbals twitch as it winds), then it
+    // vanishes as the gun comes back up — the real monkey has been thrown
+    this.#monkey.visible = !!tacticalCook && this.#holster > 0.85;
+    if (this.#monkey.visible) {
+      const gt = Math.max(0, tacticalCook.t - 0.16);     // local time once the gun is down
+      const draw = Math.min(1, gt / 0.4);                // raise into the hold
+      _koff.set(lerp(0.24, 0.14, draw), lerp(-0.34, -0.17, draw) + Math.sin(this.#bob) * 0.012, lerp(-0.46, -0.36, draw));
+      this.#monkey.position.copy(_koff);
+      // 3/4 turn so the face and the side-mounted key both read; a touch of
+      // eager jitter while winding that settles as it tightens
+      const wind = Math.min(1, gt / 0.7);
+      const jitter = (1 - wind) * 0.05;
+      _e.set(Math.sin(gt * 26) * jitter, 0.6, Math.sin(gt * 31) * jitter);
+      this.#monkey.quaternion.setFromEuler(_e);
+      if (this.#windKey) this.#windKey.rotation.x = gt * lerp(34, 12, wind); // cranks fast, eases as it tightens
+      const clash = (Math.sin(gt * 24) * 0.5 + 0.5) * 0.5 * wind; // cymbals start twitching as it's wound
+      const A = this.#monkey.userData;
+      if (A.armL) A.armL.rotation.z = 0.5 + clash;
+      if (A.armR) A.armR.rotation.z = -0.5 - clash;
     }
 
     // perk drink: pop the cap, raise the bottle to the mouth, bubbles, then toss
@@ -536,4 +568,55 @@ function makeFlashCore() {
   g.addColorStop(0.75, 'rgba(255,200,90,0.4)'); g.addColorStop(1, 'rgba(255,160,40,0)');
   x.fillStyle = g; x.fillRect(0, 0, s, s);
   return new THREE.CanvasTexture(c);
+}
+
+// First-person cymbal monkey held while winding up a Monkey Bomb throw. Compact,
+// hand-scaled; exposes armL/armR (clapping cymbals) + a side wind-up key in
+// userData so the viewmodel can crank it.
+function buildVmMonkey() {
+  const fur = new THREE.MeshStandardMaterial({ color: 0x4a3526, roughness: 0.85 });
+  const face = new THREE.MeshStandardMaterial({ color: 0xb9966c, roughness: 0.7 });
+  const fez = new THREE.MeshStandardMaterial({ color: 0x2a3d8f, roughness: 0.6 });
+  const cloth = new THREE.MeshStandardMaterial({ color: 0x6b6f55, roughness: 0.8 });
+  const cymbal = new THREE.MeshStandardMaterial({ color: 0xb98a2e, metalness: 0.8, roughness: 0.35 });
+  const tnt = new THREE.MeshStandardMaterial({ color: 0x7a1c14, roughness: 0.7 });
+  const eye = new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xc00000, emissiveIntensity: 1.4 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xb8b8c0, metalness: 0.85, roughness: 0.3 });
+
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  add(new THREE.BoxGeometry(0.11, 0.1, 0.085), fur, 0, 0.02, 0);            // torso
+  add(new THREE.SphereGeometry(0.055, 12, 10), fur, 0, 0.11, 0);           // head
+  add(new THREE.SphereGeometry(0.036, 10, 8), face, 0, 0.1, 0.03);        // muzzle
+  add(new THREE.CylinderGeometry(0.03, 0.036, 0.042, 12), fez, 0, 0.16, 0); // fez
+  add(new THREE.SphereGeometry(0.01, 8, 6), eye, -0.019, 0.12, 0.044);
+  add(new THREE.SphereGeometry(0.01, 8, 6), eye, 0.019, 0.12, 0.044);
+  add(new THREE.BoxGeometry(0.12, 0.034, 0.092), cloth, 0, -0.035, 0.004);  // vest/legs
+  for (let i = -1; i <= 1; i++) add(new THREE.CylinderGeometry(0.013, 0.013, 0.11, 8), tnt, i * 0.022, 0.025, -0.056); // dynamite
+
+  // arms ending in cymbals, pivoting at the shoulder so they can clap
+  const arm = (side) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.055, 0.03, 0.025);
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.07), fur);
+    upper.position.set(side * -0.016, 0, 0.026); pivot.add(upper);
+    const cym = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.007, 16), cymbal);
+    cym.rotation.x = Math.PI / 2; cym.position.set(side * -0.03, 0, 0.056); pivot.add(cym);
+    pivot.rotation.z = side * 0.5;
+    g.add(pivot);
+    return pivot;
+  };
+  g.userData.armL = arm(-1);
+  g.userData.armR = arm(1);
+
+  // wind-up key on the right side: a shaft along X with a T crossbar; spins on X
+  const key = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.04, 8), steel);
+  shaft.rotation.z = Math.PI / 2; shaft.position.x = 0.02; key.add(shaft);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.012), steel);
+  bar.position.x = 0.042; key.add(bar);
+  key.position.set(0.055, 0.03, -0.02);
+  g.add(key);
+  g.userData.windKey = key;
+  return g;
 }
