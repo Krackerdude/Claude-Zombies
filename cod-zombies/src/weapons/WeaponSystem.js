@@ -16,6 +16,13 @@ function flinchScaleFor(fireMode) {
   return (fireMode === 'auto' || fireMode === 'burst') ? 0.3 : 1;
 }
 
+/** Per-limb-hit chance to blow that limb off, scaling 10% (light) -> 25% (heavy
+ *  caliber) on the weapon's base per-shot damage. */
+function dismemberChanceFor(damage) {
+  const t = Math.max(0, Math.min(1, (damage - 30) / 120));
+  return 0.10 + t * 0.15;
+}
+
 const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _up = new THREE.Vector3();
@@ -428,7 +435,7 @@ export class WeaponSystem extends System {
         const hsMul = headshot ? weapon.data.headshotMultiplier * (pk ? pk.headshotMul() : 1) : 1;
         const dMul = pk ? pk.damageMul(weapon.data.category) : 1;
         const dmg = weapon.data.damage * hsMul * dMul * falloff;
-        if (damageZombie(this.#ctx, id, dmg, { headshot, dir: _dir, part, flinchScale: flinchScaleFor(weapon.data.fireMode) })) anyKill = true;
+        if (damageZombie(this.#ctx, id, dmg, { headshot, dir: _dir, part, flinchScale: flinchScaleFor(weapon.data.fireMode), dismemberChance: dismemberChanceFor(weapon.data.damage) })) anyKill = true;
         pen++;
       }
 
@@ -571,16 +578,31 @@ export class WeaponSystem extends System {
     const PARTS = ['chest', 'pelvis', 'legs']; // matches HITBOXES order
     for (const id of this.world.query(ZombieTag, Transform)) {
       const t = this.world.get(id, Transform);
-      const x = t.position.x, y = t.position.y, z = t.position.z;
+      const z = this.world.get(id, ZombieTag);
+      const x = t.position.x, py = t.position.y, pz = t.position.z;
       let best = Infinity, head = false, part = 'chest';
 
-      const th = this.#raySphere(o, dir, x, y + 1.62, z, 0.24); // head
+      const th = this.#raySphere(o, dir, x, py + 1.62, pz, 0.24); // head
       if (th >= 0 && th < best) { best = th; head = true; part = 'head'; }
       // body: chest, pelvis, shins
       for (let i = 0; i < HITBOXES.length; i++) {
         const [cy, cr] = HITBOXES[i];
-        const tb = this.#raySphere(o, dir, x, y + cy, z, cr);
+        const tb = this.#raySphere(o, dir, x, py + cy, pz, cr);
         if (tb >= 0 && tb < best) { best = tb; head = false; part = PARTS[i]; }
+      }
+      // arms: small spheres offset to the zombie's sides (facing-aware), only
+      // while still attached — so a side shot can take a specific arm off
+      const q = t.quaternion;
+      const yaw = 2 * Math.atan2(q.y, q.w);
+      const rx = Math.cos(yaw), rz = -Math.sin(yaw); // zombie's local +x in world
+      const ARM_OFF = 0.3, ARM_Y = 1.2, ARM_R = 0.17;
+      if (z.limbs?.armR) {
+        const ta = this.#raySphere(o, dir, x + rx * ARM_OFF, py + ARM_Y, pz + rz * ARM_OFF, ARM_R);
+        if (ta >= 0 && ta < best) { best = ta; head = false; part = 'armR'; }
+      }
+      if (z.limbs?.armL) {
+        const ta = this.#raySphere(o, dir, x - rx * ARM_OFF, py + ARM_Y, pz - rz * ARM_OFF, ARM_R);
+        if (ta >= 0 && ta < best) { best = ta; head = false; part = 'armL'; }
       }
       if (best !== Infinity && best <= range) out.push({ id, tca: best, headshot: head, part });
     }
