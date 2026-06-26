@@ -224,7 +224,12 @@ export function enforceLimits(physics, data) {
     _qRel.multiplyQuaternions(_qParentInv, _qC);
     _qOrig.copy(_qRel);
     clampSwingTwist(_qRel, ROM[lk]);
-    if (Math.abs(_qOrig.dot(_qRel)) < 0.99995) { // was outside the allowed range
+    // Deadband (~5deg): only correct when CLEARLY past the limit. With a razor
+    // tolerance, a limb that the floor holds a hair past its stop (e.g. the heel
+    // landing at an angle, harder with a high-force kill) got hard-clamped every
+    // frame while the contact shoved it back past — that per-frame fight was the
+    // spaz. A few degrees of slack lets it rest instead of buzzing.
+    if (Math.abs(_qOrig.dot(_qRel)) < 0.9990) { // clearly outside the allowed range
       _qNew.multiplyQuaternions(_qP, _qRel);     // corrected child orientation
       physics.setBodyRotation(cb, _qNew);
       physics.setBodyTranslation(cb, c.p);       // re-pin the joint anchor (= origin)
