@@ -36,6 +36,10 @@ export class DevMenu {
 
     let html = '<div class="dev-head">DEV MENU <span>[F2]</span></div>';
 
+    html += '<div class="dev-sec"><div class="dev-title">Round</div><div class="dev-row">';
+    for (const r of [1, 5, 10, 15, 20, 25, 30]) html += `<button class="dev-btn" data-round="${r}">${r}</button>`;
+    html += '</div></div>';
+
     html += '<div class="dev-sec"><div class="dev-title">Points <b class="dev-points">0</b></div><div class="dev-row">';
     for (const amt of [500, 1000, 5000, 10000]) html += `<button class="dev-btn" data-points="${amt}">+${amt >= 1000 ? amt / 1000 + 'k' : amt}</button>`;
     html += '<button class="dev-btn dev-warn" data-points="clear">Clear</button></div></div>';
@@ -46,6 +50,11 @@ export class DevMenu {
 
     html += '<div class="dev-sec"><div class="dev-title">Weapons</div><div class="dev-list">';
     for (const key of WEAPON_KEYS) html += `<button class="dev-btn dev-gun" data-gun="${key}">${weaponName(key)}</button>`;
+    html += '</div></div>';
+
+    html += '<div class="dev-sec"><div class="dev-title">Barriers</div><div class="dev-row">';
+    html += '<button class="dev-btn dev-warn" data-barrier="break">Break All</button>';
+    html += '<button class="dev-btn" data-barrier="build">Build All</button>';
     html += '</div></div>';
 
     el.innerHTML = html;
@@ -59,6 +68,8 @@ export class DevMenu {
       if (b.dataset.points != null) this.#addPoints(b.dataset.points);
       else if (b.dataset.perk) this.#perk(b.dataset.perk);
       else if (b.dataset.gun) this.#engine.services.get(Service.Weapons)?.giveWeapon?.(b.dataset.gun);
+      else if (b.dataset.round != null) this.#jumpRound(parseInt(b.dataset.round, 10));
+      else if (b.dataset.barrier) this.#barriers(b.dataset.barrier === 'break');
     });
   }
 
@@ -73,6 +84,24 @@ export class DevMenu {
     if (!p) return;
     p.points = arg === 'clear' ? 0 : Math.max(0, (p.points || 0) + parseInt(arg, 10));
     this.#events.emit('score:changed', { points: p.points });
+  }
+
+  #jumpRound(n) {
+    const round = this.#engine.services.has(Service.Round) ? this.#engine.services.get(Service.Round) : null;
+    round?.jumpToRound?.(n);
+  }
+
+  /** Break (open) or build (close) every window at once. */
+  #barriers(open) {
+    const nav = this.#engine.services.has(Service.Nav) ? this.#engine.services.get(Service.Nav) : null;
+    if (!nav?.barriers) return;
+    for (const bar of nav.barriers) {
+      if (!bar.teardownable && open) continue; // permanent walls stay closed
+      bar.boards = open ? 0 : bar.maxBoards;
+      bar.tearAcc = 0; bar.repairAcc = 0;
+      this.#events.emit('barrier:changed', { id: bar.id, boards: bar.boards });
+    }
+    this.#events.emit('nav:changed', {});
   }
 
   #perk(id) {

@@ -24,6 +24,16 @@ export class RoundManager {
     this.#events.emit('round:changed', { round: 0, state: 'intermission' });
   }
 
+  /** Dev: clear the field and start the given round next (sets round-1, forces a
+   *  brief intermission so the normal #startNext spins up round N's wave). */
+  jumpToRound(n) {
+    this.#spawn.reset();
+    this.round = Math.max(0, (n | 0) - 1);
+    this.state = 'intermission';
+    this.#timer = 0.25;
+    this.#events.emit('round:changed', { round: this.round, state: 'intermission' });
+  }
+
   #startNext() {
     this.round++;
     const count = Math.min(RoundConfig.baseCount + this.round * RoundConfig.countPerRound, RoundConfig.maxCount);
