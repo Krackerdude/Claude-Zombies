@@ -224,6 +224,7 @@ const LIMIT_STIFF = 55.0;
 const LIMIT_DAMP = 18.0;        // strong: stops the limb oscillating across the limit
 const LIMIT_DT = 1 / 60;        // matches PhysicsConfig.fixedStep
 const LIMIT_MAX_IMPULSE = 0.7;  // safety ceiling on |angular impulse| per step
+const MAX_ANGVEL = 7;           // rad/s ceiling on any segment's spin (anti-windup)
 
 /**
  * Enforce anatomical joint limits on the PHYSICS bodies. Rapier spherical joints
@@ -287,6 +288,18 @@ export function syncRagdoll(rig, t, data, physics) {
   const J = rig.userData?.joints;
   if (!J || !data) return;
   const { bodies } = data;
+
+  // cap each body's angular velocity so a free joint + momentum can never wind a
+  // limb up into a continuous spin. Well above the gentle launch tumble (1.3),
+  // so it only ever catches a runaway.
+  for (const k in bodies) {
+    const w = physics.angularVelocity(bodies[k]);
+    const m2 = w.x * w.x + w.y * w.y + w.z * w.z;
+    if (m2 > MAX_ANGVEL * MAX_ANGVEL) {
+      const s = MAX_ANGVEL / Math.sqrt(m2);
+      physics.setAngularVelocity(bodies[k], { x: w.x * s, y: w.y * s, z: w.z * s });
+    }
+  }
 
   // keep the physics bodies anatomically posed first, then mirror them
   enforceLimits(physics, data);
