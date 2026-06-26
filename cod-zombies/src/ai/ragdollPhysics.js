@@ -44,15 +44,16 @@ const SEG = {
 // driving the rig into impossible poses — most importantly the head no longer
 // spins in circles (its twist is clamped to a small range). Radians.
 const ROM = {
-  // The spine bends a lot forward when a body folds (slumping over), so its
-  // swing cone is generous. The LIMBS, by contrast, are kept on tight cones:
-  // they're what was rolling INTO the torso, and a limp limb should only hang
-  // near the body with some sway, never swing across into it. Twists are tight
-  // everywhere so nothing wrings around (and the head can't spin).
-  torso: { swing: 1.20, twistMin: -0.40, twistMax: 0.40 }, // spine: deep forward fold
-  head: { swing: 0.70, twistMin: -0.55, twistMax: 0.55 },  // neck: loll, never bury in chest
-  arm: { swing: 0.95, twistMin: -0.70, twistMax: 0.70 },   // shoulder: hangs near the body
-  leg: { swing: 1.00, twistMin: -0.50, twistMax: 0.50 },   // hip: roughly extended
+  // A single max cone half-angle (radians) the joint may deviate from its
+  // neutral pose, in ANY direction. One simple, singularity-free number per
+  // joint — no swing/twist split. The spine is generous (deep forward fold);
+  // the limbs are tight so a limp arm/leg just hangs near the body and can't
+  // swing across into the torso, and the head can't loll/turn far enough to
+  // bury in the chest or spin.
+  torso: 1.30,
+  head: 0.80,
+  arm: 1.00,
+  leg: 1.00,
 };
 
 const _v = new THREE.Vector3();
@@ -60,55 +61,34 @@ const _q = new THREE.Quaternion();
 const _qParentInv = new THREE.Quaternion();
 const _qChild = new THREE.Quaternion();
 const _qLocal = new THREE.Quaternion();
-const _twist = new THREE.Quaternion();
-const _swing = new THREE.Quaternion();
-const _qTmp = new THREE.Quaternion();
 const _hipOffset = new THREE.Vector3();
 const _bbox = new THREE.Box3();
 
 const rand = (a) => (Math.random() * 2 - 1) * a;
 
 /**
- * Clamp a joint-local rotation to a swing cone + twist range about the limb's
- * long axis (local Y), in place. Swing-twist decomposition: split the rotation
- * into a turn AROUND Y (twist) and the remaining tip AWAY from Y (swing), clamp
- * each, recombine. Keeps the rendered skeleton anatomically plausible no matter
- * what the free physics body does.
+ * Clamp a rotation so it deviates at most `maxAngle` from identity, in place.
+ * If it's already within the cone, untouched; otherwise it's pulled back along
+ * the SAME (shortest-arc) axis to exactly the boundary. This is continuous
+ * everywhere — no swing/twist decomposition, so no singularity that flips
+ * frame-to-frame (that was making the rendered limbs twist + vibrate).
  */
-function clampSwingTwist(q, lim) {
-  if (q.w < 0) { q.x = -q.x; q.y = -q.y; q.z = -q.z; q.w = -q.w; } // shortest arc
-  // twist = component around Y
-  const tl = Math.hypot(q.y, q.w);
-  if (tl < 1e-6) _twist.set(0, 0, 0, 1);
-  else _twist.set(0, q.y / tl, 0, q.w / tl);
-  // swing = q * twist^-1  (twist is unit -> inverse is conjugate)
-  _swing.copy(q).multiply(_qTmp.set(0, -_twist.y, 0, _twist.w));
-
-  // clamp swing cone
-  let sw = Math.min(1, Math.abs(_swing.w));
-  const swingAngle = 2 * Math.acos(sw);
-  if (swingAngle > lim.swing) {
-    const axisLen = Math.hypot(_swing.x, _swing.z); // y ~ 0 after decomposition
-    if (axisLen > 1e-6) {
-      const half = lim.swing * 0.5;
-      const s = Math.sin(half) / axisLen * (_swing.w < 0 ? -1 : 1);
-      _swing.set(_swing.x * s, 0, _swing.z * s, Math.cos(half));
-    }
-  }
-  // clamp twist around Y
-  let twistAngle = 2 * Math.atan2(_twist.y, _twist.w);
-  const cl = Math.min(lim.twistMax, Math.max(lim.twistMin, twistAngle));
-  if (cl !== twistAngle) _twist.set(0, Math.sin(cl * 0.5), 0, Math.cos(cl * 0.5));
-
-  q.copy(_swing).multiply(_twist);
+function clampCone(q, maxAngle) {
+  if (q.w < 0) { q.x = -q.x; q.y = -q.y; q.z = -q.z; q.w = -q.w; } // shortest arc, w>=0
+  const cosHalf = Math.cos(maxAngle * 0.5);
+  if (q.w >= cosHalf) return;                  // within the cone
+  const vlen = Math.hypot(q.x, q.y, q.z);
+  if (vlen < 1e-6) return;                      // ~180deg, axis ill-defined; leave it
+  const s = Math.sin(maxAngle * 0.5) / vlen;    // rescale axis part to the boundary
+  q.set(q.x * s, q.y * s, q.z * s, cosHalf);
 }
 
-/** Clamp a rig joint's LOCAL rotation into its anatomical range in place (used
+/** Clamp a rig joint's LOCAL rotation into its anatomical cone in place (used
  *  once at spawn so the ragdoll starts within limits instead of reeling in). */
-function clampJointLocal(joint, lim) {
+function clampJointLocal(joint, maxAngle) {
   if (!joint) return;
   _qLocal.copy(joint.quaternion);
-  clampSwingTwist(_qLocal, lim);
+  clampCone(_qLocal, maxAngle);
   joint.quaternion.copy(_qLocal);
 }
 
@@ -242,7 +222,7 @@ export function syncRagdoll(rig, t, data, physics) {
     _qParentInv.set(p.q.x, p.q.y, p.q.z, p.q.w).invert();
     _qChild.set(cc.q.x, cc.q.y, cc.q.z, cc.q.w);
     _qLocal.multiplyQuaternions(_qParentInv, _qChild);
-    clampSwingTwist(_qLocal, lim);
+    clampCone(_qLocal, lim);
     joint.quaternion.copy(_qLocal);
   };
 
