@@ -73,8 +73,22 @@ function clampSwingTwist(q, lim) {
   if (q.w < 0) { q.x = -q.x; q.y = -q.y; q.z = -q.z; q.w = -q.w; } // shortest arc
   // twist = component around Y
   const tl = Math.hypot(q.y, q.w);
-  if (tl < 1e-6) _twist.set(0, 0, 0, 1);
-  else _twist.set(0, q.y / tl, 0, q.w / tl);
+  // Near a 180deg swing (the limb flipped opposite its neutral — e.g. an arm
+  // thrown overhead when the back/shoulders hit the ground first) the twist axis
+  // is undefined and the swing/twist split flips sign frame-to-frame: the "crazy
+  // twist". The limb is far past its swing limit there anyway, so skip the
+  // decomposition and just pull the whole rotation straight back toward neutral
+  // to the swing cone — continuous, no flip.
+  if (tl < 0.3) {
+    const cosHalf = Math.cos(lim.swing * 0.5);
+    if (q.w < cosHalf) {
+      const vlen = Math.hypot(q.x, q.y, q.z) || 1;
+      const s = Math.sin(lim.swing * 0.5) / vlen;
+      q.set(q.x * s, q.y * s, q.z * s, cosHalf);
+    }
+    return;
+  }
+  _twist.set(0, q.y / tl, 0, q.w / tl);
   // swing = q * twist^-1  (twist is unit -> inverse is conjugate)
   _swing.copy(q).multiply(_qTmp.set(0, -_twist.y, 0, _twist.w));
 
