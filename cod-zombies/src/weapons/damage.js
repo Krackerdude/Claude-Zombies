@@ -1,7 +1,7 @@
 import { ZombieTag, CorpseTag, Transform, RigidBodyRef, Renderable } from '../ecs/components/index.js';
 import { PlayerCombat, ZombieConfig } from '../config/zombies.js';
 import { Service } from '../core/ServiceLocator.js';
-import { severLimb, severLowerBody } from '../ai/dismember.js';
+import { severLimb, severLowerBody, severHead } from '../ai/dismember.js';
 
 const LIMB_PARTS = { armL: 1, armR: 1, legL: 1, legR: 1 };
 
@@ -28,10 +28,15 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
       z.limbs.legL = false; z.limbs.legR = false;
       z.crawler = true;
       if (z.state === 'teardown') { z.state = 'pathing'; z.barrierTarget = null; z.replan = 0; } // can't tear from the floor
-      if (rig) { severLimb(rig, 'legL'); severLimb(rig, 'legR'); severLowerBody(rig); }
+      if (rig) {
+        severLimb(rig, 'legL'); severLimb(rig, 'legR');
+        const at = severLowerBody(rig);
+        if (at) ctx.events.emit('zombie:gib', { ...at, dir, count: 16, speed: 3.6, scale: 1.25 });
+      }
     } else {
       z.limbs[part] = false;
-      if (rig) severLimb(rig, part);
+      const at = rig ? severLimb(rig, part) : null;
+      if (at) ctx.events.emit('zombie:gib', { ...at, dir, count: 9, speed: 3.2 });
     }
   }
 
@@ -45,6 +50,12 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
   if (z.health <= 0) {
     z.state = 'dead';
     if (award) ctx.player.points += (headshot ? PlayerCombat.pointsKillHead : PlayerCombat.pointsKillBody) * mul;
+    // headshot kill: the head pops — blow it off and burst it into gibs
+    if (headshot) {
+      const rig = ctx.world.get(id, Renderable)?.object3d;
+      const at = rig ? severHead(rig) : null;
+      if (at) ctx.events.emit('zombie:gib', { ...at, dir, count: 18, speed: 3.8, scale: 1.1 });
+    }
     // hand the entity off to the corpse system: drop the live tag, keep the rig
     const t = ctx.world.get(id, Transform);
     const baseYaw = t ? 2 * Math.atan2(t.quaternion.y, t.quaternion.w) : 0; // zombie's Y-only facing

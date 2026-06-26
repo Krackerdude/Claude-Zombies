@@ -25,7 +25,11 @@ const JOINT = { armL: 'shoulderL', armR: 'shoulderR', legL: 'thighL', legR: 'thi
 let _mats = null;
 function mats() {
   if (_mats) return _mats;
-  _mats = {
+  _mats = _buildMats();
+  return _mats;
+}
+function _buildMats() {
+  return {
     // glistening dark blood / outer wound
     blood: new THREE.MeshStandardMaterial({ color: 0x3a0404, roughness: 0.28, metalness: 0.05 }),
     // raw exposed muscle, brighter and wetter
@@ -38,11 +42,23 @@ function mats() {
     // wet ropey entrails
     gut: new THREE.MeshStandardMaterial({ color: 0x6e1414, roughness: 0.22, metalness: 0.06 }),
   };
-  return _mats;
 }
+
+/** Shared gore palette, so the gib FX system can reuse the same wet materials. */
+export function goreMaterials() { return mats(); }
 
 const _chunkGeo = new THREE.BoxGeometry(1, 1, 1);
 const _rnd = (s) => (Math.random() - 0.5) * s;
+const _wp = new THREE.Vector3();
+
+// world position of a point local to a joint (used to seed the gib burst at the
+// exact wound). Updates the joint's world matrix first so it's current.
+function worldOf(joint, x, y, z) {
+  joint.updateWorldMatrix(true, false);
+  _wp.set(x, y, z);
+  joint.localToWorld(_wp);
+  return { x: _wp.x, y: _wp.y, z: _wp.z };
+}
 
 /** An irregular meat chunk: a unit box scaled/rotated/placed randomly. */
 function chunk(mat, x, y, z, sx, sy, sz, jitter = 0.5) {
@@ -70,18 +86,19 @@ function shard(M, x, y, z, len, dir) {
   return g;
 }
 
-/** Remove a limb's geometry from `rig` and build a torn gore wound. Idempotent. */
+/** Remove a limb's geometry from `rig` and build a torn gore wound. Idempotent.
+ *  Returns the wound's world position {x,y,z} (to seed a gib burst), or null. */
 export function severLimb(rig, limb) {
   const J = rig.userData?.joints;
   const spec = SOCKET[limb];
-  if (!J || !spec) return;
+  if (!J || !spec) return null;
   const joint = J[JOINT[limb]];
-  if (!joint || joint.userData.severed) return;
+  if (!joint || joint.userData.severed) return null;
   joint.visible = false;
   joint.userData.severed = true;
 
   const parent = J[spec.parent];
-  if (!parent) return;
+  if (!parent) return null;
   const M = mats();
   const wound = new THREE.Group();
   wound.position.set(spec.x, spec.y, spec.z);
@@ -109,13 +126,50 @@ export function severLimb(rig, limb) {
     wound.add(s);
   }
   parent.add(wound);
+  return worldOf(parent, spec.x, spec.y, spec.z);
+}
+
+/** Head shot off on a kill: hide the head, cap the neck with a gory stump, and
+ *  report the head's world position so it can burst into gibs. Idempotent. */
+export function severHead(rig) {
+  const J = rig.userData?.joints;
+  if (!J || !J.head || J.head.userData.severed) return null;
+  const head = J.head;
+  const torso = head.parent;
+  if (!torso) return null;
+  // skull centre in world BEFORE we hide it — that's where the burst originates
+  const pos = worldOf(head, 0, 0.2, 0);
+  head.userData.severed = true;
+  head.visible = false;
+
+  const M = mats();
+  const wound = new THREE.Group();
+  wound.position.copy(head.position); // neck base, in torso space
+  // ragged ring of torn neck flesh + wet muscle stump
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    wound.add(chunk(M.blood, Math.cos(a) * 0.06, 0, Math.sin(a) * 0.06, 0.07, 0.06, 0.07, 0.7));
+  }
+  wound.add(chunk(M.muscle, 0, 0, 0, 0.11, 0.07, 0.11, 0.4));
+  // exposed cervical spine stub + a couple of trailing arteries
+  wound.add(shard(M, 0, 0, -0.01, 0.06, { x: 0, z: 0 }));
+  for (let i = 0; i < 3; i++) {
+    const len = 0.05 + Math.random() * 0.06;
+    const s = new THREE.Mesh(_chunkGeo, M.gut);
+    s.scale.set(0.016, len, 0.016);
+    s.position.set(_rnd(0.1), 0.02 + _rnd(0.04), _rnd(0.08) + 0.03);
+    s.rotation.set(_rnd(0.6), 0, _rnd(0.6));
+    wound.add(s);
+  }
+  torso.add(wound);
+  return pos;
 }
 
 /** Both legs gone: cut the body off at the waist — a grotesque open torso with
  *  exposed spine, ribs, viscera, and long dangling entrails (BO3 crawler). */
 export function severLowerBody(rig) {
   const J = rig.userData?.joints;
-  if (!J || !J.hips || J.hips.userData.lowerSevered) return;
+  if (!J || !J.hips || J.hips.userData.lowerSevered) return null;
   J.hips.userData.lowerSevered = true;
   const hips = J.hips;
   const M = mats();
@@ -160,4 +214,5 @@ export function severLowerBody(rig) {
     wound.add(e);
   }
   hips.add(wound);
+  return worldOf(hips, 0, -0.05, 0);
 }

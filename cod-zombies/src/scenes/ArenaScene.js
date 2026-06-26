@@ -28,6 +28,7 @@ import { prewarmZombieCosmetics } from './zombieAssets.js';
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../rendering/AmbientParticles.js';
 import { DecalSystem } from '../rendering/DecalSystem.js';
+import { GibSystem } from '../rendering/GibSystem.js';
 import { buildLightCone } from '../rendering/lightCone.js';
 import { EffectsDirector } from '../rendering/EffectsDirector.js';
 import { WeatherSystem } from '../rendering/WeatherSystem.js';
@@ -219,6 +220,8 @@ export function buildArena(engine) {
   // isolated, event-driven, and individually disable-able for performance.
   engine.world.registerSystem(new AmbientParticles());
   engine.world.registerSystem(new DecalSystem());
+  // bloody gibs flung from severed limbs / blown-apart heads (ballistic, pooled)
+  engine.world.registerSystem(new GibSystem());
   // drives the live, state-reactive post-FX (speed-lines, low-health vignette,
   // round-dread palette, last-kill bullet-time)
   engine.world.registerSystem(new EffectsDirector());
