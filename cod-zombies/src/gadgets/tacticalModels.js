@@ -93,20 +93,32 @@ function addEye(parent, x, y, z, r, P, slit = false) {
   return sclera;
 }
 
-/** A tentacle: an upper segment on a pivot + a mid segment on its own tip pivot,
- *  so it whips in two joints. A couple of small spines give the eldritch look.
- *  Returns the root pivot, with the mid pivot stashed on userData for flailing. */
-function buildTentacle(P, len, rad = 0.06) {
+/** A CURVED tentacle: a chain of tapering segments, each on a pivot bent a
+ *  little past the last so the whole thing arcs like a horn (no loose straight
+ *  sticks). The base is thick so it fuses into the body. Spine nubs run its
+ *  length. Returns the root pivot; `userData.mid` is the first joint (its bend
+ *  stashed on `userData.base`) for the secondary flail. */
+function buildTentacle(P, len, rad = 0.09, segs = 5, bend = 0.26) {
   const root = new THREE.Group();
-  const seg = (l, r0, r1) => new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, l, 7), P.skin);
-  const up = seg(len, rad, rad * 0.72); up.position.y = len / 2; root.add(up);
-  for (let i = 0; i < 2; i++) { // spine nubs
-    const sp = new THREE.Mesh(new THREE.ConeGeometry(rad * 0.4, rad * 1.3, 5), P.skin2);
-    sp.position.set(rad * 0.8, len * (0.3 + i * 0.35), 0); sp.rotation.z = -Math.PI / 2; root.add(sp);
+  const segLen = len / segs;
+  let parent = root, mid = null;
+  for (let i = 0; i < segs; i++) {
+    const r0 = rad * (1 - (i / segs) * 0.78);
+    const r1 = rad * (1 - ((i + 1) / segs) * 0.78);
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, segLen * 1.04, 8), P.skin);
+    seg.position.y = segLen / 2; parent.add(seg);
+    if (i < segs - 1) { // spine nub on the outer edge of each joint
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(r0 * 0.45, r0 * 1.5, 5), P.skin2);
+      sp.position.set(r0 * 0.75, segLen * 0.7, 0); sp.rotation.z = -Math.PI / 2.2; parent.add(sp);
+    }
+    const next = new THREE.Group();
+    next.position.y = segLen; next.rotation.x = bend; // arc forward a touch each joint
+    next.userData.base = bend;
+    parent.add(next);
+    if (i === 0) mid = next;
+    parent = next;
   }
-  const mid = new THREE.Group(); mid.position.y = len; root.add(mid);
-  const lo = seg(len * 0.85, rad * 0.72, rad * 0.3); lo.position.y = (len * 0.85) / 2; mid.add(lo);
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(rad * 0.4, 6, 5), P.skin2); tip.position.y = len * 0.85; mid.add(tip);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(rad * 0.22, 6, 5), P.skin2); parent.add(tip);
   root.userData.mid = mid;
   return root;
 }
@@ -120,54 +132,78 @@ export function buildArnieJar() {
   const glass = [];
 
   // --- parasite: an eldritch horror (hidden until the jar shatters) ---
-  // a wet bulbous mass with ONE great central eye, clusters of lesser eyes all
-  // over it, and a maw at the crown that splits into three ooze-spewing
-  // tentacles. Origin at the feet, rises ~1.4.
+  // NOT a sphere: a tapered, ridged vertical mass (a fanged "face" wedge under a
+  // pointed crest) squatting on clawed feet, with a maw at the crown that splits
+  // into three thick CURVED horn-tentacles. One great central eye, lesser eyes
+  // clustered over it. Origin at the feet, rises ~1.5.
   const parasite = new THREE.Group();
   parasite.visible = false;
   parasite.scale.setScalar(0.16);
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 14), P.skin);
-  body.scale.set(1.05, 1.25, 1.0); body.position.y = 0.7; parasite.add(body);
-  // irregular fleshy lumps so it's a misshapen mass, not a smooth egg
-  for (const L of [[0.3, 0.55, 0.34, 0.26], [-0.34, 0.62, 0.28, 0.24], [0.0, 0.34, 0.4, 0.3], [-0.26, 0.95, -0.3, 0.22], [0.32, 1.0, -0.24, 0.2]]) {
-    const lump = new THREE.Mesh(new THREE.SphereGeometry(L[3], 10, 9), Math.random() < 0.5 ? P.skin : P.skin2);
-    lump.position.set(L[0], L[1], L[2]); lump.scale.set(1, 0.85, 0.9); parasite.add(lump);
+
+  // lower "face" — a broad wedge (wide, shallow, chin tapering down/forward)
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.46, 16, 14), P.skin);
+  face.scale.set(1.15, 1.0, 0.82); face.position.set(0, 0.62, 0.04); parasite.add(face);
+  const chin = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.5, 10), P.skin);
+  chin.scale.set(1.1, 1, 0.7); chin.position.set(0, 0.34, 0.16); chin.rotation.x = Math.PI; parasite.add(chin); // points down-forward
+  // central crest spike rising between the tentacles (the arrowhead ridge)
+  const crest = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.95, 8), P.skin);
+  crest.scale.set(0.9, 1, 0.65); crest.position.set(0, 1.12, -0.04); parasite.add(crest);
+  for (const sx of [-1, 1]) { // flanking ridge spikes -> horned-skull crown
+    const sr = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.62, 7), P.skin2);
+    sr.position.set(sx * 0.26, 1.0, -0.1); sr.rotation.z = sx * 0.5; parasite.add(sr);
+  }
+  // a couple of fleshy lumps to keep it misshapen (not a smooth solid)
+  for (const L of [[0.26, 0.66, 0.26, 0.2], [-0.28, 0.6, 0.24, 0.18], [0, 0.42, 0.34, 0.22]]) {
+    const lump = new THREE.Mesh(new THREE.SphereGeometry(L[3], 10, 9), P.skin2);
+    lump.position.set(L[0], L[1], L[2]); lump.scale.set(1, 0.8, 0.85); parasite.add(lump);
+  }
+  // clawed feet splayed at the base
+  for (let k = 0; k < 3; k++) {
+    const a = (-0.6 + k * 0.6);
+    const foot = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.34, 6), P.skin);
+    foot.position.set(Math.sin(a) * 0.28, 0.08, 0.22 + Math.cos(a) * 0.04);
+    foot.rotation.set(1.9, 0, -Math.sin(a) * 0.5); parasite.add(foot); // claw splayed forward
   }
 
-  // THE great central eye, front-and-centre, with a vertical slit
-  addEye(parasite, 0, 0.82, 0.46, 0.27, P, true);
-  // subsets of smaller eyes scattered all over the body/sides
+  // THE great central eye (vertical slit), with two larger eyes flanking below
+  addEye(parasite, 0, 0.74, 0.4, 0.22, P, true);
+  addEye(parasite, -0.24, 0.56, 0.34, 0.15, P);
+  addEye(parasite, 0.24, 0.56, 0.34, 0.15, P);
+  // subsets of smaller eyes clustered over the face/crest/flanks
   const EYES = [
-    [-0.34, 1.06, 0.26, 0.1], [0.36, 1.02, 0.22, 0.11], [-0.18, 1.2, 0.18, 0.07],
-    [0.2, 1.24, 0.12, 0.06], [-0.42, 0.78, 0.12, 0.09], [0.44, 0.72, 0.1, 0.08],
-    [-0.3, 0.5, 0.32, 0.07], [0.28, 0.46, 0.34, 0.075], [0.0, 0.5, 0.5, 0.06],
-    [-0.48, 0.95, -0.18, 0.07], [0.46, 0.9, -0.22, 0.065], [0.12, 1.32, -0.05, 0.055],
+    [-0.34, 0.78, 0.18, 0.08], [0.36, 0.8, 0.16, 0.085], [-0.12, 0.92, 0.26, 0.07],
+    [0.14, 0.94, 0.24, 0.065], [-0.4, 0.62, 0.06, 0.07], [0.42, 0.6, 0.05, 0.06],
+    [0.0, 1.06, 0.16, 0.06], [-0.2, 1.2, 0.02, 0.05], [0.22, 1.18, 0.0, 0.05],
+    [-0.16, 0.42, 0.32, 0.055], [0.18, 0.4, 0.32, 0.05],
   ];
   for (const e of EYES) addEye(parasite, e[0], e[1], e[2], e[3], P);
 
-  // crown maw: a dark gaping opening at the top, ringed by a fleshy lip; the
-  // three tentacles erupt from it and the ooze shoots from here
-  const maw = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), P.maw);
-  maw.scale.set(1, 0.8, 1); maw.position.set(0, 1.28, 0.04); parasite.add(maw);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.05, 8, 14), P.skin2);
-  lip.rotation.x = Math.PI / 2; lip.position.set(0, 1.3, 0.04); parasite.add(lip);
-  const mouth = new THREE.Object3D(); mouth.position.set(0, 1.34, 0.06); parasite.add(mouth);
+  // crown maw: the dark gaping opening at the apex the tentacles split from,
+  // ringed by a fleshy lip; the ooze shoots from here
+  const maw = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), P.maw);
+  maw.scale.set(1.1, 0.7, 1); maw.position.set(0, 1.34, 0.06); parasite.add(maw);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 8, 14), P.skin2);
+  lip.rotation.x = Math.PI / 2; lip.position.set(0, 1.36, 0.06); parasite.add(lip);
+  const mouth = new THREE.Object3D(); mouth.position.set(0, 1.4, 0.1); parasite.add(mouth);
 
-  // the three crown tentacles splitting up out of the maw, + lesser writhers
+  // three thick CURVED horn-tentacles splitting up/out from the crown, their
+  // fat bases sunk into the crest so they read as fused; + lesser writhers
   const tentacles = [];
-  for (let k = 0; k < 3; k++) {
-    const a = (k / 3) * Math.PI * 2 - Math.PI / 2;
-    const ten = buildTentacle(P, 0.8, 0.09);
-    ten.position.set(Math.cos(a) * 0.08, 1.3, Math.sin(a) * 0.08);
-    ten.userData.baseX = -0.55; ten.userData.baseZ = 0; // lean up/out from vertical
-    ten.rotation.set(ten.userData.baseX, a, ten.userData.baseZ);
+  const crown = [[-0.7, 0.9], [0.7, 0.9], [0.0, 1.0]]; // [side-aim, length] — two wide, one rearing back
+  for (let k = 0; k < crown.length; k++) {
+    const aim = crown[k][0];
+    const ten = buildTentacle(P, crown[k][1], 0.12, 5, 0.3);
+    ten.position.set(Math.sin(aim) * 0.16, 1.18, -0.04);
+    ten.userData.baseX = -0.5;            // lean up from vertical
+    ten.userData.baseZ = aim * 0.7;       // splay to its side
+    ten.rotation.set(ten.userData.baseX, 0, ten.userData.baseZ);
     parasite.add(ten); tentacles.push(ten);
   }
-  for (let k = 0; k < 4; k++) {            // smaller writhing tentacles round the mass
-    const a = (k / 4) * Math.PI * 2 + 0.6;
-    const ten = buildTentacle(P, 0.42, 0.05);
-    ten.position.set(Math.cos(a) * 0.42, 0.6 + (k % 2) * 0.18, Math.sin(a) * 0.34);
-    ten.userData.baseX = -0.2 + Math.sin(a) * 0.4;
+  for (let k = 0; k < 3; k++) {           // shorter writhers off the upper flanks
+    const a = (k / 3) * Math.PI * 2 + 0.5;
+    const ten = buildTentacle(P, 0.5, 0.06, 4, 0.3);
+    ten.position.set(Math.cos(a) * 0.36, 0.86, Math.sin(a) * 0.28 - 0.02);
+    ten.userData.baseX = -0.1 + Math.sin(a) * 0.4;
     ten.userData.baseZ = Math.cos(a) * 0.7;
     ten.rotation.set(ten.userData.baseX, a, ten.userData.baseZ);
     parasite.add(ten); tentacles.push(ten);
@@ -203,6 +239,6 @@ export function buildArnieJar() {
   }
   for (const m of glass) g.add(m);
 
-  g.userData = { glass, parasite, tentacles, body, mouth };
+  g.userData = { glass, parasite, tentacles, mouth };
   return g;
 }

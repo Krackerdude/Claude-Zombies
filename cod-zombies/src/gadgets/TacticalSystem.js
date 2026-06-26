@@ -228,13 +228,16 @@ export class TacticalSystem extends System {
     if (J.tentacles) {
       for (let k = 0; k < J.tentacles.length; k++) {
         const ten = J.tentacles[k];
-        const ph = tt * (5 + k * 0.7) + k * 1.9;
-        ten.rotation.x = ten.userData.baseX + Math.sin(ph) * 0.8;
-        ten.rotation.z = ten.userData.baseZ + Math.cos(ph * 1.3) * 0.7;
-        if (ten.userData.mid) ten.userData.mid.rotation.x = Math.sin(ph * 1.7) * 0.9;
+        const ph = tt * (3.2 + k * 0.5) + k * 1.9;
+        // sway from the root (keep it measured — menacing, not whipping sticks)
+        ten.rotation.x = ten.userData.baseX + Math.sin(ph) * 0.3;
+        ten.rotation.z = ten.userData.baseZ + Math.cos(ph * 1.2) * 0.28;
+        // secondary curl ADDED to the joint's baked bend so the arc is preserved
+        const mid = ten.userData.mid;
+        if (mid) mid.rotation.x = mid.userData.base + Math.sin(ph * 1.6) * 0.32;
       }
     }
-    if (J.body) J.body.rotation.z = Math.sin(tt * 4) * 0.12;
+    if (J.parasite) J.parasite.rotation.z = Math.sin(tt * 3) * 0.06; // gentle whole-body writhe
 
     // grow + hold the ground puddle
     if (m.puddle) {
