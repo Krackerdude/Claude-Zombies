@@ -52,6 +52,11 @@ export class DevMenu {
     for (const key of WEAPON_KEYS) html += `<button class="dev-btn dev-gun" data-gun="${key}">${weaponName(key)}</button>`;
     html += '</div></div>';
 
+    html += '<div class="dev-sec"><div class="dev-title">Lethals</div><div class="dev-row">';
+    html += '<button class="dev-btn" data-lethal="frag">Frag</button>';
+    html += '<button class="dev-btn" data-lethal="wraithfire">WraithFire</button>';
+    html += '</div></div>';
+
     html += '<div class="dev-sec"><div class="dev-title">Tacticals</div><div class="dev-row">';
     html += '<button class="dev-btn" data-tactical="monkey">Monkey Bomb</button>';
     html += '<button class="dev-btn" data-tactical="arnie">Lil\' Arnie</button>';
@@ -74,6 +79,7 @@ export class DevMenu {
       if (b.dataset.points != null) this.#addPoints(b.dataset.points);
       else if (b.dataset.perk) this.#perk(b.dataset.perk);
       else if (b.dataset.gun) this.#engine.services.get(Service.Weapons)?.giveWeapon?.(b.dataset.gun);
+      else if (b.dataset.lethal) this.#engine.services.get(Service.Lethal)?.giveLethal?.(b.dataset.lethal);
       else if (b.dataset.tactical) this.#engine.services.get(Service.Tactical)?.giveTactical?.(b.dataset.tactical);
       else if (b.dataset.round != null) this.#jumpRound(parseInt(b.dataset.round, 10));
       else if (b.dataset.barrier) this.#barriers(b.dataset.barrier === 'break');

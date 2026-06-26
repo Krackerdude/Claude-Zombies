@@ -212,7 +212,12 @@ async function main() {
     events.on('fx:shake', () => flash(elApp, 'shake'));
     events.on('fx:zombieblood', ({ on }) => { if (elBlood) elBlood.classList.toggle('show', !!on); });
     const elLethal = document.getElementById('hud-lethal-count');
-    events.on('lethal:count', ({ count }) => { if (elLethal) elLethal.textContent = count; });
+    const elLethalSlot = document.getElementById('hud-lethal');
+    events.on('lethal:count', ({ count, kind }) => {
+      if (elLethal) elLethal.textContent = count;
+      if (elLethalSlot && kind) elLethalSlot.dataset.kind = kind;
+    });
+    events.on('lethal:equip', ({ kind }) => { if (elLethalSlot) elLethalSlot.dataset.kind = kind; });
     // tactical slot (opposite side of the gun widget) — hidden until you hold one
     const elTac = document.getElementById('hud-tac');
     const elTacN = document.getElementById('hud-tactical-count');

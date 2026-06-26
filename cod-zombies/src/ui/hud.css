@@ -256,6 +256,20 @@
   box-shadow: inset 0 0 3px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.6); position: relative;
 }
 .nade-glyph::before { content: ''; position: absolute; left: 50%; top: -3px; width: 6px; height: 3.5px; transform: translateX(-50%); background: #c7c08a; border-radius: 1.5px; }
+
+/* WraithFire: a spectral blue flame instead of the frag body */
+.wpn-nade[data-kind="wraithfire"] .nade-glyph {
+  width: 13px; height: 18px; border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%;
+  background: radial-gradient(50% 60% at 50% 72%, #dffaff, #49b8ff 45%, #1f5bff 78%, rgba(20,40,120,0));
+  box-shadow: 0 0 8px rgba(74,184,255,0.7), inset 0 -2px 3px rgba(255,255,255,0.4);
+  transform: skewX(-4deg);
+}
+.wpn-nade[data-kind="wraithfire"] .nade-glyph::before {
+  content: ''; position: absolute; left: 50%; top: -4px; width: 5px; height: 8px;
+  transform: translateX(-50%); border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+  background: radial-gradient(50% 60% at 50% 70%, #eafdff, #6fcbff 60%, rgba(74,184,255,0)); inset: auto;
+}
+.wpn-nade[data-kind="wraithfire"] .nade-n { color: #dff3ff; text-shadow: 0 0 9px rgba(74,184,255,0.6), 0 2px 3px #000; }
 .nade-n {
   font-family: 'Anton', Impact, sans-serif; font-size: 1.5rem; line-height: 1; color: #eaf3cf;
   text-shadow: 0 0 9px rgba(150,200,90,0.45), 0 2px 3px #000;
