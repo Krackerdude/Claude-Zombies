@@ -78,19 +78,43 @@ function arnieParts() {
   return _A;
 }
 
-/** An eye: a sickly sclera with a pupil pushed out along its outward normal. A
- *  `slit` eye gets a tall vertical slit pupil (the big central one). */
-function addEye(parent, x, y, z, r, P, slit = false) {
-  const sclera = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), P.sclera);
-  sclera.position.set(x, y, z); parent.add(sclera);
-  // outward normal (radial from the body's vertical axis, biased forward)
-  const nx = x, ny = (y - 0.7) * 0.4, nz = z + 0.12;
-  const nl = Math.hypot(nx, ny, nz) || 1;
-  const pup = new THREE.Mesh(new THREE.SphereGeometry(r * 0.46, 8, 8), P.pupil);
-  if (slit) pup.scale.set(0.4, 1.25, 0.6); // vertical reptilian slit
-  pup.position.set(x + (nx / nl) * r * 0.72, y + (ny / nl) * r * 0.72, z + (nz / nl) * r * 0.72);
-  parent.add(pup);
-  return sclera;
+const _up = new THREE.Vector3(0, 1, 0);
+const _n = new THREE.Vector3();
+const _t = new THREE.Vector3();
+const _rgt = new THREE.Vector3();
+const _mtx = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+
+/** An eye, built with NO sphere: a faceted domed LENS (a short tapered cylinder)
+ *  set into the hide facing along its outward normal, with a flat dark pupil
+ *  disc — or, for the great eye, a vertical reptilian slit. */
+function addEye(parent, x, y, z, r, P, big = false) {
+  _n.set(x, (y - 0.7) * 0.4, z + 0.16);
+  if (_n.lengthSq() < 1e-6) _n.set(0, 0, 1);
+  _n.normalize();
+  _q.setFromUnitVectors(_up, _n);
+
+  // sclera: a tapered cylinder whose WIDE cap (radiusTop = r) points outward
+  // along the normal -> a faceted bulging lens, never a ball
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.45, r * 0.95, big ? 12 : 8), P.sclera);
+  lens.position.set(x, y, z); lens.quaternion.copy(_q);
+  parent.add(lens);
+
+  const outX = x + _n.x * r * 0.5, outY = y + _n.y * r * 0.5, outZ = z + _n.z * r * 0.5;
+  if (big) {
+    // vertical slit oriented in the eye's surface plane (tangent-up basis)
+    _t.copy(_up).addScaledVector(_n, -_up.dot(_n)).normalize();
+    _rgt.crossVectors(_t, _n).normalize();
+    _mtx.makeBasis(_rgt, _t, _n);
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(r * 0.26, r * 1.5, r * 0.4), P.pupil);
+    slit.position.set(outX, outY, outZ); slit.quaternion.setFromRotationMatrix(_mtx);
+    parent.add(slit);
+  } else {
+    const pup = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.5, r * 0.5, r * 0.25, 7), P.pupil);
+    pup.position.set(outX, outY, outZ); pup.quaternion.copy(_q);
+    parent.add(pup);
+  }
+  return lens;
 }
 
 /** A CURVED tentacle: a chain of tapering segments, each on a pivot bent a
@@ -118,9 +142,16 @@ function buildTentacle(P, len, rad = 0.09, segs = 5, bend = 0.26) {
     if (i === 0) mid = next;
     parent = next;
   }
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(rad * 0.22, 6, 5), P.skin2); parent.add(tip);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(rad * 0.26, rad * 0.7, 5), P.skin2); tip.position.y = rad * 0.2; parent.add(tip);
   root.userData.mid = mid;
   return root;
+}
+
+/** A faceted, tapered lathe body — a profile [ [radius, height], ... ] revolved
+ *  with few segments so it reads angular/organic, NEVER a sphere. */
+function latheBody(profile, segs, mat) {
+  const pts = profile.map((p) => new THREE.Vector2(p[0], p[1]));
+  return new THREE.Mesh(new THREE.LatheGeometry(pts, segs), mat);
 }
 
 /** The jar as thrown. userData carries the glass shell (hidden on shatter), the
@@ -140,22 +171,28 @@ export function buildArnieJar() {
   parasite.visible = false;
   parasite.scale.setScalar(0.16);
 
-  // lower "face" — a broad wedge (wide, shallow, chin tapering down/forward)
-  const face = new THREE.Mesh(new THREE.SphereGeometry(0.46, 16, 14), P.skin);
-  face.scale.set(1.15, 1.0, 0.82); face.position.set(0, 0.62, 0.04); parasite.add(face);
-  const chin = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.5, 10), P.skin);
-  chin.scale.set(1.1, 1, 0.7); chin.position.set(0, 0.34, 0.16); chin.rotation.x = Math.PI; parasite.add(chin); // points down-forward
+  // MAIN BODY: a faceted, tapered lathe — widest at the lower-mid 'face/belly',
+  // pinching down to the feet and tapering up to the crest. Flattened front-back
+  // into a wedge, with the facets offset off-axis. No sphere anywhere.
+  const body = latheBody([
+    [0.04, 0.08], [0.2, 0.2], [0.34, 0.34], [0.44, 0.5], [0.45, 0.64],
+    [0.4, 0.8], [0.32, 0.96], [0.22, 1.12], [0.12, 1.26], [0.05, 1.36],
+  ], 7, P.skin);
+  body.scale.z = 0.8; body.rotation.y = Math.PI / 7; parasite.add(body);
+  // a sharp jaw/chin ridge jutting down-forward
+  const chin = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.46, 6), P.skin);
+  chin.scale.set(1.1, 1, 0.7); chin.position.set(0, 0.3, 0.2); chin.rotation.set(2.5, 0, 0); parasite.add(chin);
   // central crest spike rising between the tentacles (the arrowhead ridge)
-  const crest = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.95, 8), P.skin);
-  crest.scale.set(0.9, 1, 0.65); crest.position.set(0, 1.12, -0.04); parasite.add(crest);
+  const crest = new THREE.Mesh(new THREE.ConeGeometry(0.26, 1.0, 6), P.skin);
+  crest.scale.set(0.9, 1, 0.62); crest.position.set(0, 1.16, -0.05); parasite.add(crest);
   for (const sx of [-1, 1]) { // flanking ridge spikes -> horned-skull crown
-    const sr = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.62, 7), P.skin2);
-    sr.position.set(sx * 0.26, 1.0, -0.1); sr.rotation.z = sx * 0.5; parasite.add(sr);
+    const sr = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.66, 5), P.skin2);
+    sr.position.set(sx * 0.24, 1.02, -0.1); sr.rotation.z = sx * 0.5; parasite.add(sr);
   }
-  // a couple of fleshy lumps to keep it misshapen (not a smooth solid)
-  for (const L of [[0.26, 0.66, 0.26, 0.2], [-0.28, 0.6, 0.24, 0.18], [0, 0.42, 0.34, 0.22]]) {
-    const lump = new THREE.Mesh(new THREE.SphereGeometry(L[3], 10, 9), P.skin2);
-    lump.position.set(L[0], L[1], L[2]); lump.scale.set(1, 0.8, 0.85); parasite.add(lump);
+  // a few angular nodules (tapered cones, not blobs) breaking up the hide
+  for (const L of [[0.32, 0.6, 0.22], [-0.34, 0.54, 0.18], [0.1, 0.36, 0.32], [-0.12, 0.86, 0.2]]) {
+    const nod = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.16, 5), P.skin2);
+    nod.position.set(L[0], L[1], L[2]); nod.lookAt(L[0] * 3, L[1], L[2] * 3 + 1); parasite.add(nod);
   }
   // clawed feet splayed at the base
   for (let k = 0; k < 3; k++) {
@@ -178,10 +215,10 @@ export function buildArnieJar() {
   ];
   for (const e of EYES) addEye(parasite, e[0], e[1], e[2], e[3], P);
 
-  // crown maw: the dark gaping opening at the apex the tentacles split from,
+  // crown maw: a conical PIT (apex sunk into the body) the tentacles split from,
   // ringed by a fleshy lip; the ooze shoots from here
-  const maw = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), P.maw);
-  maw.scale.set(1.1, 0.7, 1); maw.position.set(0, 1.34, 0.06); parasite.add(maw);
+  const maw = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.34, 10), P.maw);
+  maw.rotation.x = Math.PI; maw.position.set(0, 1.28, 0.06); parasite.add(maw); // apex down = an opening pit
   const lip = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 8, 14), P.skin2);
   lip.rotation.x = Math.PI / 2; lip.position.set(0, 1.36, 0.06); parasite.add(lip);
   const mouth = new THREE.Object3D(); mouth.position.set(0, 1.4, 0.1); parasite.add(mouth);
@@ -221,9 +258,9 @@ export function buildArnieJar() {
   // a little curled parasite seed visible inside the fluid before it bursts —
   // same sickly flesh + a single beady slit eye and a couple of nub tentacles
   const seed = new THREE.Group();
-  const sbody = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), P.skin);
-  sbody.scale.set(1, 0.85, 1.2); seed.add(sbody);
-  addEye(seed, 0, 0.02, 0.07, 0.04, P, true);
+  const sbody = latheBody([[0.0, -0.08], [0.05, -0.04], [0.075, 0.02], [0.06, 0.07], [0.0, 0.1]], 6, P.skin);
+  sbody.scale.z = 1.2; seed.add(sbody);
+  addEye(seed, 0, 0.03, 0.07, 0.035, P, true);
   for (let i = 0; i < 3; i++) {
     const t = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.006, 0.09, 6), P.skin);
     t.position.set((i - 1) * 0.03, -0.05, -0.02); t.rotation.x = 0.7 + i * 0.2; seed.add(t);

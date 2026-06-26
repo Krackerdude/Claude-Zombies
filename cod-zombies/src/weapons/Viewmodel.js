@@ -702,11 +702,13 @@ function buildVmArnieJar() {
   const cyl = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 16, 1, true), glass); cyl.position.y = 0; g.add(cyl);
   const dome = new THREE.Mesh(new THREE.SphereGeometry(R, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), glass); dome.position.y = H / 2; g.add(dome);
   const fl = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.9, R * 0.9, H * 0.82, 16), fluid); fl.position.y = -0.005; g.add(fl);
-  // the parasite seed: a curled fleshy body with one beady slit eye + nub tentacles
+  // the parasite seed: a curled tapered fleshy body (faceted lathe, no sphere)
+  // with one faceted lens eye + nub tentacles
+  const seedPts = [[0.0, -0.04], [0.024, -0.02], [0.036, 0.01], [0.03, 0.035], [0.0, 0.05]].map((p) => new THREE.Vector2(p[0], p[1]));
   const seed = new THREE.Group();
-  const sb = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), skin); sb.scale.set(1, 0.82, 1.25); seed.add(sb);
-  const sc = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), sclera); sc.position.set(0, 0.008, 0.03); seed.add(sc);
-  const pp = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 8), pupil); pp.scale.set(0.45, 1.2, 0.6); pp.position.set(0, 0.008, 0.046); seed.add(pp);
+  const sb = new THREE.Mesh(new THREE.LatheGeometry(seedPts, 6), skin); sb.scale.z = 1.3; seed.add(sb);
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.007, 0.018, 8), sclera); lens.rotation.x = Math.PI / 2; lens.position.set(0, 0.008, 0.032); seed.add(lens);
+  const slit = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.018, 0.006), pupil); slit.position.set(0, 0.008, 0.04); seed.add(slit);
   for (let i = 0; i < 4; i++) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.003, 0.05, 6), skin); t.position.set((i - 1.5) * 0.012, -0.02, 0.01); t.rotation.x = 0.6; seed.add(t); }
   seed.position.set(0, -0.01, 0); seed.userData.y = -0.01; g.add(seed); g.userData.seed = seed;
   // brass lid + wood slats
