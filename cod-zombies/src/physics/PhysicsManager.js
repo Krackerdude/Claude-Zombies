@@ -155,11 +155,11 @@ export class PhysicsManager {
       .setLinearDamping(0.5)
       // higher angular drag bleeds off the spin that builds at the joints when a
       // limb hits the floor, so segments settle instead of buzzing/whirling
-      .setAngularDamping(1.4);
-    // NOTE: no CCD. Corpses move far too slowly to tunnel the thick floor, and
-    // CCD on slow resting bodies makes them skate (never settle into static
-    // friction) — that was the "infinite sliding". Clipping is a MISSING
-    // collider (the foot), fixed by sizing the leg capsule, not by CCD.
+      .setAngularDamping(1.4)
+      // CCD so a fast-launched limb can't tunnel through the floor between
+      // steps (standard for ragdolls). Works WITH the foot collider — CCD keeps
+      // the collider from passing through; the collider has to exist first.
+      .setCcdEnabled(true);
     if (quat) bodyDesc.setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w });
     const body = this.world.createRigidBody(bodyDesc);
     let cd;
