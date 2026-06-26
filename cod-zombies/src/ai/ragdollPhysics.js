@@ -44,14 +44,15 @@ const SEG = {
 // driving the rig into impossible poses — most importantly the head no longer
 // spins in circles (its twist is clamped to a small range). Radians.
 const ROM = {
-  // spine bends a LOT forward when a body folds/collapses (think slumping over),
-  // so the swing cone is generous; only the TWIST stays tight so the torso can't
-  // wring around. A tight swing here was fighting the natural ~90deg waist fold
-  // and producing the "compression twist".
-  torso: { swing: 1.35, twistMin: -0.45, twistMax: 0.45 },
-  head: { swing: 0.95, twistMin: -0.65, twistMax: 0.65 },  // neck: nod/tilt, limited turn
-  arm: { swing: 1.95, twistMin: -1.25, twistMax: 1.25 },   // shoulder: very mobile
-  leg: { swing: 1.40, twistMin: -0.55, twistMax: 0.55 },   // hip: fold forward/back
+  // The spine bends a lot forward when a body folds (slumping over), so its
+  // swing cone is generous. The LIMBS, by contrast, are kept on tight cones:
+  // they're what was rolling INTO the torso, and a limp limb should only hang
+  // near the body with some sway, never swing across into it. Twists are tight
+  // everywhere so nothing wrings around (and the head can't spin).
+  torso: { swing: 1.20, twistMin: -0.40, twistMax: 0.40 }, // spine: deep forward fold
+  head: { swing: 0.70, twistMin: -0.55, twistMax: 0.55 },  // neck: loll, never bury in chest
+  arm: { swing: 0.95, twistMin: -0.70, twistMax: 0.70 },   // shoulder: hangs near the body
+  leg: { swing: 1.00, twistMin: -0.50, twistMax: 0.50 },   // hip: roughly extended
 };
 
 const _v = new THREE.Vector3();
@@ -264,7 +265,7 @@ export function enforceLimits(physics, data, strength) {
     // correction axis in world space (rotate the parent-frame axis by parent q)
     _axisV.set(_qNew.x / sin, _qNew.y / sin, _qNew.z / sin).applyQuaternion(_qP);
 
-    const gain = 9 * strength;    // 1/s — how hard the stop pushes back (fades out)
+    const gain = 7 * strength;    // 1/s — how hard the stop pushes back (eases to baseline)
     const w = physics.angularVelocity(cb);
     physics.setAngularVelocity(cb, {
       x: w.x * 0.9 + _axisV.x * angle * gain,
@@ -287,9 +288,12 @@ export function syncRagdoll(rig, t, data, physics, life = 0) {
   if (!J || !data) return;
   const { bodies } = data;
 
-  // shape the pose with joint limits while it topples, then fade the
-  // enforcement out by ~1s so it stops fighting the floor once landed
-  const strength = Math.max(0, Math.min(1, (1.1 - life) / 0.9));
+  // enforcement is STRONG while it topples (shapes the pose), then eases to a
+  // low BASELINE that never reaches zero — the limits have to keep gently
+  // holding at rest or the limbs sag into the torso (no self-collision to stop
+  // them). The baseline is weak enough not to fight the floor.
+  const fall = Math.max(0, Math.min(1, (1.1 - life) / 0.9));
+  const strength = 0.35 + 0.65 * fall;
   enforceLimits(physics, data, strength);
 
   const pelvis = physics.bodyTransform(bodies.pelvis);
