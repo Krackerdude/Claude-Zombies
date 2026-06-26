@@ -106,10 +106,10 @@ export class ZombieAnimSystem extends System {
         J.hips.position.z -= env * 0.05;
         break;
       case 'pelvis':
-        J.hips.rotation.x -= env * 0.5;             // hips buck
+        J.hips.rotation.x -= env * 0.28;            // hips buck (waist bend toned down)
         J.hips.position.y -= env * 0.06;
-        J.hips.position.z -= env * 0.1;             // whole body kicks back
-        J.torso.rotation.z += env * 0.3 * s;
+        J.hips.position.z -= env * 0.1;             // whole body kicks back (force kept)
+        J.torso.rotation.z += env * 0.18 * s;
         break;
       case 'legs':
         J.hips.position.y -= env * 0.13;            // leg buckles, body drops + kicks back
@@ -119,12 +119,12 @@ export class ZombieAnimSystem extends System {
         J.hips.rotation.z += env * 0.18 * s;
         break;
       default: // chest
-        J.torso.rotation.x -= env * 0.85;           // torso rocks back
-        J.torso.rotation.z += env * 0.55 * s;
-        J.head.rotation.x -= env * 0.5;             // head whips with it
-        J.shoulderL.rotation.x -= env * 0.5;        // arms fling
+        J.torso.rotation.x -= env * 0.5;            // torso rocks back (waist bend toned down — bodies don't fold like that)
+        J.torso.rotation.z += env * 0.35 * s;
+        J.head.rotation.x -= env * 0.5;             // head whips with it (kept)
+        J.shoulderL.rotation.x -= env * 0.5;        // arms fling (kept)
         J.shoulderR.rotation.x -= env * 0.5;
-        J.hips.position.z -= env * 0.12;            // whole body recoils back
+        J.hips.position.z -= env * 0.12;            // whole body recoils back (force kept)
         break;
     }
   }

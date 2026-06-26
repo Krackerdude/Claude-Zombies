@@ -10,6 +10,12 @@ import { Viewmodel } from './Viewmodel.js';
 import { WeaponFx } from './WeaponFx.js';
 import { damageZombie } from './damage.js';
 
+/** Automatic + burst weapons flinch the target far less, so sustained fire
+ *  doesn't make zombies undulate; semi/single-shot weapons flinch fully. */
+function flinchScaleFor(fireMode) {
+  return (fireMode === 'auto' || fireMode === 'burst') ? 0.3 : 1;
+}
+
 const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _up = new THREE.Vector3();
@@ -422,7 +428,7 @@ export class WeaponSystem extends System {
         const hsMul = headshot ? weapon.data.headshotMultiplier * (pk ? pk.headshotMul() : 1) : 1;
         const dMul = pk ? pk.damageMul(weapon.data.category) : 1;
         const dmg = weapon.data.damage * hsMul * dMul * falloff;
-        if (damageZombie(this.#ctx, id, dmg, { headshot, dir: _dir, part })) anyKill = true;
+        if (damageZombie(this.#ctx, id, dmg, { headshot, dir: _dir, part, flinchScale: flinchScaleFor(weapon.data.fireMode) })) anyKill = true;
         pen++;
       }
 
@@ -629,7 +635,7 @@ export class WeaponSystem extends System {
       const facing = _oc.x * _fwd.x + _oc.z * _fwd.z;
       if (facing < cos) continue;
       const dMul = this.#perks ? this.#perks.damageMul(weapon.data.category) : 1;
-      if (damageZombie(this.#ctx, id, weapon.data.damage * dMul, { dir: { x: _fwd.x, z: _fwd.z } })) kill = true;
+      if (damageZombie(this.#ctx, id, weapon.data.damage * dMul, { dir: { x: _fwd.x, z: _fwd.z }, flinchScale: flinchScaleFor(weapon.data.fireMode) })) kill = true;
     }
     this.#events.emit('weapon:hit', { killed: kill });
   }

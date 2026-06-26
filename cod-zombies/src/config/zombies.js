@@ -41,7 +41,7 @@ export const ZombieConfig = {
   height: 1.8,
 
   // hit reactions — a punchy, readable jolt with follow-through (not a twitch)
-  flinchPerDamage: 1 / 200, // flinch intensity per point of damage (caliber feel)
+  flinchPerDamage: 1 / 300, // flinch intensity per point of damage (caliber feel — gentler so big calibers don't dominate)
   flinchMin: 0.45, // even a peashooter visibly rocks them
   // explosion knockdown
   knockChance: 0.55, // chance a non-lethal explosion knocks a zombie down
