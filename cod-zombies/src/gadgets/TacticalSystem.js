@@ -4,7 +4,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { Action } from '../config/keybinds.js';
 import { Transform, PlayerTag, ZombieTag } from '../ecs/components/index.js';
 import { damageZombie } from '../weapons/damage.js';
-import { buildMonkeyModel, buildArnieJar, oozeMaterial } from './tacticalModels.js';
+import { buildMonkeyModel, buildArnieJar, buildHomunculus, oozeMaterial } from './tacticalModels.js';
 
 /**
  * Tacticals — the twin to lethal grenades. A second throwable slot bound to T,
@@ -45,10 +45,19 @@ const ARNIE = {
   hitFrac: 0.14,        // fraction of a zombie's max health shredded per tick
   dismember: 0.6,       // chance a tick also tears a limb off
 };
+const HOMUNC = {
+  life: 11.0,           // seconds of rampage
+  reach: 2.0,           // club swing radius (m)
+  swing: 0.8,           // seconds per club swing
+  impact: 0.62,         // point in the swing the club connects
+  legFrac: 0.18,        // chunk of max health a leg-shot does (leaves them alive as crawlers)
+  killDmg: 100000,      // the follow-up swing that finishes a downed crawler
+};
 
 const _fwd = new THREE.Vector3();
 const _wp = new THREE.Vector3();
 const OOZE_MAX = 48;
+const lerp = (a, b, t) => a + (b - a) * t;
 
 export class TacticalSystem extends System {
   #gameState; #actions; #input; #camera; #scene; #events; #spawn;
@@ -92,7 +101,7 @@ export class TacticalSystem extends System {
 
   /** Dev hook: equip (or replace) the held tactical and top it to a full stock. */
   giveTactical(type) {
-    if (type !== 'monkey' && type !== 'arnie') return;
+    if (type !== 'monkey' && type !== 'arnie' && type !== 'homunculus') return;
     this.#equipped = type;
     this.#count = MAX;
     this.#holding = false; this.#readyT = 0;
@@ -123,15 +132,15 @@ export class TacticalSystem extends System {
 
   #throw() {
     const kind = this.#equipped;
-    const mesh = kind === 'arnie' ? buildArnieJar() : buildMonkeyModel();
+    const mesh = kind === 'arnie' ? buildArnieJar() : kind === 'homunculus' ? buildHomunculus() : buildMonkeyModel();
     const o = this.#camera.position;
     mesh.position.set(o.x, o.y - 0.1, o.z);
     this.#scene.add(mesh);
     _fwd.set(0, 0, -1).applyQuaternion(this.#camera.quaternion);
     this.#thrown.push({
       mesh, kind, state: 'flying',
-      timer: kind === 'arnie' ? ARNIE.life : MONKEY.active,
-      lureId: 0, age: 0, hitT: 0, oozeT: 0, grow: 0, puddle: null,
+      timer: kind === 'arnie' ? ARNIE.life : kind === 'homunculus' ? HOMUNC.life : MONKEY.active,
+      lureId: 0, age: 0, hitT: 0, oozeT: 0, grow: 0, swingT: 0, didHit: false, puddle: null,
       vx: _fwd.x * THROW_SPEED, vy: _fwd.y * THROW_SPEED + ARC_UP, vz: _fwd.z * THROW_SPEED,
     });
   }
@@ -144,6 +153,9 @@ export class TacticalSystem extends System {
       if (m.kind === 'monkey') {
         this.#animateMonkey(m);
         if (m.timer <= 0) { this.#events.emit('lure:clear', { id: m.lureId }); this.#detonate(m.mesh.position); this.#remove(i); }
+      } else if (m.kind === 'homunculus') {
+        this.#tickHomunc(m, dt);
+        if (m.timer <= 0) { this.#events.emit('lure:clear', { id: m.lureId }); this.#remove(i); }
       } else {
         this.#tickArnie(m, dt);
         if (m.timer <= 0) { this.#events.emit('lure:clear', { id: m.lureId }); this.#dissolveArnie(m); this.#remove(i); }
@@ -153,16 +165,17 @@ export class TacticalSystem extends System {
 
   #tickFlight(m, dt) {
     m.vy -= GRAVITY * dt;
+    m.age += dt;
     m.mesh.position.x += m.vx * dt;
     m.mesh.position.y += m.vy * dt;
     m.mesh.position.z += m.vz * dt;
-    m.mesh.rotation.x += m.vx * dt * 1.5;
-    m.mesh.rotation.z += m.vz * dt * 1.5;
-    const groundY = m.kind === 'arnie' ? 0.0 : 0.18;
+    if (m.kind === 'homunculus') this.#flailHomunc(m); // rages in mid-air
+    else { m.mesh.rotation.x += m.vx * dt * 1.5; m.mesh.rotation.z += m.vz * dt * 1.5; }
+    const groundY = m.kind === 'monkey' ? 0.18 : 0.0;
     if (m.mesh.position.y <= groundY + 0.03) {
       m.mesh.position.y = groundY;
       m.mesh.rotation.set(0, Math.atan2(m.vx, m.vz), 0);
-      m.state = 'active';
+      m.state = 'active'; m.age = 0;
       m.lureId = this.#lureId++;
       this.#events.emit('lure:set', { id: m.lureId, x: m.mesh.position.x, z: m.mesh.position.z });
       this.#events.emit('fx:shake', {});
@@ -196,6 +209,64 @@ export class TacticalSystem extends System {
     }
     this.#award(ctx, pts, mul);
     this.#events.emit('fx:explosion', { x: pos.x, y: pos.y, z: pos.z, kind: 'frag' });
+  }
+
+  // --- homunculus -------------------------------------------------------------
+
+  /** Mid-air rage: thrash every limb wildly while he tumbles. */
+  #flailHomunc(m) {
+    const J = m.mesh.userData, t = m.age;
+    m.mesh.rotation.x += 0.18; m.mesh.rotation.z = Math.sin(t * 12) * 0.5;
+    if (J.armL) J.armL.rotation.set(Math.sin(t * 17) * 1.3 - 0.4, 0, 0.3 + Math.cos(t * 15) * 0.6);
+    if (J.armR) J.armR.rotation.set(Math.cos(t * 16) * 1.3 - 0.4, 0, -0.3 + Math.sin(t * 14) * 0.6);
+    if (J.legL) J.legL.rotation.x = Math.sin(t * 19) * 0.8;
+    if (J.legR) J.legR.rotation.x = Math.cos(t * 18) * 0.8;
+    if (J.head) J.head.rotation.z = Math.sin(t * 21) * 0.3;
+  }
+
+  /** On the ground: plant, turn, and chop the spiked club at the swarm on a
+   *  cadence — destroying legs first, then finishing the crawlers. */
+  #tickHomunc(m, dt) {
+    const J = m.mesh.userData, t = m.age;
+    m.mesh.rotation.y += dt * 1.1;                 // wheel around so he hits the whole swarm
+    m.mesh.position.y = Math.abs(Math.sin(t * 7)) * 0.04; // angry little bounce
+
+    m.swingT += dt;
+    if (m.swingT >= HOMUNC.swing) { m.swingT -= HOMUNC.swing; m.didHit = false; }
+    const ph = m.swingT / HOMUNC.swing;
+    // wind the club up overhead, then chop it down hard across the front
+    const armX = ph < 0.42 ? lerp(-0.6, -2.7, ph / 0.42) : lerp(-2.7, 0.9, (ph - 0.42) / 0.58);
+    if (J.armR) J.armR.rotation.set(armX, 0, -0.2);
+    if (J.armL) J.armL.rotation.set(-0.4 + Math.sin(t * 9) * 0.5, 0, 0.4); // off-arm flails
+    if (J.head) J.head.rotation.x = 0.1 + Math.sin(t * 6) * 0.12;
+    if (J.legL) J.legL.rotation.x = -0.2; if (J.legR) J.legR.rotation.x = -0.2; // braced stance
+
+    if (!m.didHit && ph >= HOMUNC.impact) { m.didHit = true; this.#homuncSwing(m.mesh.position); }
+  }
+
+  #homuncSwing(pos) {
+    const ctx = this.#ctx();
+    const mul = this.#mul();
+    const reach2 = HOMUNC.reach * HOMUNC.reach;
+    let pts = 0, hit = false;
+    for (const id of [...this.world.query(ZombieTag, Transform)]) {
+      const z = this.world.get(id, ZombieTag);
+      const t = this.world.get(id, Transform).position;
+      const dx = t.x - pos.x, dz = t.z - pos.z;
+      if (dx * dx + dz * dz > reach2) continue;
+      hit = true;
+      if (!z.crawler && (z.limbs?.legL || z.limbs?.legR)) {
+        // shatter the legs first — drops them into the gory crawler state alive
+        const dmg = Math.max(15, (z.maxHealth || 150) * HOMUNC.legFrac);
+        damageZombie(ctx, id, dmg, { award: false, dir: { x: dx, z: dz }, force: 1.8, part: 'legL', dismemberChance: 1 });
+      } else {
+        // already legless: the next swing caves them in
+        if (damageZombie(ctx, id, HOMUNC.killDmg, { award: false, dir: { x: dx, z: dz }, force: 2 })) pts += 60;
+      }
+      this.#events.emit('fx:blood', { x: t.x, y: t.y + 0.6, z: t.z, dx, dz });
+    }
+    this.#award(ctx, pts, mul);
+    if (hit) this.#events.emit('fx:shake', {});
   }
 
   // --- lil' arnie -------------------------------------------------------------

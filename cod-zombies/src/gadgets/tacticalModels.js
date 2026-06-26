@@ -242,3 +242,117 @@ export function buildArnieJar() {
   g.userData = { glass, parasite, tentacles, mouth };
   return g;
 }
+
+// --- the homunculus: a tribal gremlin with a spiked bone mask + spiked club ---
+let _G = null;
+function homuncParts() {
+  if (_G) return _G;
+  _G = {
+    skin: new THREE.MeshStandardMaterial({ color: 0xb59164, roughness: 0.62 }),     // sickly tan flesh
+    bone: new THREE.MeshStandardMaterial({ color: 0xe7dcbf, roughness: 0.6 }),        // pale skull mask
+    spike: new THREE.MeshStandardMaterial({ color: 0x6f4d2c, roughness: 0.7 }),       // bone/wood spikes
+    cloth: new THREE.MeshStandardMaterial({ color: 0x4f5a68, roughness: 0.88 }),      // ragged loincloth
+    bead: new THREE.MeshStandardMaterial({ color: 0x5a3a1e, roughness: 0.55, metalness: 0.2 }),
+    wood: new THREE.MeshStandardMaterial({ color: 0x4a3420, roughness: 0.82 }),       // club shaft
+    eye: new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xc01010, emissiveIntensity: 1.5, roughness: 0.3 }),
+    blood: new THREE.MeshStandardMaterial({ color: 0x6a1410, roughness: 0.5 }),
+  };
+  return _G;
+}
+
+/** Build the spiked club, returned as a group whose handle sits at the origin so
+ *  it can be parented into a hand. The head + spikes are out along -y. */
+function buildClub(P) {
+  const club = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.034, 0.46, 8), P.wood);
+  shaft.position.y = -0.23; club.add(shaft);
+  const headY = -0.5;
+  const cbHead = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.2, 9), P.wood);
+  cbHead.position.y = headY; club.add(cbHead);
+  // ring of spikes bristling out of the club head
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2;
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.13, 6), P.spike);
+    sp.position.set(Math.cos(a) * 0.085, headY + (k % 2) * 0.05 - 0.02, Math.sin(a) * 0.085);
+    sp.rotation.z = -a + Math.PI / 2; sp.rotation.x = Math.sin(a) * 0.0; // point radially out
+    sp.lookAt(Math.cos(a) * 1, headY, Math.sin(a) * 1);
+    club.add(sp);
+  }
+  const tipSp = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.14, 6), P.spike);
+  tipSp.position.y = headY - 0.16; club.add(tipSp);
+  return club;
+}
+
+/** A small hunched tribal gremlin. userData exposes the limb pivots (armL/armR,
+ *  legL/legR, head) for the throw-flail + ground club-swing animations. */
+export function buildHomunculus() {
+  const P = homuncParts();
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z) => { const me = new THREE.Mesh(geo, mat); me.position.set(x, y, z); g.add(me); return me; };
+
+  // legs (short, slightly bowed) on pivots
+  const legPivot = (sx) => {
+    const p = new THREE.Group(); p.position.set(sx * 0.1, 0.44, 0);
+    const th = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.34, 7), P.skin); th.position.y = -0.17; p.add(th);
+    const kn = new THREE.Group(); kn.position.y = -0.34; p.add(kn);
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.32, 7), P.skin); sh.position.y = -0.16; kn.add(sh);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.2), P.skin); foot.position.set(0, -0.33, 0.05); kn.add(foot);
+    for (let i = -1; i <= 1; i++) { const claw = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 5), P.bone); claw.position.set(i * 0.03, -0.34, 0.15); claw.rotation.x = 1.7; kn.add(claw); }
+    g.add(p); return p;
+  };
+  const legL = legPivot(-1), legR = legPivot(1);
+
+  // pelvis + hunched torso
+  add(new THREE.BoxGeometry(0.24, 0.14, 0.16), P.skin, 0, 0.46, 0);
+  add(new THREE.BoxGeometry(0.32, 0.36, 0.22), P.skin, 0, 0.68, -0.01); // barrel chest
+  add(new THREE.SphereGeometry(0.13, 10, 8), P.skin, 0, 0.58, 0.08);    // pot belly
+  // ragged loincloth strips
+  for (let i = 0; i < 5; i++) { const s = add(new THREE.BoxGeometry(0.055, 0.28, 0.02), P.cloth, -0.11 + i * 0.055, 0.34, 0.11); s.rotation.x = 0.1; }
+  // belt + bead necklace
+  add(new THREE.BoxGeometry(0.34, 0.06, 0.24), P.bead, 0, 0.5, 0);
+  for (let i = 0; i < 7; i++) { const a = -0.6 + i * 0.2; add(new THREE.SphereGeometry(0.026, 7, 6), P.bead, Math.sin(a) * 0.13, 0.84, Math.cos(a) * 0.02 + 0.1); }
+
+  // --- head with the spiked bone mask ---
+  const head = new THREE.Group(); head.position.set(0, 0.96, 0); g.add(head);
+  head.add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), P.skin)); // face/skin under the mask
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.145, 12, 10), P.bone);
+  skull.scale.set(1, 1.08, 0.92); skull.position.set(0, 0.05, 0.0); head.add(skull); // pale skull crown
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.06, 0.1), P.bone); brow.position.set(0, 0.04, 0.1); head.add(brow);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.16, 7), P.bone); beak.position.set(0, -0.02, 0.14); beak.rotation.x = 1.9; head.add(beak); // hooked beak/nose
+  // single glaring red eye (+ a smaller one)
+  const e1 = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), P.eye); e1.position.set(0.07, 0.0, 0.12); head.add(e1);
+  const e2 = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 7), P.eye); e2.position.set(-0.075, -0.01, 0.11); head.add(e2);
+  // spike halo: a ring of bone/wood spikes radiating from behind the head
+  for (let k = 0; k < 18; k++) {
+    const a = (k / 18) * Math.PI * 2;
+    const L = 0.2 + (k % 3) * 0.1;
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.012, L, 5), P.spike);
+    const r = 0.13 + L * 0.5;
+    sp.position.set(Math.cos(a) * r, 0.04 + Math.sin(a) * r, -0.05);
+    sp.rotation.z = a - Math.PI / 2; // apex points radially outward
+    head.add(sp);
+  }
+
+  // --- arms on shoulder pivots; the right hand grips the club ---
+  const armPivot = (sx) => {
+    const p = new THREE.Group(); p.position.set(sx * 0.18, 0.8, 0);
+    const up = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.04, 0.26, 7), P.skin); up.position.y = -0.13; p.add(up);
+    const el = new THREE.Group(); el.position.y = -0.26; p.add(el);
+    const fo = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.034, 0.24, 7), P.skin); fo.position.y = -0.12; el.add(fo);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 7), P.skin); hand.position.y = -0.24; el.add(hand);
+    p.userData.el = el;
+    g.add(p); return p;
+  };
+  const armL = armPivot(-1);
+  const armR = armPivot(1);
+  // club gripped in the right hand, blade/head pointing down past the fist
+  const club = buildClub(P);
+  club.position.y = -0.24; club.rotation.x = 0.5;
+  armR.userData.el.add(club);
+  // resting poses: club arm cocked up a touch, left arm hanging
+  armR.rotation.set(-0.6, 0, -0.25);
+  armL.rotation.set(-0.2, 0, 0.3);
+
+  g.userData = { head, armL, armR, legL, legR, club };
+  return g;
+}
