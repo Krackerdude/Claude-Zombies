@@ -105,6 +105,15 @@ function clampSwingTwist(q, lim) {
   q.copy(_swing).multiply(_twist);
 }
 
+/** Clamp a rig joint's LOCAL rotation into its anatomical range in place (used
+ *  once at spawn so the ragdoll starts within limits instead of reeling in). */
+function clampJointLocal(joint, lim) {
+  if (!joint) return;
+  _qLocal.copy(joint.quaternion);
+  clampSwingTwist(_qLocal, lim);
+  joint.quaternion.copy(_qLocal);
+}
+
 /**
  * Build the seven-body ragdoll at the rig's current world pose and launch it.
  * @returns ragdoll data { bodies, joints, hipY } stored on the CorpseTag.
@@ -119,6 +128,19 @@ export function buildRagdoll(rig, physics, c, t) {
   rig.position.copy(t.position);
   rig.quaternion.copy(t.quaternion);
   rig.updateMatrixWorld(true);
+
+  // CLAMP the death pose into anatomical range up-front. A zombie dies
+  // mid-animation (arms raised, twisted), so the bodies would otherwise spawn
+  // well outside their joint limits and visibly "compress/untwist" back into
+  // range over the first half-second. Clamping the rig's joints here means the
+  // ragdoll STARTS already-natural and just flops under gravity.
+  clampJointLocal(J.torso, ROM.torso);
+  clampJointLocal(J.head, ROM.head);
+  clampJointLocal(J.shoulderL, ROM.arm);
+  clampJointLocal(J.shoulderR, ROM.arm);
+  clampJointLocal(J.thighL, ROM.leg);
+  clampJointLocal(J.thighR, ROM.leg);
+  rig.updateMatrixWorld(true); // re-bake with the clamped pose before spawning
 
   // every segment collides with the environment only (default ragdoll group):
   // no corpse-corpse, no player, no self collision
