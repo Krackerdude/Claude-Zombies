@@ -135,9 +135,8 @@ export function buildRagdoll(rig, physics, c, t) {
   rig.quaternion.copy(t.quaternion);
   rig.updateMatrixWorld(true);
 
-  // one collision group for the whole corpse: it piles on terrain + other
-  // corpses but never self-collides (overlapping limb boxes would detonate it)
-  const group = physics.allocRagdollGroup();
+  // every segment uses the default ragdoll group = ENVIRONMENT-ONLY collision:
+  // no corpse-corpse, no self, no player/zombie interaction
   const make = (joint, spec) => {
     joint.getWorldPosition(_v);
     joint.getWorldQuaternion(_q);
@@ -145,7 +144,7 @@ export function buildRagdoll(rig, physics, c, t) {
       { x: _v.x, y: _v.y, z: _v.z },
       { x: _q.x, y: _q.y, z: _q.z, w: _q.w },
       spec.shape,
-      { mass: spec.mass, offset: spec.off, group },
+      { mass: spec.mass, offset: spec.off },
     );
   };
 
