@@ -23,6 +23,48 @@ const GAITS = {
   run: { stride: 0.70, knee: 0.95, lurch: 0.16, lean: 0.08, armReach: -1.15, armSplay: 0.12, armDrift: 0.12, headLoll: 0.0, rate: 1.15, limp: false },
 };
 
+// --- per-zombie animation variants ------------------------------------------
+// Four subtle "personalities" per gait, layered on top of the base pose so a
+// horde reads as many different bodies rather than one cloned shuffle. Think
+// mocap takes from different actors: small, plausible offsets to posture, limb
+// carriage, cadence and weight — NEVER anything that changes the silhouette
+// enough to misread in combat, and NEVER anything that touches movement speed
+// or mechanics. Every field is a small delta/multiplier over the gait baseline:
+//   armL/armR  additive shoulder pitch per arm (asymmetric carriage/drag)
+//   splay      extra outward shoulder spread (both arms)
+//   headX/headZ additive head pitch (nod) / roll (loll)
+//   torsoX     additive forward hunch ; torsoZ constant side-lean (weight)
+//   rate       cadence multiplier (visual only) ; stride swing-length multiplier
+//   sway       secondary idle-sway amplitude multiplier
+//   hipTilt    constant pelvis side-tilt (weight on one leg)
+//   hipSway    hip counter-rotation amplitude multiplier
+//   legL/legR  per-leg stride multiplier (a subtle drag on one side)
+const V_BASE = { armL: 0, armR: 0, splay: 0, headX: 0, headZ: 0, torsoX: 0, torsoZ: 0, rate: 1, stride: 1, sway: 1, hipTilt: 0, hipSway: 1, legL: 1, legR: 1 };
+const mkV = (list) => list.map((v) => ({ ...V_BASE, ...v }));
+const VARIANTS = {
+  // slow, hunched, dragging — already limps; variants shift which side/posture
+  shamble: mkV([
+    { armR: -0.22, headX: 0.08, torsoX: 0.05, hipTilt: 0.025, legR: 0.85, stride: 0.95, rate: 0.95 }, // right arm hangs, head bowed, right leg drags
+    { armL: -0.40, armR: -0.05, headX: -0.04, sway: 1.25, stride: 1.05 },                              // left arm reaching out ahead
+    { armL: -0.12, armR: -0.18, headZ: 0.10, torsoZ: 0.06, hipTilt: 0.03, rate: 0.9, stride: 0.9 },    // listing to one side, head lolled
+    { armL: 0.10, armR: 0.10, headX: -0.03, headZ: -0.05, torsoX: -0.03, sway: 0.7, rate: 1.05 },      // stiff, arms close, little sway
+  ]),
+  // arms raised, longer strides
+  walk: mkV([
+    { headX: 0.05, torsoX: 0.02, stride: 1.0 },                                                        // classic forward reach
+    { armL: -0.22, armR: 0.34, torsoZ: 0.035, hipTilt: 0.02, stride: 1.05 },                           // one arm high, the other lowered
+    { armL: 0.16, armR: 0.16, headX: 0.10, torsoX: 0.07, rate: 0.95, stride: 0.9 },                    // hunched, head down, arms lower
+    { headZ: 0.10, torsoZ: -0.04, sway: 1.4, hipSway: 1.3, rate: 1.05, stride: 1.1 },                  // loose lurcher, big sway
+  ]),
+  // aggressive sprint
+  run: mkV([
+    { torsoX: 0.05, armL: -0.15, armR: -0.15, stride: 1.05, rate: 1.05 },                              // committed lunge
+    { armL: -0.20, armR: 0.20, hipTilt: 0.02, legL: 1.05, stride: 1.1 },                               // asymmetric pumping
+    { torsoX: 0.09, headX: 0.06, splay: 0.06, hipSway: 1.2 },                                          // low charging hunch, arms wide
+    { torsoX: -0.02, armL: 0.10, armR: 0.10, sway: 0.8, rate: 1.1, stride: 0.95 },                     // stiff upright, quick cadence
+  ]),
+};
+
 export class ZombieAnimSystem extends System {
   #gameState;
 
@@ -184,24 +226,28 @@ export class ZombieAnimSystem extends System {
 
   #poseOne(z, rest, J, dt) {
     const G = GAITS[z.gait] || GAITS.run;
+    // per-zombie personality (subtle posture/cadence offsets layered on the gait)
+    const V = (VARIANTS[z.gait] || VARIANTS.run)[z.variant & 3] || V_BASE;
     const walking = z.state === 'pathing' || z.state === 'spawning';
     const swiping = z.swipe > 0;
     z.walkAmt = ease(z.walkAmt, walking ? 1 : 0, dt, 6);
     z.tearAmt = ease(z.tearAmt, z.state === 'teardown' ? 1 : 0, dt, 9);
     z.atkAmt = ease(z.atkAmt, swiping ? 1 : 0, dt, 16);
 
-    const rate = walking ? (2.5 + z.speed * 1.8) * G.rate : 1.6;
+    const rate = (walking ? (2.5 + z.speed * 1.8) * G.rate : 1.6) * V.rate;
     z.animTime += dt * rate;
     const p = z.animTime;
     const s = Math.sin(p);
     const w = z.walkAmt;
     const limpL = G.limp ? 0.55 : 1; // left leg drags on a shambler
 
-    // legs
-    J.thighL.rotation.x = -s * G.stride * limpL * w;
-    J.thighR.rotation.x = s * G.stride * w;
-    J.kneeL.rotation.x = Math.max(0, -s) * G.knee * limpL * w + (G.limp ? 0.18 * w : 0); // stiff bad knee
-    J.kneeR.rotation.x = Math.max(0, s) * G.knee * w;
+    // legs: V.stride scales overall swing length, V.legL/legR give one side a
+    // subtle drag (shorter) or longer reach for an uneven, weighted gait
+    const strideL = G.stride * V.stride * V.legL, strideR = G.stride * V.stride * V.legR;
+    J.thighL.rotation.x = -s * strideL * limpL * w;
+    J.thighR.rotation.x = s * strideR * w;
+    J.kneeL.rotation.x = Math.max(0, -s) * G.knee * limpL * V.legL * w + (G.limp ? 0.18 * w : 0); // stiff bad knee
+    J.kneeR.rotation.x = Math.max(0, s) * G.knee * V.legR * w;
 
     // hips: bob + counter-sway, with a limp hitch + lean onto the good leg
     const hitch = G.limp ? Math.max(0, -s) * 0.04 * w : 0;
@@ -209,21 +255,21 @@ export class ZombieAnimSystem extends System {
     // additive rotation/position kicks are transient and never accumulate
     J.hips.position.set(0, rest.hipY + (Math.abs(s) * 0.035 - 0.018) * w - hitch, 0);
     J.hips.rotation.x = 0;
-    J.hips.rotation.y = s * 0.06 * w;
-    J.hips.rotation.z = G.limp ? Math.max(0, -s) * 0.07 * w : 0;
+    J.hips.rotation.y = s * 0.06 * V.hipSway * w;
+    J.hips.rotation.z = (G.limp ? Math.max(0, -s) * 0.07 * w : 0) + V.hipTilt; // constant weighted lean
 
-    // torso lurch + lean + breathing
-    J.torso.rotation.x = rest.torso + G.lurch * w + Math.sin(p * 0.5) * 0.03;
-    J.torso.rotation.z = -s * G.lean * w;
+    // torso lurch + lean + breathing (+ variant hunch / constant side-lean / sway)
+    J.torso.rotation.x = rest.torso + G.lurch * w + Math.sin(p * 0.5) * 0.03 * V.sway + V.torsoX;
+    J.torso.rotation.z = -s * G.lean * w + V.torsoZ;
 
-    // head loll
-    J.head.rotation.z = s * 0.05 * w + 0.04 + G.headLoll;
-    J.head.rotation.x = 0.06 + Math.sin(p * 0.7) * 0.04;
+    // head loll (+ variant nod / roll)
+    J.head.rotation.z = s * 0.05 * w + 0.04 + G.headLoll + V.headZ;
+    J.head.rotation.x = 0.06 + Math.sin(p * 0.7) * 0.04 * V.sway + V.headX;
 
-    // --- arms ---
+    // --- arms --- (variant biases each arm's carriage for asymmetric reach/drag)
     const drift = Math.sin(p * 0.9) * G.armDrift * w;
-    const armLbase = G.armReach + (G.limp ? -0.15 : 0) + drift; // shambler's left arm hangs lower
-    const armRbase = G.armReach - drift;
+    const armLbase = G.armReach + (G.limp ? -0.15 : 0) + drift + V.armL; // shambler's left arm hangs lower
+    const armRbase = G.armReach - drift + V.armR;
 
     // swipe: rear back high overhead, then chop down hard (hit lands ~mid-swing)
     const swProg = swiping ? 1 - z.swipe / ZombieConfig.swipeTime : 0; // 0->1 through the swing
@@ -244,8 +290,8 @@ export class ZombieAnimSystem extends System {
     // splay arms OUTWARD from the body at rest (the signs were inverted, which
     // swung the forearms inward and clipped them through the torso); the attack
     // still pulls them in/forward for the overhead chop.
-    J.shoulderL.rotation.z = lerp(-G.armSplay, 0.2, z.atkAmt);
-    J.shoulderR.rotation.z = lerp(G.armSplay, -0.2, z.atkAmt);
+    J.shoulderL.rotation.z = lerp(-G.armSplay - V.splay, 0.2, z.atkAmt);
+    J.shoulderR.rotation.z = lerp(G.armSplay + V.splay, -0.2, z.atkAmt);
 
     const swRaise = Math.sin(Math.min(1, swProg) * Math.PI); // 0..1..0
     // elbows hang nearly STRAIGHT through the gaits (stiff zombie reach); the

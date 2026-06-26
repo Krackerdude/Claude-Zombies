@@ -118,12 +118,13 @@ export class PlayerTag {
 
 /** State + nav data for a single zombie (nav-driven, no rigid body). */
 export class ZombieTag {
-  constructor({ health = 150, speed = 1.7, gait = 'run' } = {}) {
+  constructor({ health = 150, speed = 1.7, gait = 'run', variant = 0 } = {}) {
     this.state = 'spawning'; // spawning | pathing | teardown | attack | dead
     this.health = health;
     this.maxHealth = health;
     this.speed = speed;
     this.gait = gait; // 'shamble' | 'walk' | 'run' — drives the animation set
+    this.variant = variant & 3; // 0..3 — subtle per-zombie animation personality
 
     this.path = null; // array of {x,z} waypoints
     this.pathIndex = 0;
