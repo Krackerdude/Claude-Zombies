@@ -227,7 +227,12 @@ export class PhysicsManager {
    */
   moveCharacter(collider, desired) {
     const cc = this.characterController;
-    cc.computeColliderMovement(collider, desired);
+    // Pass the ACTOR interaction groups so the controller obeys collision
+    // groups: it collides with the world (ENV) + other actors, but NOT ragdoll
+    // corpses (RAGDOLL, env-only). Without this filterGroups arg the controller
+    // collides with EVERY collider regardless of groups — which is why the
+    // player was still bumping into dead bodies.
+    cc.computeColliderMovement(collider, desired, undefined, GROUP_ACTOR);
     const corrected = cc.computedMovement();
     return {
       movement: { x: corrected.x, y: corrected.y, z: corrected.z },
