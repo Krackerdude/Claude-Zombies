@@ -61,7 +61,7 @@ export class CorpseSystem extends System {
 
       if (c.life <= LIFETIME) {
         if (!c.ragdoll) c.ragdoll = buildRagdoll(rig, this.#physics, c, t);
-        if (c.ragdoll) syncRagdoll(rig, t, c.ragdoll, this.#physics, c.life);
+        if (c.ragdoll) syncRagdoll(rig, t, c.ragdoll, this.#physics);
       } else {
         // lifetime up: stop simulating (freeze the last heap pose), sink + shrink
         if (c.ragdoll) { disposeRagdoll(this.#physics, c.ragdoll); c.ragdoll = null; }
