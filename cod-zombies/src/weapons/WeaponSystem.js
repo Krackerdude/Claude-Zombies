@@ -100,8 +100,8 @@ function makeEnergyBolt(color) {
 }
 
 // body hitbox spheres relative to the zombie's feet: [centreY, radius]
-// (the head is a separate, dedicated sphere handled in #rayZombies)
-const HITBOXES = [[1.15, 0.34], [0.7, 0.34], [0.32, 0.26]];
+// (head + arms + legs are dedicated, facing-aware spheres in #rayZombies)
+const HITBOXES = [[1.15, 0.34], [0.7, 0.34]]; // chest, pelvis
 
 /**
  * Owns the player's arsenal and turns input into shots. Each frame it builds a
@@ -575,7 +575,7 @@ export class WeaponSystem extends System {
    */
   #rayZombies(o, dir, range) {
     const out = [];
-    const PARTS = ['chest', 'pelvis', 'legs']; // matches HITBOXES order
+    const PARTS = ['chest', 'pelvis']; // matches HITBOXES order
     for (const id of this.world.query(ZombieTag, Transform)) {
       const t = this.world.get(id, Transform);
       const z = this.world.get(id, ZombieTag);
@@ -603,6 +603,19 @@ export class WeaponSystem extends System {
       if (z.limbs?.armL) {
         const ta = this.#raySphere(o, dir, x - rx * ARM_OFF, py + ARM_Y, pz - rz * ARM_OFF, ARM_R);
         if (ta >= 0 && ta < best) { best = ta; head = false; part = 'armL'; }
+      }
+      // legs: low side-by-side spheres (also facing-aware). A crawler's legs are
+      // already gone, so it can only be hit on the torso/arms.
+      if (!z.crawler) {
+        const LEG_OFF = 0.13, LEG_Y = 0.42, LEG_R = 0.2;
+        if (z.limbs?.legR) {
+          const tl = this.#raySphere(o, dir, x + rx * LEG_OFF, py + LEG_Y, pz + rz * LEG_OFF, LEG_R);
+          if (tl >= 0 && tl < best) { best = tl; head = false; part = 'legR'; }
+        }
+        if (z.limbs?.legL) {
+          const tl = this.#raySphere(o, dir, x - rx * LEG_OFF, py + LEG_Y, pz - rz * LEG_OFF, LEG_R);
+          if (tl >= 0 && tl < best) { best = tl; head = false; part = 'legL'; }
+        }
       }
       if (best !== Infinity && best <= range) out.push({ id, tca: best, headshot: head, part });
     }

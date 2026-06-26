@@ -140,6 +140,8 @@ export class ZombieTag {
 
     // dismemberment — which limbs are still attached (set false when shot off)
     this.limbs = { armL: true, armR: true, legL: true, legR: true };
+    this.crawler = false; // legs gone: drags along the floor
+    this.crawlAmt = 0;    // 0..1 ease into the prone crawl pose
 
     // procedural animation state (driven by ZombieAnimSystem)
     this.animTime = Math.random() * Math.PI * 2; // desynced phase
