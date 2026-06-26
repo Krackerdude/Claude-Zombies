@@ -57,11 +57,6 @@ export class PhysicsManager {
     // position-only spherical joints from oscillating — kills the in-air
     // jitter. The kinematic player is controller-driven, so it's unaffected.
     this.world.numSolverIterations = 14;
-    // Stiffer contacts so a heavy pelvis doesn't sink into the floor at rest
-    // (that was the corpse looking half-buried).
-    if (this.world.integrationParameters) {
-      this.world.integrationParameters.contact_natural_frequency = 60;
-    }
 
     // A reusable character controller for kinematic capsules (player, later
     // possibly humanoid zombies). offset = skin width.
