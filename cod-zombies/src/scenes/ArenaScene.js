@@ -309,7 +309,9 @@ export function buildArena(engine) {
   engine.services.register(Service.Weapons, weaponSystem);
   engine.world.registerSystem(weaponSystem);
   engine.world.registerSystem(new ProjectileSystem());
-  engine.world.registerSystem(new GadgetSystem());
+  const gadgetSystem = new GadgetSystem();
+  engine.services.register(Service.Lethal, gadgetSystem);
+  engine.world.registerSystem(gadgetSystem);
   const tacticalSystem = new TacticalSystem();
   engine.services.register(Service.Tactical, tacticalSystem);
   engine.world.registerSystem(tacticalSystem);

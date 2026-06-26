@@ -84,6 +84,8 @@ export class Viewmodel {
   #arnie;
   #homunc;
   #syringe;
+  #wraith;
+  #wraithFlame;
   #bottle = null;
   #bottleColor = -1;
   #key;
@@ -208,6 +210,14 @@ export class Viewmodel {
     this.#syringe.scale.setScalar(1.6);
     this.#syringe.visible = false;
     this.#vmScene.add(this.#syringe);
+
+    // held WraithFire canister (lethal) + the blue flame it bursts into on cook
+    this.#wraith = buildVmWraith();
+    this.#wraith.visible = false;
+    this.#vmScene.add(this.#wraith);
+    this.#wraithFlame = buildVmFlames();
+    this.#wraithFlame.visible = false;
+    this.#vmScene.add(this.#wraithFlame);
   }
 
   setWeapon(weapon) {
@@ -399,9 +409,25 @@ export class Viewmodel {
       this.#knife.quaternion.setFromEuler(_ke);
     }
 
-    // grenade: only after the gun has lowered off-screen; then pull the pin
-    // (it flicks off) and draw the grenade into the hold
-    this.#grenade.visible = !!cook && this.#holster > 0.85;
+    // lethal: only after the gun has lowered off-screen. Frag pulls its pin;
+    // WraithFire destabilises and bursts into blue flame in the hand.
+    const cookKind = cook?.kind;
+    this.#grenade.visible = !!cook && cookKind !== 'wraithfire' && this.#holster > 0.85;
+    this.#wraith.visible = !!cook && cookKind === 'wraithfire' && this.#holster > 0.85;
+    this.#wraithFlame.visible = this.#wraith.visible;
+    if (this.#wraith.visible) {
+      const gt = Math.max(0, cook.t - 0.16);
+      const draw = Math.min(1, gt / 0.35);
+      _koff.set(lerp(0.2, 0.12, draw), lerp(-0.27, -0.17, draw) + Math.sin(this.#bob) * 0.01, lerp(-0.42, -0.34, draw));
+      this.#wraith.position.copy(_koff);
+      this.#wraith.rotation.set(0.15, gt * 1.4, 0);
+      // instability: the flame erupts and grows, shaking the canister, as it cooks
+      const inst = Math.min(1, gt / 0.5);
+      const shudder = inst * 0.012;
+      this.#wraithFlame.position.set(_koff.x + Math.sin(gt * 50) * shudder, _koff.y + 0.02, _koff.z);
+      this.#wraithFlame.scale.setScalar(0.3 + inst * 1.0);
+      animateVmFlames(this.#wraithFlame, gt);
+    }
     if (this.#grenade.visible) {
       const gt = Math.max(0, cook.t - 0.16); // local time once the gun is down
       const pull = Math.min(1, gt / 0.35);
@@ -731,4 +757,44 @@ function buildVmSyringe() {
   g.rotation.set(0.2, 0, 1.15); // needle angled down-left toward the gremlin's body
   g.userData.plunger = plunger;
   return g;
+}
+
+// Held WraithFire canister — a squat steel cylinder with a blue-glowing window.
+function buildVmWraith() {
+  const shell = new THREE.MeshStandardMaterial({ color: 0x26303a, metalness: 0.6, roughness: 0.4 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0x9a7b34, metalness: 0.7, roughness: 0.4 });
+  const glow = new THREE.MeshBasicMaterial({ color: 0x4ad6ff });
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.13, 12), shell));
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.085, 12), glow));
+  const capT = new THREE.Mesh(new THREE.CylinderGeometry(0.056, 0.05, 0.02, 12), brass); capT.position.y = 0.075; g.add(capT);
+  const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.056, 0.02, 12), brass); capB.position.y = -0.075; g.add(capB);
+  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 8), brass); fuse.position.y = 0.1; g.add(fuse);
+  return g;
+}
+
+// A small clutch of additive blue flame tongues (shared by the cook FX).
+function buildVmFlames() {
+  const g = new THREE.Group();
+  const outer = new THREE.MeshBasicMaterial({ color: 0x2a7bff, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+  const core = new THREE.MeshBasicMaterial({ color: 0xbfeeff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+  const geo = new THREE.ConeGeometry(1, 1, 7);
+  const tongues = [];
+  for (let i = 0; i < 8; i++) {
+    const h = 0.06 + Math.random() * 0.06;
+    const m = new THREE.Mesh(geo, Math.random() < 0.4 ? core : outer);
+    m.scale.set(0.025, h, 0.025);
+    m.position.set((Math.random() - 0.5) * 0.07, 0.02 + Math.random() * 0.05, (Math.random() - 0.5) * 0.07);
+    m.userData.h = h; m.userData.r = m.scale.x; m.userData.ph = Math.random() * 6.28;
+    g.add(m); tongues.push(m);
+  }
+  g.userData.tongues = tongues;
+  return g;
+}
+function animateVmFlames(g, t) {
+  for (const m of g.userData.tongues) {
+    const f = 0.7 + 0.4 * Math.sin(t * 16 + m.userData.ph);
+    m.scale.y = m.userData.h * f; m.scale.x = m.scale.z = m.userData.r * (0.85 + 0.2 * f);
+    m.position.y = 0.02 + m.scale.y * 0.5; m.rotation.y += 0.1;
+  }
 }
