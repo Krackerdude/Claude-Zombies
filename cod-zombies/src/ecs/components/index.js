@@ -181,7 +181,10 @@ export class ProjectileTag {
  * never collide with the player or live zombies.
  */
 export class CorpseTag {
-  constructor(dir = { x: 0, z: 1 }, baseYaw = 0, force = 1) {
+  constructor(dir = { x: 0, z: 1 }, baseYaw = 0, force = 1, limbs = null) {
+    // which limbs are still attached at death (null = all) — the ragdoll skips
+    // the bodies/joints for any that were shot off
+    this.limbs = limbs ? { ...limbs } : { armL: true, armR: true, legL: true, legR: true };
     let px = dir.x || 0, pz = dir.z || 0;
     const m = Math.hypot(px, pz) || 1;
     px /= m; pz /= m;

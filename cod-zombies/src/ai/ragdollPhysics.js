@@ -148,27 +148,30 @@ export function buildRagdoll(rig, physics, c, t) {
     );
   };
 
+  // only build bodies for limbs still attached at death (dismemberment) — a
+  // limb that was shot off has no corpse segment
+  const has = c.limbs || {};
   const bodies = {
     pelvis: make(J.hips, SEG.pelvis),
     torso: make(J.torso, SEG.torso),
     head: make(J.head, SEG.head),
-    armL: make(J.shoulderL, SEG.arm),
-    armR: make(J.shoulderR, SEG.arm),
-    legL: make(J.thighL, SEG.leg),
-    legR: make(J.thighR, SEG.leg),
   };
+  if (has.armL !== false) bodies.armL = make(J.shoulderL, SEG.arm);
+  if (has.armR !== false) bodies.armR = make(J.shoulderR, SEG.arm);
+  if (has.legL !== false) bodies.legL = make(J.thighL, SEG.leg);
+  if (has.legR !== false) bodies.legR = make(J.thighR, SEG.leg);
 
   // spherical joints at the anatomical sockets (each at the CHILD joint's world
-  // pivot, which the two bodies share)
+  // pivot, which the two bodies share) — only for limbs that exist
   const anchorAt = (joint) => { joint.getWorldPosition(_v); return { x: _v.x, y: _v.y, z: _v.z }; };
   const joints = [
     physics.createSphericalJoint(bodies.pelvis, bodies.torso, anchorAt(J.torso)),
     physics.createSphericalJoint(bodies.torso, bodies.head, anchorAt(J.head)),
-    physics.createSphericalJoint(bodies.torso, bodies.armL, anchorAt(J.shoulderL)),
-    physics.createSphericalJoint(bodies.torso, bodies.armR, anchorAt(J.shoulderR)),
-    physics.createSphericalJoint(bodies.pelvis, bodies.legL, anchorAt(J.thighL)),
-    physics.createSphericalJoint(bodies.pelvis, bodies.legR, anchorAt(J.thighR)),
   ];
+  if (bodies.armL) joints.push(physics.createSphericalJoint(bodies.torso, bodies.armL, anchorAt(J.shoulderL)));
+  if (bodies.armR) joints.push(physics.createSphericalJoint(bodies.torso, bodies.armR, anchorAt(J.shoulderR)));
+  if (bodies.legL) joints.push(physics.createSphericalJoint(bodies.pelvis, bodies.legL, anchorAt(J.thighL)));
+  if (bodies.legR) joints.push(physics.createSphericalJoint(bodies.pelvis, bodies.legR, anchorAt(J.thighR)));
 
   // launch: the killing impulse becomes the bodies' initial velocity. Every
   // body shares ONE tumble (plus a tiny per-limb jitter) so the spherical
@@ -242,6 +245,7 @@ export function enforceLimits(physics, data) {
   const { bodies } = data;
   for (const [pk, ck, lk] of LIMIT_ORDER) {
     const pb = bodies[pk], cb = bodies[ck];
+    if (!pb || !cb) continue; // limb shot off — no body to enforce
     const p = physics.bodyTransform(pb);
     const c = physics.bodyTransform(cb);
     _qP.set(p.q.x, p.q.y, p.q.z, p.q.w);
@@ -328,10 +332,10 @@ export function syncRagdoll(rig, t, data, physics) {
 
   drive(J.torso, bodies.pelvis, bodies.torso);
   drive(J.head, bodies.torso, bodies.head);
-  drive(J.shoulderL, bodies.torso, bodies.armL);
-  drive(J.shoulderR, bodies.torso, bodies.armR);
-  drive(J.thighL, bodies.pelvis, bodies.legL);
-  drive(J.thighR, bodies.pelvis, bodies.legR);
+  if (bodies.armL) drive(J.shoulderL, bodies.torso, bodies.armL);
+  if (bodies.armR) drive(J.shoulderR, bodies.torso, bodies.armR);
+  if (bodies.legL) drive(J.thighL, bodies.pelvis, bodies.legL);
+  if (bodies.legR) drive(J.thighR, bodies.pelvis, bodies.legR);
 }
 
 /** Tear down all bodies + joints (freezes the rig in its last simulated pose). */

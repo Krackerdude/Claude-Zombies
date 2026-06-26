@@ -52,7 +52,7 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
       ctx.world.remove(id, RigidBodyRef);
     }
     ctx.world.remove(id, ZombieTag);
-    ctx.world.add(id, new CorpseTag(dir || { x: 0, z: 1 }, baseYaw, force));
+    ctx.world.add(id, new CorpseTag(dir || { x: 0, z: 1 }, baseYaw, force, z.limbs));
     ctx.spawn.notifyKilled();
     ctx.events.emit('zombie:killed', { headshot, x: t ? t.position.x : 0, z: t ? t.position.z : 0 });
     killed = true;
