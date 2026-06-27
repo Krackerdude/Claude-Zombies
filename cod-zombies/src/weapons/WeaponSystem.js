@@ -725,13 +725,16 @@ export class WeaponSystem extends System {
     d.pap = true;
     d.name = PAP_NAMES[key] || d.name; // flashy PaP rename
     d.papTint = { muzzle: 0x9a0b2e, tracer: 0xff5fc4 };
+    // energy weapons (Ray Gun): flip the plasma bolt, burst, residual puddle and
+    // chamber glow from green to the PaP crimson->pink palette
+    if (d.muzzleEffect === 'energy') d.energyColor = 0xff2a8a;
     d.damage *= 2;                                   // straight double damage
     if (d.splashDamage) d.splashDamage *= 2;         // ...incl. launchers/wonder weapons (splash)
     d.ammoStockSize = Math.round(d.ammoStockSize * 1.6);
     const special = PAP_SPECIAL[key];
     if (special === 'dual') { d.dualWield = true; d.magazineSize *= 2; }
     else if (special === 'auto') d.fireMode = 'auto';
-    else if (special === 'burst') { d.fireMode = 'burst'; d.burstCount = key === 'an94' ? 2 : 3; }
+    else if (special === 'burst') { d.fireMode = 'burst'; d.burstCount = 3; }
     weapon.reserve = d.infiniteReserve ? Infinity : d.ammoStockSize;
     weapon.magazine = d.magazineSize;
   }

@@ -226,8 +226,8 @@ export function makeWeapon(key) {
 // burst on guns with a real-world burst pedigree.
 export const PAP_SPECIAL = {
   m1911: 'dual', newArmy: 'dual', executioner: 'dual', mp40: 'dual', vector: 'dual',
-  fal: 'auto', drakon: 'auto', k31: 'auto',
-  an94: 'burst', ballista: 'burst', svu: 'burst',
+  fal: 'auto', drakon: 'auto', k31: 'auto', an94: 'auto',
+  ballista: 'burst', svu: 'burst',
 };
 
 // Pack-a-Punch renames. Four naming conventions spread evenly across the
