@@ -79,10 +79,11 @@ export class CameraController extends System {
   }
 
   lateUpdate(dt) {
-    // scoreboard (Tab) + dev menu (F2) freeze the view on the live frame; menu/pause drift
-    if (this.#gameState.current === 'scoreboard' || this.#gameState.current === 'devmenu') return;
+    // scoreboard (Tab), dev menu (F2) AND pause all freeze the view on the live
+    // gameplay frame so their menus overlay the paused game (no camera drift)
+    if (this.#gameState.current === 'scoreboard' || this.#gameState.current === 'devmenu' || this.#gameState.current === 'paused') return;
     if (!this.#gameState.isPlaying) {
-      this.#menuDrift(dt);
+      this.#menuDrift(dt); // only the main menu drifts (and MenuSystem overrides it onto the backdrop)
       return;
     }
     const id = this.world.first(PlayerTag);

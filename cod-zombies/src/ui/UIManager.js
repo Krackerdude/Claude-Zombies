@@ -295,35 +295,88 @@ export class UIManager {
 
   // --- pause --------------------------------------------------------------
 
+  // Pause-menu Options categories (mirrors the OptionsMenu tabs), each a widget
+  // card with a stylised line-art icon.
+  static #PAUSE_CATS = [
+    { id: 'gameplay', name: 'Gameplay', sub: 'Rules + HUD options', icon: '<circle cx="12" cy="12" r="7"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>' },
+    { id: 'display', name: 'Display', sub: 'FOV, HUD scale, resolution', icon: '<rect x="3" y="4.5" width="18" height="12" rx="1"/><path d="M9 20.5h6M12 16.5v4" stroke-linecap="round"/>' },
+    { id: 'postfx', name: 'Post FX', sub: 'The stylized composer', icon: '<circle cx="12" cy="12" r="5.5"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6.2 6.2l1.6 1.6M16.2 16.2l1.6 1.6M17.8 6.2l-1.6 1.6M7.8 16.2l-1.6 1.6" stroke-linecap="round"/>' },
+    { id: 'graphics', name: 'Graphics', sub: 'Rendering + atmosphere', icon: '<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 16l5-5 3.5 3.5L15 11l6 6" stroke-linejoin="round"/><circle cx="8" cy="9.5" r="1.4"/>' },
+    { id: 'controls', name: 'Controls', sub: 'Sensitivity + key bindings', icon: '<rect x="2" y="6.5" width="20" height="11" rx="2"/><path d="M6 10.5h.01M10 10.5h.01M14 10.5h.01M18 10.5h.01M8 14h8" stroke-linecap="round"/>' },
+  ];
+
   #buildPause() {
     const s = document.createElement('div');
     s.className = 'screen';
     s.id = 'screen-pause';
+    const cats = UIManager.#PAUSE_CATS.map((c) =>
+      `<div class="pm-cat" data-cat="${c.id}"><div class="pm-cat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${c.icon}</svg></div><div class="pm-cat-name">${c.name}<small>${c.sub}</small></div></div>`,
+    ).join('');
     s.innerHTML = `
-      <div class="pause-card">
-        <div class="pause-title">Paused</div>
-        <div class="menu-list">
-          <div class="menu-item" data-act="resume"><span class="idx">01</span>Resume</div>
-          <div class="menu-item" data-act="options"><span class="idx">02</span>Settings</div>
-          <div class="menu-item" data-act="main"><span class="idx">03</span>Return to Menu</div>
+      <div class="pm-head">Menu<small>Paused</small></div>
+      <div class="pm-tabs">
+        <div class="pm-tab active" data-tab="game"><span>Game</span></div>
+        <div class="pm-tab" data-tab="options"><span>Options</span></div>
+      </div>
+      <div class="pm-body">
+        <div class="pm-pane" data-pane="game">
+          <div class="mm-list pm-gamelist">
+            <div class="mm-opt" data-act="resume"><span>Resume Game</span></div>
+            <div class="mm-opt" data-act="restart"><span>Restart Level</span></div>
+            <div class="mm-opt" data-act="end"><span>End Game</span></div>
+          </div>
         </div>
-        <div class="pause-hint">[↑↓] SELECT · [ENTER] CONFIRM · [ESC] RESUME</div>
-      </div>`;
+        <div class="pm-pane" data-pane="options" hidden>
+          <div class="pm-grid">${cats}</div>
+        </div>
+      </div>
+      <div class="pm-rank">
+        <div class="pm-rank-badge">1</div>
+        <div class="pm-rank-main">
+          <div class="pm-rank-row"><span class="pm-rank-name">Survivor One</span><span class="pm-rank-next">Next Level: 3,300 XP</span></div>
+          <div class="pm-rank-track"><i style="width:38%"></i></div>
+        </div>
+      </div>
+      <div class="pm-foot">[Esc] Resume · [Enter] Confirm</div>`;
+
+    // game-tab actions
     const acts = {
       resume: () => this.resume(),
-      options: () => this.openOptions(AppState.PAUSED),
-      main: () => this.toMainMenu(),
+      restart: () => { this.#events.emit('game:restart', {}); this.resume(); },
+      end: () => this.toMainMenu(),
     };
     this.#pauseItems = [];
-    s.querySelectorAll('.menu-item').forEach((e) => {
-      const fn = acts[e.dataset.act];
-      e.addEventListener('click', fn);
+    s.querySelectorAll('.pm-gamelist .mm-opt').forEach((e) => {
+      e.addEventListener('click', acts[e.dataset.act]);
       e.addEventListener('mouseenter', () => this.#selectPause(this.#pauseItems.indexOf(e)));
-      e._action = fn;
       this.#pauseItems.push(e);
     });
+    // tab switching
+    s.querySelectorAll('.pm-tab').forEach((t) => t.addEventListener('click', () => this.#switchPauseTab(t.dataset.tab)));
+    // options category widgets -> open the settings on that category
+    s.querySelectorAll('.pm-cat').forEach((c) => c.addEventListener('click', () => {
+      this.openOptions(AppState.PAUSED);
+      this.#options.goTo(c.dataset.cat);
+    }));
+
     this.#root.appendChild(s);
     this.#screens.pause = s;
+  }
+
+  #switchPauseTab(tab) {
+    const s = this.#screens.pause;
+    if (!s) return;
+    s.querySelectorAll('.pm-tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
+    let shown = null;
+    s.querySelectorAll('.pm-pane').forEach((p) => { p.hidden = p.dataset.pane !== tab; if (!p.hidden) shown = p; });
+    this.#animatePane(shown);
+    if (tab === 'game') this.#selectPause(0);
+  }
+
+  /** Restart the staggered entrance on a freshly-shown pane's items. */
+  #animatePane(pane) {
+    if (!pane) return;
+    pane.classList.remove('pm-anim'); void pane.offsetWidth; pane.classList.add('pm-anim');
   }
 
   #selectPause(i) {
@@ -355,6 +408,7 @@ export class UIManager {
 
   pause() {
     this.#optionsOpen = false;
+    this.#switchPauseTab('game'); // always open the pause menu on the Game tab
     this.#gameState.set(AppState.PAUSED);
   }
 
@@ -394,7 +448,7 @@ export class UIManager {
     }
 
     if (visible === 'main') this.#select(0);
-    if (visible === 'pause') this.#selectPause(0);
+    if (visible === 'pause') { this.#selectPause(0); this.#animatePane(this.#screens.pause.querySelector('.pm-pane:not([hidden])')); }
     // HUD only while actually playing.
     if (this.#hud) this.#hud.style.display = state === AppState.PLAYING ? 'block' : 'none';
     document.body.dataset.state = state;
