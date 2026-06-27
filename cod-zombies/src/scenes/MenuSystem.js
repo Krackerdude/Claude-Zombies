@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { Service } from '../core/ServiceLocator.js';
+import { AppState } from '../core/GameState.js';
 import { buildMenuScene } from './MenuScene.js';
 
 const _look = new THREE.Vector3();
@@ -31,14 +32,14 @@ export class MenuSystem extends System {
   prewarm(render) { try { render?.renderer?.compile?.(this.#menu.scene, this.#camera); } catch { /* headless */ } }
 
   update(dt) {
-    if (this.#gameState.isPlaying) return;
+    if (this.#gameState.current !== AppState.MENU) return; // only the main menu uses the backdrop
     this.#t += dt;
     this.#menu.update(dt, this.#t);
   }
 
   // own the camera AFTER CameraController's menu drift, so we frame the backdrop
   lateUpdate() {
-    if (this.#gameState.isPlaying) return;
+    if (this.#gameState.current !== AppState.MENU) return;
     const t = this.#t;
     // composed slightly left + low, looking at the survivor/fire on the right;
     // a gentle handheld sway + breathing dolly
