@@ -725,7 +725,8 @@ export class WeaponSystem extends System {
     d.pap = true;
     d.name = PAP_NAMES[key] || d.name; // flashy PaP rename
     d.papTint = { muzzle: 0x9a0b2e, tracer: 0xff5fc4 };
-    d.damage *= 2;
+    d.damage *= 2;                                   // straight double damage
+    if (d.splashDamage) d.splashDamage *= 2;         // ...incl. launchers/wonder weapons (splash)
     d.ammoStockSize = Math.round(d.ammoStockSize * 1.6);
     const special = PAP_SPECIAL[key];
     if (special === 'dual') { d.dualWield = true; d.magazineSize *= 2; }

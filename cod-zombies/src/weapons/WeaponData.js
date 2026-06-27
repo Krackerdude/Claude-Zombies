@@ -20,6 +20,9 @@ export const WeaponCategory = Object.freeze({
 export class WeaponData {
   constructor(o = {}) {
     this.name = o.name ?? 'Weapon';
+    // stable identifier for picking the 3D model — Pack-a-Punch renames `name`
+    // (the display name) but must NOT change which gun model is built.
+    this.modelName = o.modelName ?? this.name;
     this.category = o.category ?? WeaponCategory.AR;
 
     // ballistics — flat per-shot damage. Damage NEVER changes by round; the
