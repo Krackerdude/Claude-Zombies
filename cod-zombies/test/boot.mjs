@@ -362,6 +362,38 @@ guard('a ray through a hound body registers a hit; through its snout, a headshot
   if (!snout || !snout.headshot) throw new Error('ray through the hound snout did not register a headshot');
 });
 
+console.log('\n[11c] Re-Pack alternate ammo: gating, proc, and cryo freeze/shatter');
+guard('AAT requires PaP, procs the effect, and a frozen zombie shatters when shot', () => {
+  freshRun();
+  tick(3);
+  const ws = services.get(Service.Weapons);
+  const aat = services.get(Service.AAT);
+  if (!aat) throw new Error('no AAT service');
+  // not eligible until Pack-a-Punched
+  if (ws.canRepack()) throw new Error('un-PaP gun should not be Re-Pack eligible');
+  if (ws.setAat('cryo')) throw new Error('setAat should fail on a non-PaP gun');
+  ws.devPaP();
+  if (!ws.canRepack()) throw new Error('PaP gun should be Re-Pack eligible');
+  ws.setAat('cryo');
+  const wpn = ws.current;
+  if (wpn.aat !== 'cryo') throw new Error('AAT was not assigned');
+
+  const zid = [...world.query(ZombieTag)].find((id) => !world.get(id, ZombieTag).hound);
+  if (zid === undefined) throw new Error('no zombie');
+  // force the (cooldown-gated, 10%) proc to fire by retrying with the cd cleared
+  let procced = false;
+  for (let i = 0; i < 400 && !procced; i++) { wpn.aatReadyAt = 0; procced = aat.tryProc(wpn, zid, { x: 0, z: 1 }); }
+  if (!procced) throw new Error('cryo never procced');
+  if (!(world.get(zid, ZombieTag).frozen > 0)) throw new Error('cryo proc did not freeze the target');
+
+  // shooting a frozen zombie shatters it (instakill, no corpse)
+  const player = world.get(world.first(PlayerTag), PlayerTag);
+  const ctx = { world, spawn: services.get(Service.Spawn), events, player };
+  const killed = damageZombie(ctx, zid, 50, { dir: { x: 0, z: 1 } });
+  if (!killed) throw new Error('shooting a frozen zombie should report a kill');
+  if (world.get(zid, ZombieTag) !== undefined) throw new Error('frozen zombie was not shattered (still tagged)');
+});
+
 console.log('\n[12] zombies do not get stuck clawing an already-open window');
 guard('teardown exits when the window is opened by someone else', () => {
   freshRun();

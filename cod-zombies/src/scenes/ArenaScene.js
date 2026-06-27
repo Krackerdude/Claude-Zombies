@@ -20,6 +20,7 @@ import { MysteryBoxSystem } from './MysteryBoxSystem.js';
 import { buildPaP } from './packAPunch.js';
 import { PaPSystem } from './PaPSystem.js';
 import { PowerupSystem } from '../powerups/PowerupSystem.js';
+import { AATSystem } from '../weapons/AATSystem.js';
 import { GadgetSystem } from '../gadgets/GadgetSystem.js';
 import { TacticalSystem } from '../gadgets/TacticalSystem.js';
 import { PerkSystem } from '../perks/PerkSystem.js';
@@ -317,6 +318,11 @@ export function buildArena(engine) {
   engine.world.registerSystem(new CorpseSystem());
   engine.world.registerSystem(new RoundSystem());
   engine.world.registerSystem(new PhysicsDebugSystem()); // F3 collider/COM/contact overlay
+  // Alternate Ammo Types (Re-Pack) — registered as a service so WeaponSystem can
+  // roll procs against it, and as a system so it ticks its effects/FX
+  const aat = new AATSystem();
+  engine.services.register(Service.AAT, aat);
+  engine.world.registerSystem(aat);
 
   // --- weapons + economy ---
   const weaponSystem = new WeaponSystem();

@@ -66,6 +66,7 @@ export const Service = Object.freeze({
   Hounds: 'hounds',
   Round: 'round',
   Weapons: 'weapons',
+  AAT: 'aat',
   Economy: 'economy',
   Powerups: 'powerups',
   Perks: 'perks',

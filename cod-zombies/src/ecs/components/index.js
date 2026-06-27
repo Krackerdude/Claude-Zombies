@@ -145,6 +145,17 @@ export class ZombieTag {
     this.crawler = false; // legs gone: drags along the floor
     this.crawlAmt = 0;    // 0..1 ease into the prone crawl pose
 
+    // alternate-ammo (AAT / Re-Pack) induced states — set by AATSystem, posed by
+    // ZombieAnimSystem, reaped by AATSystem when the death animation completes
+    this.burning = false; this.burnT = 0;   // napalm: ignite then disintegrate to ash
+    this.frozen = 0;                         // cryo: seconds left encased in ice (shatter on death)
+    this.turned = 0;                         // turned: seconds left as a friendly ally
+    this.rifting = 0;                        // shadow rift: seconds being pulled into the rift
+    this.riftX = 0; this.riftZ = 0;          // rift centre to drift toward
+    this.aatDying = null;                    // 'ash' | 'rift' | 'shatter' | 'meltdown' (terminal anim)
+    this.aatDyingT = 0;                      // elapsed in the terminal anim
+    this.tint = 0;                           // requested emissive tint key (0 none, set by AAT)
+
     // acid-bomb dissolve state (set by GadgetSystem, animated by ZombieAnimSystem)
     this.acid = 0;          // total seconds of acid exposure (drives thresholds)
     this.acidSlow = 0;      // >0 while standing in acid: slowed + writhing in pain

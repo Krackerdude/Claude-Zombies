@@ -5,6 +5,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { ZombieConfig, PlayerCombat, BarrierConfig, HoundConfig } from '../config/zombies.js';
 import { ZOMBIE_AGENT } from './NavGraph.js';
 import { MoveState } from '../player/MoveState.js';
+import { damageZombie } from '../weapons/damage.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const _camDir = new THREE.Vector3();
@@ -78,18 +79,29 @@ export class ZombieSystem extends System {
     const playerGoal = this.#nav.nearestWalkable(pt.position.x, pt.position.z, ZOMBIE_AGENT);
     const lured = this.#lures.size > 0;
 
-    for (const id of this.world.query(ZombieTag, Transform)) {
+    // snapshot the list: AAT effects (turned allies, etc.) can remove a zombie
+    // mid-loop, so iterate a copy rather than the live store
+    for (const id of [...this.world.query(ZombieTag, Transform)]) {
       const z = this.world.get(id, ZombieTag);
       const t = this.world.get(id, Transform);
+      if (!z || !t) continue; // killed earlier this frame (e.g. by a turned ally)
       t.cachePrevious();
-      // a monkey bomb out-prioritises the player: chase the nearest lure and
-      // claw at it (no damage to the player) until it blows
-      let chasePos = pt.position, goalCell = playerGoal, isLured = false;
-      if (lured) {
-        const L = this.#nearestLure(t.position.x, t.position.z);
-        if (L) { chasePos = L; goalCell = this.#nav.nearestWalkable(L.x, L.z, ZOMBIE_AGENT); isLured = true; }
+      // AAT-held: frozen/burning/rifting/dying zombies are inert; turned ones hunt
+      // the horde instead of the player
+      if (z.aatDying || z.rifting > 0 || z.frozen > 0 || z.burning) {
+        z.swipe = 0;
+      } else if (z.turned > 0) {
+        this.#tickTurned(id, z, t, player, dt);
+      } else {
+        // a monkey bomb out-prioritises the player: chase the nearest lure and
+        // claw at it (no damage to the player) until it blows
+        let chasePos = pt.position, goalCell = playerGoal, isLured = false;
+        if (lured) {
+          const L = this.#nearestLure(t.position.x, t.position.z);
+          if (L) { chasePos = L; goalCell = this.#nav.nearestWalkable(L.x, L.z, ZOMBIE_AGENT); isLured = true; }
+        }
+        this.#tickZombie(z, t, chasePos, player, goalCell, dt, isLured);
       }
-      this.#tickZombie(z, t, chasePos, player, goalCell, dt, isLured);
       // keep the player-blocking capsule glued to the zombie (lower for crawlers)
       const ref = this.world.get(id, RigidBodyRef);
       if (ref?.body) this.#physics.setKinematicTarget(ref.body, { x: t.position.x, y: z.hound ? 0.5 : z.crawler ? 0.6 : 0.9, z: t.position.z });
@@ -212,6 +224,27 @@ export class ZombieSystem extends System {
         if (z.attackTimer <= 0) { z.swipe = ZombieConfig.swipeTime; z.swung = false; }
         break;
       }
+    }
+  }
+
+  /** Turned (AAT): a friendly zombie. It hunts the nearest enemy zombie and
+   *  instant-kills it on contact, ignoring the player entirely. Lifetime is
+   *  counted down by AATSystem; here we just drive the hunt. */
+  #tickTurned(id, z, t, player, dt) {
+    let bestId = -1, bestD = Infinity, bx = 0, bz = 0;
+    for (const oid of this.world.query(ZombieTag, Transform)) {
+      if (oid === id) continue;
+      const oz = this.world.get(oid, ZombieTag);
+      if (oz.turned > 0 || oz.state === 'dead' || oz.aatDying || oz.frozen > 0 || oz.rifting > 0 || oz.burning) continue;
+      const ot = this.world.get(oid, Transform);
+      const d = (ot.position.x - t.position.x) ** 2 + (ot.position.z - t.position.z) ** 2;
+      if (d < bestD) { bestD = d; bestId = oid; bx = ot.position.x; bz = ot.position.z; }
+    }
+    if (bestId < 0) { this.#face(t, 0, 1, dt); return; } // no prey: idle
+    if (Math.hypot(bx - t.position.x, bz - t.position.z) <= ZombieConfig.attackRange + 0.3) {
+      damageZombie({ world: this.world, spawn: this.#spawn, events: this.#events, player }, bestId, 1e9, { award: true, dir: { x: bx - t.position.x, z: bz - t.position.z }, force: 2.0 });
+    } else {
+      this.#moveToward(z, t, bx, bz, dt);
     }
   }
 

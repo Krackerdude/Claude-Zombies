@@ -3,6 +3,7 @@ import { AppState } from '../core/GameState.js';
 import { PlayerTag } from '../ecs/components/index.js';
 import { PERKS } from '../perks/perks.js';
 import { WEAPON_KEYS, weaponName } from '../weapons/catalog.js';
+import { AAT_IDS, aatName, aatColor } from '../weapons/aat.js';
 
 /**
  * F2 dev/test overlay (top-right). Freezes the game like the scoreboard and lets
@@ -55,6 +56,12 @@ export class DevMenu {
     html += '<button class="dev-btn dev-warn" data-pap="off">Un-Pack</button>';
     html += '</div></div>';
 
+    // Alternate Ammo (Re-Pack) — disabled unless the held gun is Pack-a-Punched
+    html += '<div class="dev-sec dev-aat-sec" id="dev-aat-sec"><div class="dev-title">Alternate Ammo <span class="dev-aat-lock">— Pack-a-Punch a gun first</span></div><div class="dev-grid">';
+    html += '<button class="dev-btn" data-aat="__random">🎲 Random</button>';
+    for (const id of AAT_IDS) html += `<button class="dev-btn dev-aatbtn" data-aat="${id}" style="--ac:${aatColor(id)}">${aatName(id)}</button>`;
+    html += '</div></div>';
+
     html += '<div class="dev-sec"><div class="dev-title">Weapons</div><div class="dev-list">';
     for (const key of WEAPON_KEYS) html += `<button class="dev-btn dev-gun" data-gun="${key}">${weaponName(key)}</button>`;
     html += '</div></div>';
@@ -90,6 +97,11 @@ export class DevMenu {
       else if (b.dataset.pap) {
         const ws = this.#engine.services.get(Service.Weapons);
         if (b.dataset.pap === 'on') ws?.devPaP?.(); else ws?.devUnPaP?.();
+        this.#refreshAat();
+      }
+      else if (b.dataset.aat) {
+        const ws = this.#engine.services.get(Service.Weapons);
+        if (b.dataset.aat === '__random') ws?.repackWeapon?.(); else ws?.setAat?.(b.dataset.aat);
       }
       else if (b.dataset.gun) this.#engine.services.get(Service.Weapons)?.giveWeapon?.(b.dataset.gun);
       else if (b.dataset.lethal) this.#engine.services.get(Service.Lethal)?.giveLethal?.(b.dataset.lethal);
@@ -153,9 +165,18 @@ export class DevMenu {
     }, true);
   }
 
+  /** Grey out the Alternate Ammo section unless the held gun is Pack-a-Punched. */
+  #refreshAat() {
+    const sec = this.#el?.querySelector('#dev-aat-sec');
+    if (!sec) return;
+    const ws = this.#engine.services.get(Service.Weapons);
+    sec.classList.toggle('dev-disabled', !(ws?.canRepack?.()));
+  }
+
   open() {
     const p = this.#player();
     if (p && this.#pointsLabel) this.#pointsLabel.textContent = (p.points || 0).toLocaleString();
+    this.#refreshAat();
     this.#gameState.set(AppState.DEVMENU); // freeze BEFORE releasing the mouse so no auto-pause
     this.#input.exitPointerLock?.();
     this.#el.classList.add('show');

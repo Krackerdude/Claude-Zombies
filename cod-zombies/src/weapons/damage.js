@@ -16,6 +16,12 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
   const z = ctx.world.get(id, ZombieTag);
   if (!z || z.state === 'dead') return false;
 
+  // Cryo-frozen: any hit shatters it into ice shards (instant kill, no corpse).
+  if (z.frozen > 0) {
+    const aat = ctx.world.services.has(Service.AAT) ? ctx.world.services.get(Service.AAT) : null;
+    if (aat) { aat.shatter(id, dir); return true; }
+  }
+
   // dismemberment: a limb hit can shoot that limb clean off (chance scales with
   // caliber, passed in by the weapon). Only an attached limb, only if it didn't
   // already die this hit (handled below — the roll is before the lethal check so

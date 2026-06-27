@@ -25,6 +25,12 @@ export class WeaponBase {
     this.aiming = false;
     this.adsProgress = 0; // 0 hip .. 1 fully aimed
     this.justFired = 0; // counts down, drives muzzle flash / kick visuals
+
+    // Re-Pack alternate ammo type (AAT): null until a PaP'd gun is re-packed.
+    // After a proc the effect goes on cooldown; once ready, each shot has a
+    // small chance to proc again (gated in WeaponSystem via AATSystem).
+    this.aat = null;         // 'napalm' | 'turned' | 'fireworks' | 'thunderwall' | 'cryo' | 'mend' | 'rift'
+    this.aatReadyAt = 0;     // sim time the effect may next proc
   }
 
   get name() { return this.data.name; }
