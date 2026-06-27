@@ -188,3 +188,73 @@
 }
 #mm-fade.show { opacity: 1; }
 #mm-fade.slow { transition: opacity 0.95s ease; }
+
+/* empty Daily Challenge ring (no active quest) — a hollow dark socket */
+.mm-daily-ring.empty {
+  background: rgba(18,24,30,0.9); color: transparent;
+  box-shadow: inset 0 0 0 4px rgba(8,11,15,0.95), inset 0 0 0 6px rgba(120,150,160,0.22);
+}
+
+/* ============================================================================
+   Options menu — re-skinned to match the new chrome: a translucent veil over
+   the 3D backdrop, dark cards, Oswald, and the orange accent (was blood/teal).
+   These ride after menu.css so they win by cascade order.
+   ========================================================================== */
+#screen-options {
+  background: radial-gradient(120% 100% at 50% 30%, rgba(6,9,14,0.86), rgba(3,5,8,0.96)) !important;
+}
+.opt-head {
+  font-family: 'Anton', Impact, sans-serif; color: #e7edf0;
+  text-shadow: 0 3px 10px rgba(0,0,0,0.7); transform: skewX(-6deg);
+}
+.opt-head small { font-family: 'Oswald', sans-serif; color: #ffb347; letter-spacing: 0.45em; }
+
+.opt-tab {
+  font-family: 'Oswald', sans-serif; font-weight: 600; font-size: clamp(1.1rem, 2vw, 1.6rem);
+  letter-spacing: 0.12em; color: #9fb0bb; border-left: 3px solid transparent;
+  background: linear-gradient(90deg, rgba(14,19,24,0), rgba(14,19,24,0));
+}
+.opt-tab:hover { color: #ffd7a6; transform: skewX(-9deg) translateX(10px); }
+.opt-tab.active {
+  color: #ffd7a6; background: linear-gradient(90deg, rgba(58,30,8,0.92), transparent 75%);
+  border-left-color: #ffb347; transform: skewX(-9deg) translateX(14px);
+  box-shadow: -3px 0 10px rgba(255,150,40,0.35);
+}
+.opt-tab .num { color: #ffb347; opacity: 0.8; }
+
+.opt-panel {
+  border-left: 1px solid rgba(120,170,185,0.18);
+  background: linear-gradient(90deg, rgba(10,14,20,0.5), rgba(10,14,20,0.0) 40%);
+}
+.opt-panel::-webkit-scrollbar-thumb { background: rgba(255,150,40,0.6); }
+
+.section-title {
+  font-family: 'Oswald', sans-serif; font-weight: 700; color: #ffb347;
+  border-bottom: 1px solid rgba(255,150,40,0.3);
+}
+
+.row { font-family: 'Oswald', sans-serif; }
+.row:hover { background: rgba(255,138,40,0.08); }
+.row .label { color: #e2e8ec; }
+.row .label small { color: #8aa0ac; }
+
+.sl input[type=range] { background: rgba(150,175,188,0.22); }
+.sl input[type=range]::-webkit-slider-thumb { background: #ffb347; box-shadow: 0 0 8px rgba(255,150,40,0.7); }
+.sl input[type=range]::-moz-range-thumb { background: #ffb347; }
+.sl .val { font-family: 'Oswald', sans-serif; font-weight: 600; color: #ffc870; }
+
+.tg.on { border-color: #ffb347; background: rgba(255,138,40,0.22); }
+.tg.on::after { background: #ffb347; box-shadow: 0 0 8px rgba(255,150,40,0.75); }
+
+.seg button.active { background: linear-gradient(180deg, #ffb347, #ff8a28); color: #14110a; font-weight: 700; }
+.seg button:hover:not(.active) { color: #ffd7a6; background: rgba(255,138,40,0.14); }
+
+.sel-box { border-color: rgba(150,175,188,0.4); color: #dfe6ea; }
+.sel-box:focus { border-color: #ffb347; outline: none; }
+
+.keybind { font-family: 'Oswald', sans-serif; color: #dfe6ea; }
+.keybind:hover { border-color: #ffb347; color: #ffd7a6; }
+.keybind.listening { border-color: #ffb347; color: #ffc870; }
+
+.btn-ghost { font-family: 'Oswald', sans-serif; font-weight: 600; letter-spacing: 0.16em; color: #aeb9c0; }
+.btn-ghost:hover { color: #14110a; background: linear-gradient(180deg, #ffb347, #ff8a28); border-color: #ffb347; }

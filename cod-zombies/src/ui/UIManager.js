@@ -111,12 +111,12 @@ export class UIManager {
     s.id = 'screen-main';
     s.innerHTML = `
       <div class="mm-daily" id="mm-daily">
-        <div class="mm-daily-head">Featured</div>
+        <div class="mm-daily-head">Daily Challenge</div>
         <div class="mm-daily-body">
-          <div class="mm-daily-ring">20%</div>
-          <div class="mm-daily-name">Ten-Pack<small>Daily Challenge</small></div>
+          <div class="mm-daily-ring empty"></div>
+          <div class="mm-daily-name">No Daily Quest<small>Active</small></div>
         </div>
-        <div class="mm-daily-foot">Details</div>
+        <div class="mm-daily-foot">Check Back Tomorrow</div>
       </div>
       <div class="mm-player">
         <div class="mm-player-row"><span class="mm-lvl">1</span><span class="mm-name">Survivor One</span></div>
