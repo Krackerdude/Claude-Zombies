@@ -101,6 +101,10 @@ export class ZombieSystem extends System {
   // --- per-zombie FSM -----------------------------------------------------
 
   #tickZombie(z, t, playerPos, player, goalCell, dt, lured = false) {
+    // acid bomb: dissolving into the pool — frozen in place while it melts away,
+    // or collapsing as its legs dissolve into a crawler. Animation owns the look.
+    if (z.melting || z.meltingLegs) { z.swipe = 0; return; }
+    if (z.acidSlow > 0) z.acidSlow = Math.max(0, z.acidSlow - dt); // pain-slow decays once clear of the acid
     // Knocked flat by an explosion: inert (no movement, no swiping) while it
     // falls, writhes and climbs back up. Checked first so it always recovers
     // even if a stun / zombie-blood would otherwise short-circuit the tick.
@@ -289,7 +293,7 @@ export class ZombieSystem extends System {
       }
     }
 
-    const step = z.speed * (z.crawler ? 0.42 : 1) * dt; // crawlers drag slowly
+    const step = z.speed * (z.crawler ? 0.42 : 1) * (z.acidSlow > 0 ? 0.4 : 1) * dt; // crawlers drag slowly; acid hobbles
     let mx = dx + sx * ZombieConfig.separationStrength;
     let mz = dz + sz * ZombieConfig.separationStrength;
     const ml = Math.hypot(mx, mz) || 1;

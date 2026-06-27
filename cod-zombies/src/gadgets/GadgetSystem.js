@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { Service } from '../core/ServiceLocator.js';
 import { Action } from '../config/keybinds.js';
-import { Transform, PlayerTag, ZombieTag, Renderable } from '../ecs/components/index.js';
+import { Transform, PlayerTag, ZombieTag, Renderable, RigidBodyRef } from '../ecs/components/index.js';
 import { damageZombie } from '../weapons/damage.js';
 import { PlayerCombat, ZombieConfig } from '../config/zombies.js';
 import { paintedMetal } from '../rendering/materials/surfaces.js';
@@ -56,6 +56,13 @@ const SEMTEX = {
   count: 3, bombletRadius: 2.8, bombletDamage: 700,
   stickDist: 0.7, // how close to a zombie it'll stick mid-flight
 };
+// Acid bomb: a contact grenade that lays a corrosive pool — dissolves legs into
+// crawlers, then melts the whole zombie away if it lingers
+const ACID = {
+  poolRadius: 2.8, poolLife: 6.5, tick: 0.18,
+  legTime: 1.0,   // exposure (s) before the legs dissolve -> crawler
+  bodyTime: 2.6,  // a crawler this long in the acid melts away entirely
+};
 // WraithFire: a contact grenade that lays a pool of spectral blue fire
 const WRAITH = {
   fuse: 3.0,             // safety fuse if it never touches ground
@@ -83,9 +90,12 @@ export class GadgetSystem extends System {
   #fx = [];
   #light = null;
   #lightOn = false;
-  #lethalKind = 'frag'; // 'frag' | 'wraithfire'
+  #lethalKind = 'frag'; // 'frag' | 'wraithfire' | 'semtex' | 'acid'
   #firePools = [];
   #burning = [];
+  #acidPools = [];
+  #melting = []; // zombie ids dissolving fully into the acid
+  #physics = null;
 
   init() {
     const s = this.world.services;
@@ -96,6 +106,7 @@ export class GadgetSystem extends System {
     this.#scene = s.get(Service.Scene).scene;
     this.#events = s.get(Service.Events);
     this.#spawn = s.get(Service.Spawn);
+    this.#physics = s.has(Service.Physics) ? s.get(Service.Physics) : null;
 
     // flashlight: a powerful spotlight that follows the camera (off by default).
     // Long reach, wide cone, gentle falloff so it actually lights the arena.
@@ -111,7 +122,7 @@ export class GadgetSystem extends System {
 
   /** Dev hook: swap the equipped lethal (replaces the grenade). Count is shared. */
   giveLethal(kind) {
-    if (kind !== 'frag' && kind !== 'wraithfire' && kind !== 'semtex') return;
+    if (kind !== 'frag' && kind !== 'wraithfire' && kind !== 'semtex' && kind !== 'acid') return;
     this.#lethalKind = kind;
     this.#count = MAX_NADES;
     this.#events.emit('lethal:equip', { kind });
@@ -123,6 +134,7 @@ export class GadgetSystem extends System {
   update(dt) {
     this.#animateFx(dt);
     this.#tickFire(dt);
+    this.#tickAcid(dt);
     if (!this.#gameState.isPlaying || !this.#input.pointerLocked) return;
 
     const pid = this.world.first(PlayerTag, Transform);
@@ -147,8 +159,10 @@ export class GadgetSystem extends System {
       this.#cookFuse -= dt;
       this.#readyT = Math.max(0, this.#readyT - dt);
       if (this.#cookFuse <= 0) {
-        // cooked too long — goes off in your hand (WraithFire torches your feet)
+        // cooked too long — goes off in your hand (WraithFire torches your feet,
+        // Acid pools under you; Semtex/Frag blast)
         if (this.#lethalKind === 'wraithfire') this.#ignitePool({ x: ppos.x, y: 0, z: ppos.z });
+        else if (this.#lethalKind === 'acid') this.#igniteAcid({ x: ppos.x, z: ppos.z });
         else this.#explode(this.#camera.position, player);
         this.#killPlayer(player); this.#holding = false; this.#nadeCd = 0.25; this.#events.emit('gadget:cook', { active: false });
       }
@@ -162,7 +176,7 @@ export class GadgetSystem extends System {
 
   #throw(fuse) {
     const kind = this.#lethalKind;
-    const mesh = kind === 'wraithfire' ? wraithModel() : kind === 'semtex' ? semtexModel() : grenadeModel();
+    const mesh = kind === 'wraithfire' ? wraithModel() : kind === 'semtex' ? semtexModel() : kind === 'acid' ? acidModel() : grenadeModel();
     const o = this.#camera.position;
     mesh.position.set(o.x, o.y - 0.1, o.z);
     this.#scene.add(mesh);
@@ -206,6 +220,7 @@ export class GadgetSystem extends System {
 
       if (n.mesh.position.y <= 0.07) {
         if (n.kind === 'wraithfire') { this.#ignitePool({ x: n.mesh.position.x, y: 0, z: n.mesh.position.z }); this.#scene.remove(n.mesh); this.#nades.splice(i, 1); continue; }
+        if (n.kind === 'acid') { this.#igniteAcid({ x: n.mesh.position.x, z: n.mesh.position.z }); this.#scene.remove(n.mesh); this.#nades.splice(i, 1); continue; }
         if (n.kind === 'bomblet') { this.#explode(n.mesh.position, player, SEMTEX.bombletRadius, SEMTEX.bombletDamage); this.#scene.remove(n.mesh); this.#nades.splice(i, 1); continue; }
         if (n.kind === 'semtex') { n.mesh.position.y = 0.05; n.stuck = true; n.stickId = -1; continue; } // sticks flat to the floor
         n.mesh.position.y = 0.07; // frag bounces + rolls
@@ -216,6 +231,7 @@ export class GadgetSystem extends System {
       n.mesh.rotation.z += n.vz * dt * 2;
       if (n.fuse <= 0) {
         if (n.kind === 'wraithfire') this.#ignitePool({ x: n.mesh.position.x, y: 0, z: n.mesh.position.z });
+        else if (n.kind === 'acid') this.#igniteAcid({ x: n.mesh.position.x, z: n.mesh.position.z });
         else if (n.kind === 'semtex') this.#clusterBurst(n.mesh.position, player);
         else if (n.kind === 'bomblet') this.#explode(n.mesh.position, player, SEMTEX.bombletRadius, SEMTEX.bombletDamage);
         else this.#explode(n.mesh.position, player);
@@ -314,6 +330,73 @@ export class GadgetSystem extends System {
     this.#burning.push({ group: flames, rig, t: 0, burnStart: 1.2, life: 2.4 });
   }
 
+  // --- Acid bomb: corrosive pools that dissolve legs then melt the body --------
+
+  #igniteAcid(pos) {
+    const group = buildAcidPool(ACID.poolRadius);
+    group.position.set(pos.x, 0.02, pos.z);
+    this.#scene.add(group);
+    this.#acidPools.push({ group, x: pos.x, z: pos.z, t: 0, dmgT: 0 });
+    this.#events.emit('fx:shake', {});
+  }
+
+  #tickAcid(dt) {
+    const playing = this.#gameState.isPlaying;
+    for (let i = this.#acidPools.length - 1; i >= 0; i--) {
+      const p = this.#acidPools[i];
+      p.t += dt;
+      animateAcid(p.group, p.t);
+      const k = p.t < 0.35 ? p.t / 0.35 : p.t > ACID.poolLife - 0.8 ? Math.max(0, (ACID.poolLife - p.t) / 0.8) : 1;
+      setFlameOpacity(p.group, k);
+      if (playing) { p.dmgT -= dt; if (p.dmgT <= 0) { p.dmgT = ACID.tick; this.#acidAffect(p.x, p.z); } }
+      if (p.t >= ACID.poolLife) { this.#scene.remove(p.group); disposeFlames(p.group); this.#acidPools.splice(i, 1); }
+    }
+    // reap zombies that have fully melted away (their bodyMelt is driven by anim)
+    for (let i = this.#melting.length - 1; i >= 0; i--) {
+      const id = this.#melting[i];
+      const z = this.world.get(id, ZombieTag);
+      if (!z) { this.#melting.splice(i, 1); continue; }
+      if (z.bodyMelt >= 1) { this.#despawnMelted(id); this.#melting.splice(i, 1); }
+    }
+  }
+
+  /** Apply acid exposure to every zombie standing in the pool: a pain-slow, then
+   *  dissolved legs -> crawler, then (if it lingers) a full-body melt. */
+  #acidAffect(px, pz) {
+    const r2 = ACID.poolRadius * ACID.poolRadius;
+    for (const id of this.world.query(ZombieTag, Transform)) {
+      const z = this.world.get(id, ZombieTag);
+      if (z.melting) continue;
+      const t = this.world.get(id, Transform).position;
+      const dx = t.x - px, dz = t.z - pz;
+      if (dx * dx + dz * dz > r2) continue;
+      z.acidSlow = 0.4;       // refreshed while inside -> slowed + writhing
+      z.acid += ACID.tick;
+      if (!z.crawler && !z.meltingLegs && z.acid >= ACID.legTime) {
+        z.meltingLegs = true; z.legMelt = 0;
+        if (z.state === 'teardown') { z.state = 'pathing'; z.barrierTarget = null; z.replan = 0; }
+      } else if (z.crawler && z.acid >= ACID.bodyTime) {
+        z.melting = true; z.bodyMelt = 0; this.#melting.push(id);
+      }
+    }
+  }
+
+  /** A melted zombie is gone — no ragdoll, just dissolved. Mirror the kill
+   *  bookkeeping (points, spawn count) and remove it. */
+  #despawnMelted(id) {
+    const pid = this.world.first(PlayerTag, Transform);
+    const player = pid !== undefined ? this.world.get(pid, PlayerTag) : null;
+    const pu = this.world.services.has(Service.Powerups) ? this.world.services.get(Service.Powerups) : null;
+    const mul = pu ? pu.pointsMultiplier() : 1;
+    const t = this.world.get(id, Transform)?.position;
+    const ref = this.world.get(id, RigidBodyRef);
+    if (ref && this.#physics) { this.#physics.removeBody(ref); this.world.remove(id, RigidBodyRef); }
+    this.#spawn.notifyKilled();
+    if (player) { player.points += PlayerCombat.pointsKillBody * mul; this.#events.emit('score:changed', { points: player.points }); }
+    this.#events.emit('zombie:killed', { headshot: false, x: t ? t.x : 0, z: t ? t.z : 0 });
+    this.world.destroyEntity(id);
+  }
+
   #explode(pos, player, radius = RADIUS, damage = DAMAGE) {
     const ctx = { world: this.world, spawn: this.#spawn, events: this.#events, player };
     const pu = this.world.services.has(Service.Powerups) ? this.world.services.get(Service.Powerups) : null;
@@ -378,6 +461,9 @@ export class GadgetSystem extends System {
     this.#firePools.length = 0;
     for (const b of this.#burning) { b.group.removeFromParent(); disposeFlames(b.group); }
     this.#burning.length = 0;
+    for (const p of this.#acidPools) { this.#scene.remove(p.group); disposeFlames(p.group); }
+    this.#acidPools.length = 0;
+    this.#melting.length = 0;
     if (this.#holding) this.#events.emit('gadget:cook', { active: false });
     this.#holding = false;
     this.#count = MAX_NADES;
@@ -442,6 +528,73 @@ function bombletModel() {
   const ball = new THREE.Mesh(_bombletGeo, P.dark); g.add(ball);
   const dot = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 5), P.led); dot.position.set(0, 0.028, 0); g.add(dot);
   return g;
+}
+
+// --- Acid bomb model + corrosive pool ---------------------------------------
+// A brass naval-mine sphere with protruding canister pods, glowing acid-green
+// ports, and a visible green acid core peeking through (built once, reused).
+let _acidParts = null;
+export function acidModel() {
+  if (!_acidParts) _acidParts = {
+    brass: new THREE.MeshStandardMaterial({ color: 0x8a7a45, metalness: 0.65, roughness: 0.45 }),
+    dark: new THREE.MeshStandardMaterial({ color: 0x3a3526, metalness: 0.5, roughness: 0.55 }),
+    glow: new THREE.MeshBasicMaterial({ color: 0x9bff3a }),                                   // acid-green ports
+    core: new THREE.MeshBasicMaterial({ color: 0xbfff66, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
+  };
+  const P = _acidParts;
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), P.brass)); // mine body
+  // a green acid core that glows out through the ports
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), P.core));
+  // protruding canister pods at the cardinal points, each with a glowing port
+  const dirs = [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
+  for (const d of dirs) {
+    const n = new THREE.Vector3(d[0], d[1], d[2]);
+    const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.05, 8), P.dark);
+    pod.position.copy(n).multiplyScalar(0.085); pod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); g.add(pod);
+    const port = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.01, 8), P.glow);
+    port.position.copy(n).multiplyScalar(0.11); port.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); g.add(port);
+    // little horn prongs flanking each pod (naval-mine look)
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.04, 5), P.brass);
+    horn.position.copy(n).multiplyScalar(0.12); horn.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); g.add(horn);
+  }
+  return g;
+}
+
+/** A bubbling corrosive pool: a glowing green ground disc with rising,
+ *  popping acid blobs. No dynamic lights (avoids the shader-recompile hitch). */
+function buildAcidPool(radius) {
+  const g = new THREE.Group();
+  const goo = flameMat(0x86e02a, 0.6); goo.blending = THREE.NormalBlending; // murky green, not additive
+  const froth = flameMat(0xc6ff6a, 0.85);
+  g.userData.mats = [goo, froth];
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 24), goo);
+  disc.rotation.x = -Math.PI / 2; disc.position.y = 0.012; g.add(disc);
+  if (!_blobGeo) _blobGeo = new THREE.IcosahedronGeometry(1, 0);
+  const bubbles = [];
+  for (let i = 0; i < 16; i++) {
+    const rr = Math.sqrt(Math.random()) * radius * 0.9, a = Math.random() * Math.PI * 2;
+    const s = 0.08 + Math.random() * 0.12;
+    const m = new THREE.Mesh(_blobGeo, Math.random() < 0.4 ? froth : goo);
+    m.scale.setScalar(s);
+    m.position.set(Math.cos(a) * rr, 0.02, Math.sin(a) * rr);
+    m.userData.s = s; m.userData.ph = Math.random() * 6.28; m.userData.rr = rr; m.userData.a = a;
+    g.add(m); bubbles.push(m);
+  }
+  g.userData.bubbles = bubbles;
+  return g;
+}
+let _blobGeo = null;
+/** Bubble the acid: blobs swell + rise then pop back, the surface roils. */
+function animateAcid(g, t) {
+  const bubbles = g.userData.bubbles; if (!bubbles) return;
+  for (const m of bubbles) {
+    const ph = t * 3 + m.userData.ph;
+    const cyc = (Math.sin(ph) * 0.5 + 0.5); // 0..1 swell-and-pop
+    m.scale.setScalar(m.userData.s * (0.5 + cyc * 0.9));
+    m.position.y = 0.02 + cyc * 0.12;
+    m.rotation.x += 0.04; m.rotation.z += 0.03;
+  }
 }
 
 const _coneGeo = new THREE.ConeGeometry(1, 1, 7);

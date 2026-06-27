@@ -79,9 +79,14 @@ export class ZombieAnimSystem extends System {
       const rig = this.world.get(id, Renderable).object3d;
       const J = rig.userData?.joints;
       if (!J) continue;
-      if (z.crawler) { this.#poseCrawl(z, rig.userData.rest, J, dt); continue; }
-      if (z.state === 'knocked') { this.#poseKnock(z, rig.userData.rest, J); continue; }
-      this.#poseOne(z, rig.userData.rest, J, dt);
+      const rest = rig.userData.rest;
+      // acid bomb dissolves — these override the normal gait entirely
+      if (z.melting) { this.#poseMelt(z, rig, rest, J, dt); continue; }
+      if (z.meltingLegs) { this.#poseLegMelt(z, rig, rest, J, dt); continue; }
+      if (z.crawler) { this.#poseCrawl(z, rest, J, dt); }
+      else if (z.state === 'knocked') { this.#poseKnock(z, rest, J); }
+      else { this.#poseOne(z, rest, J, dt); }
+      if (z.acidSlow > 0) this.#acidWrithe(z, J); // layered pain shudder while in the acid
     }
   }
 
@@ -175,6 +180,62 @@ export class ZombieAnimSystem extends System {
     if (J.thighR.visible) { J.thighR.rotation.set(lerp(0, 0.3, c), 0, -0.15 * c); J.kneeR.rotation.x = lerp(0, 0.7, c); }
 
     this.#flinch(z, J, dt);
+  }
+
+  /** A pained convulsion layered over the normal gait while a zombie stands in
+   *  acid — it hunches, jerks, throws its head back and claws at the air. */
+  #acidWrithe(z, J) {
+    const t = z.animTime;
+    const sh = Math.sin(t * 24);
+    J.torso.rotation.x += 0.1 + sh * 0.08;
+    J.torso.rotation.z += Math.cos(t * 19) * 0.12;
+    J.head.rotation.x -= 0.18 + sh * 0.12;
+    J.head.rotation.z += Math.sin(t * 17) * 0.15;
+    if (J.shoulderL.visible) J.shoulderL.rotation.x -= 0.6 + sh * 0.4;
+    if (J.shoulderR.visible) J.shoulderR.rotation.x -= 0.6 - sh * 0.4;
+  }
+
+  /** Legs dissolving: the zombie buckles in place, its thighs shrinking to
+   *  nothing as it drops, upper body convulsing — then it becomes a crawler with
+   *  the legs melted clean away (no gore, no gibs). */
+  #poseLegMelt(z, rig, rest, J, dt) {
+    z.legMelt = Math.min(1, z.legMelt + dt * 1.6);
+    const lm = z.legMelt;
+    const t = (z.animTime += dt * 9); // fast pain writhe
+    J.hips.position.set(0, lerp(rest.hipY, 0.32, lm), 0);
+    J.hips.rotation.set(lerp(0, 0.45, lm), Math.sin(t) * 0.05, 0);
+    const s = Math.max(0.001, 1 - lm);
+    if (J.thighL) { J.thighL.scale.setScalar(s); J.thighL.rotation.set(0.2, 0, 0.12); }
+    if (J.thighR) { J.thighR.scale.setScalar(s); J.thighR.rotation.set(0.2, 0, -0.12); }
+    J.torso.rotation.set(rest.torso + 0.3 * lm + Math.sin(t) * 0.1, 0, Math.cos(t * 1.3) * 0.12);
+    J.head.rotation.set(-0.3 + Math.sin(t * 1.2) * 0.15, Math.sin(t) * 0.2, 0);
+    const claw = Math.sin(t * 1.5);
+    if (J.shoulderL.visible) { J.shoulderL.rotation.set(-1.0 + claw * 0.4, 0, 0.3); J.elbowL.rotation.x = 0.6; }
+    if (J.shoulderR.visible) { J.shoulderR.rotation.set(-1.0 - claw * 0.4, 0, -0.3); J.elbowR.rotation.x = 0.6; }
+    if (lm >= 1) { // become a crawler, legs gone
+      z.crawler = true; z.limbs.legL = false; z.limbs.legR = false; z.meltingLegs = false; z.crawlAmt = 0;
+      if (J.thighL) J.thighL.visible = false;
+      if (J.thighR) J.thighR.visible = false;
+    }
+  }
+
+  /** The whole body melting into the acid: it squashes down and spreads as it
+   *  slumps into a puddle, head and limbs sagging in. GadgetSystem reaps it once
+   *  `bodyMelt` completes (the rig is near-flat by then). */
+  #poseMelt(z, rig, rest, J, dt) {
+    z.bodyMelt = Math.min(1, z.bodyMelt + dt * 0.7); // ~1.4s to fully dissolve
+    const m = z.bodyMelt;
+    const t = (z.animTime += dt * 6);
+    rig.scale.set(1 + m * 0.5, Math.max(0.04, 1 - m * 0.96), 1 + m * 0.5); // squash + spread into goo
+    J.hips.position.set(0, lerp(z.crawler ? 0.34 : rest.hipY, 0.08, m), 0);
+    J.hips.rotation.set(lerp(0.3, 1.2, m), Math.sin(t) * 0.04 * (1 - m), 0);
+    J.torso.rotation.set(lerp(rest.torso, 1.3, m), 0, Math.sin(t * 1.1) * 0.08 * (1 - m));
+    J.head.rotation.set(lerp(0, 1.2, m), 0, 0);
+    const droop = lerp(0.3, 1.4, m);
+    if (J.shoulderL.visible) { J.shoulderL.rotation.set(droop, 0, 0.5 * m); J.elbowL.rotation.x = droop; }
+    if (J.shoulderR.visible) { J.shoulderR.rotation.set(droop, 0, -0.5 * m); J.elbowR.rotation.x = droop; }
+    if (J.thighL?.visible) J.thighL.rotation.set(-0.2, 0, 0.4 * m);
+    if (J.thighR?.visible) J.thighR.rotation.set(-0.2, 0, -0.4 * m);
   }
 
   /** Localized hit recoil, layered on top of the gait. A proper IMPULSE — a fast

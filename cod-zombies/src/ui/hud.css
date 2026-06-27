@@ -291,6 +291,26 @@
 }
 @keyframes semtexBlink { 50% { opacity: 0.25; } }
 .wpn-nade[data-kind="semtex"] .nade-n { color: #e9efcf; text-shadow: 0 0 9px rgba(160,200,80,0.45), 0 2px 3px #000; }
+
+/* Acid bomb: a brass mine sphere oozing glowing green acid */
+.wpn-nade[data-kind="acid"] .nade-glyph {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: radial-gradient(40% 40% at 38% 32%, #cdbb74, #8a7a45 55%, #4a4022);
+  box-shadow: inset -2px -2px 3px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.6);
+}
+/* glowing green acid core showing through */
+.wpn-nade[data-kind="acid"] .nade-glyph::before {
+  content: ''; position: absolute; left: 50%; top: 52%; width: 7px; height: 7px;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(#e6ff8a, #8fff2a 60%, rgba(120,220,40,0)); box-shadow: 0 0 6px rgba(150,255,40,0.8); inset: auto;
+}
+/* a couple of mine prongs */
+.wpn-nade[data-kind="acid"] .nade-glyph::after {
+  content: ''; position: absolute; left: 50%; top: -3px; width: 2px; height: 4px;
+  transform: translateX(-50%); background: #b8a55a; border-radius: 1px;
+  box-shadow: 5px 2px 0 -0.5px #b8a55a, -5px 2px 0 -0.5px #b8a55a;
+}
+.wpn-nade[data-kind="acid"] .nade-n { color: #ecf7c8; text-shadow: 0 0 9px rgba(150,255,60,0.55), 0 2px 3px #000; }
 .nade-n {
   font-family: 'Anton', Impact, sans-serif; font-size: 1.5rem; line-height: 1; color: #eaf3cf;
   text-shadow: 0 0 9px rgba(150,200,90,0.45), 0 2px 3px #000;
