@@ -620,27 +620,42 @@ export class WeaponSystem extends System {
           const tt = this.#raySegment(ox, oy, oz, dx, dy, dz, range, pax, pay, paz, pbx, pby, pbz, r);
           if (tt >= 0 && tt < best) { best = tt; part = partName; head = isHead; }
         };
-        const bone = (jA, jB, r, partName) => {
+        const bone = (jA, jB, r, partName, isHead = false) => {
           if (!jA || !jB) return;
           jA.getWorldPosition(_ja); jB.getWorldPosition(_jb);
-          seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, r, partName, false);
+          seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, r, partName, isHead);
         };
 
-        // head: neck base -> skull top (dedicated, so headshots need the head)
-        _ja.set(0, 0.04, 0); J.head.localToWorld(_ja);
-        _jb.set(0, 0.30, 0); J.head.localToWorld(_jb);
-        seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, 0.13, 'head', true);
-        // chest: waist -> NECK BASE (stops below the head so its cap can't steal
-        // a headshot), then waist -> hips
-        _ja.set(0, -0.1, 0); J.head.localToWorld(_ja); // neck base
-        J.torso.getWorldPosition(_jb);                 // waist
-        seg(_jb.x, _jb.y, _jb.z, _ja.x, _ja.y, _ja.z, 0.18, 'chest', false);
-        bone(J.hips, J.torso, 0.17, 'pelvis');
-        // arms + legs, only the sections still attached
-        if (z.limbs?.armL) { bone(J.shoulderL, J.elbowL, 0.085, 'armL'); bone(J.elbowL, J.handL, 0.075, 'armL'); }
-        if (z.limbs?.armR) { bone(J.shoulderR, J.elbowR, 0.085, 'armR'); bone(J.elbowR, J.handR, 0.075, 'armR'); }
-        if (z.limbs?.legL) { bone(J.thighL, J.kneeL, 0.105, 'legL'); bone(J.kneeL, J.footL, 0.095, 'legL'); }
-        if (z.limbs?.legR) { bone(J.thighR, J.kneeR, 0.105, 'legR'); bone(J.kneeR, J.footR, 0.095, 'legR'); }
+        if (z.hound) {
+          // quadruped capsules: a skeletal snout (headshot), the spine along
+          // chest->core->rump, the neck, and the four legs
+          _ja.set(0, 0.02, -0.06); J.head.localToWorld(_ja);
+          _jb.set(0, -0.02, 0.3); J.head.localToWorld(_jb);
+          seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, 0.1, 'head', true); // snout
+          bone(J.neck, J.head, 0.11, 'chest');
+          // spine: chest forward, then core back to the rump
+          J.chest.getWorldPosition(_ja); J.core.getWorldPosition(_jb);
+          seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, 0.2, 'chest', false);
+          _ja.set(0, 0, -0.44); J.core.localToWorld(_ja); J.core.getWorldPosition(_jb);
+          seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, 0.18, 'pelvis', false);
+          for (const k of ['fl', 'fr', 'bl', 'br']) { bone(J[k + 'U'], J[k + 'L'], 0.06, 'legs'); bone(J[k + 'L'], J[k + 'P'], 0.055, 'legs'); }
+        } else {
+          // head: neck base -> skull top (dedicated, so headshots need the head)
+          _ja.set(0, 0.04, 0); J.head.localToWorld(_ja);
+          _jb.set(0, 0.30, 0); J.head.localToWorld(_jb);
+          seg(_ja.x, _ja.y, _ja.z, _jb.x, _jb.y, _jb.z, 0.13, 'head', true);
+          // chest: waist -> NECK BASE (stops below the head so its cap can't steal
+          // a headshot), then waist -> hips
+          _ja.set(0, -0.1, 0); J.head.localToWorld(_ja); // neck base
+          J.torso.getWorldPosition(_jb);                 // waist
+          seg(_jb.x, _jb.y, _jb.z, _ja.x, _ja.y, _ja.z, 0.18, 'chest', false);
+          bone(J.hips, J.torso, 0.17, 'pelvis');
+          // arms + legs, only the sections still attached
+          if (z.limbs?.armL) { bone(J.shoulderL, J.elbowL, 0.085, 'armL'); bone(J.elbowL, J.handL, 0.075, 'armL'); }
+          if (z.limbs?.armR) { bone(J.shoulderR, J.elbowR, 0.085, 'armR'); bone(J.elbowR, J.handR, 0.075, 'armR'); }
+          if (z.limbs?.legL) { bone(J.thighL, J.kneeL, 0.105, 'legL'); bone(J.kneeL, J.footL, 0.095, 'legL'); }
+          if (z.limbs?.legR) { bone(J.thighR, J.kneeR, 0.105, 'legR'); bone(J.kneeR, J.footR, 0.095, 'legR'); }
+        }
       } else {
         // no rig (shouldn't happen): coarse head + body spheres
         const th = this.#raySphere(o, dir, x, py + 1.62, pz, 0.24);
