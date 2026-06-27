@@ -22,6 +22,7 @@ export class EconomySystem extends System {
   #playerId;
 
   #box = { state: 'idle', timer: 0, hold: 0, result: null, display: null, cycle: 0 };
+  #pap = { state: 'idle', timer: 0, hold: 0, key: null };
   #lastPrompt = null;
 
   get #perks() { return this.world.services.has(Service.Perks) ? this.world.services.get(Service.Perks) : null; }
@@ -42,7 +43,11 @@ export class EconomySystem extends System {
     this.#economy = this.world.services.get(Service.Economy);
 
     this.#events.on('state:change', ({ state }) => {
-      if (state !== 'playing') { this.#box.state = 'idle'; this.#events.emit('box:idle', {}); this.#prompt(null); }
+      if (state !== 'playing') {
+        this.#box.state = 'idle'; this.#events.emit('box:idle', {});
+        this.#pap.state = 'idle'; this.#pap.key = null; this.#events.emit('pap:idle', {});
+        this.#prompt(null);
+      }
     });
   }
 
@@ -54,6 +59,7 @@ export class EconomySystem extends System {
     const pos = this.world.get(this.#playerId, Transform).position;
 
     this.#tickBox(dt);
+    this.#tickPaP(dt, player);
 
     const focus = this.#focus(pos);
     this.#showPrompt(focus, player);
@@ -66,6 +72,7 @@ export class EconomySystem extends System {
     } else if (edge) {
       if (focus.kind === 'wallbuy') this.#buyWall(focus, player);
       else if (focus.kind === 'box') this.#useBox(focus, player);
+      else if (focus.kind === 'pap') this.#usePaP(player);
       else if (focus.kind === 'perk') this.#perks?.tryBuy(focus.m.id, player);
     }
   }
@@ -83,6 +90,8 @@ export class EconomySystem extends System {
     for (const wb of this.#economy.wallBuys) consider({ kind: 'wallbuy', wb }, wb.position.x, wb.position.z);
     const box = this.#economy.box;
     if (box) consider({ kind: 'box', box }, box.position.x, box.position.z);
+    const pap = this.#economy.pap;
+    if (pap) consider({ kind: 'pap', pap }, pap.position.x, pap.position.z);
     for (const b of this.#nav.barriers) {
       if (b.boards < b.maxBoards) consider({ kind: 'repair', barrier: b }, b.position.x, b.position.z);
     }
@@ -103,6 +112,10 @@ export class EconomySystem extends System {
       if (this.#box.state === 'spinning') { text = '...'; affordable = true; }
       else if (this.#box.state === 'ready') { text = `[E] Take ${weaponName(this.#box.result)}`; }
       else { affordable = player.points >= EconomyConfig.mysteryBoxCost; text = `[E] Mystery Box — ${EconomyConfig.mysteryBoxCost}`; }
+    } else if (focus.kind === 'pap') {
+      if (this.#pap.state === 'ready') { text = '[E] Take Weapon'; affordable = true; }
+      else if (this.#pap.state !== 'idle') { text = '...'; affordable = true; }
+      else { affordable = player.points >= EconomyConfig.papCost; text = `[E] Pack-a-Punch — ${EconomyConfig.papCost}`; }
     } else if (focus.kind === 'perk') {
       const perks = this.#perks;
       const cost = focus.m.def.cost;
@@ -191,6 +204,60 @@ export class EconomySystem extends System {
     eb.resultKey = box.result;
     eb.spinProgress = box.state === 'spinning' ? 1 - box.timer / EconomyConfig.boxSpinTime : box.state === 'ready' ? 1 : 0;
     eb.holdProgress = box.state === 'ready' ? 1 - box.hold / EconomyConfig.boxHoldTime : 0;
+  }
+
+  // --- pack-a-punch -------------------------------------------------------
+
+  #usePaP(player) {
+    const pap = this.#pap;
+    if (pap.state === 'ready') {
+      // grab the upgraded weapon
+      const key = pap.key;
+      this.#weapons.packAPunch(key);
+      pap.state = 'idle'; pap.key = null;
+      this.#events.emit('buy:ok', { key, pap: true });
+      return;
+    }
+    if (pap.state !== 'idle') return;
+    const key = this.#weapons.currentKey();
+    if (!key || key === 'm1911') {
+      // (m1911 still upgrades fine; this just guards the no-weapon edge)
+    }
+    if (player.points < EconomyConfig.papCost) { this.#events.emit('buy:denied', {}); return; }
+    const w = this.#weapons.current;
+    if (w?.data?.pap) { this.#events.emit('buy:denied', {}); return; } // already punched
+    player.points -= EconomyConfig.papCost;
+    this.#events.emit('score:changed', { points: player.points });
+    pap.state = 'inserting'; pap.timer = EconomyConfig.papInsertTime; pap.key = key;
+    this.#events.emit('pap:insert', { key });
+  }
+
+  #tickPaP(dt, player) {
+    const pap = this.#pap;
+    if (pap.state === 'inserting') {
+      pap.timer -= dt;
+      if (pap.timer <= 0) { pap.state = 'working'; pap.timer = EconomyConfig.papWorkTime; this.#events.emit('pap:work', {}); }
+    } else if (pap.state === 'working') {
+      pap.timer -= dt;
+      if (pap.timer <= 0) { pap.state = 'ready'; pap.hold = EconomyConfig.papHoldTime; this.#events.emit('pap:ready', { key: pap.key }); }
+    } else if (pap.state === 'ready') {
+      pap.hold -= dt;
+      if (pap.hold <= 0) { // grab window missed — the gun is lost to the machine
+        if (pap.key) this.#weapons.removeWeaponKey(pap.key);
+        pap.state = 'idle'; pap.key = null;
+        this.#events.emit('pap:idle', {});
+      }
+    }
+
+    // publish live state for the PaPSystem to animate
+    const ep = this.#economy.pap;
+    if (ep) {
+      ep.state = pap.state;
+      ep.displayKey = pap.key;
+      ep.insertProgress = pap.state === 'inserting' ? 1 - pap.timer / EconomyConfig.papInsertTime : pap.state === 'idle' ? 0 : 1;
+      ep.workProgress = pap.state === 'working' ? 1 - pap.timer / EconomyConfig.papWorkTime : (pap.state === 'ready' ? 1 : 0);
+      ep.holdProgress = pap.state === 'ready' ? 1 - pap.hold / EconomyConfig.papHoldTime : 0;
+    }
   }
 
   // --- window repair ------------------------------------------------------

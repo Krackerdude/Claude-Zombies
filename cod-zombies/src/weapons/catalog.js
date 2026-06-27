@@ -220,6 +220,16 @@ export function makeWeapon(key) {
   return new Class(new WeaponData(overrides));
 }
 
+// Pack-a-Punch special upgrades — only ~25% of guns get a fire-mode/dual-wield
+// change on top of the universal damage/ammo/tint buffs. Chosen to fit each gun:
+// dual-wield the iconic sidearms/SMG, full-auto the hard-hitting semis, and a
+// burst on guns with a real-world burst pedigree.
+export const PAP_SPECIAL = {
+  m1911: 'dual', newArmy: 'dual', executioner: 'dual', mp40: 'dual', vector: 'dual',
+  fal: 'auto', drakon: 'auto', k31: 'auto',
+  an94: 'burst', ballista: 'burst', svu: 'burst',
+};
+
 export const WEAPON_KEYS = Object.keys(defs);
 export const weaponCost = (key) => defs[key]?.cost ?? 1000;
 export const weaponName = (key) => defs[key]?.name ?? key;
