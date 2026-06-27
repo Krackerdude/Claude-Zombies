@@ -16,6 +16,8 @@ import { ProjectileSystem } from '../weapons/ProjectileSystem.js';
 import { EconomySystem } from '../weapons/EconomySystem.js';
 import { buildMysteryBox } from './mysteryBox.js';
 import { MysteryBoxSystem } from './MysteryBoxSystem.js';
+import { buildPaP } from './packAPunch.js';
+import { PaPSystem } from './PaPSystem.js';
 import { PowerupSystem } from '../powerups/PowerupSystem.js';
 import { GadgetSystem } from '../gadgets/GadgetSystem.js';
 import { TacticalSystem } from '../gadgets/TacticalSystem.js';
@@ -276,10 +278,19 @@ export function buildArena(engine) {
   // the box (footprint unchanged; only the top is raised — bullets ignore it).
   physics.createStaticBox({ x: boxPos.x, y: 1.3, z: boxPos.z }, { x: 1.0, y: 1.3, z: 0.42 });
 
-  // live state is published here by the EconomySystem; the MysteryBoxSystem reads it
+  // Pack-a-Punch machine in another corner
+  const papPos = new THREE.Vector3(6, 0, 6);
+  const papRig = buildPaP();
+  papRig.position.copy(papPos);
+  papRig.rotation.y = -Math.PI / 2; // face into the room
+  scene.add(papRig);
+  physics.createStaticBox({ x: papPos.x, y: 1.0, z: papPos.z }, { x: 0.85, y: 1.3, z: 0.6 });
+
+  // live state is published here by the EconomySystem; the box/PaP systems read it
   const economy = {
     wallBuys,
     box: { position: boxPos, rig: boxRig, state: 'idle', spinProgress: 0, holdProgress: 0, displayKey: null, resultKey: null },
+    pap: { position: papPos, rig: papRig, state: 'idle', insertProgress: 0, workProgress: 0, holdProgress: 0, displayKey: null },
   };
 
   // --- player ---
@@ -320,6 +331,7 @@ export function buildArena(engine) {
   engine.world.registerSystem(perkSystem);
   engine.world.registerSystem(new EconomySystem());
   engine.world.registerSystem(new MysteryBoxSystem());
+  engine.world.registerSystem(new PaPSystem());
 
   // park every shared zombie material (skins + hair/cloth cosmetics) hidden in
   // the scene so the load-time prewarm compiles them and the first wave is smooth

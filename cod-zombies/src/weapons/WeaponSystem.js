@@ -5,7 +5,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { Action } from '../config/keybinds.js';
 import { MoveState } from '../player/MoveState.js';
 import { ZombieConfig, EconomyConfig } from '../config/zombies.js';
-import { makeWeapon } from './catalog.js';
+import { makeWeapon, PAP_SPECIAL } from './catalog.js';
 import { Viewmodel } from './Viewmodel.js';
 import { WeaponFx } from './WeaponFx.js';
 import { damageZombie } from './damage.js';
@@ -422,7 +422,8 @@ export class WeaponSystem extends System {
     else mx *= (1 - ads);
     const my = -0.08 * (1 - ads * 0.85);
     _muz.copy(o).addScaledVector(_fwd, 0.5).addScaledVector(_right, mx).addScaledVector(_up, my);
-    if (this.#fx) this.#fx.spawnMuzzle(_muz, _fwd, _right, _up);
+    const tint = weapon.data.papTint;
+    if (this.#fx) this.#fx.spawnMuzzle(_muz, _fwd, _right, _up, tint);
 
     for (let s = 0; s < count; s++) {
       const ax = (Math.random() * 2 - 1) * spread;
@@ -461,7 +462,7 @@ export class WeaponSystem extends System {
           // streaks the full distance instead of dead-ending on a stale point.
           _end.copy(o).addScaledVector(_dir, weapon.data.range);
         }
-        this.#fx.spawnTracer(_muz, _end);
+        this.#fx.spawnTracer(_muz, _end, tint);
       }
     }
     if (anyHit) this.#events.emit('weapon:hit', { killed: anyKill });
@@ -677,6 +678,48 @@ export class WeaponSystem extends System {
 
   /** True if the player already carries this weapon key. */
   owns(key) { return this.#keys.includes(key); }
+
+  /** The key of the currently held weapon (for the Pack-a-Punch). */
+  currentKey() { return this.#keys[this.#index]; }
+
+  /** Pack-a-Punch the weapon with this key (in place): double damage, bigger
+   *  reserve, the crimson->pink muzzle/tracer tint, and — for ~25% of guns — a
+   *  fire-mode or dual-wield change. Returns true if it was upgraded. */
+  packAPunch(key) {
+    const idx = this.#keys.indexOf(key);
+    if (idx < 0) return false;
+    const w = this.#weapons[idx];
+    const d = w.data;
+    if (d.pap) return false; // already punched
+    d.pap = true;
+    d.papTint = { muzzle: 0x9a0b2e, tracer: 0xff5fc4 };
+    d.damage *= 2;
+    d.ammoStockSize = Math.round(d.ammoStockSize * 1.6); // stockpile increase
+    const special = PAP_SPECIAL[key];
+    if (special === 'dual') { d.dualWield = true; d.magazineSize *= 2; }
+    else if (special === 'auto') d.fireMode = 'auto';
+    else if (special === 'burst') { d.fireMode = 'burst'; d.burstCount = key === 'an94' ? 2 : 3; }
+    w.reserve = d.infiniteReserve ? Infinity : d.ammoStockSize; // top up to the new capacities
+    w.magazine = d.magazineSize;
+    if (idx === this.#index) { this.#viewmodel.setWeapon(this.current); this.#announce(); } // rebuild model/colors
+    this.#emitAmmo(w);
+    return true;
+  }
+
+  /** Remove the weapon with this key from the inventory (PaP grab window missed
+   *  — the gun is sucked into the machine and lost). Keeps the player armed. */
+  removeWeaponKey(key) {
+    const idx = this.#keys.indexOf(key);
+    if (idx < 0) return;
+    const player = this.#playerId !== undefined ? this.world.get(this.#playerId, PlayerTag) : null;
+    this.#weapons.splice(idx, 1);
+    this.#keys.splice(idx, 1);
+    if (this.#weapons.length === 0) { this.#weapons.push(makeWeapon('m1911')); this.#keys.push('m1911'); } // never empty-handed
+    if (this.#index >= this.#weapons.length) this.#index = this.#weapons.length - 1;
+    else if (idx < this.#index) this.#index--;
+    this.#viewmodel.setWeapon(this.current);
+    this.#announce();
+  }
 
   /**
    * Grant a weapon (wall-buy / mystery box). If already owned, tops up ammo;

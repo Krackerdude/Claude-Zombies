@@ -198,13 +198,14 @@ export class WeaponFx {
 
   // ---- public spawns ----
   /** Bright streak from the muzzle to where the bullet landed. */
-  spawnTracer(from, to) {
+  spawnTracer(from, to, tint = null) {
     const s = this.#take('tracer'); const m = s.mesh;
     _v.subVectors(to, from); const len = _v.length(); if (len < 0.05) { s.busy = false; return; }
     _v.normalize();
     m.position.copy(from).addScaledVector(_v, len * 0.5);
     _q.setFromUnitVectors(_z, _v); m.quaternion.copy(_q); // local +Z runs muzzle->hit
     m.scale.set(0.022, 0.022, len);                       // thin beam, length along Z
+    m.material.color.setHex(tint ? tint.tracer : 0xfff0b0); // PaP: pink tracer
     m.material.opacity = 0.9; m.visible = true;
     this.#rec('tracer', s, 0.05, { o0: 0.9, fade: 'linear' });
   }
@@ -274,7 +275,7 @@ export class WeaponFx {
 
   /** At-the-muzzle effects in world space: light cartoony smoke + a few forward
    *  sparks + the ejected shell. (The bright flash itself is on the viewmodel.) */
-  spawnMuzzle(pos, dir, right, up) {
+  spawnMuzzle(pos, dir, right, up, tint = null) {
     // one light, fast-rising smoke wisp
     {
       const s = this.#take('smoke'); const m = s.mesh;
@@ -282,10 +283,11 @@ export class WeaponFx {
       m.position.copy(pos).addScaledVector(dir, 0.08); m.scale.setScalar(0.1); m.visible = true;
       this.#rec('smoke', s, 0.45, { vx: dir.x * 0.6, vy: 0.7, vz: dir.z * 0.6, grow: 0.6, o0: 0.32, fade: 'out' });
     }
-    // a few hot sparks spitting forward out of the barrel
+    // a few hot sparks spitting forward out of the barrel (crimson for PaP)
+    const sparkCol = tint ? tint.muzzle : 0xffe39a;
     for (let i = 0; i < 4; i++) {
       const s = this.#take('spark'); const m = s.mesh;
-      m.material.color.setHex(0xffe39a); m.material.opacity = 1; m.scale.setScalar(0.045);
+      m.material.color.setHex(sparkCol); m.material.opacity = 1; m.scale.setScalar(0.045);
       m.position.copy(pos).addScaledVector(dir, 0.05); m.visible = true;
       this.#rec('spark', s, 0.1 + Math.random() * 0.1, {
         vx: dir.x * 7 + (Math.random() - 0.5) * 2, vy: dir.y * 7 + (Math.random() - 0.5) * 1.5 + 0.3,

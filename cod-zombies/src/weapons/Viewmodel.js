@@ -267,12 +267,15 @@ export class Viewmodel {
     // everything else keeps the warm cartoon star
     this.#energyFlash = weapon.data.muzzleEffect === 'energy';
     const ecol = weapon.data.energyColor ?? 0x46f060;
+    const pap = weapon.data.pap;
     this.#muzzle.material.map = this.#energyFlash ? this.#energyTex : this.#starTex;
-    this.#muzzle.material.color.set(this.#energyFlash ? ecol : 0xffffff);
+    // PaP: a pink flash with a crimson-hot core (deep crimson -> pink gradient)
+    this.#muzzle.material.color.set(pap ? 0xff5fc4 : this.#energyFlash ? ecol : 0xffffff);
+    this.#muzzleCore.material.color.set(pap ? 0xff2a6a : 0xffffff);
     this.#muzzle.material.needsUpdate = true;
     const fx0 = this.#dual ? this.#dualDX : 0; // dual: flash starts on the right gun
     this.#flash.position.set(fx0, 0.0, this.#muzzleZ - 0.04);
-    this.#light.color.set(this.#energyFlash ? ecol : 0xffd9a0);
+    this.#light.color.set(pap ? 0xff2a6a : this.#energyFlash ? ecol : 0xffd9a0);
     this.#light.position.set(fx0, 0.0, this.#muzzleZ);
     // Thundergun: replace the flash with expanding shockwave rings at the muzzle
     this.#thunder = weapon.data.muzzleEffect === 'shockwave';

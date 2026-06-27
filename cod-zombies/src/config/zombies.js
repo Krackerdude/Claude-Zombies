@@ -86,6 +86,11 @@ export const EconomyConfig = {
   boxHoldTime: 10.0, // seconds the prize rises/settles/lowers before it's lost
   ammoRefillFactor: 0.45, // wall-buy ammo top-up costs this fraction of the gun price
   interactReach: 2.6,
+  // Pack-a-Punch
+  papCost: 5000,
+  papInsertTime: 1.0,  // gun sucked into the machine
+  papWorkTime: 1.5,    // vibrate + whirl, red "done" flag pops up
+  papHoldTime: 5.0,    // grab window: rises out, then slowly sucked back in
 };
 
 /**

@@ -70,6 +70,8 @@ export class WeaponData {
     // presentation hooks (resolved by Viewmodel / audio later)
     this.animationSet = o.animationSet ?? 'rifle';
     this.soundSet = o.soundSet ?? 'rifle';
+    this.pap = o.pap ?? false; // Pack-a-Punched
+    this.papTint = o.papTint ?? null; // { muzzle, tracer } crimson->pink when PaP'd
     this.muzzleEffect = o.muzzleEffect ?? 'standard'; // standard | heavy | energy | none
     this.energyColor = o.energyColor ?? 0x46f060; // plasma tint: chamber glow, muzzle, bolt, impact
     this.ejectsBrass = o.ejectsBrass ?? true; // energy weapons set false (no casings)
