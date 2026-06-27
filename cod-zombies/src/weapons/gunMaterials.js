@@ -300,52 +300,74 @@ export function scopeGlow(color = 0xff2a1e) {
   return m;
 }
 
-// === Pack-a-Punch camo: a single shared, ANIMATED holographic material that
-// replaces gun-metal on a punched weapon. Flowing diagonal energy bands cycling
-// crimson -> pink -> magenta -> gold, with a moving sparkle, injected as extra
-// emissive on a normal PBR base so the gun's form still shades. =============
-let _papCamo = null;
-const PAP_FRAG_HEAD = `
-uniform float uTime;
-varying vec3 vPapPos;
-vec3 papHue(float t){
-  t = fract(t);
-  vec3 crimson = vec3(0.55,0.0,0.12), pink = vec3(1.0,0.32,0.72);
-  vec3 magenta = vec3(0.86,0.10,0.96), gold = vec3(1.0,0.80,0.22);
-  if (t < 0.34) return mix(crimson, pink, t/0.34);
-  if (t < 0.67) return mix(pink, magenta, (t-0.34)/0.33);
-  return mix(magenta, gold, (t-0.67)/0.33);
+// === Pack-a-Punch camo: a single shared crystalline GEMSTONE material that
+// fully replaces gun-metal on a punched weapon (no base colour peeks through).
+// A tiled cracked-crystal texture in the PaP palette (crimson/pink/magenta/gold)
+// drives BOTH the albedo (full coverage) and the emissive (so facets glow); it
+// PULSES + drifts foggily instead of relying on a metallic sheen. Matte (no env
+// reflection), so the gun's form still reads from its own diffuse shading and
+// the dark crack lines. =====================================================
+let _papCamo = null, _papGem = null, _papPulse = 0;
+
+/** Tiled cracked-crystal gem texture in the PaP palette. */
+function papGemTexture() {
+  if (_papGem) return _papGem;
+  const s = 256, c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0b0410'; x.fillRect(0, 0, s, s); // dark crack base
+  // [edge-dark, bright-core] pairs across the palette
+  const cols = [
+    ['#7a0820', '#ff6fb6'], ['#9a1060', '#ff4fae'], ['#6a0a9a', '#d83cf0'],
+    ['#8a5a10', '#ffd24a'], ['#5a0030', '#ff2a8a'], ['#aa1248', '#ff7fce'],
+  ];
+  const N = 8, cell = s / N;
+  for (let gy = -1; gy <= N; gy++) for (let gx = -1; gx <= N; gx++) {
+    const px = (gx + 0.5 + (Math.random() - 0.5) * 0.7) * cell;
+    const py = (gy + 0.5 + (Math.random() - 0.5) * 0.7) * cell;
+    const pair = cols[(Math.random() * cols.length) | 0];
+    const r = cell * (0.6 + Math.random() * 0.5), sides = 4 + (Math.random() * 3 | 0);
+    x.beginPath();
+    for (let i = 0; i < sides; i++) {
+      const a = (i / sides) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const rr = r * (0.65 + Math.random() * 0.5);
+      const X = px + Math.cos(a) * rr, Y = py + Math.sin(a) * rr;
+      i ? x.lineTo(X, Y) : x.moveTo(X, Y);
+    }
+    x.closePath();
+    const g = x.createRadialGradient(px - r * 0.25, py - r * 0.25, 0, px, py, r);
+    g.addColorStop(0, pair[1]); g.addColorStop(0.6, pair[0]); g.addColorStop(1, '#14061a');
+    x.fillStyle = g; x.fill();
+    x.strokeStyle = 'rgba(6,1,10,0.95)'; x.lineWidth = 1.6; x.stroke(); // crack edge
+  }
+  // a few bright glint facets
+  for (let i = 0; i < 40; i++) {
+    const px = Math.random() * s, py = Math.random() * s, r = 2 + Math.random() * 4;
+    const g = x.createRadialGradient(px, py, 0, px, py, r);
+    g.addColorStop(0, 'rgba(255,235,255,0.9)'); g.addColorStop(1, 'rgba(255,235,255,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+  }
+  _papGem = new THREE.CanvasTexture(c);
+  _papGem.wrapS = _papGem.wrapT = THREE.RepeatWrapping;
+  return _papGem;
 }
-`;
-const PAP_FRAG_BODY = `
-{
-  float flow = vPapPos.x*6.0 + vPapPos.y*3.5 + vPapPos.z*2.0;
-  float band = pow(0.5 + 0.5*sin(flow - uTime*5.0), 1.6);
-  vec3 camo = papHue(flow*0.05 + uTime*0.14);
-  totalEmissiveRadiance += camo * band * 1.35;
-  float spark = pow(max(0.0, sin(vPapPos.x*55.0 + vPapPos.y*47.0 + uTime*14.0)), 30.0);
-  totalEmissiveRadiance += vec3(1.0,0.92,1.0) * spark * 2.2;
-}
-`;
+
 export function papCamo() {
   if (_papCamo) return _papCamo;
-  const m = new THREE.MeshStandardMaterial({ color: 0x140810, metalness: 0.55, roughness: 0.3, envMap: gunEnv(), envMapIntensity: 0.7 });
-  m.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = { value: 0 };
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vPapPos;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPapPos = position;');
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\n' + PAP_FRAG_HEAD)
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + PAP_FRAG_BODY);
-    m.userData.shader = shader;
-  };
-  m.userData.isPapCamo = true;
-  _papCamo = m;
-  return m;
+  const tex = papGemTexture(); tex.repeat.set(2.6, 2.6);
+  _papCamo = new THREE.MeshStandardMaterial({
+    map: tex,                                   // full coverage — no original colour shows
+    emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.6, // facets glow (cracks stay dark)
+    metalness: 0.0, roughness: 0.6,             // matte crystal — no sheen
+  });
+  _papCamo.userData.isPapCamo = true;
+  return _papCamo;
 }
-/** Advance the shared camo animation (call once per frame). */
+
+/** Pulse the glow + drift the crystal foggily (call once per frame). */
 export function papCamoTick(dt) {
-  const s = _papCamo && _papCamo.userData.shader;
-  if (s) s.uniforms.uTime.value += dt;
+  if (!_papCamo) return;
+  _papPulse += dt;
+  _papCamo.emissiveIntensity = 0.42 + 0.38 * (0.5 + 0.5 * Math.sin(_papPulse * 2.1)); // gentle breathing glow
+  const tex = _papCamo.map;
+  if (tex) { tex.offset.x = Math.sin(_papPulse * 0.13) * 0.05; tex.offset.y = _papPulse * 0.012; } // foggy drift
 }
