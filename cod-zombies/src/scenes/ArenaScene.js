@@ -290,7 +290,7 @@ export function buildArena(engine) {
   const economy = {
     wallBuys,
     box: { position: boxPos, rig: boxRig, state: 'idle', spinProgress: 0, holdProgress: 0, displayKey: null, resultKey: null },
-    pap: { position: papPos, rig: papRig, state: 'idle', insertProgress: 0, workProgress: 0, holdProgress: 0, displayKey: null },
+    pap: { position: papPos, rig: papRig, state: 'idle', insertProgress: 0, workProgress: 0, holdProgress: 0, displayKey: null, gunModel: null },
   };
 
   // --- player ---
