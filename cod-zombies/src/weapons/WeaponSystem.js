@@ -749,6 +749,32 @@ export class WeaponSystem extends System {
     }
   }
 
+  /** Dev-menu: Pack-a-Punch the currently held weapon instantly, in place
+   *  (no machine sequence). Refreshes the viewmodel so the camo + any
+   *  fire-mode/dual-wield change take effect. */
+  devPaP() {
+    const w = this.current;
+    if (!w || w.data.pap) return false;
+    this.applyPaP(w, this.currentKey());
+    this.#viewmodel.setWeapon(this.current);
+    this.#emitAmmo(this.current);
+    this.#announce();
+    return true;
+  }
+
+  /** Dev-menu: revert the currently held weapon to its un-Pack-a-Punched form
+   *  by rebuilding it fresh from the catalog (cleanly undoes every PaP mutation). */
+  devUnPaP() {
+    const w = this.current;
+    if (!w || !w.data.pap) return false;
+    const key = this.currentKey();
+    this.#weapons[this.#index] = makeWeapon(key);
+    this.#viewmodel.setWeapon(this.current);
+    this.#emitAmmo(this.current);
+    this.#announce();
+    return true;
+  }
+
   /**
    * Grant a weapon (wall-buy / mystery box). If already owned, tops up ammo;
    * otherwise adds it (or swaps the current slot when the inventory is full).

@@ -306,8 +306,17 @@ export function scopeGlow(color = 0xff2a1e) {
 // drives BOTH the albedo (full coverage) and the emissive (so facets glow); it
 // PULSES + drifts foggily instead of relying on a metallic sheen. Matte (no env
 // reflection), so the gun's form still reads from its own diffuse shading and
-// the dark crack lines. =====================================================
-let _papCamo = null, _papGem = null, _papPulse = 0;
+// the dark crack lines.
+//
+// MAPPING: object-space TRIPLANAR projection, NOT the model UVs. The procedural
+// guns are built from real-dimension boxes, so a long barrel box stretches a
+// single 0..1 UV across its whole length -> smeared tiles. Triplanar projects
+// the texture along X/Y/Z in each mesh's LOCAL space and blends by the surface
+// normal, giving a consistent tile size on every surface of every gun (current
+// and future) with no UV work. Local (not world) space keeps the camo locked to
+// the gun instead of swimming as the viewmodel sways. `tileScale` sets density
+// uniformly across the whole model. =========================================
+let _papCamo = null, _papGem = null, _papPulse = 0, _papUni = null, _papTile = 5.5;
 
 /** Tiled cracked-crystal gem texture in the PaP palette. */
 function papGemTexture() {
@@ -353,21 +362,70 @@ function papGemTexture() {
 
 export function papCamo() {
   if (_papCamo) return _papCamo;
-  const tex = papGemTexture(); tex.repeat.set(2.6, 2.6);
-  _papCamo = new THREE.MeshStandardMaterial({
-    map: tex,                                   // full coverage — no original colour shows
-    emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.6, // facets glow (cracks stay dark)
+  const tex = papGemTexture();
+  // map + emissiveMap are bound only so the <map_fragment>/<emissivemap_fragment>
+  // chunks exist as injection points — the triplanar code below overrides their
+  // UV sampling entirely, so the bound texture's own UV mapping is never used.
+  const mat = new THREE.MeshStandardMaterial({
+    map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 1.0,
     metalness: 0.0, roughness: 0.6,             // matte crystal — no sheen
   });
-  _papCamo.userData.isPapCamo = true;
+  mat.userData.isPapCamo = true;
+
+  _papUni = {
+    papTile:   { value: _papTile },                    // tiles per local unit (density)
+    papOffset: { value: new THREE.Vector2(0, 0) },     // foggy drift
+    papGlow:   { value: 0.6 },                          // pulsing emissive strength
+  };
+
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.papTile = _papUni.papTile;
+    shader.uniforms.papOffset = _papUni.papOffset;
+    shader.uniforms.papGlow = _papUni.papGlow;
+
+    // pass mesh-LOCAL position + normal through to the fragment stage
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vPapPos;\nvarying vec3 vPapNrm;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPapPos = position;\n  vPapNrm = normal;');
+
+    // triplanar sampler + overrides of the albedo and emissive sampling
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vPapPos;
+        varying vec3 vPapNrm;
+        uniform float papTile;
+        uniform vec2 papOffset;
+        uniform float papGlow;
+        vec3 papTriplanar() {
+          vec3 n = abs(normalize(vPapNrm));
+          n = pow(n, vec3(4.0));            // sharpen the blend so seams stay tight
+          n /= (n.x + n.y + n.z + 1e-5);
+          vec2 uX = vPapPos.zy * papTile + papOffset;
+          vec2 uY = vPapPos.xz * papTile + papOffset;
+          vec2 uZ = vPapPos.xy * papTile + papOffset;
+          vec3 cX = texture2D(map, uX).rgb;
+          vec3 cY = texture2D(map, uY).rgb;
+          vec3 cZ = texture2D(map, uZ).rgb;
+          return cX * n.x + cY * n.y + cZ * n.z;
+        }`)
+      .replace('#include <map_fragment>', 'diffuseColor.rgb = papTriplanar();')
+      .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance = papTriplanar() * papGlow;');
+  };
+
+  _papCamo = mat;
   return _papCamo;
+}
+
+/** Density of the camo tiles across the whole model (tiles per local unit). */
+export function papCamoSetTile(scale) {
+  _papTile = scale;
+  if (_papUni) _papUni.papTile.value = scale;
 }
 
 /** Pulse the glow + drift the crystal foggily (call once per frame). */
 export function papCamoTick(dt) {
-  if (!_papCamo) return;
+  if (!_papUni) return;
   _papPulse += dt;
-  _papCamo.emissiveIntensity = 0.42 + 0.38 * (0.5 + 0.5 * Math.sin(_papPulse * 2.1)); // gentle breathing glow
-  const tex = _papCamo.map;
-  if (tex) { tex.offset.x = Math.sin(_papPulse * 0.13) * 0.05; tex.offset.y = _papPulse * 0.012; } // foggy drift
+  _papUni.papGlow.value = 0.42 + 0.38 * (0.5 + 0.5 * Math.sin(_papPulse * 2.1)); // gentle breathing glow
+  _papUni.papOffset.value.set(Math.sin(_papPulse * 0.13) * 0.05, _papPulse * 0.012); // foggy drift
 }
