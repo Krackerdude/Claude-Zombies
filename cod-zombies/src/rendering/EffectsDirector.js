@@ -25,6 +25,7 @@ export class EffectsDirector extends System {
   #slowT = 0;        // remaining bullet-time (real seconds)
   #round = 1;
   #instakill = false;
+  #special = false;  // hellhound (dog) round — shifts the grade to blood red
   #remaining = 0;
   #roundActive = false;
 
@@ -41,11 +42,13 @@ export class EffectsDirector extends System {
     this.#events.on('player:damaged', () => { this.#burst = Math.min(1, this.#burst + 0.7); });
     // explosions push a heat-haze shimmer (projected to screen by RenderManager)
     this.#events.on('weapon:explosion', ({ x, y, z }) => this.#render?.addHeat?.(x, y, z));
-    this.#events.on('round:changed', ({ round, state }) => {
+    this.#events.on('round:changed', ({ round, state, special }) => {
       if (round) this.#round = round;
       this.#roundActive = state === 'active';
+      this.#special = !!special && state === 'active';
       this.#applyPalette();
     });
+    this.#events.on('round:cleared', () => { this.#special = false; this.#applyPalette(); });
     this.#events.on('zombies:changed', ({ remaining }) => {
       const prev = this.#remaining;
       this.#remaining = remaining;
@@ -68,7 +71,13 @@ export class EffectsDirector extends System {
     let high = lerp3(base.highlightTint, [0.92, 0.4, 0.4], dread * 0.7); // toward blood
     let sat = base.saturation - dread * 0.18;
     let temp = base.temperature - dread * 0.1;
-    if (this.#instakill) { // gold rush
+    if (this.#special) { // hellhound round — the world goes blood red
+      shadow = [0.34, 0.08, 0.08];
+      high = [1.0, 0.3, 0.26];
+      sat = base.saturation + 0.05;
+      temp = base.temperature + 0.22; // hot/red push
+    }
+    if (this.#instakill) { // gold rush (still wins, even mid dog-round)
       shadow = [0.5, 0.42, 0.2]; high = [1.0, 0.85, 0.4];
       sat = base.saturation + 0.15; temp = 0.15;
     }

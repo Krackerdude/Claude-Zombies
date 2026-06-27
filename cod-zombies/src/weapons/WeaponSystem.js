@@ -48,6 +48,7 @@ const EXPLO = {
   frag: { hot: 0xfff1c0, mid: 0xff9a1e, deep: 0xe24a06, ash: 0x8a6440, smoke: 0x241a12, light: 0xffa040, scale: 1.1 },
   rocket: { hot: 0xfff1c0, mid: 0xff8a14, deep: 0xd23c04, ash: 0x7e5a38, smoke: 0x20160f, light: 0xffa040, scale: 1.7 },
   phd: { hot: 0xf2dcff, mid: 0xb45cff, deep: 0x7a1edd, ash: 0x4a2a6a, smoke: 0x1c1030, light: 0xb060ff, scale: 1.3 },
+  hound: { hot: 0xffd98a, mid: 0xff6a18, deep: 0xc22a04, ash: 0x5a3420, smoke: 0x180c08, light: 0xff7a30, scale: 1.0 }, // hellhound death burst
 };
 const MELEE_TIME = 0.75;
 const MELEE_HIT_AT = 0.28; // seconds into the swing when the blade connects

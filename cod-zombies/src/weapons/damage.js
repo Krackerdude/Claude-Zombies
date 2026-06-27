@@ -50,30 +50,36 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
   if (z.health <= 0) {
     z.state = 'dead';
     if (award) ctx.player.points += (headshot ? PlayerCombat.pointsKillHead : PlayerCombat.pointsKillBody) * mul;
-    // headshot kill: the head pops — blow it off and burst it into gibs
-    if (headshot) {
-      const rig = ctx.world.get(id, Renderable)?.object3d;
-      const at = rig ? severHead(rig) : null;
-      if (at) ctx.events.emit('zombie:gib', { ...at, dir, count: 18, speed: 3.8, scale: 1.1 });
-    }
-    // hand the entity off to the corpse system: drop the live tag, keep the rig
     const t = ctx.world.get(id, Transform);
-    const baseYaw = t ? 2 * Math.atan2(t.quaternion.y, t.quaternion.w) : 0; // zombie's Y-only facing
-    // corpses have no collision — remove the player-blocking capsule
+    const kx = t ? t.position.x : 0, kz = t ? t.position.z : 0;
+    // corpses/hounds alike: drop the player-blocking capsule
     const ref = ctx.world.get(id, RigidBodyRef);
     if (ref) {
       ctx.world.services.get(Service.Physics).removeBody(ref);
       ctx.world.remove(id, RigidBodyRef);
     }
-    ctx.world.remove(id, ZombieTag);
-    ctx.world.add(id, new CorpseTag(dir || { x: 0, z: 1 }, baseYaw, force, z.limbs, z.hound));
-    const kx = t ? t.position.x : 0, kz = t ? t.position.z : 0;
-    // hellhound kills are owned by the HoundManager (it tracks the wave + drops
-    // the guaranteed Max Ammo on the last one); regular kills feed the SpawnManager
     if (z.hound) {
+      // hellhounds don't leave a corpse — they BURST apart into gibs and a ball
+      // of fire (with a screen shake), then the entity is reaped.
+      const rig = ctx.world.get(id, Renderable)?.object3d;
+      ctx.events.emit('zombie:gib', { x: kx, y: 0.55, z: kz, dir, count: 24, speed: 4.2, scale: 1.15 });
+      ctx.events.emit('fx:explosion', { x: kx, y: 0.6, z: kz, kind: 'hound' }); // fireball + shake
+      if (rig) rig.visible = false;
+      ctx.world.remove(id, ZombieTag);
+      ctx.world.destroyEntity(id);
       const hounds = ctx.world.services.has(Service.Hounds) ? ctx.world.services.get(Service.Hounds) : null;
-      hounds?.notifyKilled(kx, kz);
+      hounds?.notifyKilled(kx, kz); // tracks the wave + drops the guaranteed Max Ammo on the last one
     } else {
+      // headshot kill: the head pops — blow it off and burst it into gibs
+      if (headshot) {
+        const rig = ctx.world.get(id, Renderable)?.object3d;
+        const at = rig ? severHead(rig) : null;
+        if (at) ctx.events.emit('zombie:gib', { ...at, dir, count: 18, speed: 3.8, scale: 1.1 });
+      }
+      // hand the entity off to the corpse system: drop the live tag, keep the rig
+      const baseYaw = t ? 2 * Math.atan2(t.quaternion.y, t.quaternion.w) : 0; // zombie's Y-only facing
+      ctx.world.remove(id, ZombieTag);
+      ctx.world.add(id, new CorpseTag(dir || { x: 0, z: 1 }, baseYaw, force, z.limbs));
       ctx.spawn.notifyKilled();
     }
     ctx.events.emit('zombie:killed', { headshot, x: kx, z: kz, hound: z.hound });
