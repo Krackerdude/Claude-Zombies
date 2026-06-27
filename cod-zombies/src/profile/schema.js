@@ -32,9 +32,12 @@ export function defaultProfile(id = 'local') {
       title: null,
     },
 
-    // Level / XP / prestige. Curve + award logic live in a future system, not here.
+    // Level / XP / prestige. `xp` is the LIFETIME total; the current level and
+    // in-level progress are derived from it via progression.js (single source of
+    // truth, so they can't desync). Starts at level 0 with no progress — there is
+    // no way to earn XP yet. Curve + award logic live in a future system.
     progression: {
-      level: 1,
+      level: 0,
       xp: 0,
       prestige: 0,
     },

@@ -8,6 +8,7 @@ import { ProfileService } from '../src/profile/ProfileService.js';
 import { MemoryAdapter } from '../src/profile/storage/MemoryAdapter.js';
 import { migrateProfile } from '../src/profile/migrations.js';
 import { defaultProfile, PROFILE_VERSION } from '../src/profile/schema.js';
+import { xpForLevel, levelFromXp, MAX_LEVEL } from '../src/profile/progression.js';
 
 let failures = 0;
 const ok = (m) => console.log('  ok  :', m);
@@ -19,9 +20,30 @@ console.log('\n[1] defaultProfile is at the current version with empty buckets')
 {
   const p = defaultProfile();
   assert(p.v === PROFILE_VERSION, `version stamped (${p.v})`);
-  assert(p.progression.level === 1 && p.progression.xp === 0, 'progression seeded at level 1 / 0 xp');
+  assert(p.progression.level === 0 && p.progression.xp === 0, 'progression starts at level 0 / 0 xp');
   assert(Object.keys(p.currency).length === 0, 'currency starts empty');
   assert(Array.isArray(p.emblems.saved) && p.emblems.saved.length === 0, 'emblem library starts empty');
+}
+
+console.log('\n[1b] XP curve hits the spec anchors and caps at level 35');
+{
+  assert(MAX_LEVEL === 35, 'max level is 35');
+  assert(xpForLevel(1) === 4000, `level 1 costs 4000 (got ${xpForLevel(1)})`);
+  assert(xpForLevel(2) === 4600, `level 2 costs 4600 (got ${xpForLevel(2)})`);
+  assert(xpForLevel(3) === 5200, `level 3 costs 5200 (got ${xpForLevel(3)})`);
+  assert(xpForLevel(35) === 50000, `level 35 (cap) costs 50000 (got ${xpForLevel(35)})`);
+  assert(xpForLevel(36) === 0 && xpForLevel(0) === 0, 'no cost outside 1..35');
+
+  let mono = true, prev = 0;
+  for (let l = 1; l <= MAX_LEVEL; l++) { if (xpForLevel(l) <= prev) mono = false; prev = xpForLevel(l); }
+  assert(mono, 'requirements strictly increase every level');
+
+  const fresh = defaultProfile();
+  assert(fresh.progression.level === 0 && fresh.progression.xp === 0, 'fresh profile starts at level 0 / 0 xp');
+  const at0 = levelFromXp(0);
+  assert(at0.level === 0 && at0.ratio === 0 && at0.needed === 4000, 'at 0 xp -> level 0, no progress, needs 4000');
+  const atCap = levelFromXp(10_000_000);
+  assert(atCap.level === MAX_LEVEL && atCap.max === true, 'huge xp clamps to the cap');
 }
 
 console.log('\n[2] migrateProfile backfills missing buckets + tolerates garbage');

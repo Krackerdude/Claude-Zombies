@@ -1,6 +1,7 @@
 import { Service } from '../core/ServiceLocator.js';
 import { AppState } from '../core/GameState.js';
 import { OptionsMenu } from './OptionsMenu.js';
+import { levelFromXp, MAX_LEVEL } from '../profile/index.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -31,6 +32,7 @@ export class UIManager {
   #pauseItems = [];
   #pauseSel = 0;
   #hud;
+  #profile;
 
   // main-menu sub-screens + cold-open intro
   #intro; #introPlayed = false;
@@ -43,6 +45,7 @@ export class UIManager {
     this.#settings = engine.services.get(Service.Settings);
     this.#input = engine.services.get(Service.Input);
     this.#events = engine.services.get(Service.Events);
+    this.#profile = engine.services.has(Service.Profile) ? engine.services.get(Service.Profile) : null;
     this.#hud = document.getElementById('hud');
 
     this.#root = document.createElement('div');
@@ -66,6 +69,12 @@ export class UIManager {
     this.#events.on('settings:fx', (fx) => this.#applyFxVars(fx));
     this.#events.on('state:change', () => this.#refresh());
 
+    // Level / progress shown on the main-menu player widget + pause-menu rank bar
+    // are derived from the persistent profile. Paint them now and on any change.
+    this.#refreshRank();
+    this.#events.on('profile:loaded', () => this.#refreshRank());
+    this.#events.on('profile:changed', () => this.#refreshRank());
+
     this.#bindGlobalKeys();
     document.addEventListener('pointerlockchange', () => {
       // User pressed Esc (or otherwise lost lock) mid-game -> pause.
@@ -78,6 +87,35 @@ export class UIManager {
     });
 
     this.#refresh();
+  }
+
+  // --- player rank (main-menu widget + pause-menu bar) --------------------
+
+  /** Snapshot the profile's level/progress and paint both rank displays. */
+  #refreshRank() {
+    const xp = this.#profile?.get('progression.xp', 0) ?? 0;
+    const name = this.#profile?.get('identity.displayName', 'Survivor One') ?? 'Survivor One';
+    const r = levelFromXp(xp);
+    const pct = Math.round(r.ratio * 100);
+    const next = r.max
+      ? 'Max Level'
+      : `Next Level: ${(r.needed - r.into).toLocaleString()} XP`;
+
+    // main-menu top-right player widget
+    const ml = this.#root.querySelector('.mm-lvl');
+    const mn = this.#root.querySelector('.mm-name');
+    if (ml) ml.textContent = String(r.level);
+    if (mn) mn.textContent = name;
+
+    // pause-menu rank bar
+    const badge = this.#root.querySelector('.pm-rank-badge');
+    const pname = this.#root.querySelector('.pm-rank-name');
+    const pnext = this.#root.querySelector('.pm-rank-next');
+    const fill = this.#root.querySelector('.pm-rank-track > i');
+    if (badge) badge.textContent = r.level >= MAX_LEVEL ? 'MAX' : String(r.level);
+    if (pname) pname.textContent = name;
+    if (pnext) pnext.textContent = next;
+    if (fill) fill.style.width = `${pct}%`;
   }
 
   // --- FX overlay ---------------------------------------------------------
@@ -119,7 +157,7 @@ export class UIManager {
         <div class="mm-daily-foot">Check Back Tomorrow</div>
       </div>
       <div class="mm-player">
-        <div class="mm-player-row"><span class="mm-lvl">1</span><span class="mm-name">Survivor One</span></div>
+        <div class="mm-player-row"><span class="mm-lvl">0</span><span class="mm-name">Survivor One</span></div>
         <div class="mm-gums"><i></i><i></i><i></i><i></i><i></i></div>
       </div>
       <div class="mm-title" data-text="Necropolis">Necropolis</div>
@@ -331,10 +369,10 @@ export class UIManager {
         </div>
       </div>
       <div class="pm-rank">
-        <div class="pm-rank-badge">1</div>
+        <div class="pm-rank-badge">0</div>
         <div class="pm-rank-main">
-          <div class="pm-rank-row"><span class="pm-rank-name">Survivor One</span><span class="pm-rank-next">Next Level: 3,300 XP</span></div>
-          <div class="pm-rank-track"><i style="width:38%"></i></div>
+          <div class="pm-rank-row"><span class="pm-rank-name">Survivor One</span><span class="pm-rank-next">Next Level: 4,000 XP</span></div>
+          <div class="pm-rank-track"><i style="width:0%"></i></div>
         </div>
       </div>
       <div class="pm-foot">[Esc] Resume · [Enter] Confirm</div>`;

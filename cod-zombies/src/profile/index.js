@@ -14,6 +14,7 @@ export { IndexedDbAdapter } from './storage/IndexedDbAdapter.js';
 export { MemoryAdapter } from './storage/MemoryAdapter.js';
 export { defaultProfile, PROFILE_VERSION } from './schema.js';
 export { migrateProfile, MIGRATIONS } from './migrations.js';
+export { MAX_LEVEL, xpForLevel, totalXpForLevel, levelFromXp } from './progression.js';
 
 /**
  * Build and initialise a ProfileService for this environment.
