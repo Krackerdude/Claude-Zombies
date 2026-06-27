@@ -177,6 +177,7 @@ export function engravedSteel(color = 0x4a4f57) {
     roughnessMap: eng, bumpMap: eng, bumpScale: 0.6,
     envMap: gunEnv(), envMapIntensity: 0.75,
   });
+  m.userData.papSwap = true; // engraved steel is gun-metal — Pack-a-Punch covers it
   _cache.set(key, m);
   return m;
 }
@@ -192,6 +193,7 @@ export function gunMetal(color = 0x363b43, opts = {}) {
     roughnessMap: brushedRoughness(), envMap: gunEnv(), envMapIntensity: 0.55,
   });
   if (ridged) { m.bumpMap = ridgeBump(); m.bumpScale = 0.4; }
+  m.userData.papSwap = true; // the gun's metal body — Pack-a-Punch camo replaces it
   _cache.set(key, m);
   return m;
 }
@@ -217,6 +219,7 @@ export function gunDark(color = 0x121317) {
   const key = `dark|${color}`;
   if (_cache.has(key)) return _cache.get(key);
   const m = new THREE.MeshStandardMaterial({ color, metalness: 0.5, roughness: 0.55, envMap: gunEnv(), envMapIntensity: 0.4 });
+  m.userData.papSwap = true; // dark metal (barrels, fittings) — covered by the camo
   _cache.set(key, m);
   return m;
 }
@@ -295,4 +298,54 @@ export function scopeGlow(color = 0xff2a1e) {
   const m = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.15, metalness: 0, roughness: 0.4 });
   _cache.set(key, m);
   return m;
+}
+
+// === Pack-a-Punch camo: a single shared, ANIMATED holographic material that
+// replaces gun-metal on a punched weapon. Flowing diagonal energy bands cycling
+// crimson -> pink -> magenta -> gold, with a moving sparkle, injected as extra
+// emissive on a normal PBR base so the gun's form still shades. =============
+let _papCamo = null;
+const PAP_FRAG_HEAD = `
+uniform float uTime;
+varying vec3 vPapPos;
+vec3 papHue(float t){
+  t = fract(t);
+  vec3 crimson = vec3(0.55,0.0,0.12), pink = vec3(1.0,0.32,0.72);
+  vec3 magenta = vec3(0.86,0.10,0.96), gold = vec3(1.0,0.80,0.22);
+  if (t < 0.34) return mix(crimson, pink, t/0.34);
+  if (t < 0.67) return mix(pink, magenta, (t-0.34)/0.33);
+  return mix(magenta, gold, (t-0.67)/0.33);
+}
+`;
+const PAP_FRAG_BODY = `
+{
+  float flow = vPapPos.x*6.0 + vPapPos.y*3.5 + vPapPos.z*2.0;
+  float band = pow(0.5 + 0.5*sin(flow - uTime*5.0), 1.6);
+  vec3 camo = papHue(flow*0.05 + uTime*0.14);
+  totalEmissiveRadiance += camo * band * 1.35;
+  float spark = pow(max(0.0, sin(vPapPos.x*55.0 + vPapPos.y*47.0 + uTime*14.0)), 30.0);
+  totalEmissiveRadiance += vec3(1.0,0.92,1.0) * spark * 2.2;
+}
+`;
+export function papCamo() {
+  if (_papCamo) return _papCamo;
+  const m = new THREE.MeshStandardMaterial({ color: 0x140810, metalness: 0.55, roughness: 0.3, envMap: gunEnv(), envMapIntensity: 0.7 });
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = { value: 0 };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vPapPos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPapPos = position;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\n' + PAP_FRAG_HEAD)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + PAP_FRAG_BODY);
+    m.userData.shader = shader;
+  };
+  m.userData.isPapCamo = true;
+  _papCamo = m;
+  return m;
+}
+/** Advance the shared camo animation (call once per frame). */
+export function papCamoTick(dt) {
+  const s = _papCamo && _papCamo.userData.shader;
+  if (s) s.uniforms.uTime.value += dt;
 }

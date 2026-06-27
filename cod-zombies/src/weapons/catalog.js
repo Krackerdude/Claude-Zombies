@@ -230,6 +230,61 @@ export const PAP_SPECIAL = {
   an94: 'burst', ballista: 'burst', svu: 'burst',
 };
 
+// Pack-a-Punch renames. Four naming conventions spread evenly across the
+// arsenal: [A] aura-farming badass, [P] dad-level pun, [F] future-ified,
+// [X] alien-ified. Applied to weapon.data.name when a gun is punched.
+export const PAP_NAMES = {
+  // --- pistols ---
+  m1911: 'WIDOWMAKER',            // A
+  rk5: 'RK-5X PULSAR',            // F
+  coda9: "COD'XAAN PRIME",        // X
+  fiveSeven: 'FIVE ALIVE',        // P
+  newArmy: 'GRAVE DUTY',          // A
+  // --- SMGs ---
+  vector: 'VECTOR VICTOR',        // P
+  mp5: 'MP-5X QUANTUM',           // F
+  uzi: "OOZI'KAVAR",              // X
+  kuda: 'NIGHTKUDA',              // A
+  ppsh: "PAPA'S PPSH",            // P
+  mp40: 'MP-40K NOVA',            // F
+  // --- assault rifles ---
+  galil: "GALAAX'IL",             // X
+  xm4: "REAPER'S MARK",           // A
+  an94: 'BURST MY BUBBLE',        // P
+  stg44: 'STG-44X VOLT',          // F
+  icr1: "IXR'KOTH",               // X
+  fal: 'FALLEN ANGEL',            // A
+  // --- LMGs ---
+  dingo: 'DINGO ATE MY AMMO',     // P
+  rpd: 'RPD-9 ION',               // F
+  hamr: "HAMM'XAR",               // X
+  stoner63: 'TOMBSTONER',         // A
+  lsat: 'LSAT PREP',              // P
+  hk21: 'HK-XXI VORTEX',          // F
+  // --- shotguns ---
+  executioner: 'ORDER & MAW',     // P  (court pun)
+  olympia: "OLYMP'XA",            // X
+  krm: 'KRAKEN',                  // A
+  mog12: 'MOG-NIFICENT',          // P
+  haymaker: 'HAYMAKER-X DRUM',    // F
+  stakeout: "STAK'OUTHE",         // X
+  doubleBarrel: 'TWIN FANGS',     // A
+  // --- snipers ---
+  dsr: 'DSR-IOUSLY?',             // P
+  svg300: 'SVG-300X RAILGUN',     // F
+  k31: "K'THIRTY-VOON",           // X
+  svu: 'SILENT WIDOW',            // A
+  ballista: 'BOLT FROM THE BLUE', // P
+  drakon: 'DRAKON-9 PLASMA',      // F
+  // --- launchers / specials / wonder ---
+  rpg: 'DOOMBRINGER',             // A
+  rpg7: 'ROCKET SURGEON',         // P
+  hellionSalvo: 'HELLION-X SALVO',// F
+  deathMachine: "DEATH'XAKK",     // X
+  rayGun: 'STARKILLER',           // A
+  thundergun: 'THUNDER STRUCK',   // P
+};
+
 export const WEAPON_KEYS = Object.keys(defs);
 export const weaponCost = (key) => defs[key]?.cost ?? 1000;
 export const weaponName = (key) => defs[key]?.name ?? key;
