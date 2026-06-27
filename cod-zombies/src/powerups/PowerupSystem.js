@@ -12,6 +12,7 @@ const STANDALONE = ['zombieBlood', 'bloodMoney'];
 const NAMES = {
   doublePoints: 'DOUBLE POINTS', instaKill: 'INSTA-KILL', nuke: 'NUKE',
   carpenter: 'CARPENTER', zombieBlood: 'ZOMBIE BLOOD', bloodMoney: 'BLOOD MONEY',
+  maxAmmo: 'MAX AMMO',
 };
 const DURATION = { doublePoints: 20, instaKill: 20, zombieBlood: 30 }; // timed power-ups
 const DROP_CHANCE = 0.02;
@@ -55,8 +56,11 @@ export class PowerupSystem extends System {
     this.#spawn = s.get(Service.Spawn);
     this.#time = s.get(Service.Time);
 
-    this.#events.on('zombie:killed', ({ x, z }) => { if (!this.#suppressDrops) this.#rollDrop(x, z); });
+    // hellhound kills never roll a random drop — the dog round pays out a single
+    // guaranteed Max Ammo on the last kill (fired as powerup:force below)
+    this.#events.on('zombie:killed', ({ x, z, hound }) => { if (!hound && !this.#suppressDrops) this.#rollDrop(x, z); });
     this.#events.on('round:changed', () => { this.#dropsThisRound = 0; });
+    this.#events.on('powerup:force', ({ type, x, z }) => this.#spawnAt(type, x, z)); // guaranteed drops (e.g. dog-round Max Ammo)
     this.#events.on('state:change', ({ state }) => { if (state === 'menu') this.#clearAll(); });
   }
 
@@ -72,8 +76,16 @@ export class PowerupSystem extends System {
       if (this.#cycleUsed.size >= CYCLE.length) this.#cycleUsed.clear(); // cycle complete
     }
     this.#dropsThisRound++;
+    this.#spawnAt(type, x, z);
+  }
+
+  /** Spawn a specific power-up at a point, bypassing the chance/cap (guaranteed
+   *  drops like the dog-round Max Ammo). Clamped inside the walls so it's
+   *  always reachable. */
+  #spawnAt(type, x, z) {
+    const cx = Math.max(-9, Math.min(9, x)), cz = Math.max(-9, Math.min(9, z));
     const id = this.world.createEntity();
-    this.world.add(id, new Transform({ x, y: FLOAT_Y, z }));
+    this.world.add(id, new Transform({ x: cx, y: FLOAT_Y, z: cz }));
     this.world.add(id, new Renderable(buildPowerupModel(type), { interpolate: false }));
     this.world.add(id, new PowerupTag(type));
   }
@@ -140,6 +152,7 @@ export class PowerupSystem extends System {
         this.#award(player, 200);
         break;
       case 'bloodMoney': this.#award(player, (1 + ((Math.random() * 5) | 0)) * 500); break; // 500..2500
+      case 'maxAmmo': this.world.services.get(Service.Weapons)?.maxAmmo?.(); break;
       case 'nuke': this.#nuke(player, pos); break;
     }
   }

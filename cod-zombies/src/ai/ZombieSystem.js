@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { Transform, PlayerTag, ZombieTag, RigidBodyRef } from '../ecs/components/index.js';
 import { Service } from '../core/ServiceLocator.js';
-import { ZombieConfig, PlayerCombat, BarrierConfig } from '../config/zombies.js';
+import { ZombieConfig, PlayerCombat, BarrierConfig, HoundConfig } from '../config/zombies.js';
 import { ZOMBIE_AGENT } from './NavGraph.js';
 import { MoveState } from '../player/MoveState.js';
 
@@ -92,7 +92,7 @@ export class ZombieSystem extends System {
       this.#tickZombie(z, t, chasePos, player, goalCell, dt, isLured);
       // keep the player-blocking capsule glued to the zombie (lower for crawlers)
       const ref = this.world.get(id, RigidBodyRef);
-      if (ref?.body) this.#physics.setKinematicTarget(ref.body, { x: t.position.x, y: z.crawler ? 0.6 : 0.9, z: t.position.z });
+      if (ref?.body) this.#physics.setKinematicTarget(ref.body, { x: t.position.x, y: z.hound ? 0.5 : z.crawler ? 0.6 : 0.9, z: t.position.z });
     }
 
     this.#navDirty = false;
@@ -193,7 +193,7 @@ export class ZombieSystem extends System {
             const sliding = player.state === MoveState.SLIDE || player.state === MoveState.DIVE;
             const knifed = this.#time.elapsed < z.harmlessUntil;
             if (!lured && !sliding && !knifed) { // swiping a monkey bomb hurts no one; slide/knife also negate
-              this.#damagePlayer(player, ZombieConfig.attackDamage);
+              this.#damagePlayer(player, z.hound ? HoundConfig.attackDamage : ZombieConfig.attackDamage);
               player.slowUntil = this.#time.elapsed + ZombieConfig.swipeSlowDuration; // brief slow on contact
               this.#events.emit('player:damaged', { x: t.position.x - playerPos.x, z: t.position.z - playerPos.z });
             }
@@ -250,7 +250,7 @@ export class ZombieSystem extends System {
       const cell = this.#nav.cellAt(wp.x, wp.z);
       const barrier = this.#nav.barrierOf(cell);
 
-      if (barrier && !barrier.open && barrier.teardownable && !z.crawler) {
+      if (barrier && !barrier.open && barrier.teardownable && !z.crawler && !z.hound) {
         // approach the window, then rip it down (crawlers can't tear from the floor)
         if (this.#flatDist2(t.position, wp.x, wp.z) <= ZombieConfig.reachThreshold + 0.6) {
           z.barrierTarget = barrier;

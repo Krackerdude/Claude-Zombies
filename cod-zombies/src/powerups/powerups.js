@@ -106,6 +106,17 @@ function buildShape(type) {
       g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 6), fuse), 0.03, 0.28, 0, 0, 0, 0.5));
       break;
     }
+    case 'maxAmmo': { // an ammo crate with rounds standing in it
+      g.add(at(box(0.3, 0.18, 0.2, gold({ color: GOLD_DARK, emissiveIntensity: 0.35 })), 0, -0.06, 0)); // crate
+      g.add(at(box(0.32, 0.04, 0.22, m), 0, 0.04, 0)); // top lip
+      const brass = gold({ color: 0xffd84a });
+      const tip = new THREE.MeshStandardMaterial({ color: 0xcf7a2a, metalness: 0.7, roughness: 0.4, emissive: 0x803000, emissiveIntensity: 0.3 });
+      for (const dx of [-0.09, 0, 0.09]) {
+        g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.16, 10), brass), dx, 0.12, 0.04)); // casing
+        g.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.06, 10), tip), dx, 0.23, 0.04));               // bullet tip
+      }
+      break;
+    }
     case 'carpenter': { // hammer
       g.add(at(box(0.04, 0.34, 0.04, m), 0, -0.05, 0)); // handle
       g.add(at(box(0.24, 0.08, 0.09, m), 0, 0.15, 0));  // head

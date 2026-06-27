@@ -118,13 +118,14 @@ export class PlayerTag {
 
 /** State + nav data for a single zombie (nav-driven, no rigid body). */
 export class ZombieTag {
-  constructor({ health = 150, speed = 1.7, gait = 'run', variant = 0 } = {}) {
+  constructor({ health = 150, speed = 1.7, gait = 'run', variant = 0, hound = false } = {}) {
     this.state = 'spawning'; // spawning | pathing | teardown | attack | dead
     this.health = health;
     this.maxHealth = health;
     this.speed = speed;
     this.gait = gait; // 'shamble' | 'walk' | 'run' — drives the animation set
     this.variant = variant & 3; // 0..3 — subtle per-zombie animation personality
+    this.hound = hound; // hellhound: quadruped, spawns inside via lightning, no teardown/crawler
 
     this.path = null; // array of {x,z} waypoints
     this.pathIndex = 0;
@@ -188,10 +189,11 @@ export class ProjectileTag {
  * never collide with the player or live zombies.
  */
 export class CorpseTag {
-  constructor(dir = { x: 0, z: 1 }, baseYaw = 0, force = 1, limbs = null) {
+  constructor(dir = { x: 0, z: 1 }, baseYaw = 0, force = 1, limbs = null, hound = false) {
     // which limbs are still attached at death (null = all) — the ragdoll skips
     // the bodies/joints for any that were shot off
     this.limbs = limbs ? { ...limbs } : { armL: true, armR: true, legL: true, legR: true };
+    this.hound = hound; // quadruped corpse: a simpler tip-over tumble (no humanoid ragdoll)
     let px = dir.x || 0, pz = dir.z || 0;
     const m = Math.hypot(px, pz) || 1;
     px /= m; pz /= m;

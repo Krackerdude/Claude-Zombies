@@ -38,6 +38,8 @@ export class DevMenu {
 
     html += '<div class="dev-sec"><div class="dev-title">Round</div><div class="dev-row">';
     for (const r of [1, 5, 10, 15, 20, 25, 30]) html += `<button class="dev-btn" data-round="${r}">${r}</button>`;
+    html += '</div><div class="dev-row">';
+    html += '<button class="dev-btn dev-warn" data-special="hounds">⚡ Start Special Round (Hounds)</button>';
     html += '</div></div>';
 
     html += '<div class="dev-sec"><div class="dev-title">Points <b class="dev-points">0</b></div><div class="dev-row">';
@@ -92,6 +94,7 @@ export class DevMenu {
       else if (b.dataset.gun) this.#engine.services.get(Service.Weapons)?.giveWeapon?.(b.dataset.gun);
       else if (b.dataset.lethal) this.#engine.services.get(Service.Lethal)?.giveLethal?.(b.dataset.lethal);
       else if (b.dataset.tactical) this.#engine.services.get(Service.Tactical)?.giveTactical?.(b.dataset.tactical);
+      else if (b.dataset.special) { this.#engine.services.get(Service.Round)?.queueSpecialRound?.(); this.close(); }
       else if (b.dataset.round != null) this.#jumpRound(parseInt(b.dataset.round, 10));
       else if (b.dataset.barrier) this.#barriers(b.dataset.barrier === 'break');
     });
