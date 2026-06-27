@@ -5,6 +5,7 @@ import { PlayerConfig } from '../config/index.js';
 import { ZombieConfig } from '../config/zombies.js';
 import { ps1Snap } from '../rendering/ps1.js';
 import { buildZombieRig } from './zombieRig.js';
+import { buildHoundRig } from './houndRig.js';
 import { randomZombieLook } from './zombieAssets.js';
 
 /**
@@ -72,6 +73,26 @@ export class EntityFactory {
     this.#world.add(id, new Transform(pos));
     this.#world.add(id, new Renderable(group, { interpolate: true }));
     this.#world.add(id, new ZombieTag(stats));
+    this.#world.add(id, new RigidBodyRef(handle));
+    return id;
+  }
+
+  /** A nav-driven hellhound: low quadruped rig + ZombieTag(hound) + a short
+   *  kinematic capsule (so the player collides with it). Spawns wherever the
+   *  lightning struck — inside the playable space, already pathing. */
+  hound(position, stats) {
+    const group = buildHoundRig();
+    const pos = position.clone ? position.clone() : new THREE.Vector3(position.x, position.y, position.z);
+
+    const handle = this.#physics.createCharacterCapsule(
+      { x: pos.x, y: 0.5, z: pos.z },
+      { radius: 0.3, halfHeight: 0.32 },
+    );
+
+    const id = this.#world.createEntity();
+    this.#world.add(id, new Transform(pos));
+    this.#world.add(id, new Renderable(group, { interpolate: true }));
+    this.#world.add(id, new ZombieTag({ ...stats, hound: true }));
     this.#world.add(id, new RigidBodyRef(handle));
     return id;
   }

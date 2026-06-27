@@ -56,6 +56,7 @@ export class CorpseSystem extends System {
       const c = this.world.get(id, CorpseTag);
       const t = this.world.get(id, Transform);
       const rig = this.world.get(id, Renderable).object3d;
+      if (c.hound) { this.#updateHoundCorpse(id, c, t, rig, dt); continue; }
       t.cachePrevious();
       c.life += dt;
 
@@ -77,6 +78,7 @@ export class CorpseSystem extends System {
       const c = this.world.get(id, CorpseTag);
       const t = this.world.get(id, Transform);
       const rig = this.world.get(id, Renderable).object3d;
+      if (c.hound) { this.#updateHoundCorpse(id, c, t, rig, dt); continue; }
       t.cachePrevious();
       c.life += dt;
 
@@ -114,6 +116,52 @@ export class CorpseSystem extends System {
         rig.scale.multiplyScalar(Math.pow(0.3, dt));
         if (c.life > LIFETIME + SINK_TIME) this.world.destroyEntity(id);
       }
+    }
+  }
+
+  /** Hellhound corpse: a quadruped tip-over tumble (no humanoid ragdoll). It
+   *  launches in the kill direction, rolls onto its side keeping its facing, its
+   *  legs go slack, the mane of fire gutters out, then it sinks + shrinks away. */
+  #updateHoundCorpse(id, c, t, rig, dt) {
+    t.cachePrevious();
+    c.life += dt;
+
+    if (!c.grounded) {
+      c.vy -= GRAV * dt;
+      t.position.x += c.vx * dt; t.position.y += c.vy * dt; t.position.z += c.vz * dt;
+      if (t.position.y <= 0) { t.position.y = 0; c.grounded = true; c.vx *= 0.35; c.vz *= 0.35; }
+    } else {
+      const f = Math.pow(0.0008, dt);
+      c.vx *= f; c.vz *= f;
+      t.position.x += c.vx * dt; t.position.z += c.vz * dt;
+    }
+
+    c.fall = Math.min(1, c.fall + dt * (c.grounded ? 5 : 2.2));
+    // keep facing, roll onto the side in the push direction
+    _qYaw.setFromAxisAngle(UP, c.baseYaw);
+    _axis.set(c.tiltX, 0, c.tiltZ);
+    _qTilt.setFromAxisAngle(_axis, c.fall * (Math.PI / 2 - 0.05));
+    t.quaternion.copy(_qTilt).multiply(_qYaw);
+
+    // limbs + neck + tail relax into a slack heap
+    const J = rig.userData?.joints;
+    if (J) {
+      const rest = rig.userData.rest || {};
+      const k = Math.min(1, dt * 6);
+      const relax = (j, ax, target) => { if (J[j]) J[j].rotation[ax] += (target - J[j].rotation[ax]) * k; };
+      for (const key of ['fl', 'fr', 'bl', 'br']) { relax(key + 'U', 'x', 0.5); relax(key + 'L', 'x', 0.7); }
+      relax('neck', 'x', (rest.neck ?? 0.5) + 0.4);
+      relax('head', 'x', (rest.head ?? -0.5) - 0.2);
+      relax('tail', 'x', (rest.tail ?? 0.9) + 0.3);
+      if (J.jaw) relax('jaw', 'x', 0.3);
+    }
+    // the mane of fire dies out
+    if (rig.userData.flames) for (const fl of rig.userData.flames) fl.g.scale.multiplyScalar(Math.pow(0.05, dt));
+
+    if (c.life > LIFETIME) {
+      t.position.y -= 0.7 * dt;
+      rig.scale.multiplyScalar(Math.pow(0.3, dt));
+      if (c.life > LIFETIME + SINK_TIME) this.world.destroyEntity(id);
     }
   }
 

@@ -80,6 +80,8 @@ export class ZombieAnimSystem extends System {
       const J = rig.userData?.joints;
       if (!J) continue;
       const rest = rig.userData.rest;
+      // hellhounds are quadrupeds with their own gallop/lunge rig
+      if (z.hound) { this.#poseHound(z, rig, rest, J, dt); continue; }
       // acid bomb dissolves — these override the normal gait entirely
       if (z.melting) { this.#poseMelt(z, rig, rest, J, dt); continue; }
       if (z.meltingLegs) { this.#poseLegMelt(z, rig, rest, J, dt); continue; }
@@ -236,6 +238,76 @@ export class ZombieAnimSystem extends System {
     if (J.shoulderR.visible) { J.shoulderR.rotation.set(droop, 0, -0.5 * m); J.elbowR.rotation.x = droop; }
     if (J.thighL?.visible) J.thighL.rotation.set(-0.2, 0, 0.4 * m);
     if (J.thighR?.visible) J.thighR.rotation.set(-0.2, 0, -0.4 * m);
+  }
+
+  /** Hellhound: a fast four-legged bounding gallop, body low and pitching with
+   *  the bound, head down scanning, tail + mane of fire flickering. The attack
+   *  rears back then pounces forward with the jaws snapping open. All joints are
+   *  written fresh each frame so the flinch kick can't accumulate. */
+  #poseHound(z, rig, rest, J, dt) {
+    const walking = z.state === 'pathing' || z.state === 'spawning';
+    const swiping = z.swipe > 0;
+    z.walkAmt = ease(z.walkAmt, walking ? 1 : 0, dt, 6);
+    z.atkAmt = ease(z.atkAmt, swiping ? 1 : 0, dt, 16);
+    const w = z.walkAmt;
+
+    z.animTime += dt * (walking ? 3.4 + z.speed * 1.2 : 1.6);
+    const p = z.animTime;
+    const fSw = Math.sin(p);            // front-leg pair swing
+    const rSw = Math.sin(p - 1.2);      // rear pair, offset for a bound
+    const bob = Math.abs(Math.sin(p));
+
+    // attack: rear back on the wind-up, pounce forward through the chop
+    const swProg = swiping ? 1 - z.swipe / ZombieConfig.swipeTime : 0;
+    const pounce = Math.sin(Math.min(1, swProg) * Math.PI);      // 0..1..0
+    const rear = Math.max(0, Math.sin(Math.min(1, swProg) * Math.PI * 0.5) - swProg); // early wind-up
+
+    // --- body core: bob + gallop pitch, lunge forward on the pounce ---
+    const corePitch = Math.sin(p) * 0.09 * w + z.atkAmt * (-0.35 * rear + 0.2 * pounce);
+    J.core.position.set(0, rest.coreY + (bob * 0.09 - 0.045) * w + z.atkAmt * pounce * 0.06, z.atkAmt * pounce * 0.32);
+    J.core.rotation.set(corePitch, 0, 0);
+    J.chest.rotation.set(Math.sin(p + 0.6) * 0.05 * w, 0, 0);
+
+    // --- head + neck: low and scanning, thrusts forward on the bite ---
+    J.neck.rotation.set(rest.neck + 0.06 * w + z.atkAmt * (-0.3 * pounce + 0.25 * rear), Math.sin(p * 0.5) * 0.12 * w, 0);
+    J.head.rotation.set(rest.head + Math.sin(p * 0.7) * 0.05 * w + z.atkAmt * (0.2 * pounce), Math.sin(p * 0.5) * 0.1 * w, 0);
+    if (J.jaw) J.jaw.rotation.x = 0.12 + Math.sin(p * 2) * 0.05 * w + z.atkAmt * (0.4 + pounce * 0.5); // pant + snap open
+
+    // --- tail: streams behind, sways ---
+    if (J.tail) J.tail.rotation.set(rest.tail - 0.1 * w + Math.sin(p * 1.3) * 0.18 * w, Math.cos(p) * 0.22 * w, 0);
+
+    // --- legs: bounding gallop (front pair together, rear pair together) ---
+    const setLeg = (key, sw, sign) => {
+      const u = J[key + 'U'], l = J[key + 'L'];
+      if (!u) return;
+      u.rotation.set(sw * 0.9 * w + z.atkAmt * (sign > 0 ? -0.5 * rear + 0.6 * pounce : 0.5 * pounce), 0, 0);
+      if (l) l.rotation.x = Math.max(0, -sw) * 0.9 * w + 0.18 * w + z.atkAmt * 0.3;
+    };
+    setLeg('fl', fSw, 1); setLeg('fr', fSw * 0.96, 1);   // front (sign +1: tuck on pounce)
+    setLeg('bl', rSw, -1); setLeg('br', rSw * 0.96, -1); // rear (drive on pounce)
+
+    // --- mane of fire: flicker scale + opacity per tongue ---
+    const flames = rig.userData.flames;
+    if (flames) {
+      for (const f of flames) {
+        const fl = 0.7 + 0.45 * Math.sin(p * 9 + f.phase);
+        f.g.scale.set(0.8 + 0.2 * Math.sin(p * 7 + f.phase * 1.3), fl, 0.8 + 0.2 * Math.cos(p * 8 + f.phase));
+      }
+    }
+
+    // --- localized hit recoil (head/body jerk) ---
+    if (z.flinch > 0) {
+      z.flinchT += dt;
+      const DUR = 0.3;
+      if (z.flinchT >= DUR) { z.flinch = 0; z.flinchT = 0; }
+      else {
+        const u = z.flinchT / DUR;
+        const env = z.flinch * (Math.exp(-3.5 * u) - Math.exp(-9 * u)) * 3.0;
+        J.head.rotation.x -= env * 0.5;
+        J.core.rotation.z += env * 0.22 * z.flinchSign;
+        J.core.position.z -= env * 0.08;
+      }
+    }
   }
 
   /** Localized hit recoil, layered on top of the gait. A proper IMPULSE — a fast

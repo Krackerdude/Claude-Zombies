@@ -5,6 +5,7 @@ import { makeGridTexture } from '../util/textures.js';
 import { NavGraph } from '../ai/NavGraph.js';
 import { Barrier } from '../ai/Barrier.js';
 import { SpawnManager } from '../ai/SpawnManager.js';
+import { HoundManager } from '../ai/HoundManager.js';
 import { RoundManager } from '../ai/RoundManager.js';
 import { ZombieSystem } from '../ai/ZombieSystem.js';
 import { ZombieAnimSystem } from '../ai/ZombieAnimSystem.js';
@@ -301,7 +302,9 @@ export function buildArena(engine) {
   engine.services.register(Service.Nav, nav);
   const spawn = new SpawnManager({ world: engine.world, factory, events, spawnPoints, getPlayerPos });
   engine.services.register(Service.Spawn, spawn);
-  const round = new RoundManager(spawn, events);
+  const hounds = new HoundManager({ world: engine.world, factory, events, nav, scene, getPlayerPos });
+  engine.services.register(Service.Hounds, hounds);
+  const round = new RoundManager(spawn, events, hounds);
   engine.services.register(Service.Round, round);
   engine.services.register(Service.Economy, economy);
 

@@ -67,6 +67,25 @@ export const RoundConfig = {
   interRoundDelay: 7.0,
 };
 
+/**
+ * Hellhound special ("dog") round. Fast, low-health quadrupeds that spawn INSIDE
+ * the playable space via lightning strikes and hunt the player until the last
+ * one drops a guaranteed Max Ammo. Count scales gently with the round number.
+ */
+export const HoundConfig = {
+  baseCount: 6,
+  countPerRound: 1,     // +1 per round the special is triggered on
+  maxCount: 16,
+  maxAlive: 8,
+  speed: 4.4,           // faster than a sprinting zombie
+  baseHealth: 120,
+  healthPerRound: 22,
+  spawnInterval: 0.9,   // between lightning strikes
+  firstSpawnDelay: 1.2,
+  strikeDelay: 0.45,    // lightning flash -> hound materialises
+  attackDamage: 32,
+};
+
 export const PlayerCombat = {
   maxHealth: 100,
   regenDelay: 2.8, // faster onset after last hit

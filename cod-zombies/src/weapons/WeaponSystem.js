@@ -778,6 +778,12 @@ export class WeaponSystem extends System {
     return true;
   }
 
+  /** Max Ammo power-up: top every carried weapon's reserve back to full. */
+  maxAmmo() {
+    for (const w of this.#weapons) w.refill();
+    if (this.current) this.#emitAmmo(this.current);
+  }
+
   /**
    * Grant a weapon (wall-buy / mystery box). If already owned, tops up ammo;
    * otherwise adds it (or swaps the current slot when the inventory is full).

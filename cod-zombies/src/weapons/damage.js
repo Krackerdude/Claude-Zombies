@@ -20,7 +20,7 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
   // caliber, passed in by the weapon). Only an attached limb, only if it didn't
   // already die this hit (handled below — the roll is before the lethal check so
   // a corpse can spawn already missing the limb).
-  if (dismemberChance > 0 && part && LIMB_PARTS[part] && z.limbs?.[part] && Math.random() < dismemberChance) {
+  if (!z.hound && dismemberChance > 0 && part && LIMB_PARTS[part] && z.limbs?.[part] && Math.random() < dismemberChance) {
     const rig = ctx.world.get(id, Renderable)?.object3d;
     if (part === 'legL' || part === 'legR') {
       // shooting off a leg takes the whole lower body: instant gory crawler,
@@ -66,9 +66,17 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
       ctx.world.remove(id, RigidBodyRef);
     }
     ctx.world.remove(id, ZombieTag);
-    ctx.world.add(id, new CorpseTag(dir || { x: 0, z: 1 }, baseYaw, force, z.limbs));
-    ctx.spawn.notifyKilled();
-    ctx.events.emit('zombie:killed', { headshot, x: t ? t.position.x : 0, z: t ? t.position.z : 0 });
+    ctx.world.add(id, new CorpseTag(dir || { x: 0, z: 1 }, baseYaw, force, z.limbs, z.hound));
+    const kx = t ? t.position.x : 0, kz = t ? t.position.z : 0;
+    // hellhound kills are owned by the HoundManager (it tracks the wave + drops
+    // the guaranteed Max Ammo on the last one); regular kills feed the SpawnManager
+    if (z.hound) {
+      const hounds = ctx.world.services.has(Service.Hounds) ? ctx.world.services.get(Service.Hounds) : null;
+      hounds?.notifyKilled(kx, kz);
+    } else {
+      ctx.spawn.notifyKilled();
+    }
+    ctx.events.emit('zombie:killed', { headshot, x: kx, z: kz, hound: z.hound });
     killed = true;
   } else {
     // --- survived the hit: localized flinch (scaled by the gun's damage), and

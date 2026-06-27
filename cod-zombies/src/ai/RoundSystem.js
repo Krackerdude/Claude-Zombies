@@ -21,6 +21,7 @@ export class RoundSystem extends System {
   #gameState;
   #round;
   #spawn;
+  #hounds;
   #events;
   #nav;
   #physics;
@@ -32,6 +33,7 @@ export class RoundSystem extends System {
     this.#gameState = this.world.services.get(Service.GameState);
     this.#round = this.world.services.get(Service.Round);
     this.#spawn = this.world.services.get(Service.Spawn);
+    this.#hounds = this.world.services.has(Service.Hounds) ? this.world.services.get(Service.Hounds) : null;
     this.#events = this.world.services.get(Service.Events);
     this.#nav = this.world.services.get(Service.Nav);
     this.#physics = this.world.services.get(Service.Physics);
@@ -45,7 +47,7 @@ export class RoundSystem extends System {
 
     this.#events.on('state:change', ({ prev, state }) => {
       if (state === AppState.PLAYING && prev === AppState.MENU) this.#startRun();
-      else if (state === AppState.MENU) this.#spawn.reset();
+      else if (state === AppState.MENU) { this.#spawn.reset(); this.#hounds?.reset(); }
     });
     // a killing blow just flags death; the reset runs at a safe point (lateUpdate)
     this.#events.on('player:down', () => { this.#pendingDeath = true; });
@@ -60,6 +62,7 @@ export class RoundSystem extends System {
     this.#events.emit('run:reset', {}); // wipe death/damage HUD first
 
     this.#spawn.reset();   // despawn zombies (+ their bodies)
+    this.#hounds?.reset(); // and any hellhounds + pending strikes
     this.#clearCorpses();  // and any corpses
     this.world.flushDestroyed(); // remove from stores NOW so nothing reads a freed body
 
@@ -125,6 +128,7 @@ export class RoundSystem extends System {
     if (!this.#gameState.isPlaying) return;
     this.#round.update(dt);
     this.#spawn.update(dt);
+    this.#hounds?.update(dt);
   }
 
   // Death teardown happens here, after every sim/anim system has finished its
