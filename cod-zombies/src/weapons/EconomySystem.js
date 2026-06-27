@@ -4,6 +4,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { Action } from '../config/keybinds.js';
 import { EconomyConfig, BarrierConfig } from '../config/zombies.js';
 import { weaponName, weaponCost, BOX_POOL } from '../weapons/catalog.js';
+import { buildWeaponModel } from '../weapons/weaponModels.js';
 
 /**
  * The points economy + interaction layer. Each frame it finds the single
@@ -22,7 +23,7 @@ export class EconomySystem extends System {
   #playerId;
 
   #box = { state: 'idle', timer: 0, hold: 0, result: null, display: null, cycle: 0 };
-  #pap = { state: 'idle', timer: 0, hold: 0, key: null };
+  #pap = { state: 'idle', timer: 0, hold: 0, key: null, weapon: null };
   #lastPrompt = null;
 
   get #perks() { return this.world.services.has(Service.Perks) ? this.world.services.get(Service.Perks) : null; }
@@ -45,7 +46,7 @@ export class EconomySystem extends System {
     this.#events.on('state:change', ({ state }) => {
       if (state !== 'playing') {
         this.#box.state = 'idle'; this.#events.emit('box:idle', {});
-        this.#pap.state = 'idle'; this.#pap.key = null; this.#events.emit('pap:idle', {});
+        this.#clearPaP();
         this.#prompt(null);
       }
     });
@@ -211,25 +212,36 @@ export class EconomySystem extends System {
   #usePaP(player) {
     const pap = this.#pap;
     if (pap.state === 'ready') {
-      // grab the upgraded weapon
-      const key = pap.key;
-      this.#weapons.packAPunch(key);
-      pap.state = 'idle'; pap.key = null;
+      // grab the upgraded weapon back out of the machine
+      const key = pap.key, weapon = pap.weapon;
+      this.#weapons.applyPaP(weapon, key);
+      this.#weapons.restoreFromPaP(weapon, key);
+      this.#clearPaP();
       this.#events.emit('buy:ok', { key, pap: true });
       return;
     }
     if (pap.state !== 'idle') return;
-    const key = this.#weapons.currentKey();
-    if (!key || key === 'm1911') {
-      // (m1911 still upgrades fine; this just guards the no-weapon edge)
-    }
-    if (player.points < EconomyConfig.papCost) { this.#events.emit('buy:denied', {}); return; }
     const w = this.#weapons.current;
-    if (w?.data?.pap) { this.#events.emit('buy:denied', {}); return; } // already punched
+    if (!w) { this.#events.emit('buy:denied', {}); return; }            // nothing in hand
+    if (w.data.pap) { this.#events.emit('buy:denied', {}); return; }     // already punched
+    if (player.points < EconomyConfig.papCost) { this.#events.emit('buy:denied', {}); return; }
+    // pull the gun out of the player's hands and into the machine
+    const taken = this.#weapons.extractForPaP();
+    if (!taken) { this.#events.emit('buy:denied', {}); return; }
     player.points -= EconomyConfig.papCost;
     this.#events.emit('score:changed', { points: player.points });
-    pap.state = 'inserting'; pap.timer = EconomyConfig.papInsertTime; pap.key = key;
-    this.#events.emit('pap:insert', { key });
+    pap.weapon = taken.weapon; pap.key = taken.key;
+    pap.state = 'inserting'; pap.timer = EconomyConfig.papInsertTime;
+    // hand the machine the REAL gun model to show going in/out
+    this.#economy.pap.gunModel = buildWeaponModel(taken.weapon).group;
+    this.#events.emit('pap:insert', { key: pap.key });
+  }
+
+  #clearPaP() {
+    const pap = this.#pap;
+    pap.state = 'idle'; pap.key = null; pap.weapon = null;
+    if (this.#economy.pap) this.#economy.pap.gunModel = null;
+    this.#events.emit('pap:idle', {});
   }
 
   #tickPaP(dt, player) {
@@ -242,11 +254,7 @@ export class EconomySystem extends System {
       if (pap.timer <= 0) { pap.state = 'ready'; pap.hold = EconomyConfig.papHoldTime; this.#events.emit('pap:ready', { key: pap.key }); }
     } else if (pap.state === 'ready') {
       pap.hold -= dt;
-      if (pap.hold <= 0) { // grab window missed — the gun is lost to the machine
-        if (pap.key) this.#weapons.removeWeaponKey(pap.key);
-        pap.state = 'idle'; pap.key = null;
-        this.#events.emit('pap:idle', {});
-      }
+      if (pap.hold <= 0) this.#clearPaP(); // grab window missed — the gun is lost to the machine
     }
 
     // publish live state for the PaPSystem to animate

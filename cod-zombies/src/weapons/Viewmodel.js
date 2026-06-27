@@ -236,7 +236,10 @@ export class Viewmodel {
     if (this.#model) {
       this.#group.remove(this.#model);
       this.#model.traverse((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
+      this.#model = null;
     }
+    if (!weapon) { this.#group.visible = false; this.#dual = false; return; } // empty-handed (PaP)
+    this.#group.visible = true;
     const { group, muzzle } = buildWeaponModel(weapon);
     this.#muzzleZ = muzzle;
 

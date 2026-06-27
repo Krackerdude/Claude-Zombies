@@ -327,7 +327,7 @@ export class WeaponSystem extends System {
       swapDown: this.#swapDown(),
       damage: this.#dmgT > 0 ? { t: 1 - this.#dmgT / 0.25, side: this.#dmgSide } : null,
       shade: this.#sampleShade(dt),
-      visible: playing && !w.scoped, // hide model behind the scope overlay
+      visible: playing && !!w && !w.scoped, // hidden when empty-handed (PaP) or behind the scope
     });
     if (this.#fx) this.#fx.update(dt);
   }
@@ -392,6 +392,7 @@ export class WeaponSystem extends System {
 
   #announce() {
     const w = this.current;
+    if (!w) { this.#events.emit('weapon:changed', { name: '—', category: null, mag: 0, reserve: 0 }); this.#events.emit('weapon:ammo', { mag: 0, reserve: 0, name: '—' }); return; }
     this.#events.emit('weapon:changed', { name: w.name, category: w.data.category, mag: w.magazine, reserve: w.reserve });
     this.#emitAmmo(w);
   }
@@ -682,43 +683,58 @@ export class WeaponSystem extends System {
   /** The key of the currently held weapon (for the Pack-a-Punch). */
   currentKey() { return this.#keys[this.#index]; }
 
-  /** Pack-a-Punch the weapon with this key (in place): double damage, bigger
-   *  reserve, the crimson->pink muzzle/tracer tint, and — for ~25% of guns — a
-   *  fire-mode or dual-wield change. Returns true if it was upgraded. */
-  packAPunch(key) {
-    const idx = this.#keys.indexOf(key);
-    if (idx < 0) return false;
-    const w = this.#weapons[idx];
-    const d = w.data;
-    if (d.pap) return false; // already punched
+  /** Pack-a-Punch removed the current weapon from the player's hands and into the
+   *  machine: take it OUT of the inventory and switch to the secondary (or leave
+   *  the player empty-handed). Returns the removed { weapon, key } to hand back. */
+  extractForPaP() {
+    if (this.#weapons.length === 0) return null;
+    const idx = this.#index;
+    const weapon = this.#weapons[idx];
+    const key = this.#keys[idx];
+    this.#weapons.splice(idx, 1);
+    this.#keys.splice(idx, 1);
+    if (this.#weapons.length === 0) {
+      this.#index = 0; // empty-handed: this.current is now undefined (no model shown)
+      this.#viewmodel.setWeapon(null);
+      this.#announce();
+    } else {
+      this.#index = Math.min(idx, this.#weapons.length - 1);
+      this.current.aiming = false;
+      this.#viewmodel.setWeapon(this.current);
+      this.#announce();
+    }
+    return { weapon, key };
+  }
+
+  /** Mutate a (extracted) weapon instance into its Pack-a-Punched form: double
+   *  damage, bigger reserve, crimson->pink tint, and — for ~25% of guns — a
+   *  fire-mode or dual-wield change. */
+  applyPaP(weapon, key) {
+    const d = weapon.data;
+    if (d.pap) return;
     d.pap = true;
     d.papTint = { muzzle: 0x9a0b2e, tracer: 0xff5fc4 };
     d.damage *= 2;
-    d.ammoStockSize = Math.round(d.ammoStockSize * 1.6); // stockpile increase
+    d.ammoStockSize = Math.round(d.ammoStockSize * 1.6);
     const special = PAP_SPECIAL[key];
     if (special === 'dual') { d.dualWield = true; d.magazineSize *= 2; }
     else if (special === 'auto') d.fireMode = 'auto';
     else if (special === 'burst') { d.fireMode = 'burst'; d.burstCount = key === 'an94' ? 2 : 3; }
-    w.reserve = d.infiniteReserve ? Infinity : d.ammoStockSize; // top up to the new capacities
-    w.magazine = d.magazineSize;
-    if (idx === this.#index) { this.#viewmodel.setWeapon(this.current); this.#announce(); } // rebuild model/colors
-    this.#emitAmmo(w);
-    return true;
+    weapon.reserve = d.infiniteReserve ? Infinity : d.ammoStockSize;
+    weapon.magazine = d.magazineSize;
   }
 
-  /** Remove the weapon with this key from the inventory (PaP grab window missed
-   *  — the gun is sucked into the machine and lost). Keeps the player armed. */
-  removeWeaponKey(key) {
-    const idx = this.#keys.indexOf(key);
-    if (idx < 0) return;
-    const player = this.#playerId !== undefined ? this.world.get(this.#playerId, PlayerTag) : null;
-    this.#weapons.splice(idx, 1);
-    this.#keys.splice(idx, 1);
-    if (this.#weapons.length === 0) { this.#weapons.push(makeWeapon('m1911')); this.#keys.push('m1911'); } // never empty-handed
-    if (this.#index >= this.#weapons.length) this.#index = this.#weapons.length - 1;
-    else if (idx < this.#index) this.#index--;
-    this.#viewmodel.setWeapon(this.current);
-    this.#announce();
+  /** Hand a weapon instance back to the player (grabbed from the machine) and
+   *  equip it. */
+  restoreFromPaP(weapon, key) {
+    const cap = this.#perks ? this.#perks.inventoryCap() : EconomyConfig.inventoryCap;
+    if (this.#weapons.length < cap) {
+      this.#weapons.push(weapon); this.#keys.push(key);
+      this.#equip(this.#weapons.length - 1, this.#playerId !== undefined ? this.world.get(this.#playerId, PlayerTag) : null);
+    } else {
+      this.#weapons[this.#index] = weapon; this.#keys[this.#index] = key;
+      this.#viewmodel.setWeapon(this.current); this.#announce();
+    }
   }
 
   /**

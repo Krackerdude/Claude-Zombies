@@ -40,19 +40,41 @@ export function buildPaP() {
   // chamber shell — a chunky beveled box
   const shell = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.95, 0.95), teal);
   shell.position.y = 1.0; body.add(shell);
-  // hollow front opening: a dark recess with rollers
-  const mouth = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.6, 0.5), dark);
-  mouth.position.set(0, 1.02, 0.32); body.add(mouth);
-  for (let i = -2; i <= 2; i++) {
-    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.5, 12), roller);
-    r.rotation.z = Math.PI / 2; r.position.set(i * 0.26, 1.18, 0.34); body.add(r);
-    const rb = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.5, 12), roller);
-    rb.rotation.z = Math.PI / 2; rb.position.set(i * 0.26, 0.9, 0.3); body.add(rb);
+
+  // --- the FOCAL POINT: a glowing recess with inward-sweeping car-wash rollers
+  // a bright back wall so light spills out of the mouth (the iconic glow)
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.66),
+    new THREE.MeshStandardMaterial({ color: 0xbfe9df, emissive: 0x6fd8c8, emissiveIntensity: 0.7, roughness: 0.5 }));
+  glow.position.set(0, 1.02, -0.18); body.add(glow);
+  const recess = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.66, 0.55), dark); recess.position.set(0, 1.02, 0.05); body.add(recess);
+
+  // two converging rows of grooved rollers that sweep toward the centre gap the
+  // gun passes through. Each roller spins about its length (PaPSystem drives it).
+  const rollerMat = new THREE.MeshStandardMaterial({ color: 0xd8cdab, roughness: 0.7, metalness: 0.1 });
+  const grooveMat = new THREE.MeshStandardMaterial({ color: 0x4a443a, roughness: 0.6, metalness: 0.4 });
+  const rollers = [];
+  const makeRoller = (x, y, tiltX, dir) => {
+    const holder = new THREE.Group();
+    holder.position.set(x, y, 0.18);
+    holder.rotation.set(tiltX, 0, Math.PI / 2); // axis laid along world X (z=PI/2); tiltX angles it inward
+    const spinner = new THREE.Group(); holder.add(spinner); // spins about its length (local Y)
+    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.5, 14), rollerMat); spinner.add(cyl);
+    for (const a of [0, 2.1, 4.2]) { // surface grooves so the spin reads
+      const gr = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.52, 0.05), grooveMat);
+      gr.position.set(Math.cos(a) * 0.12, 0, Math.sin(a) * 0.12); gr.rotation.y = a; spinner.add(gr);
+    }
+    spinner.userData.dir = dir;
+    rollers.push(spinner); body.add(holder);
+  };
+  for (let i = -1; i <= 1; i++) {
+    makeRoller(i * 0.34, 1.26, 0.32, 1);   // top row tilts down-inward
+    makeRoller(i * 0.34, 0.78, -0.32, -1); // bottom row tilts up-inward (opposite spin)
   }
-  // a metal frame around the mouth
+
+  // beveled metal frame around the mouth
   const frameMat = metal;
-  for (const [w, h, x, y] of [[1.3, 0.08, 0, 1.34], [1.3, 0.08, 0, 0.7], [0.08, 0.72, -0.62, 1.02], [0.08, 0.72, 0.62, 1.02]]) {
-    const f = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.55), frameMat); f.position.set(x, y, 0.34); body.add(f);
+  for (const [w, h, x, y] of [[1.34, 0.1, 0, 1.4], [1.34, 0.1, 0, 0.64], [0.1, 0.86, -0.66, 1.02], [0.1, 0.86, 0.66, 1.02]]) {
+    const f = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.5), frameMat); f.position.set(x, y, 0.36); body.add(f);
   }
 
   // splayed legs
@@ -76,20 +98,14 @@ export function buildPaP() {
   const flag = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.01), red); flag.position.set(0.11, 0.28, 0); flagPivot.add(flag);
   flagPivot.rotation.z = 1.45; // folded down by default
 
-  // the gun being processed — a placeholder dark silhouette that rises/sinks
-  const gunAnchor = new THREE.Group(); gunAnchor.position.set(0, 1.05, 0.34); body.add(gunAnchor);
-  const gun = new THREE.Group();
-  gun.add(new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.12), dark));
-  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.18, 0.1), dark); grip.position.set(-0.2, -0.13, 0); gun.add(grip);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), brass); barrel.rotation.z = Math.PI / 2; barrel.position.set(0.4, 0.02, 0); gun.add(barrel);
-  gunAnchor.add(gun);
-  gun.visible = false;
+  // the gun being processed rides here; the PaPSystem mounts the player's real
+  // weapon model and slides this anchor along Z (in/out of the mouth)
+  const gunAnchor = new THREE.Group(); gunAnchor.position.set(0, 1.02, 0); body.add(gunAnchor);
 
   root.userData = {
-    body, sign, flagPivot, gunAnchor, gun,
-    restY: 1.05,           // gun sits at the mouth
-    insideY: 0.7,          // sucked down into the slot
-    grabY: 1.95,           // risen out to grab height
+    body, sign, flagPivot, gunAnchor, rollers, glow,
+    inZ: -0.15,  // sucked deep behind the rollers (hidden)
+    outZ: 0.8,   // pushed forward out the entrance (grabbable)
   };
   return root;
 }
