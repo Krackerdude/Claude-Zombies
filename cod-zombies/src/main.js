@@ -9,6 +9,7 @@ import { perkIconDataURL } from './perks/perks.js';
 import { aatGlyphSvg, aatColor } from './weapons/aat.js';
 import { portraitDataURL } from './ui/portrait.js';
 import './ui/menu.css';
+import './ui/mainmenu.css';
 import './ui/hud.css';
 import './ui/scoreboard.css';
 import './ui/devmenu.css';
@@ -330,11 +331,13 @@ async function main() {
     // explosion, Ray Gun shot, or mystery-box open doesn't hitch compiling
     // shaders on demand. The flash lights are already permanent contributors, so
     // the scene's light count won't change later either.
-    engine.services.get(Service.Render).prewarm(engine.services.get(Service.Scene).scene);
+    const sceneMgr = engine.services.get(Service.Scene);
+    engine.services.get(Service.Render).prewarm(sceneMgr.scene);
+    if (sceneMgr.menuScene) engine.services.get(Service.Render).prewarm(sceneMgr.menuScene); // compile the menu backdrop too
 
-    // Fade out the loader once the first frame is up.
+    // Fade out the loader once the first frame is up, then run the cold-open intro.
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => loader.classList.add('hidden'));
+      requestAnimationFrame(() => { loader.classList.add('hidden'); ui.playIntro(); });
     });
 
     // --- debug HUD ---

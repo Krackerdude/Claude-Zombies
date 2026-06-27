@@ -16,11 +16,13 @@ const _lerp = new THREE.Vector3();
 export class RenderSystem extends System {
   #render;
   #sceneMgr;
+  #gameState;
   #inScene = new Map(); // entityId -> Object3D currently parented in the scene
 
   init() {
     this.#render = this.world.services.get(Service.Render);
     this.#sceneMgr = this.world.services.get(Service.Scene);
+    this.#gameState = this.world.services.has(Service.GameState) ? this.world.services.get(Service.GameState) : null;
   }
 
   /** Attach new renderables and detach ones whose entity was destroyed. */
@@ -75,6 +77,8 @@ export class RenderSystem extends System {
       obj.scale.copy(t.scale);
     }
 
-    this.#render.render(this.#sceneMgr.scene);
+    // outside of active play, draw the 3D main-menu backdrop (if it's built)
+    const useMenu = this.#sceneMgr.menuScene && this.#gameState && !this.#gameState.isPlaying;
+    this.#render.render(useMenu ? this.#sceneMgr.menuScene : this.#sceneMgr.scene);
   }
 }

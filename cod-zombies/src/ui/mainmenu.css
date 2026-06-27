@@ -1,0 +1,190 @@
+/* ============================================================================
+   Main menu — Persona-esque chrome over the 3D snowy-forest backdrop.
+   Left column: bloody NECROPOLIS title + a sheared, orange-on-hover option list.
+   Top-left: Daily Challenge widget. Top-right: the player widget.
+   Plus the cold-open intro, map-select, coming-soon panels and the fade veil.
+   ========================================================================== */
+
+/* the main-menu screen is transparent so the 3D backdrop shows through */
+#screen-main {
+  background: radial-gradient(120% 90% at 12% 50%, rgba(4,7,12,0.82) 0%, rgba(4,7,12,0.5) 38%, rgba(4,7,12,0.0) 70%);
+}
+
+/* ---- bloody title -------------------------------------------------------- */
+.mm-title {
+  position: absolute; left: clamp(28px, 5vw, 96px); top: 20%;
+  font-family: 'Anton', Impact, sans-serif; font-weight: 400;
+  font-size: clamp(3.4rem, 9vw, 8.2rem); line-height: 0.86; letter-spacing: 0.01em;
+  color: #c5161a; text-transform: uppercase; pointer-events: none; isolation: isolate;
+  text-shadow:
+    0 0 2px #ff2a20, 0 2px 0 #6a0b08, 0 4px 0 #4a0805,
+    0 8px 22px rgba(180,16,12,0.55), 0 22px 30px rgba(0,0,0,0.7);
+  animation: mmTitlePulse 3.4s ease-in-out infinite;
+}
+.mm-title::before { /* darker drip underlayer, offset for depth */
+  content: attr(data-text); position: absolute; left: 2px; top: 6px; z-index: -1;
+  color: #5c0a07; filter: blur(1px); opacity: 0.8;
+}
+.mm-title::after { /* wet highlight that slides across the letters */
+  content: attr(data-text); position: absolute; inset: 0; color: transparent;
+  background: linear-gradient(100deg, transparent 40%, rgba(255,120,110,0.55) 50%, transparent 60%);
+  -webkit-background-clip: text; background-clip: text;
+  background-size: 280% 100%; animation: mmTitleSheen 5s linear infinite;
+}
+@keyframes mmTitlePulse {
+  0%,100% { transform: translateZ(0) skewX(-0.3deg); filter: brightness(1); }
+  50% { transform: translateZ(0) skewX(0.3deg) scale(1.012); filter: brightness(1.15); }
+}
+@keyframes mmTitleSheen { 0% { background-position: 180% 0; } 100% { background-position: -120% 0; } }
+
+/* ---- the option list ----------------------------------------------------- */
+.mm-list {
+  position: absolute; left: clamp(30px, 5vw, 100px); top: 44%;
+  display: flex; flex-direction: column; gap: 2px; z-index: 4;
+}
+.mm-opt {
+  position: relative; cursor: pointer; user-select: none;
+  padding: 7px 30px 7px 20px; min-width: 280px;
+  font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 1.18rem;
+  letter-spacing: 0.16em; text-transform: uppercase; color: #d8dee2;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  background: linear-gradient(90deg, rgba(14,19,24,0.0), rgba(14,19,24,0.0));
+  text-shadow: 0 2px 6px #000;
+  transform: translateX(0) skewX(-9deg);
+  transition: transform 0.16s cubic-bezier(.2,.9,.3,1), color 0.16s, background 0.16s, letter-spacing 0.16s;
+}
+.mm-opt > span { display: inline-block; transform: skewX(9deg); } /* un-skew the text */
+.mm-opt::before { /* leading accent stripe */
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, rgba(120,210,225,0.0), rgba(70,195,186,0.0));
+  transition: background 0.16s, box-shadow 0.16s;
+}
+.mm-opt:hover, .mm-opt.sel {
+  color: #ffd7a6;
+  background: linear-gradient(90deg, rgba(58,30,8,0.92), rgba(40,22,10,0.25) 70%, transparent);
+  transform: translateX(16px) skewX(-9deg);
+  letter-spacing: 0.2em;
+}
+.mm-opt:hover::before, .mm-opt.sel::before {
+  background: linear-gradient(180deg, #ffb347, rgba(255,138,40,0.25));
+  box-shadow: 0 0 10px rgba(255,150,40,0.8), 0 0 22px rgba(255,120,20,0.4);
+}
+.mm-opt.disabled { opacity: 0.4; pointer-events: none; }
+.mm-opt .mm-tag { /* "soon" tag */
+  margin-left: 12px; font-size: 0.62rem; letter-spacing: 0.18em; color: #8aa0ac;
+  border: 1px solid rgba(140,160,170,0.4); padding: 1px 5px; border-radius: 3px; vertical-align: middle;
+}
+
+/* entrance: options fly in from the left, staggered */
+#screen-main.enter .mm-opt { animation: mmOptIn 0.4s both; }
+@keyframes mmOptIn { from { opacity: 0; transform: translateX(-40px) skewX(-9deg); } to { opacity: 1; transform: translateX(0) skewX(-9deg); } }
+
+/* ---- Daily Challenge widget (top-left) ----------------------------------- */
+.mm-daily {
+  position: absolute; left: clamp(30px, 5vw, 100px); top: 6%;
+  width: 300px; cursor: pointer; z-index: 4;
+  background: linear-gradient(180deg, rgba(16,22,28,0.92), rgba(8,11,15,0.95));
+  border: 1px solid rgba(120,170,185,0.28); border-radius: 4px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.6); overflow: hidden;
+  transition: border-color 0.16s, box-shadow 0.16s, transform 0.16s;
+}
+.mm-daily:hover { border-color: rgba(255,160,60,0.6); box-shadow: 0 10px 30px rgba(0,0,0,0.65), 0 0 16px rgba(255,140,40,0.18); transform: translateY(-1px); }
+.mm-daily-head { font-family: 'Oswald'; font-size: 0.66rem; letter-spacing: 0.24em; color: #cfe2ea; padding: 5px 12px; text-transform: uppercase; background: linear-gradient(90deg, rgba(40,60,72,0.7), transparent); }
+.mm-daily-body { display: flex; align-items: center; gap: 12px; padding: 10px 12px; }
+.mm-daily-ring { width: 46px; height: 46px; flex: none; border-radius: 50%; display: grid; place-items: center; font-family: 'Oswald'; font-weight: 700; font-size: 0.92rem; color: #ffe6a6; background: conic-gradient(#ffb347 0% 20%, rgba(255,179,71,0.12) 20% 100%); box-shadow: inset 0 0 0 4px rgba(8,11,15,0.95); }
+.mm-daily-name { font-family: 'Oswald'; font-size: 1.05rem; color: #eef3f4; letter-spacing: 0.04em; }
+.mm-daily-name small { display: block; font-size: 0.66rem; letter-spacing: 0.2em; color: #8aa0ac; text-transform: uppercase; margin-top: 2px; }
+.mm-daily-foot { font-family: 'Oswald'; font-size: 0.72rem; letter-spacing: 0.16em; color: #b9c6cd; padding: 6px 12px; border-top: 1px solid rgba(120,170,185,0.18); text-transform: uppercase; }
+.mm-daily-foot::before { content: '◐ '; color: #ffb347; }
+
+/* ---- player widget (top-right) ------------------------------------------- */
+.mm-player {
+  position: absolute; right: clamp(24px, 3vw, 64px); top: 6%;
+  min-width: 260px; z-index: 4;
+  background: linear-gradient(180deg, rgba(16,22,28,0.92), rgba(8,11,15,0.95));
+  border: 1px solid rgba(120,170,185,0.28); border-radius: 4px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.6); padding: 10px 14px;
+}
+.mm-player-row { display: flex; align-items: center; gap: 10px; }
+.mm-lvl { font-family: 'Anton'; font-size: 1.5rem; color: #ffd27a; line-height: 1; padding: 2px 9px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,200,110,0.35); border-radius: 3px; }
+.mm-name { font-family: 'Oswald'; font-weight: 600; font-size: 1.2rem; letter-spacing: 0.06em; color: #eef3f4; text-shadow: 0 2px 5px #000; }
+.mm-gums { display: flex; gap: 9px; margin-top: 10px; }
+.mm-gums > i {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, rgba(40,52,60,0.9), rgba(10,14,18,0.95));
+  border: 2px solid rgba(150,175,188,0.4); box-shadow: inset 0 0 6px rgba(0,0,0,0.8);
+}
+
+/* ---- footer hint --------------------------------------------------------- */
+.mm-foot {
+  position: absolute; left: clamp(30px, 5vw, 100px); bottom: 26px; z-index: 4;
+  font-family: 'Oswald'; font-size: 0.72rem; letter-spacing: 0.22em; color: #8aa0ac; text-transform: uppercase;
+}
+
+/* ============================ map select ================================== */
+#mm-mapselect, #mm-soon {
+  position: fixed; inset: 0; z-index: 60; display: none;
+  background: radial-gradient(120% 100% at 50% 40%, rgba(4,7,12,0.6), rgba(2,3,5,0.92));
+  align-items: center; justify-content: center;
+}
+#mm-mapselect.show, #mm-soon.show { display: flex; animation: mmFadeIn 0.25s ease; }
+@keyframes mmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.mm-ms-wrap { display: flex; gap: 40px; align-items: stretch; }
+.mm-ms-list { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+.mm-ms-head { font-family: 'Anton'; font-size: 2rem; color: #e7edf0; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; text-shadow: 0 3px 10px #000; }
+.mm-map { position: relative; cursor: pointer; padding: 10px 30px 10px 18px; min-width: 230px;
+  font-family: 'Oswald'; font-weight: 600; font-size: 1.2rem; letter-spacing: 0.12em; text-transform: uppercase; color: #d8dee2;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  background: linear-gradient(90deg, rgba(16,22,28,0.85), rgba(16,22,28,0.2)); transition: all 0.16s; }
+.mm-map::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: rgba(70,195,186,0); transition: background 0.16s, box-shadow 0.16s; }
+.mm-map:hover, .mm-map.sel { color: #ffd7a6; transform: translateX(10px); background: linear-gradient(90deg, rgba(58,30,8,0.92), transparent); }
+.mm-map:hover::before, .mm-map.sel::before { background: linear-gradient(180deg, #ffb347, rgba(255,138,40,0.25)); box-shadow: 0 0 10px rgba(255,150,40,0.8); }
+
+.mm-ms-preview { width: 520px; background: rgba(8,11,15,0.9); border: 1px solid rgba(120,170,185,0.28); border-radius: 5px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,0.7); }
+.mm-ms-shot { width: 100%; height: 300px; display: block; background: #05070a; }
+.mm-ms-cap { padding: 14px 18px 18px; }
+.mm-ms-cap h3 { font-family: 'Anton'; font-size: 1.6rem; color: #e7edf0; margin: 0 0 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+.mm-ms-cap p { font-family: 'Oswald'; font-weight: 300; font-size: 0.96rem; line-height: 1.5; color: #aeb9c0; margin: 0; }
+.mm-ms-back, .mm-soon-back { position: absolute; left: 40px; bottom: 36px; font-family: 'Oswald'; font-size: 0.8rem; letter-spacing: 0.2em; color: #b9c6cd; text-transform: uppercase; cursor: pointer; }
+.mm-ms-back::before, .mm-soon-back::before { content: '‹ '; color: #ffb347; }
+
+/* ============================ coming soon ================================= */
+.mm-soon-card { text-align: center; }
+.mm-soon-card .tag { font-family: 'Oswald'; font-size: 0.8rem; letter-spacing: 0.4em; color: #ffb347; text-transform: uppercase; }
+.mm-soon-card h2 { font-family: 'Anton'; font-size: 3.2rem; color: #e7edf0; margin: 10px 0 6px; letter-spacing: 0.06em; text-transform: uppercase; text-shadow: 0 4px 14px #000; }
+.mm-soon-card .sub { font-family: 'Oswald'; font-weight: 300; font-size: 1.05rem; color: #9fb0bb; max-width: 520px; margin: 0 auto; line-height: 1.5; }
+.mm-soon-card .soon { display: inline-block; margin-top: 22px; font-family: 'Anton'; font-size: 1.4rem; letter-spacing: 0.5em; color: #c5161a; animation: mmTitlePulse 2.2s ease-in-out infinite; }
+
+/* ============================ cold-open intro ============================= */
+#mm-intro {
+  position: fixed; inset: 0; z-index: 90; background: #000;
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+}
+#mm-intro.gone { display: none; }
+.tk-card { text-align: center; opacity: 0; animation: tkIn 1.0s ease 0.2s forwards; }
+.tk-name { font-family: 'Oswald'; font-weight: 700; font-size: 1.5rem; letter-spacing: 0.5em; color: #cfe2ea; text-transform: uppercase; text-indent: 0.5em; }
+.tk-mark { margin-top: 18px; font-family: 'Anton'; font-size: 6rem; line-height: 0.9; letter-spacing: 0.1em;
+  color: #e7edf0; text-shadow: 0 0 18px rgba(120,200,220,0.4), 0 6px 0 #1a2430, 0 10px 30px rgba(0,0,0,0.8); }
+.tk-mark span { color: #c5161a; }
+.tk-sub { margin-top: 14px; font-family: 'Oswald'; font-weight: 300; font-size: 0.72rem; letter-spacing: 0.4em; color: #5e6e78; text-transform: uppercase; }
+@keyframes tkIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+/* glitch ramp before the dissolve */
+#mm-intro.glitch { animation: tkShake 0.55s steps(2) 3; }
+#mm-intro.glitch .tk-card { animation: tkGlitch 0.12s steps(2) infinite; }
+#mm-intro.dissolve { animation: tkDissolve 0.7s ease forwards; }
+@keyframes tkShake { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-3px,2px); } 50% { transform: translate(3px,-2px); } 75% { transform: translate(-2px,-3px); } }
+@keyframes tkGlitch {
+  0% { transform: translate(0,0); filter: none; clip-path: none; }
+  50% { transform: translate(-4px,0); filter: drop-shadow(4px 0 #c5161a) drop-shadow(-4px 0 #2ad); }
+  100% { transform: translate(3px,0); filter: none; }
+}
+@keyframes tkDissolve { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+
+/* ============================ fade veil ================================== */
+#mm-fade {
+  position: fixed; inset: 0; z-index: 80; background: #000; pointer-events: none;
+  opacity: 0; transition: opacity 0.55s ease;
+}
+#mm-fade.show { opacity: 1; }
+#mm-fade.slow { transition: opacity 0.95s ease; }
