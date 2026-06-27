@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildZombieRig } from './zombieRig.js';
+import { randomZombieLook } from './zombieAssets.js';
 
 /**
  * The main-menu backdrop: a separate, self-lit THREE scene — a dark snowy
@@ -15,12 +16,15 @@ import { buildZombieRig } from './zombieRig.js';
  */
 export function buildMenuScene() {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a1018);
-  scene.fog = new THREE.FogExp2(0x0c141f, 0.03);
+  scene.background = new THREE.Color(0x06060f);
+  scene.fog = new THREE.FogExp2(0x0c1426, 0.02);
+
+  // --- the cosmic nebula sky (a fog-immune skydome behind everything) ---
+  scene.add(buildSkydome());
 
   // --- lights (cold moonlight key + warm fire) ---
-  scene.add(new THREE.HemisphereLight(0x3a5070, 0x0a0e14, 0.85));
-  scene.add(new THREE.AmbientLight(0x1a2636, 0.6));
+  scene.add(new THREE.HemisphereLight(0x44597e, 0x0a0e14, 1.0));
+  scene.add(new THREE.AmbientLight(0x1d2a3c, 0.7));
   const moon = new THREE.DirectionalLight(0x91a8d6, 1.25); // cool key/rim from behind-left
   moon.position.set(-7, 11, -8);
   scene.add(moon);
@@ -38,10 +42,13 @@ export function buildMenuScene() {
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = 0;
   scene.add(ground);
-  // a faint warm scorch + glow disc under the fire
-  const scorch = new THREE.Mesh(new THREE.CircleGeometry(1.6, 24), new THREE.MeshBasicMaterial({ color: 0x2a1408 }));
-  scorch.rotation.x = -Math.PI / 2; scorch.position.set(0.7, 0.01, 1.0);
+  // a faint warm scorch under the fire (melted snow ring)
+  const scorch = new THREE.Mesh(new THREE.CircleGeometry(0.95, 24), new THREE.MeshBasicMaterial({ color: 0x241410 }));
+  scorch.rotation.x = -Math.PI / 2; scorch.position.set(0.35, 0.012, 0.75);
   scene.add(scorch);
+
+  // distant snow-capped mountains ringing the horizon (fogged for depth)
+  buildMountains(scene);
 
   // --- conifer forest: dark layered silhouettes receding into the fog ---
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x241c16, roughness: 0.9 });
@@ -60,35 +67,50 @@ export function buildMenuScene() {
     g.rotation.y = Math.random() * Math.PI;
     return g;
   };
-  // a ring of trees, denser + bigger toward the back, leaving the front open
-  for (let i = 0; i < 46; i++) {
+  // a dense ring of trees, bigger toward the back, leaving the front open. A far
+  // band closes off the background so you never see past the treeline.
+  for (let i = 0; i < 110; i++) {
     const a = Math.random() * Math.PI * 2;
-    const r = 6 + Math.random() * 26;
+    const r = 6 + Math.random() * 34;
     const x = Math.cos(a) * r, z = Math.sin(a) * r - 2;
     if (z > 3.5 && Math.abs(x) < 5) continue; // keep the foreground (toward camera) clear
-    scene.add(conifer(x, z, 0.9 + Math.random() * 1.7));
+    scene.add(conifer(x, z, 0.9 + Math.random() * 1.9));
+  }
+  // a tight back wall of trees so the horizon reads as forest, not void
+  for (let i = 0; i < 34; i++) {
+    const x = -34 + i * 2 + (Math.random() - 0.5) * 1.5;
+    scene.add(conifer(x, -22 - Math.random() * 8, 1.6 + Math.random() * 1.6));
   }
 
+  // low ground foliage: snowy bushes, rocks and dead-grass tufts
+  scatterFoliage(scene, conifer);
+
   // --- the hero tree the survivor leans on (directly behind him) ---
-  const heroTree = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, 4.6, 10), trunkMat);
-  heroTree.position.set(2.75, 2.3, -1.1); heroTree.rotation.z = 0.05;
+  const heroTree = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.44, 4.8, 10), trunkMat);
+  heroTree.position.set(3.15, 2.4, -0.7); heroTree.rotation.z = 0.06;
   scene.add(heroTree);
 
-  // --- the survivor, leaning (the hero) ---
+  // --- the survivor, leaning (the hero) — close + lit so he reads as the preview ---
   const survivor = buildSurvivor();
-  survivor.position.set(2.25, 0, -0.2);
-  survivor.rotation.y = -1.0;   // angled toward the fire / camera so the crossed arms read
-  survivor.scale.setScalar(1.12);
+  survivor.position.set(2.55, 0, 0.35);
+  survivor.rotation.y = -1.05;   // angled toward the fire / camera so the crossed arms read
+  survivor.scale.setScalar(1.18);
   scene.add(survivor);
-  // a dedicated warm key so the survivor reads clearly against the dark
-  const keyLight = new THREE.PointLight(0xffc080, 5.5, 9, 2);
-  keyLight.position.set(1.3, 1.7, 1.5);
+  // dedicated warm key + a cool back-rim so he pops off the dark forest
+  const keyLight = new THREE.PointLight(0xffc080, 7.0, 10, 2);
+  keyLight.position.set(1.5, 1.8, 1.7);
   scene.add(keyLight);
+  const rimLight = new THREE.PointLight(0x9fb6e0, 2.0, 8, 2);
+  rimLight.position.set(3.6, 2.4, -1.0);
+  scene.add(rimLight);
 
   // --- campfire + three log seats ---
   const fire = buildCampfire();
   fire.position.set(0.35, 0, 0.75);
   scene.add(fire);
+
+  // --- a few zombies shambling aimlessly out in the foggy distance ---
+  const wanderers = buildWanderers(scene);
 
   // --- falling snow ---
   const snow = buildSnow();
@@ -97,8 +119,6 @@ export function buildMenuScene() {
   return {
     scene,
     fireLight,
-    _flames: fire.userData.flames,
-    _emberT: 0,
     snow,
     update(dt, t) {
       // flicker the fire light + flames
@@ -110,6 +130,8 @@ export function buildMenuScene() {
       }
       // breathing idle on the survivor
       survivor.userData.idle?.(t);
+      // the distant dead shuffle around
+      for (const w of wanderers) animateWanderer(w, dt);
       // snow drift
       snow.update(dt);
     },
@@ -131,11 +153,13 @@ function buildSurvivor() {
   // lean the whole body back onto the tree
   rig.rotation.x = -0.16;
 
-  // arms crossed over the chest
-  J.shoulderL.rotation.set(-1.35, 0, 0.55);
-  J.elbowL.rotation.x = 1.7;
-  J.shoulderR.rotation.set(-1.35, 0, -0.55);
-  J.elbowR.rotation.x = 1.7;
+  // arms folded across the chest: swing each upper arm up to horizontal + inward
+  // (the Z rotation), tip it forward a touch (Y), then fold the forearm back over
+  // the body (the elbow) so the two forearms cross
+  J.shoulderL.rotation.set(-0.2, 0.4, 1.5);
+  J.elbowL.rotation.x = 2.1;
+  J.shoulderR.rotation.set(-0.2, -0.4, -1.5);
+  J.elbowR.rotation.x = 2.1;
 
   // one boot propped back against the trunk (left leg), right leg bears the weight
   J.thighL.rotation.set(0.15, 0, 0.05);
@@ -200,19 +224,170 @@ function buildCampfire() {
   const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff8a30, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
   core.position.y = 0.3; g.add(core);
 
-  // --- three log seats around the fire (the co-op spots) — kept behind/left of
-  // the fire so they never cross the camera's line to the survivor ---
-  const seatPos = [[-1.3, -1.0], [-1.7, 0.3], [0.2, -1.6]];
-  for (const [sx, sz] of seatPos) {
-    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.5, 9), new THREE.MeshStandardMaterial({ color: 0x4a3320, roughness: 0.9 }));
-    seat.rotation.z = Math.PI / 2;
-    seat.rotation.y = Math.atan2(sz, sx) + Math.PI / 2;
-    seat.position.set(sx, 0.2, sz);
-    g.add(seat);
+  // --- three log seats evenly RINGING the fire (the future co-op spots), each
+  // laid tangent to the circle ---
+  const seatMat = new THREE.MeshStandardMaterial({ color: 0x4a3320, roughness: 0.9 });
+  const barkMat = new THREE.MeshStandardMaterial({ color: 0x2e2014, roughness: 0.95 });
+  const seatR = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const a = Math.PI / 2 + (i / 3) * Math.PI * 2; // one log toward the camera, two back
+    const grp = new THREE.Group();
+    const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.23, 1.5, 10), seatMat);
+    seat.rotation.z = Math.PI / 2; grp.add(seat);
+    // a couple of cut-end rings so it reads as a felled log
+    for (const ex of [-0.75, 0.75]) { const end = new THREE.Mesh(new THREE.CylinderGeometry(0.215, 0.235, 0.04, 10), barkMat); end.rotation.z = Math.PI / 2; end.position.x = ex; grp.add(end); }
+    grp.position.set(Math.cos(a) * seatR, 0.21, Math.sin(a) * seatR);
+    grp.rotation.y = -a; // tangent to the ring
+    g.add(grp);
   }
 
   g.userData.flames = flames;
   return g;
+}
+
+// --- cosmic nebula skydome (a painted equirect canvas on a huge inverted sphere,
+//     immune to fog so the forest fogs to a silhouette against the stars) -------
+function buildSkydome() {
+  const w = 2048, h = 1024;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  // vertical gradient: deep violet zenith -> indigo -> dark blue horizon
+  const g = x.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0.0, '#241653'); g.addColorStop(0.32, '#2c2068');
+  g.addColorStop(0.52, '#1b2257'); g.addColorStop(0.66, '#101a44');
+  g.addColorStop(1.0, '#070b1c');
+  x.fillStyle = g; x.fillRect(0, 0, w, h);
+  // soft nebula clouds (additive). The bright galactic core sits at u~0.72 so it
+  // lands in the camera's forward view; smaller wisps spread the colour around.
+  x.globalCompositeOperation = 'lighter';
+  const cloud = (cx, cy, r, col, a) => { const rg = x.createRadialGradient(cx, cy, 0, cx, cy, r); rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)'); x.globalAlpha = a; x.fillStyle = rg; x.fillRect(cx - r, cy - r, r * 2, r * 2); };
+  cloud(w * 0.72, h * 0.32, 540, 'rgba(150,185,255,1)', 0.7);   // bright galactic core
+  cloud(w * 0.72, h * 0.32, 270, 'rgba(235,242,255,1)', 0.8);
+  cloud(w * 0.58, h * 0.27, 420, 'rgba(160,70,215,1)', 0.55);   // purple
+  cloud(w * 0.84, h * 0.40, 460, 'rgba(60,130,235,1)', 0.5);    // blue
+  cloud(w * 0.50, h * 0.46, 340, 'rgba(40,180,190,0.9)', 0.4);  // teal wisp
+  cloud(w * 0.92, h * 0.22, 320, 'rgba(200,90,180,0.9)', 0.45); // magenta
+  cloud(w * 0.30, h * 0.30, 360, 'rgba(120,80,220,0.9)', 0.4);
+  cloud(w * 0.12, h * 0.40, 300, 'rgba(70,120,210,0.8)', 0.35);
+  x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+  // stars — denser/brighter up high, sparse near the horizon
+  for (let i = 0; i < 2600; i++) {
+    const sx = Math.random() * w, sy = Math.random() * h * 0.8;
+    const b = Math.random();
+    const r = b > 0.97 ? 2.2 : b > 0.85 ? 1.3 : 0.7;
+    x.fillStyle = `rgba(255,255,255,${0.25 + Math.random() * 0.75})`;
+    x.beginPath(); x.arc(sx, sy, r, 0, 7); x.fill();
+    if (b > 0.985) { x.fillStyle = 'rgba(180,210,255,0.5)'; x.beginPath(); x.arc(sx, sy, r * 3, 0, 7); x.fill(); }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(220, 40, 24),
+    new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false }),
+  );
+  sky.raycast = () => {};
+  return sky;
+}
+
+// --- distant snow-capped mountains ringing the horizon ------------------------
+function buildMountains(scene) {
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x141a30, roughness: 1.0 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x8294b4, roughness: 0.9 });
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+    const r = 44 + Math.random() * 18;
+    const ht = 15 + Math.random() * 16;
+    const wd = ht * (0.7 + Math.random() * 0.3);
+    const px = Math.cos(a) * r, pz = Math.sin(a) * r;
+    const peak = new THREE.Mesh(new THREE.ConeGeometry(wd, ht, 5), rockMat);
+    peak.position.set(px, ht / 2 - 3, pz); peak.rotation.y = Math.random() * Math.PI;
+    scene.add(peak);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(wd * 0.42, ht * 0.34, 5), capMat);
+    cap.position.set(px, ht - ht * 0.17 - 3, pz); cap.rotation.y = peak.rotation.y;
+    scene.add(cap);
+  }
+}
+
+// --- low ground foliage: snowy bushes, half-buried rocks, dead-grass tufts -----
+function scatterFoliage(scene, conifer) {
+  const bushMat = new THREE.MeshStandardMaterial({ color: 0x16261d, roughness: 1.0 });
+  const snowMat = new THREE.MeshStandardMaterial({ color: 0xaebccd, roughness: 0.9 });
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.95 });
+  const grassMat = new THREE.MeshStandardMaterial({ color: 0x2c3a2c, roughness: 1.0 });
+  const fireX = 0.35, fireZ = 0.75, charX = 2.25, charZ = -0.2;
+  for (let i = 0; i < 90; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = 2.2 + Math.random() * 24;
+    const px = Math.cos(a) * r, pz = Math.sin(a) * r - 2;
+    if (Math.hypot(px - fireX, pz - fireZ) < 1.7) continue;   // clear of the firepit
+    if (Math.hypot(px - charX, pz - charZ) < 1.0) continue;   // clear of the survivor
+    const roll = Math.random();
+    if (roll < 0.45) { // snowy bush — a clump of dark lobes capped with snow
+      const grp = new THREE.Group(); grp.position.set(px, 0, pz);
+      const n = 2 + (Math.random() * 3 | 0);
+      for (let k = 0; k < n; k++) {
+        const s = 0.18 + Math.random() * 0.22;
+        const lobe = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), bushMat);
+        lobe.position.set((Math.random() - 0.5) * 0.4, s * 0.7, (Math.random() - 0.5) * 0.4); grp.add(lobe);
+        const cap = new THREE.Mesh(new THREE.IcosahedronGeometry(s * 0.8, 0), snowMat);
+        cap.position.set(lobe.position.x, lobe.position.y + s * 0.5, lobe.position.z); cap.scale.y = 0.5; grp.add(cap);
+      }
+      scene.add(grp);
+    } else if (roll < 0.72) { // half-buried rock with a snow cap
+      const s = 0.2 + Math.random() * 0.4;
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rockMat);
+      rock.position.set(px, s * 0.4, pz); rock.rotation.set(Math.random(), Math.random(), Math.random());
+      scene.add(rock);
+      const cap = new THREE.Mesh(new THREE.DodecahedronGeometry(s * 0.7, 0), snowMat);
+      cap.position.set(px, s * 0.7, pz); cap.scale.y = 0.4; scene.add(cap);
+    } else { // dead-grass tuft
+      const grp = new THREE.Group(); grp.position.set(px, 0, pz);
+      for (let k = 0; k < 5; k++) {
+        const blade = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.25 + Math.random() * 0.2, 4), grassMat);
+        blade.position.set((Math.random() - 0.5) * 0.18, 0.13, (Math.random() - 0.5) * 0.18);
+        blade.rotation.set((Math.random() - 0.5) * 0.5, 0, (Math.random() - 0.5) * 0.5); grp.add(blade);
+      }
+      scene.add(grp);
+    }
+  }
+}
+
+// --- distant wandering zombies (animated by hand; this scene isn't ECS) --------
+function buildWanderers(scene) {
+  const out = [];
+  for (let i = 0; i < 5; i++) {
+    const rig = buildZombieRig(randomZombieLook());
+    const a = Math.random() * Math.PI * 2;
+    const r = 9 + Math.random() * 8;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r - 2;
+    rig.position.set(x, 0, z);
+    const heading = Math.random() * Math.PI * 2;
+    rig.rotation.y = heading;
+    scene.add(rig);
+    out.push({ rig, J: rig.userData.joints, phase: Math.random() * 6.28, speed: 0.18 + Math.random() * 0.18, heading, x, z });
+  }
+  return out;
+}
+
+function animateWanderer(w, dt) {
+  const J = w.J;
+  w.phase += dt * 2.0;
+  const p = w.phase, s = Math.sin(p);
+  // a slow shamble: legs alternate, arms hang and sway, torso hunched
+  J.thighL.rotation.x = s * 0.32; J.thighR.rotation.x = -s * 0.32;
+  J.kneeL.rotation.x = Math.max(0, -s) * 0.5 + 0.1; J.kneeR.rotation.x = Math.max(0, s) * 0.5 + 0.1;
+  J.shoulderL.rotation.set(-0.35 + s * 0.12, 0, 0.1); J.shoulderR.rotation.set(-0.35 - s * 0.12, 0, -0.1);
+  J.elbowL.rotation.x = 0.3; J.elbowR.rotation.x = 0.3;
+  J.torso.rotation.x = 0.14; J.head.rotation.set(0.12, Math.sin(p * 0.5) * 0.2, s * 0.04);
+  J.hips.rotation.y = s * 0.05;
+  // wander forward, drifting heading; turn back if it strays too far
+  w.heading += Math.sin(p * 0.11) * 0.4 * dt;
+  w.x += Math.sin(w.heading) * w.speed * dt;
+  w.z += Math.cos(w.heading) * w.speed * dt;
+  const d = Math.hypot(w.x, w.z + 2);
+  if (d > 19 || d < 7) { w.heading += Math.PI; w.x += Math.sin(w.heading) * w.speed * dt * 2; w.z += Math.cos(w.heading) * w.speed * dt * 2; }
+  w.rig.position.set(w.x, 0, w.z);
+  w.rig.rotation.y = w.heading;
 }
 
 // --- falling snow as a recycled point cloud ----------------------------------

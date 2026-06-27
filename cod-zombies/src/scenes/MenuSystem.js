@@ -45,11 +45,11 @@ export class MenuSystem extends System {
     const sway = Math.sin(t * 0.25), sway2 = Math.sin(t * 0.17 + 1.0);
     // composed from the left looking across at the survivor (right third); the
     // fire falls to the lower-left foreground, leaving the menu's left clear
-    this.#camera.position.set(-1.2 + sway * 0.12, 1.6 + sway2 * 0.05, 4.5 + Math.sin(t * 0.12) * 0.15);
-    _look.set(0.7 + sway * 0.05, 1.0, -0.2);
+    this.#camera.position.set(-1.3 + sway * 0.12, 1.78 + sway2 * 0.05, 5.1 + Math.sin(t * 0.12) * 0.15);
+    _look.set(0.7 + sway * 0.05, 1.12, -0.3); // balanced: nebula in the upper third, hero + fire in the lower middle
     this.#camera.lookAt(_look);
     this.#camera.rotateZ(Math.sin(t * 0.21) * 0.006); // faint dutch tilt
-    const FOV = 46;
+    const FOV = 50;
     if (Math.abs(this.#camera.fov - FOV) > 0.01) { this.#camera.fov = FOV; this.#camera.updateProjectionMatrix(); }
   }
 }
