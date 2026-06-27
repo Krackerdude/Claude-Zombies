@@ -734,7 +734,7 @@ export class WeaponSystem extends System {
     const special = PAP_SPECIAL[key];
     if (special === 'dual') { d.dualWield = true; d.magazineSize *= 2; }
     else if (special === 'auto') d.fireMode = 'auto';
-    else if (special === 'burst') { d.fireMode = 'burst'; d.burstCount = key === 'an94' ? 2 : 3; }
+    else if (special === 'burst') { d.fireMode = 'burst'; d.burstCount = 3; }
     weapon.reserve = d.infiniteReserve ? Infinity : d.ammoStockSize;
     weapon.magazine = d.magazineSize;
   }
