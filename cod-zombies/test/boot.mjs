@@ -39,6 +39,7 @@ import { ZombieTag, ProjectileTag, PlayerTag, Transform, Renderable, CorpseTag, 
 import { damageZombie } from '../src/weapons/damage.js';
 import { ZombieConfig } from '../src/config/zombies.js';
 import { buildArena } from '../src/scenes/ArenaScene.js';
+import { buildHoundRig } from '../src/scenes/houndRig.js';
 import { RenderSystem } from '../src/rendering/RenderSystem.js';
 import { PlayerSystem } from '../src/player/PlayerSystem.js';
 import { WEAPON_KEYS } from '../src/weapons/catalog.js';
@@ -332,6 +333,33 @@ guard('a ray through the head reports a headshot; through the chest does not', (
   const chest = ray(chestW);
   if (!head || !head.headshot) throw new Error('head ray did not register as a headshot');
   if (!chest || chest.headshot) throw new Error('chest ray wrongly flagged as a headshot');
+});
+
+console.log('\n[11b] hellhounds have working hitboxes (quadruped capsules)');
+guard('a ray through a hound body registers a hit; through its snout, a headshot', () => {
+  freshRun();
+  // build a hound directly (special-round spawn needs the dev flow); no physics
+  // body required for the ray probe
+  const hid = world.createEntity();
+  world.add(hid, new Transform({ x: 0, y: 0, z: 0 }));
+  world.add(hid, new Renderable(buildHoundRig(), { interpolate: true }));
+  world.add(hid, new ZombieTag({ health: 200, hound: true }));
+  tick(0.05); // let the anim system pose the rig once
+
+  const rig = world.get(hid, Renderable).object3d;
+  const t = world.get(hid, Transform);
+  rig.position.copy(t.position); rig.quaternion.copy(t.quaternion); rig.updateMatrixWorld(true);
+  const J = rig.userData.joints;
+  const bodyW = J.core.getWorldPosition(new THREE.Vector3());
+  const snoutW = J.head.localToWorld(new THREE.Vector3(0, 0, 0.22));
+
+  const ws = services.get(Service.Weapons);
+  // body: probe from the SIDE (+x) through the core, so the snout can't intercept
+  const body = ws.rayProbe({ x: bodyW.x - 5, y: bodyW.y, z: bodyW.z }, { x: 1, y: 0, z: 0 }, 20).find((h) => h.id === hid);
+  // snout: probe from the FRONT (the hound faces +z), so the muzzle is hit first
+  const snout = ws.rayProbe({ x: snoutW.x, y: snoutW.y, z: snoutW.z + 5 }, { x: 0, y: 0, z: -1 }, 20).find((h) => h.id === hid);
+  if (!body) throw new Error('ray through the hound body registered no hit (no hitbox)');
+  if (!snout || !snout.headshot) throw new Error('ray through the hound snout did not register a headshot');
 });
 
 console.log('\n[12] zombies do not get stuck clawing an already-open window');

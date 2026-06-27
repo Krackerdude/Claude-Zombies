@@ -22,6 +22,7 @@ export class HoundManager {
   #timer = 0;
   #pending = [];   // strikes mid-flight: { x, z, t } -> hound forms when t <= 0
   #bolts = [];     // active lightning VFX: { group, age, life }
+  #recent = [];    // last few strike points, to keep new strikes spread apart
 
   constructor({ world, factory, events, nav, scene, getPlayerPos }) {
     this.#world = world;
@@ -54,6 +55,7 @@ export class HoundManager {
     this.queue = 0;
     this.#stats = null;
     this.#pending.length = 0;
+    this.#recent.length = 0;
     for (const b of this.#bolts) this.#scene.remove(b.group);
     this.#bolts.length = 0;
   }
@@ -81,9 +83,11 @@ export class HoundManager {
   /** Pick a reachable interior cell, flash a bolt there, queue the hound. */
   #strike() {
     const p = this.#pickInteriorPoint();
-    if (!p) { this.#timer = 0.2; return; } // try again shortly
+    if (!p) { this.#timer = 0.3; return; } // try again shortly
     this.queue--;
     this.#pending.push({ x: p.x, z: p.z, t: HoundConfig.strikeDelay });
+    this.#recent.push(p);
+    if (this.#recent.length > 4) this.#recent.shift(); // remember the last few to space the next ones out
     this.#spawnBolt(p.x, p.z);
   }
 
@@ -105,19 +109,33 @@ export class HoundManager {
   }
 
   /** Random walkable interior cell, a sensible distance from the player so a
-   *  hound never forms on top of them. Rejection-samples a handful of tries. */
+   *  hound never forms on top of them, AND spread apart from the last few
+   *  strikes + any still-forming ones so the pack doesn't pile in one spot.
+   *  Rejection-samples; relaxes the separation rule if the room is cramped. */
   #pickInteriorPoint() {
     const pp = this.#getPlayerPos();
-    for (let tries = 0; tries < 24; tries++) {
-      const x = (Math.random() * 2 - 1) * 8.3;
-      const z = (Math.random() * 2 - 1) * 8.3;
-      const cell = this.#nav.cellAt(x, z);
-      if (cell < 0) continue;
-      if (this.#nav.solid[cell] === 1) continue;          // wall/obstacle
-      if (this.#nav.cellBarrier[cell] !== -1) continue;    // a gated window cell
-      const d = Math.hypot(x - pp.x, z - pp.z);
-      if (d < 4.5 || d > 14) continue;                     // not in the player's lap, not across a wall
-      return { x, z };
+    const sep = HoundConfig.strikeSeparation;
+    const farFromOthers = (x, z, minSep) => {
+      for (const r of this.#recent) if (Math.hypot(x - r.x, z - r.z) < minSep) return false;
+      for (const s of this.#pending) if (Math.hypot(x - s.x, z - s.z) < minSep) return false;
+      return true;
+    };
+    // two passes: first insist on full separation, then relax it so a tight map
+    // still produces a point rather than skipping the spawn
+    for (let pass = 0; pass < 2; pass++) {
+      const minSep = pass === 0 ? sep : sep * 0.45;
+      for (let tries = 0; tries < 20; tries++) {
+        const x = (Math.random() * 2 - 1) * 8.3;
+        const z = (Math.random() * 2 - 1) * 8.3;
+        const cell = this.#nav.cellAt(x, z);
+        if (cell < 0) continue;
+        if (this.#nav.solid[cell] === 1) continue;          // wall/obstacle
+        if (this.#nav.cellBarrier[cell] !== -1) continue;    // a gated window cell
+        const d = Math.hypot(x - pp.x, z - pp.z);
+        if (d < 4.5 || d > 14) continue;                     // not in the player's lap, not across a wall
+        if (!farFromOthers(x, z, minSep)) continue;
+        return { x, z };
+      }
     }
     return null;
   }

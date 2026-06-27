@@ -80,9 +80,10 @@ export const HoundConfig = {
   speed: 4.4,           // faster than a sprinting zombie
   baseHealth: 120,
   healthPerRound: 22,
-  spawnInterval: 0.9,   // between lightning strikes
-  firstSpawnDelay: 1.2,
-  strikeDelay: 0.45,    // lightning flash -> hound materialises
+  spawnInterval: 2.1,   // between lightning strikes — trickle them in, not a swarm
+  firstSpawnDelay: 1.6,
+  strikeDelay: 0.5,     // lightning flash -> hound materialises
+  strikeSeparation: 6,  // min distance between consecutive strike points
   attackDamage: 32,
 };
 
