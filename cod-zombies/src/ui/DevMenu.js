@@ -48,6 +48,11 @@ export class DevMenu {
     for (const id of Object.keys(PERKS)) html += `<button class="dev-btn dev-perk" data-perk="${id}" style="--pc:${hex(PERKS[id].color)}">${PERKS[id].name}</button>`;
     html += '</div></div>';
 
+    html += '<div class="dev-sec"><div class="dev-title">Pack-a-Punch</div><div class="dev-row">';
+    html += '<button class="dev-btn" data-pap="on">Pack-a-Punch</button>';
+    html += '<button class="dev-btn dev-warn" data-pap="off">Un-Pack</button>';
+    html += '</div></div>';
+
     html += '<div class="dev-sec"><div class="dev-title">Weapons</div><div class="dev-list">';
     for (const key of WEAPON_KEYS) html += `<button class="dev-btn dev-gun" data-gun="${key}">${weaponName(key)}</button>`;
     html += '</div></div>';
@@ -80,6 +85,10 @@ export class DevMenu {
       if (!b) return;
       if (b.dataset.points != null) this.#addPoints(b.dataset.points);
       else if (b.dataset.perk) this.#perk(b.dataset.perk);
+      else if (b.dataset.pap) {
+        const ws = this.#engine.services.get(Service.Weapons);
+        if (b.dataset.pap === 'on') ws?.devPaP?.(); else ws?.devUnPaP?.();
+      }
       else if (b.dataset.gun) this.#engine.services.get(Service.Weapons)?.giveWeapon?.(b.dataset.gun);
       else if (b.dataset.lethal) this.#engine.services.get(Service.Lethal)?.giveLethal?.(b.dataset.lethal);
       else if (b.dataset.tactical) this.#engine.services.get(Service.Tactical)?.giveTactical?.(b.dataset.tactical);
