@@ -153,13 +153,15 @@ function buildSurvivor() {
   // lean the whole body back onto the tree
   rig.rotation.x = -0.16;
 
-  // arms folded across the chest: swing each upper arm up to horizontal + inward
-  // (the Z rotation), tip it forward a touch (Y), then fold the forearm back over
-  // the body (the elbow) so the two forearms cross
-  J.shoulderL.rotation.set(-0.2, 0.4, 1.5);
-  J.elbowL.rotation.x = 2.1;
-  J.shoulderR.rotation.set(-0.2, -0.4, -1.5);
-  J.elbowR.rotation.x = 2.1;
+  // arms crossed in front of the chest. NOTE: bending the elbow on this rig folds
+  // the forearm BACKWARD, so we keep the elbows ~straight and create the X purely
+  // from the shoulders — each upper arm raised forward+up (X), turned in (Y) and
+  // swung across the body (Z). Verified numerically: this lands both hands in
+  // FRONT of the chest (z +0.2) and crossed past centre (handL x +0.2).
+  J.shoulderL.rotation.set(-1.30, 0.40, 0.80);
+  J.elbowL.rotation.x = 0.12;
+  J.shoulderR.rotation.set(-1.30, -0.40, -0.80);
+  J.elbowR.rotation.x = 0.12;
 
   // one boot propped back against the trunk (left leg), right leg bears the weight
   J.thighL.rotation.set(0.15, 0, 0.05);
@@ -237,7 +239,7 @@ function buildCampfire() {
     // a couple of cut-end rings so it reads as a felled log
     for (const ex of [-0.75, 0.75]) { const end = new THREE.Mesh(new THREE.CylinderGeometry(0.215, 0.235, 0.04, 10), barkMat); end.rotation.z = Math.PI / 2; end.position.x = ex; grp.add(end); }
     grp.position.set(Math.cos(a) * seatR, 0.21, Math.sin(a) * seatR);
-    grp.rotation.y = -a; // tangent to the ring
+    grp.rotation.y = Math.PI / 2 - a; // lay the log TANGENT to the ring (long side faces the fire, you sit on top facing in)
     g.add(grp);
   }
 

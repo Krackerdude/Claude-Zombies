@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { Transform, Renderable } from '../ecs/components/index.js';
 import { Service } from '../core/ServiceLocator.js';
+import { AppState } from '../core/GameState.js';
 
 const _lerp = new THREE.Vector3();
 
@@ -77,8 +78,10 @@ export class RenderSystem extends System {
       obj.scale.copy(t.scale);
     }
 
-    // outside of active play, draw the 3D main-menu backdrop (if it's built)
-    const useMenu = this.#sceneMgr.menuScene && this.#gameState && !this.#gameState.isPlaying;
+    // draw the 3D main-menu backdrop ONLY on the main menu — pause / scoreboard /
+    // F2 freeze the live gameplay frame and overlay on top of it, so they keep
+    // rendering the arena
+    const useMenu = this.#sceneMgr.menuScene && this.#gameState && this.#gameState.current === AppState.MENU;
     this.#render.render(useMenu ? this.#sceneMgr.menuScene : this.#sceneMgr.scene);
   }
 }
