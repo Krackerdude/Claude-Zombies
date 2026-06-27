@@ -90,10 +90,12 @@ export class AATSystem extends System {
     for (const id of this.#nearby(t.position.x, t.position.z, 4.0, 5, zid)) this.#ignite(id, this.world.get(id, ZombieTag));
   }
   #ignite(id, z) {
-    if (!z || z.burning || z.aatDying || z.state === 'dead') return;
+    if (!z || z.burning || z.aatDying || z.state === 'dead' || z.hound) return;
     z.burning = true; z.burnT = 0;
     const rig = this.world.get(id, Renderable)?.object3d;
     if (rig) z._fire = this.#attachFlames(rig);
+    const t = this.world.get(id, Transform);
+    if (t) { this.#burst(t.position.x, 1.1, t.position.z, 0xffd070, 10, 3.5); this.#burst(t.position.x, 1.1, t.position.z, 0xff4a10, 8, 2.4); } // whoosh of ignition
   }
 
   #turn(zid, z, t) {
@@ -153,7 +155,9 @@ export class AATSystem extends System {
     const t = this.world.get(id, Transform);
     if (!z || !t) return;
     this.#iceShards(t.position.x, 1.0, t.position.z);
+    this.#detachIce(z);
     this.#creditKill(id, z, true);
+    this.#dropBody(id); // remove the kinematic capsule, else a phantom collider lingers
     this.world.remove(id, ZombieTag);
     this.world.destroyEntity(id);
   }
@@ -197,16 +201,36 @@ export class AATSystem extends System {
   #tickBurning(id, z, dt) {
     z.burnT += dt;
     const t = this.world.get(id, Transform);
-    if (t && Math.random() < dt * 6) this.#burst(t.position.x + (Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 1.2, t.position.z + (Math.random() - 0.5) * 0.4, 0xff7a1e, 1, 1.4);
-    if (z.burnT >= 1.0) { z.burning = false; this.#detachFlames(z); this.#beginDeath(id, z, 'ash'); }
+    // flicker the attached fire — each tongue breathes on its own phase, leaning
+    // in the wind; the core glow pulses
+    const fire = z._fire;
+    if (fire?.userData.tongues) {
+      fire.userData.t += dt;
+      const tt = fire.userData.t;
+      for (const f of fire.userData.tongues) {
+        const ph = f.userData.ph;
+        f.scale.set(0.8 + 0.25 * Math.sin(tt * 9 + ph), Math.max(0.25, 0.65 + 0.55 * Math.sin(tt * 13 + ph)), 0.8 + 0.25 * Math.cos(tt * 11 + ph));
+        f.position.x = f.userData.sway + Math.sin(tt * 7 + ph) * 0.06;
+      }
+      if (fire.userData.core) fire.userData.core.scale.setScalar(0.85 + 0.25 * Math.sin(tt * 10));
+    }
+    // rising embers + occasional rolling smoke
+    if (t) {
+      if (Math.random() < dt * 16) this.#ember(t.position.x + (Math.random() - 0.5) * 0.5, 0.5 + Math.random() * 1.4, t.position.z + (Math.random() - 0.5) * 0.5);
+      if (Math.random() < dt * 4) this.#smokePuff(t.position.x + (Math.random() - 0.5) * 0.3, 1.7 + Math.random() * 0.4, t.position.z + (Math.random() - 0.5) * 0.3);
+    }
+    if (z.burnT >= 1.15) { z.burning = false; this.#detachFlames(z); this.#beginDeath(id, z, 'ash'); }
   }
 
   #tickDying(id, z, dt) {
     z.aatDyingT += dt;
     const life = z.aatDying === 'fireworks' ? 3.0 : z.aatDying === 'meltdown' ? 1.3 : 0.75;
-    if (z.aatDying === 'ash') { // crumble + ash puffs (pose owns the squash)
+    if (z.aatDying === 'ash') { // crumble to drifting ash + a few last embers (pose owns the squash)
       const t = this.world.get(id, Transform);
-      if (t && Math.random() < dt * 10) this.#burst(t.position.x + (Math.random() - 0.5) * 0.4, 0.3 + Math.random() * 1.0, t.position.z + (Math.random() - 0.5) * 0.4, 0x6a6a6a, 1, 0.8);
+      if (t) {
+        if (Math.random() < dt * 22) this.#ashFlake(t.position.x + (Math.random() - 0.5) * 0.6, 0.3 + Math.random() * 1.2, t.position.z + (Math.random() - 0.5) * 0.6);
+        if (Math.random() < dt * 8) this.#ember(t.position.x + (Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 0.9, t.position.z + (Math.random() - 0.5) * 0.4);
+      }
     }
     if (z.aatDyingT >= life) { this.#creditKill(id, z); this.world.remove(id, ZombieTag); this.world.destroyEntity(id); }
   }
@@ -312,11 +336,22 @@ export class AATSystem extends System {
 
   #attachFlames(rig) {
     const g = new THREE.Group();
-    for (let i = 0; i < 5; i++) {
-      const f = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 6, 1, true), this.#mkAdd(i % 2 ? 0xffd24a : 0xff5a10));
-      f.position.set((Math.random() - 0.5) * 0.4, 0.4 + Math.random() * 0.9, (Math.random() - 0.5) * 0.3);
-      g.add(f);
+    const tongues = [];
+    // a layered fire: a hot deep-red base, orange mid tongues, yellow tips, all
+    // engulfing the whole body and flickering independently
+    const cols = [0xff2204, 0xff2204, 0xff5a10, 0xff8a18, 0xffc23a, 0xffe87a];
+    for (let i = 0; i < 11; i++) {
+      const c = cols[(Math.random() * cols.length) | 0];
+      const h = 0.45 + Math.random() * 0.8;
+      const f = new THREE.Mesh(new THREE.ConeGeometry(0.09 + Math.random() * 0.09, h, 6, 1, true), this.#mkAdd(c, 0.8));
+      f.position.set((Math.random() - 0.5) * 0.55, 0.25 + Math.random() * 1.0, (Math.random() - 0.5) * 0.45);
+      f.userData.ph = Math.random() * 6.28; f.userData.sway = f.position.x;
+      g.add(f); tongues.push(f);
     }
+    // a soft white-hot core glow at the chest so the silhouette reads as ablaze
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), this.#mkAdd(0xff7a20, 0.35));
+    core.position.y = 0.9; g.add(core);
+    g.userData.tongues = tongues; g.userData.core = core; g.userData.t = 0;
     g.traverse((o) => { o.raycast = () => {}; });
     rig.add(g); return g;
   }
@@ -348,6 +383,34 @@ export class AATSystem extends System {
       this.#scene.add(s);
       this.#fx.push({ mesh: s, age: 0, life: 0.8 + Math.random() * 0.5, vx: Math.cos(a) * sp, vy: 2 + Math.random() * 3, vz: Math.sin(a) * sp, grav: 12, spin: 8 });
     }
+  }
+
+  /** A single bright ember that floats up and fades. */
+  #ember(x, y, z) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.035 + Math.random() * 0.03, 5, 4), this.#mkAdd(Math.random() < 0.5 ? 0xffb030 : 0xff7020));
+    m.position.set(x, y, z); m.raycast = () => {};
+    this.#scene.add(m);
+    const a = Math.random() * Math.PI * 2, sp = 0.3 + Math.random() * 0.5;
+    this.#fx.push({ mesh: m, age: 0, life: 0.8 + Math.random() * 0.7, vx: Math.cos(a) * sp, vy: 1.0 + Math.random() * 1.3, vz: Math.sin(a) * sp, grav: 0.6 });
+  }
+
+  /** A dark rolling smoke puff (normal-blended so it reads as shadow, not glow). */
+  #smokePuff(x, y, z) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0x1a1410, transparent: true, opacity: 0.5, depthWrite: false });
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), mat);
+    m.position.set(x, y, z); m.raycast = () => {};
+    this.#scene.add(m);
+    this.#fx.push({ mesh: m, age: 0, life: 1.0 + Math.random() * 0.6, vx: (Math.random() - 0.5) * 0.4, vy: 0.7 + Math.random() * 0.5, vz: (Math.random() - 0.5) * 0.4, grav: -0.3, grow: 2.2 });
+  }
+
+  /** A charred ash flake that lifts on the heat, tumbles, and crumbles away. */
+  #ashFlake(x, y, z) {
+    const mat = new THREE.MeshBasicMaterial({ color: Math.random() < 0.4 ? 0x3a3430 : 0x14110f, transparent: true, opacity: 0.9, depthWrite: false });
+    const m = new THREE.Mesh(new THREE.TetrahedronGeometry(0.05 + Math.random() * 0.06), mat);
+    m.position.set(x, y, z); m.raycast = () => {};
+    this.#scene.add(m);
+    const a = Math.random() * Math.PI * 2, sp = 0.3 + Math.random() * 0.6;
+    this.#fx.push({ mesh: m, age: 0, life: 1.0 + Math.random() * 0.8, vx: Math.cos(a) * sp, vy: 0.6 + Math.random() * 1.0, vz: Math.sin(a) * sp, grav: 0.4, spin: 6 });
   }
 
   /** A radial spark/ember burst at a point. */

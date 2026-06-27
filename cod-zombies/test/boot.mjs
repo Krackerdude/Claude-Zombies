@@ -392,6 +392,7 @@ guard('AAT requires PaP, procs the effect, and a frozen zombie shatters when sho
   const killed = damageZombie(ctx, zid, 50, { dir: { x: 0, z: 1 } });
   if (!killed) throw new Error('shooting a frozen zombie should report a kill');
   if (world.get(zid, ZombieTag) !== undefined) throw new Error('frozen zombie was not shattered (still tagged)');
+  if (world.get(zid, RigidBodyRef) !== undefined) throw new Error('shattered zombie left its physics capsule behind (phantom collider)');
 });
 
 console.log('\n[12] zombies do not get stuck clawing an already-open window');
