@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildWeaponModel } from './weaponModels.js';
+import { papCamo, papCamoTick } from './gunMaterials.js';
 import { buildPerkBottle } from '../perks/perks.js';
 import { buildHomunculus } from '../gadgets/tacticalModels.js';
 import { gunMetal, gunGrip, gunDark } from './gunMaterials.js';
@@ -273,6 +274,13 @@ export class Viewmodel {
       this.#group.add(group);
     }
 
+    // Pack-a-Punch camo: swap the gun-metal materials for the animated holo camo,
+    // leaving iron sights, wood, grips, and energy cores untouched
+    if (weapon.data.pap) {
+      const camo = papCamo();
+      this.#model.traverse((o) => { if (o.isMesh && o.material?.userData?.papSwap) o.material = camo; });
+    }
+
     // capture animated parts (cylinder / spinning barrels) from the model
     const ud = group.userData || {};
     this.#animParts = (ud.cylinder || ud.barrelSpin) ? ud : null;
@@ -337,6 +345,7 @@ export class Viewmodel {
   /** Place + animate the model relative to the camera. */
   update(camera, weapon, dt, opts) {
     const { mouseDX = 0, mouseDY = 0, moveSpeed = 0, visible = true } = opts;
+    papCamoTick(dt); // advance the animated Pack-a-Punch camo
     // track the world's light at the player: dim the sun (key) in shade, with
     // ambient/hemisphere keeping the gun readable rather than going black
     if (opts.shade != null && this.#key) {

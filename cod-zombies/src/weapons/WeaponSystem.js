@@ -5,7 +5,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { Action } from '../config/keybinds.js';
 import { MoveState } from '../player/MoveState.js';
 import { ZombieConfig, EconomyConfig } from '../config/zombies.js';
-import { makeWeapon, PAP_SPECIAL } from './catalog.js';
+import { makeWeapon, PAP_SPECIAL, PAP_NAMES } from './catalog.js';
 import { Viewmodel } from './Viewmodel.js';
 import { WeaponFx } from './WeaponFx.js';
 import { damageZombie } from './damage.js';
@@ -723,6 +723,7 @@ export class WeaponSystem extends System {
     const d = weapon.data;
     if (d.pap) return;
     d.pap = true;
+    d.name = PAP_NAMES[key] || d.name; // flashy PaP rename
     d.papTint = { muzzle: 0x9a0b2e, tracer: 0xff5fc4 };
     d.damage *= 2;
     d.ammoStockSize = Math.round(d.ammoStockSize * 1.6);
