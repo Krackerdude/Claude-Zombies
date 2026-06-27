@@ -124,7 +124,8 @@
 /* ============================ map select ================================== */
 #mm-mapselect, #mm-soon {
   position: fixed; inset: 0; z-index: 60; display: none;
-  background: radial-gradient(120% 100% at 50% 40%, rgba(4,7,12,0.6), rgba(2,3,5,0.92));
+  background: radial-gradient(120% 100% at 50% 40%, rgba(4,7,12,0.45), rgba(2,3,5,0.78));
+  backdrop-filter: blur(8px) saturate(0.9); -webkit-backdrop-filter: blur(8px) saturate(0.9);
   align-items: center; justify-content: center;
 }
 #mm-mapselect.show, #mm-soon.show { display: flex; animation: mmFadeIn 0.25s ease; }
@@ -201,8 +202,10 @@
    These ride after menu.css so they win by cascade order.
    ========================================================================== */
 #screen-options {
-  /* a translucent veil so the frozen gameplay (or menu backdrop) shows through */
-  background: radial-gradient(120% 100% at 50% 30%, rgba(6,9,14,0.7), rgba(3,5,8,0.88)) !important;
+  /* frosted glass: a translucent dark veil + backdrop blur so the frozen
+     gameplay (or menu backdrop) reads softly behind the settings */
+  background: radial-gradient(120% 100% at 50% 30%, rgba(6,9,14,0.52), rgba(3,5,8,0.74)) !important;
+  backdrop-filter: blur(9px) saturate(0.9); -webkit-backdrop-filter: blur(9px) saturate(0.9);
 }
 .opt-head {
   font-family: 'Anton', Impact, sans-serif; color: #e7edf0;
@@ -265,7 +268,9 @@
    gameplay, in the same Persona chrome as the main menu.
    ========================================================================== */
 #screen-pause {
-  background: radial-gradient(120% 100% at 30% 40%, rgba(5,8,13,0.78) 0%, rgba(3,5,8,0.9) 70%) !important;
+  /* frosted glass over the frozen gameplay — a glimpse of the game blurs through */
+  background: radial-gradient(120% 100% at 30% 40%, rgba(5,8,13,0.5) 0%, rgba(3,5,8,0.7) 70%) !important;
+  backdrop-filter: blur(9px) saturate(0.9); -webkit-backdrop-filter: blur(9px) saturate(0.9);
 }
 .pm-head {
   position: absolute; left: clamp(30px, 5vw, 90px); top: 5.5%;
