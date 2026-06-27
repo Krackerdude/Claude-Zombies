@@ -363,22 +363,25 @@ function papGemTexture() {
 export function papCamo() {
   if (_papCamo) return _papCamo;
   const tex = papGemTexture();
-  // map + emissiveMap are bound only so the <map_fragment>/<emissivemap_fragment>
-  // chunks exist as injection points — the triplanar code below overrides their
-  // UV sampling entirely, so the bound texture's own UV mapping is never used.
+  // emissiveMap is bound only so the <emissivemap_fragment> chunk exists as an
+  // injection point; the texture is actually sampled through our OWN `papTex`
+  // uniform (declared up-front in <common> so the triplanar function can see it —
+  // three's own `map` sampler is declared too late in the chunk order to use).
   const mat = new THREE.MeshStandardMaterial({
-    map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 1.0,
+    emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 1.0,
     metalness: 0.0, roughness: 0.6,             // matte crystal — no sheen
   });
   mat.userData.isPapCamo = true;
 
   _papUni = {
+    papTex:    { value: tex },
     papTile:   { value: _papTile },                    // tiles per local unit (density)
     papOffset: { value: new THREE.Vector2(0, 0) },     // foggy drift
     papGlow:   { value: 0.6 },                          // pulsing emissive strength
   };
 
   mat.onBeforeCompile = (shader) => {
+    shader.uniforms.papTex = _papUni.papTex;
     shader.uniforms.papTile = _papUni.papTile;
     shader.uniforms.papOffset = _papUni.papOffset;
     shader.uniforms.papGlow = _papUni.papGlow;
@@ -388,11 +391,13 @@ export function papCamo() {
       .replace('#include <common>', '#include <common>\nvarying vec3 vPapPos;\nvarying vec3 vPapNrm;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPapPos = position;\n  vPapNrm = normal;');
 
-    // triplanar sampler + overrides of the albedo and emissive sampling
+    // triplanar sampler + overrides of the albedo and emissive (anchors that
+    // always exist regardless of which texture maps the material carries)
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vPapPos;
         varying vec3 vPapNrm;
+        uniform sampler2D papTex;
         uniform float papTile;
         uniform vec2 papOffset;
         uniform float papGlow;
@@ -403,12 +408,12 @@ export function papCamo() {
           vec2 uX = vPapPos.zy * papTile + papOffset;
           vec2 uY = vPapPos.xz * papTile + papOffset;
           vec2 uZ = vPapPos.xy * papTile + papOffset;
-          vec3 cX = texture2D(map, uX).rgb;
-          vec3 cY = texture2D(map, uY).rgb;
-          vec3 cZ = texture2D(map, uZ).rgb;
+          vec3 cX = texture2D(papTex, uX).rgb;
+          vec3 cY = texture2D(papTex, uY).rgb;
+          vec3 cZ = texture2D(papTex, uZ).rgb;
           return cX * n.x + cY * n.y + cZ * n.z;
         }`)
-      .replace('#include <map_fragment>', 'diffuseColor.rgb = papTriplanar();')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = papTriplanar();')
       .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance = papTriplanar() * papGlow;');
   };
 
