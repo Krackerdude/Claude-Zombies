@@ -116,7 +116,10 @@ export class EconomySystem extends System {
     } else if (focus.kind === 'pap') {
       if (this.#pap.state === 'ready') { text = '[E] Take Weapon'; affordable = true; }
       else if (this.#pap.state !== 'idle') { text = '...'; affordable = true; }
-      else { affordable = player.points >= EconomyConfig.papCost; text = `[E] Pack-a-Punch — ${EconomyConfig.papCost}`; }
+      else if (this.#weapons.current?.data?.pap) { // already punched -> Re-Pack for an Alternate Ammo Type
+        affordable = player.points >= EconomyConfig.papRepackCost;
+        text = `[E] Re-Pack — ${EconomyConfig.papRepackCost}`;
+      } else { affordable = player.points >= EconomyConfig.papCost; text = `[E] Pack-a-Punch — ${EconomyConfig.papCost}`; }
     } else if (focus.kind === 'perk') {
       const perks = this.#perks;
       const cost = focus.m.def.cost;
@@ -223,7 +226,16 @@ export class EconomySystem extends System {
     if (pap.state !== 'idle') return;
     const w = this.#weapons.current;
     if (!w) { this.#events.emit('buy:denied', {}); return; }            // nothing in hand
-    if (w.data.pap) { this.#events.emit('buy:denied', {}); return; }     // already punched
+    // already Pack-a-Punched: Re-Pack it for a (new) random Alternate Ammo Type
+    if (w.data.pap) {
+      if (player.points < EconomyConfig.papRepackCost) { this.#events.emit('buy:denied', {}); return; }
+      const id = this.#weapons.repackWeapon();
+      if (!id) { this.#events.emit('buy:denied', {}); return; }
+      player.points -= EconomyConfig.papRepackCost;
+      this.#events.emit('score:changed', { points: player.points });
+      this.#events.emit('buy:ok', { repack: true });
+      return;
+    }
     if (player.points < EconomyConfig.papCost) { this.#events.emit('buy:denied', {}); return; }
     // pull the gun out of the player's hands and into the machine
     const taken = this.#weapons.extractForPaP();

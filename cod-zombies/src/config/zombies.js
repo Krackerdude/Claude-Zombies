@@ -108,6 +108,7 @@ export const EconomyConfig = {
   interactReach: 2.6,
   // Pack-a-Punch
   papCost: 5000,
+  papRepackCost: 2500, // Re-Pack an already-punched gun for an Alternate Ammo Type
   papInsertTime: 1.0,  // gun sucked into the machine
   papWorkTime: 1.5,    // vibrate + whirl, red "done" flag pops up
   papHoldTime: 5.0,    // grab window: rises out, then slowly sucked back in
