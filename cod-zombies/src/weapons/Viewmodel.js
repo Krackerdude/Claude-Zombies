@@ -87,6 +87,7 @@ export class Viewmodel {
   #wraith;
   #wraithFlame;
   #semtex;
+  #acidBomb;
   #bottle = null;
   #bottleColor = -1;
   #key;
@@ -224,6 +225,11 @@ export class Viewmodel {
     this.#semtex = buildVmSemtex();
     this.#semtex.visible = false;
     this.#vmScene.add(this.#semtex);
+
+    // held Acid bomb (lethal) — a brass acid-mine with a pull pin
+    this.#acidBomb = buildVmAcid();
+    this.#acidBomb.visible = false;
+    this.#vmScene.add(this.#acidBomb);
   }
 
   setWeapon(weapon) {
@@ -421,6 +427,18 @@ export class Viewmodel {
     this.#grenade.visible = !!cook && (cookKind === 'frag' || !cookKind) && this.#holster > 0.85;
     this.#wraith.visible = !!cook && cookKind === 'wraithfire' && this.#holster > 0.85;
     this.#wraithFlame.visible = this.#wraith.visible;
+    this.#acidBomb.visible = !!cook && cookKind === 'acid' && this.#holster > 0.85;
+    if (this.#acidBomb.visible) {
+      const gt = Math.max(0, cook.t - 0.16);
+      const draw = Math.min(1, gt / 0.35);
+      _koff.set(lerp(0.2, 0.12, draw), lerp(-0.28, -0.18, draw) + Math.sin(this.#bob) * 0.01, lerp(-0.44, -0.36, draw));
+      this.#acidBomb.position.copy(_koff);
+      this.#acidBomb.rotation.set(0.2, gt * 1.0, 0);
+      // pull the pin: it flicks off over the first beat
+      const pinPop = gt / 0.2;
+      const pin = this.#acidBomb.userData.pin;
+      if (pin) { pin.visible = pinPop < 1; if (pin.visible) { pin.position.set(0.09 + pinPop * 0.2, 0.04 + pinPop * 0.16, -pinPop * 0.06); pin.rotation.z = pinPop * 14; } }
+    }
     this.#semtex.visible = !!cook && cookKind === 'semtex' && this.#holster > 0.85;
     if (this.#semtex.visible) {
       const gt = Math.max(0, cook.t - 0.16);
@@ -808,6 +826,34 @@ function buildVmSemtex() {
   const button = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.014, 10), dark); button.position.y = 0.066; button.userData.y = 0.066; g.add(button);
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), led); lamp.position.set(0.04, 0.05, 0.03); g.add(lamp);
   g.userData = { button, led: lamp };
+  return g;
+}
+
+// Held Acid bomb — a brass acid-mine sphere with glowing green ports, a visible
+// green acid core, and a pull pin. userData exposes the pin.
+function buildVmAcid() {
+  const brass = new THREE.MeshStandardMaterial({ color: 0x8a7a45, metalness: 0.65, roughness: 0.45 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x3a3526, metalness: 0.5, roughness: 0.55 });
+  const glow = new THREE.MeshBasicMaterial({ color: 0x9bff3a });
+  const core = new THREE.MeshBasicMaterial({ color: 0xbfff66, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xcfc8a0, metalness: 0.85, roughness: 0.3 });
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 12), brass));
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), core));
+  const dirs = [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
+  for (const d of dirs) {
+    const n = new THREE.Vector3(d[0], d[1], d[2]);
+    const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.021, 0.04, 8), dark);
+    pod.position.copy(n).multiplyScalar(0.068); pod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); g.add(pod);
+    const port = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.008, 8), glow);
+    port.position.copy(n).multiplyScalar(0.088); port.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n); g.add(port);
+  }
+  // pull pin (a ring + a short tang) up on top
+  const pin = new THREE.Group();
+  pin.add(new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.005, 6, 12), steel));
+  pin.position.set(0.09, 0.05, 0);
+  g.add(pin);
+  g.userData = { pin };
   return g;
 }
 

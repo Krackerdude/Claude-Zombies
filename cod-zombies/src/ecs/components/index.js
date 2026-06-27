@@ -144,6 +144,12 @@ export class ZombieTag {
     this.crawler = false; // legs gone: drags along the floor
     this.crawlAmt = 0;    // 0..1 ease into the prone crawl pose
 
+    // acid-bomb dissolve state (set by GadgetSystem, animated by ZombieAnimSystem)
+    this.acid = 0;          // total seconds of acid exposure (drives thresholds)
+    this.acidSlow = 0;      // >0 while standing in acid: slowed + writhing in pain
+    this.meltingLegs = false; this.legMelt = 0; // legs dissolving -> crawler
+    this.melting = false; this.bodyMelt = 0;    // whole body melting into the acid
+
     // procedural animation state (driven by ZombieAnimSystem)
     this.animTime = Math.random() * Math.PI * 2; // desynced phase
     this.walkAmt = 0;
