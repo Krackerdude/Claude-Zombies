@@ -61,6 +61,7 @@ export const Service = Object.freeze({
   Camera: 'camera',
   GameState: 'gameState',
   Settings: 'settings',
+  Profile: 'profile',
   Nav: 'nav',
   Spawn: 'spawn',
   Hounds: 'hounds',
