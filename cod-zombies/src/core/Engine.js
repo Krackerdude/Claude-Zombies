@@ -16,6 +16,7 @@ import { CameraController } from '../camera/CameraController.js';
 import { PlayerSystem } from '../player/PlayerSystem.js';
 import { GameState } from './GameState.js';
 import { SettingsStore } from '../settings/SettingsStore.js';
+import { createProfileService } from '../profile/index.js';
 
 import { PhysicsConfig } from '../config/index.js';
 
@@ -77,6 +78,12 @@ export class Engine {
     this.services.register(Service.GameState, gameState);
     const settings = new SettingsStore(this);
     this.services.register(Service.Settings, settings);
+
+    // Persistent player profile (level, currency, unlocks, achievements,
+    // emblems). Async: opens IndexedDB and loads/migrates the saved document
+    // before systems come up so they can read progression at init.
+    const profile = await createProfileService({ events });
+    this.services.register(Service.Profile, profile);
 
     // --- ECS world + systems ---
     this.world = new World(this.services);
