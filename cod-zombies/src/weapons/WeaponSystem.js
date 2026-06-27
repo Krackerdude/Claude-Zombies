@@ -6,6 +6,7 @@ import { Action } from '../config/keybinds.js';
 import { MoveState } from '../player/MoveState.js';
 import { ZombieConfig, EconomyConfig } from '../config/zombies.js';
 import { makeWeapon, PAP_SPECIAL, PAP_NAMES } from './catalog.js';
+import { randomAat } from './aat.js';
 import { Viewmodel } from './Viewmodel.js';
 import { WeaponFx } from './WeaponFx.js';
 import { damageZombie } from './damage.js';
@@ -162,6 +163,7 @@ export class WeaponSystem extends System {
   #shade = 1;
   #fx = null;
   #fxRay = new THREE.Raycaster();
+  #aat = null;
 
   get current() { return this.#weapons[this.#index]; }
   get #perks() { return this.world.services.has(Service.Perks) ? this.world.services.get(Service.Perks) : null; }
@@ -173,6 +175,7 @@ export class WeaponSystem extends System {
     this.#events = this.world.services.get(Service.Events);
     this.#camera = this.world.services.get(Service.Render).camera;
     this.#shadeRay.camera = this.#camera; this.#fxRay.camera = this.#camera;
+    this.#aat = this.world.services.has(Service.AAT) ? this.world.services.get(Service.AAT) : null;
     this.#sceneMgr = this.world.services.has(Service.Scene) ? this.world.services.get(Service.Scene) : null;
     if (this.#sceneMgr) this.#fx = new WeaponFx(this.#sceneMgr.scene);
     this.#spawn = this.world.services.get(Service.Spawn);
@@ -394,10 +397,35 @@ export class WeaponSystem extends System {
 
   #announce() {
     const w = this.current;
-    if (!w) { this.#events.emit('weapon:changed', { name: '—', category: null, mag: 0, reserve: 0 }); this.#events.emit('weapon:ammo', { mag: 0, reserve: 0, name: '—' }); return; }
+    if (!w) { this.#events.emit('weapon:changed', { name: '—', category: null, mag: 0, reserve: 0 }); this.#events.emit('weapon:ammo', { mag: 0, reserve: 0, name: '—' }); this.#events.emit('weapon:aat', { aat: null }); return; }
     this.#events.emit('weapon:changed', { name: w.name, category: w.data.category, mag: w.magazine, reserve: w.reserve });
+    this.#events.emit('weapon:aat', { aat: w.aat || null });
     this.#emitAmmo(w);
   }
+
+  /** Re-Pack: grant the held (Pack-a-Punched) weapon a random alternate ammo
+   *  type, re-rolling to a different one if it already has one. Returns the new
+   *  AAT id, or null if the gun isn't eligible (must be PaP'd). */
+  repackWeapon() {
+    const w = this.current;
+    if (!w || !w.data.pap) return null;
+    w.aat = randomAat(w.aat);
+    w.aatReadyAt = 0; // ready immediately
+    this.#events.emit('weapon:aat', { aat: w.aat });
+    return w.aat;
+  }
+
+  /** Dev-menu: set a specific AAT on the held PaP'd weapon. */
+  setAat(id) {
+    const w = this.current;
+    if (!w || !w.data.pap) return false;
+    w.aat = id; w.aatReadyAt = 0;
+    this.#events.emit('weapon:aat', { aat: w.aat });
+    return true;
+  }
+
+  /** Whether the held weapon can be Re-Packed (is Pack-a-Punched). */
+  canRepack() { return !!this.current?.data?.pap; }
 
   // --- fire resolution ----------------------------------------------------
 
@@ -436,6 +464,15 @@ export class WeaponSystem extends System {
       if (this.#fx) this.#fx.spawnMuzzle(_muz2, _fwd, _right, _up, tint);
     }
 
+    // Re-Pack alternate ammo: roll the cooldown-gated proc on the zombie under
+    // the crosshair. If it fires, that zombie is "claimed" by the effect and
+    // takes no normal damage this shot (so e.g. Turned/Cryo don't kill the seed).
+    let claimed = -1;
+    if (this.#aat && weapon.aat) {
+      const probe = this.#rayZombies(o, _fwd, Math.min(weapon.data.range, this.#wallDistance(o, _fwd, weapon.data.range)));
+      if (probe.length && this.#aat.tryProc(weapon, probe[0].id, { x: _fwd.x, z: _fwd.z })) claimed = probe[0].id;
+    }
+
     for (let s = 0; s < count; s++) {
       const ax = (Math.random() * 2 - 1) * spread;
       const ay = (Math.random() * 2 - 1) * spread;
@@ -450,6 +487,7 @@ export class WeaponSystem extends System {
       let pen = 0;
       for (const { id, tca, headshot, part } of hits) {
         anyHit = true;
+        if (id === claimed) { pen++; continue; } // AAT claimed this zombie — no normal damage
         const falloff = Math.pow(0.5, pen); // -50% damage per zombie already pierced
         const pk = this.#perks;
         const hsMul = headshot ? weapon.data.headshotMultiplier * (pk ? pk.headshotMul() : 1) : 1;

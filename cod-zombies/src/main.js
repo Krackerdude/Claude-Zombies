@@ -6,6 +6,7 @@ import { UIManager } from './ui/UIManager.js';
 import { Scoreboard } from './ui/Scoreboard.js';
 import { DevMenu } from './ui/DevMenu.js';
 import { perkIconDataURL } from './perks/perks.js';
+import { aatGlyphSvg, aatColor } from './weapons/aat.js';
 import { portraitDataURL } from './ui/portrait.js';
 import './ui/menu.css';
 import './ui/hud.css';
@@ -139,6 +140,20 @@ async function main() {
       setAmmo(mag, reserve === Infinity ? '∞' : reserve, false);
     });
     events.on('weapon:ammo', ({ mag, reserve, reloading }) => setAmmo(mag, reserve, reloading));
+    // Re-Pack alternate-ammo badge (top-left of the weapon widget)
+    const elAat = document.getElementById('hud-aat');
+    const elAatGlyph = elAat?.querySelector('.aat-glyph');
+    events.on('weapon:aat', ({ aat }) => {
+      if (!elAat) return;
+      if (!aat) { elAat.hidden = true; return; }
+      elAat.hidden = false;
+      elAat.style.setProperty('--aat', aatColor(aat));
+      if (elAatGlyph) elAatGlyph.innerHTML = aatGlyphSvg(aat);
+    });
+    events.on('weapon:aatproc', () => {
+      if (!elAat) return;
+      elAat.classList.remove('proc'); void elAat.offsetWidth; elAat.classList.add('proc');
+    });
     events.on('weapon:hit', ({ killed }) => {
       if (!elHit) return;
       elHit.classList.remove('show', 'kill');

@@ -82,6 +82,10 @@ export class ZombieAnimSystem extends System {
       const rest = rig.userData.rest;
       // hellhounds are quadrupeds with their own gallop/lunge rig
       if (z.hound) { this.#poseHound(z, rig, rest, J, dt); continue; }
+      // alternate-ammo states (humanoid zombies only)
+      if (z.frozen > 0) continue;                                  // encased in ice: hold the pose
+      if (z.aatDying) { this.#poseDisintegrate(z, rig, rest, J); continue; } // ash / melt-away
+      if (z.rifting > 0) { this.#poseRiftRise(z, rest, J); continue; }       // dragged up into the rift
       // acid bomb dissolves — these override the normal gait entirely
       if (z.melting) { this.#poseMelt(z, rig, rest, J, dt); continue; }
       if (z.meltingLegs) { this.#poseLegMelt(z, rig, rest, J, dt); continue; }
@@ -238,6 +242,36 @@ export class ZombieAnimSystem extends System {
     if (J.shoulderR.visible) { J.shoulderR.rotation.set(droop, 0, -0.5 * m); J.elbowR.rotation.x = droop; }
     if (J.thighL?.visible) J.thighL.rotation.set(-0.2, 0, 0.4 * m);
     if (J.thighR?.visible) J.thighR.rotation.set(-0.2, 0, -0.4 * m);
+  }
+
+  /** AAT death: the body crumbles/melts down and sinks away. Napalm ('ash')
+   *  collapses fast; a Turned ally ('meltdown') slumps; a Fireworks body melts
+   *  slowly across its 3s show. */
+  #poseDisintegrate(z, rig, rest, J) {
+    const life = z.aatDying === 'fireworks' ? 3.0 : z.aatDying === 'meltdown' ? 1.3 : 0.75;
+    const m = Math.min(1, z.aatDyingT / life);
+    rig.scale.set(1 + m * 0.1, Math.max(0.05, 1 - m * 0.95), 1 + m * 0.1); // squash into a pile
+    J.hips.position.set(0, lerp(rest.hipY, 0.1, m), 0);
+    J.hips.rotation.set(lerp(0, 0.4, m), 0, 0);
+    J.torso.rotation.set(rest.torso + 0.6 * m, 0, 0);
+    if (J.head.visible) J.head.rotation.set(0.5 * m, 0, 0);
+    if (J.shoulderL.visible) { J.shoulderL.rotation.set(0.4 * m, 0, 0.3 * m); J.elbowL.rotation.x = 0.5 * m; }
+    if (J.shoulderR.visible) { J.shoulderR.rotation.set(0.4 * m, 0, -0.3 * m); J.elbowR.rotation.x = 0.5 * m; }
+    if (J.thighL.visible) J.thighL.rotation.set(0.2 * m, 0, 0.1 * m);
+    if (J.thighR.visible) J.thighR.rotation.set(0.2 * m, 0, -0.1 * m);
+  }
+
+  /** Shadow Rift: arms thrown up, back arched, legs dangling as the body is
+   *  dragged upward (the Transform raises Y; this just poses the limbs). */
+  #poseRiftRise(z, rest, J) {
+    J.hips.position.set(0, rest.hipY, 0);
+    J.hips.rotation.set(-0.1, 0, 0);
+    J.torso.rotation.set(rest.torso - 0.3, 0, 0);
+    if (J.head.visible) J.head.rotation.set(-0.4, 0, 0);
+    J.shoulderL.rotation.set(-2.6, 0, -0.3); J.elbowL.rotation.x = 0.2;
+    J.shoulderR.rotation.set(-2.6, 0, 0.3); J.elbowR.rotation.x = 0.2;
+    J.thighL.rotation.set(0.3, 0, 0.1); J.kneeL.rotation.x = 0.3;
+    J.thighR.rotation.set(0.3, 0, -0.1); J.kneeR.rotation.x = 0.3;
   }
 
   /** Hellhound: a fast four-legged bounding gallop, body low and pitching with
