@@ -32,6 +32,11 @@ export class UIManager {
   #pauseSel = 0;
   #hud;
 
+  // main-menu sub-screens + cold-open intro
+  #intro; #introPlayed = false;
+  #fade; #mapSelect; #soon;
+  #mapOpen = false; #soonOpen = false; #entering = false;
+
   constructor(engine) {
     this.#engine = engine;
     this.#gameState = engine.services.get(Service.GameState);
@@ -105,40 +110,181 @@ export class UIManager {
     s.className = 'screen';
     s.id = 'screen-main';
     s.innerHTML = `
-      <div class="bg-letter">N</div>
-      <div class="diag-slashes"></div>
-      <div class="brand">
-        <div class="kicker">Project</div>
-        <div class="title" data-text="Necropolis">Necropolis</div>
+      <div class="mm-daily" id="mm-daily">
+        <div class="mm-daily-head">Featured</div>
+        <div class="mm-daily-body">
+          <div class="mm-daily-ring">20%</div>
+          <div class="mm-daily-name">Ten-Pack<small>Daily Challenge</small></div>
+        </div>
+        <div class="mm-daily-foot">Details</div>
       </div>
-      <div class="menu-list"></div>
-      <div class="corner bl"><span class="mark">✶</span> NECRO ENGINE</div>
-      <div class="corner bc">Pre-Alpha v0.3</div>
-      <div class="corner br">[↑↓] SELECT · [ENTER] CONFIRM</div>`;
+      <div class="mm-player">
+        <div class="mm-player-row"><span class="mm-lvl">1</span><span class="mm-name">Survivor One</span></div>
+        <div class="mm-gums"><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="mm-title" data-text="Necropolis">Necropolis</div>
+      <div class="mm-list"></div>
+      <div class="mm-foot">[↑↓] Select · [Enter] Confirm</div>`;
 
-    const list = s.querySelector('.menu-list');
+    const list = s.querySelector('.mm-list');
+    const soon = (name, sub) => () => this.comingSoon(name, sub);
     const items = [
-      { label: 'Continue', disabled: true },
-      { label: 'New Game', action: () => this.startGame() },
+      { label: 'Solo Game', action: () => this.openMapSelect() },
+      { label: 'Multiplayer', soon: true, action: soon('Multiplayer', 'Squad up with up to three other survivors against the horde.') },
+      { label: 'Theater', soon: true, action: soon('Theater', 'Re-watch and clip your finest (and grisliest) runs.') },
+      { label: 'GobbleGum', soon: true, action: soon('GobbleGum', 'Browse every GobbleGum and build your loadout.') },
+      { label: "Dr. Newton's Factory", soon: true, action: soon("Dr. Newton's Factory", 'Spend Liquid Divinium to spin for GobbleGums.') },
+      { label: "Newton's Cookbook", soon: true, action: soon("Newton's Cookbook", 'Trade and convert GobbleGums across rarities.') },
+      { label: 'Weapon Kits', soon: true, action: soon('Weapon Kits', 'Customize every weapon with attachments.') },
+      { label: 'Armory', soon: true, action: soon('Armory', 'Choose your survivor, skins, emblems and calling cards.') },
       { label: 'Options', action: () => this.openOptions(AppState.MENU) },
       { label: 'Quit', action: () => this.#quit() },
     ];
     this.#mainItems = [];
     items.forEach((it, i) => {
       const e = document.createElement('div');
-      e.className = 'menu-item' + (it.disabled ? ' disabled' : '');
-      e.style.animationDelay = `${0.15 + i * 0.08}s`;
-      e.innerHTML = `<span class="idx">0${i + 1}</span>${it.label}`;
-      if (!it.disabled) {
-        e.addEventListener('click', it.action);
-        e.addEventListener('mouseenter', () => this.#select(this.#mainItems.indexOf(e)));
-        this.#mainItems.push(e);
-      }
+      e.className = 'mm-opt';
+      e.style.animationDelay = `${0.12 + i * 0.05}s`;
+      e.innerHTML = `<span>${it.label}${it.soon ? '<span class="mm-tag">Soon</span>' : ''}</span>`;
+      e.addEventListener('click', it.action);
+      e.addEventListener('mouseenter', () => this.#select(this.#mainItems.indexOf(e)));
+      this.#mainItems.push(e);
       list.appendChild(e);
     });
+    s.querySelector('#mm-daily').addEventListener('click', () => this.comingSoon('Daily Challenge', "Complete daily objectives for GobbleGums and Liquid Divinium."));
 
     this.#root.appendChild(s);
     this.#screens.main = s;
+
+    this.#buildFade();
+    this.#buildMapSelect();
+    this.#buildSoon();
+    this.#buildIntro();
+  }
+
+  // --- cold-open intro ----------------------------------------------------
+  #buildIntro() {
+    const el = document.createElement('div');
+    el.id = 'mm-intro';
+    el.innerHTML = `
+      <div class="tk-card">
+        <div class="tk-name">Team Kracker</div>
+        <div class="tk-mark"><span>T</span>K</div>
+        <div class="tk-sub">presents</div>
+      </div>`;
+    document.body.appendChild(el);
+    this.#intro = el;
+  }
+
+  /** Run the boot sequence once: linger, glitch/vibrate, dissolve to the menu. */
+  playIntro() {
+    if (!this.#intro || this.#introPlayed) return;
+    this.#introPlayed = true;
+    setTimeout(() => this.#intro.classList.add('glitch'), 1500);   // start vibrating
+    setTimeout(() => this.#intro.classList.add('dissolve'), 2150); // dissolve away
+    setTimeout(() => { this.#intro.classList.add('gone'); }, 2900);
+  }
+
+  #buildFade() {
+    const el = document.createElement('div');
+    el.id = 'mm-fade';
+    document.body.appendChild(el);
+    this.#fade = el;
+  }
+
+  // --- map select ---------------------------------------------------------
+  #buildMapSelect() {
+    const el = document.createElement('div');
+    el.id = 'mm-mapselect';
+    el.innerHTML = `
+      <div class="mm-ms-wrap">
+        <div class="mm-ms-list">
+          <div class="mm-ms-head">Select Map</div>
+          <div class="mm-map sel" data-map="zm_test"><span>ZM_Test</span></div>
+        </div>
+        <div class="mm-ms-preview">
+          <img class="mm-ms-shot" alt="ZM_Test" src="${this.#mapShot()}" />
+          <div class="mm-ms-cap">
+            <h3>ZM_Test</h3>
+            <p>A condemned containment annex on the frostbitten rim of Necropolis. The reanimation trials never stopped here — the staff simply stopped leaving. Boarded windows, a dead generator, and something that still paces the dark beyond the walls. Hold out, and learn what they were really making.</p>
+          </div>
+        </div>
+      </div>
+      <div class="mm-ms-back">Back</div>`;
+    el.querySelector('.mm-map').addEventListener('click', () => this.fadeToPlay());
+    el.querySelector('.mm-ms-back').addEventListener('click', () => this.closeMapSelect());
+    document.body.appendChild(el);
+    this.#mapSelect = el;
+  }
+
+  /** A small procedural "screenshot" of the map (dark, foggy, red-lit ruin). */
+  #mapShot() {
+    const c = document.createElement('canvas'); c.width = 520; c.height = 300;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 300);
+    g.addColorStop(0, '#0a0f18'); g.addColorStop(0.6, '#0b0a10'); g.addColorStop(1, '#060507');
+    x.fillStyle = g; x.fillRect(0, 0, 520, 300);
+    // distant red glow
+    const rg = x.createRadialGradient(300, 210, 0, 300, 210, 240);
+    rg.addColorStop(0, 'rgba(150,20,16,0.4)'); rg.addColorStop(1, 'rgba(150,20,16,0)');
+    x.fillStyle = rg; x.fillRect(0, 0, 520, 300);
+    // building silhouette
+    x.fillStyle = '#05060a';
+    x.fillRect(120, 120, 300, 160);
+    x.fillRect(90, 170, 80, 110); x.fillRect(360, 150, 90, 130);
+    // lit windows
+    for (let i = 0; i < 7; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(255,120,40,0.7)' : 'rgba(80,160,200,0.5)'; x.fillRect(150 + i * 38, 150 + (i % 2) * 30, 16, 22); }
+    // fog band
+    const fg = x.createLinearGradient(0, 230, 0, 300); fg.addColorStop(0, 'rgba(120,140,160,0)'); fg.addColorStop(1, 'rgba(150,170,190,0.22)');
+    x.fillStyle = fg; x.fillRect(0, 230, 520, 70);
+    // grain
+    for (let i = 0; i < 1400; i++) { x.fillStyle = `rgba(255,255,255,${Math.random() * 0.04})`; x.fillRect(Math.random() * 520, Math.random() * 300, 1, 1); }
+    return c.toDataURL();
+  }
+
+  openMapSelect() { this.#mapSelect?.classList.add('show'); this.#mapOpen = true; }
+  closeMapSelect() { this.#mapSelect?.classList.remove('show'); this.#mapOpen = false; }
+
+  // --- coming soon --------------------------------------------------------
+  #buildSoon() {
+    const el = document.createElement('div');
+    el.id = 'mm-soon';
+    el.innerHTML = `
+      <div class="mm-soon-card">
+        <div class="tag" id="mm-soon-tag">Feature</div>
+        <h2 id="mm-soon-title">—</h2>
+        <div class="sub" id="mm-soon-sub"></div>
+        <div class="soon">Coming Soon</div>
+      </div>
+      <div class="mm-soon-back">Back</div>`;
+    el.querySelector('.mm-soon-back').addEventListener('click', () => this.#closeSoon());
+    document.body.appendChild(el);
+    this.#soon = el;
+  }
+
+  comingSoon(name, sub = '') {
+    if (!this.#soon) return;
+    this.#soon.querySelector('#mm-soon-title').textContent = name;
+    this.#soon.querySelector('#mm-soon-sub').textContent = sub;
+    this.#soon.classList.add('show');
+    this.#soonOpen = true;
+  }
+  #closeSoon() { this.#soon?.classList.remove('show'); this.#soonOpen = false; }
+
+  // --- map enter: fade to black, start the run, fade back in --------------
+  fadeToPlay() {
+    if (this.#entering) return;
+    this.#entering = true;
+    this.#input.requestPointerLock(); // synchronous in the click gesture (lock now, control later)
+    this.#fade.classList.remove('slow');
+    this.#fade.classList.add('show'); // fade to black (~0.55s) — still in MENU, so no movement/fire
+    setTimeout(() => {
+      this.closeMapSelect();
+      this.#gameState.set(AppState.PLAYING); // round resets (1s pre-round); control begins
+      this.#fade.classList.add('slow');
+      requestAnimationFrame(() => this.#fade.classList.remove('show')); // fade the map in (~0.95s)
+      setTimeout(() => { this.#entering = false; this.#fade.classList.remove('slow'); }, 1000);
+    }, 600);
   }
 
   #select(i) {
@@ -259,13 +405,15 @@ export class UIManager {
   #bindGlobalKeys() {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
+        if (this.#soonOpen) { this.#closeSoon(); e.preventDefault(); return; }
+        if (this.#mapOpen) { this.closeMapSelect(); e.preventDefault(); return; }
         if (this.#optionsOpen) { this.closeOptions(); e.preventDefault(); return; }
         if (this.#gameState.current === AppState.PAUSED) { this.resume(); e.preventDefault(); return; }
         // In-game Esc is handled by the browser (exits lock -> pause).
         return;
       }
-      // Main-menu navigation.
-      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen) {
+      // Main-menu navigation (suspended while a sub-panel/intro is up).
+      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#entering) {
         if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#select((this.#sel + 1) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'ArrowUp' || e.code === 'KeyW') { this.#select((this.#sel - 1 + this.#mainItems.length) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'Enter' || e.code === 'Space') { this.#mainItems[this.#sel]?.click(); e.preventDefault(); }
