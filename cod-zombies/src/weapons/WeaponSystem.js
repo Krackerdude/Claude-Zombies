@@ -36,6 +36,7 @@ const _sunDir = new THREE.Vector3();
 const _rayO = new THREE.Vector3();
 const _end = new THREE.Vector3();
 const _muz = new THREE.Vector3();
+const _muz2 = new THREE.Vector3();
 const _nrm = new THREE.Vector3();
 const _col = new THREE.Color();
 const _explo = new THREE.Vector3();
@@ -418,13 +419,21 @@ export class WeaponSystem extends System {
     // offsets to ~0 — otherwise aimed tracers leave from the hip-right and read as
     // "stuck off to the right".
     const ads = weapon.adsProgress || 0;
+    // AUTO akimbo fires BOTH barrels at once; semi/burst alternates sides
+    const bothBarrels = weapon.data.dualWield && weapon.data.fireMode === 'auto';
     let mx = 0.12;
-    if (weapon.data.dualWield) { weapon._dualSide = !weapon._dualSide; mx = weapon._dualSide ? 0.12 : -0.12; }
-    else mx *= (1 - ads);
+    if (weapon.data.dualWield) {
+      if (bothBarrels) { weapon._dualSide = true; mx = 0.12; }
+      else { weapon._dualSide = !weapon._dualSide; mx = weapon._dualSide ? 0.12 : -0.12; }
+    } else mx *= (1 - ads);
     const my = -0.08 * (1 - ads * 0.85);
     _muz.copy(o).addScaledVector(_fwd, 0.5).addScaledVector(_right, mx).addScaledVector(_up, my);
     const tint = weapon.data.papTint;
     if (this.#fx) this.#fx.spawnMuzzle(_muz, _fwd, _right, _up, tint);
+    if (bothBarrels) { // mirror barrel: flash + (below) tracer from the left gun too
+      _muz2.copy(o).addScaledVector(_fwd, 0.5).addScaledVector(_right, -0.12).addScaledVector(_up, my);
+      if (this.#fx) this.#fx.spawnMuzzle(_muz2, _fwd, _right, _up, tint);
+    }
 
     for (let s = 0; s < count; s++) {
       const ax = (Math.random() * 2 - 1) * spread;
@@ -464,6 +473,7 @@ export class WeaponSystem extends System {
           _end.copy(o).addScaledVector(_dir, weapon.data.range);
         }
         this.#fx.spawnTracer(_muz, _end, tint);
+        if (bothBarrels) this.#fx.spawnTracer(_muz2, _end, tint); // both akimbo barrels streak
       }
     }
     if (anyHit) this.#events.emit('weapon:hit', { killed: anyKill });

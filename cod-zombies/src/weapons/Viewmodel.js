@@ -58,7 +58,10 @@ export class Viewmodel {
   // dual-wield (twin mirrored pistols): two holders, the left one scale.x = -1 so
   // its geometry AND its reload lean mirror for free. Shots alternate sides.
   #dual = false; #dualR = null; #dualL = null;
-  #dualDX = 0.13; #dualKickR = 0; #dualKickL = 0;
+  #dualDX = 0.22; #dualKickR = 0; #dualKickL = 0; // wider stance so the twins aren't crammed at centre
+  #dualLParts = null;          // left model's animated parts (cylinder)
+  #flashL; #muzzleL; #muzzleCoreL; // second muzzle flash for the left gun
+  #flashROn = false; #flashLOn = false;
   #light;
   #starTex;
   #energyTex;
@@ -123,6 +126,14 @@ export class Viewmodel {
     this.#flash.add(this.#muzzle, this.#muzzleCore);
     this.#flash.renderOrder = 10;
     this.#group.add(this.#flash);
+    // a second flash for the left gun (akimbo). Shares the right's materials so
+    // colour/opacity/PaP-tint always match; only scale/visibility differ.
+    this.#flashL = new THREE.Group();
+    this.#muzzleL = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), this.#muzzle.material);
+    this.#muzzleCoreL = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.14), this.#muzzleCore.material);
+    this.#flashL.add(this.#muzzleL, this.#muzzleCoreL);
+    this.#flashL.renderOrder = 10; this.#flashL.visible = false;
+    this.#group.add(this.#flashL);
 
     // Thundergun shockwave: concentric rings that punch outward at extreme speed
     this.#shock = new THREE.Group();
@@ -247,14 +258,17 @@ export class Viewmodel {
     this.#dual = !!weapon.data.dualWield;
     if (this.#dual) {
       this.#dualR = new THREE.Group(); this.#dualR.add(group);
-      this.#dualL = new THREE.Group(); this.#dualL.add(buildWeaponModel(weapon).group); this.#dualL.scale.set(-1, 1, 1);
+      const left = buildWeaponModel(weapon);
+      this.#dualL = new THREE.Group(); this.#dualL.add(left.group); this.#dualL.scale.set(-1, 1, 1);
+      this.#dualLParts = left.group.userData || null; // so the LEFT cylinder spins too
+      if (this.#dualLParts?.cylinder) this.#dualLParts.cylinder.rotation.z = 0;
       this.#dualKickR = 0; this.#dualKickL = 0;
       const container = new THREE.Group();
       container.add(this.#dualR, this.#dualL);
       this.#model = container;
       this.#group.add(container);
     } else {
-      this.#dualR = this.#dualL = null;
+      this.#dualR = this.#dualL = null; this.#dualLParts = null;
       this.#model = group;
       this.#group.add(group);
     }
@@ -278,6 +292,8 @@ export class Viewmodel {
     this.#muzzle.material.needsUpdate = true;
     const fx0 = this.#dual ? this.#dualDX : 0; // dual: flash starts on the right gun
     this.#flash.position.set(fx0, 0.0, this.#muzzleZ - 0.04);
+    this.#flashL.position.set(-fx0, 0.0, this.#muzzleZ - 0.04);
+    this.#flashL.visible = false;
     this.#light.color.set(pap ? 0xff2a6a : this.#energyFlash ? ecol : 0xffd9a0);
     this.#light.position.set(fx0, 0.0, this.#muzzleZ);
     // Thundergun: replace the flash with expanding shockwave rings at the muzzle
@@ -294,13 +310,16 @@ export class Viewmodel {
     if (!this.#dualR || !this.#dualL) return;
     const DX = this.#dualDX;
 
-    // new shot -> flash + kick on the gun the WeaponSystem actually fired from
-    // (weapon._dualSide), so the tracer + muzzle flash always match
+    // new shot: AUTO akimbo fires BOTH guns together; semi/burst alternates to the
+    // gun the WeaponSystem actually fired from (weapon._dualSide)
     if (weapon.justFired > this.#prevFired + 1e-4) {
-      const side = weapon._dualSide ? 1 : -1;
-      this.#flash.position.x = side * DX;
-      this.#light.position.x = side * DX;
-      if (side > 0) this.#dualKickR = 1; else this.#dualKickL = 1;
+      const auto = weapon.data.fireMode === 'auto';
+      this.#flashROn = auto || weapon._dualSide;
+      this.#flashLOn = auto || !weapon._dualSide;
+      this.#flash.position.x = DX; this.#flashL.position.x = -DX;
+      this.#light.position.x = auto ? 0 : (weapon._dualSide ? DX : -DX);
+      if (this.#flashROn) this.#dualKickR = 1;
+      if (this.#flashLOn) this.#dualKickL = 1;
     }
     this.#dualKickR += (0 - this.#dualKickR) * Math.min(1, dt * 11);
     this.#dualKickL += (0 - this.#dualKickL) * Math.min(1, dt * 11);
@@ -587,14 +606,20 @@ export class Viewmodel {
     // for that cartoon flicker; the core stays put and white-hot.
     const lit = Math.max(0, weapon.justFired / 0.05);
     const pop = lit > 0 && !this.#thunder;
-    this.#flash.visible = pop;
+    // for akimbo, each barrel shows its own flash; otherwise the single centred one
+    this.#flash.visible = pop && (!this.#dual || this.#flashROn);
+    this.#flashL.visible = pop && this.#dual && this.#flashLOn;
     if (pop) {
       const e = this.#energyFlash;
-      this.#muzzle.material.opacity = lit;
-      this.#muzzle.rotation.z = e ? this.#muzzle.rotation.z + 0.35 : Math.random() * Math.PI; // plasma swirls, star flickers
+      this.#muzzle.material.opacity = lit;        // shared material -> both barrels match
+      this.#muzzle.rotation.z = e ? this.#muzzle.rotation.z + 0.35 : Math.random() * Math.PI;
       this.#muzzle.scale.setScalar(e ? 1.1 + Math.random() * 0.35 : 0.85 + Math.random() * 0.6);
       this.#muzzleCore.material.opacity = Math.min(1, lit * 1.3);
       this.#muzzleCore.scale.setScalar(e ? 1.1 + Math.random() * 0.2 : 0.9 + Math.random() * 0.25);
+      if (this.#flashL.visible) { // mirror the flicker onto the left barrel
+        this.#muzzleL.scale.copy(this.#muzzle.scale); this.#muzzleL.rotation.z = -this.#muzzle.rotation.z;
+        this.#muzzleCoreL.scale.copy(this.#muzzleCore.scale);
+      }
     }
 
     // Thundergun: a fresh shot launches concentric rings that blast outward fast,
@@ -626,6 +651,7 @@ export class Viewmodel {
         if (weapon.justFired > this.#prevFired + 1e-4) this.#cylTarget += (Math.PI * 2) / (ud.chambers || 6);
         this.#cylAngle += (this.#cylTarget - this.#cylAngle) * Math.min(1, dt * 20);
         ud.cylinder.rotation.z = this.#cylAngle;
+        if (this.#dualLParts?.cylinder) this.#dualLParts.cylinder.rotation.z = this.#cylAngle; // left twin spins too
       }
       if (ud.barrelSpin) {
         const firing = weapon.justFired > 0;
