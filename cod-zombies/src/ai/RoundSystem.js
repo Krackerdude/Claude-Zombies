@@ -51,6 +51,8 @@ export class RoundSystem extends System {
     });
     // a killing blow just flags death; the reset runs at a safe point (lateUpdate)
     this.#events.on('player:down', () => { this.#pendingDeath = true; });
+    // pause-menu "Restart Level": wipe the field + player and start over at round 1
+    this.#events.on('game:restart', () => this.#resetField());
   }
 
   #startRun() {

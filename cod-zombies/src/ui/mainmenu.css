@@ -201,7 +201,8 @@
    These ride after menu.css so they win by cascade order.
    ========================================================================== */
 #screen-options {
-  background: radial-gradient(120% 100% at 50% 30%, rgba(6,9,14,0.86), rgba(3,5,8,0.96)) !important;
+  /* a translucent veil so the frozen gameplay (or menu backdrop) shows through */
+  background: radial-gradient(120% 100% at 50% 30%, rgba(6,9,14,0.7), rgba(3,5,8,0.88)) !important;
 }
 .opt-head {
   font-family: 'Anton', Impact, sans-serif; color: #e7edf0;
@@ -258,3 +259,73 @@
 
 .btn-ghost { font-family: 'Oswald', sans-serif; font-weight: 600; letter-spacing: 0.16em; color: #aeb9c0; }
 .btn-ghost:hover { color: #14110a; background: linear-gradient(180deg, #ffb347, #ff8a28); border-color: #ffb347; }
+
+/* ============================================================================
+   Pause menu — a full-screen, two-tab overlay (Game / Options) over the frozen
+   gameplay, in the same Persona chrome as the main menu.
+   ========================================================================== */
+#screen-pause {
+  background: radial-gradient(120% 100% at 30% 40%, rgba(5,8,13,0.78) 0%, rgba(3,5,8,0.9) 70%) !important;
+}
+.pm-head {
+  position: absolute; left: clamp(30px, 5vw, 90px); top: 5.5%;
+  font-family: 'Anton', Impact, sans-serif; font-size: clamp(2.4rem, 5vw, 4rem);
+  color: #e7edf0; text-transform: uppercase; letter-spacing: 0.04em; transform: skewX(-6deg);
+  text-shadow: 0 3px 12px rgba(0,0,0,0.7);
+}
+.pm-head small { display: block; font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 0.7rem; letter-spacing: 0.45em; color: #ffb347; transform: skewX(6deg); margin-top: 2px; }
+
+.pm-tabs { position: absolute; left: clamp(30px, 5vw, 90px); top: 19%; display: flex; gap: 10px; z-index: 3; }
+.pm-tab {
+  position: relative; cursor: pointer; padding: 6px 26px;
+  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.05rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #9fb0bb;
+  clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+  background: rgba(14,19,24,0.6); transition: all 0.16s; transform: skewX(-9deg);
+}
+.pm-tab > span { display: inline-block; transform: skewX(9deg); }
+.pm-tab:hover { color: #ffd7a6; }
+.pm-tab.active { color: #14110a; background: linear-gradient(180deg, #ffb347, #ff8a28); box-shadow: 0 0 16px rgba(255,150,40,0.4); }
+
+.pm-body { position: absolute; left: clamp(30px, 5vw, 90px); right: clamp(30px, 5vw, 90px); top: 27%; bottom: 18%; }
+.pm-pane[hidden] { display: none; }
+
+.pm-gamelist { position: static; }
+.pm-gamelist .mm-opt { font-size: 1.35rem; min-width: 340px; padding: 10px 34px 10px 22px; }
+
+/* entrance is re-triggered per pane on show / tab-switch (a hidden pane can't run
+   the animation, so we never gate it on a class that holds the from-state) */
+.pm-pane.pm-anim .pm-cat, .pm-pane.pm-anim .mm-opt { animation: mmOptIn 0.32s both; }
+
+.pm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; max-width: 1100px; }
+.pm-cat {
+  display: flex; align-items: center; gap: 16px; cursor: pointer; padding: 18px 18px;
+  background: linear-gradient(160deg, rgba(18,24,30,0.92), rgba(9,12,17,0.95));
+  border: 1px solid rgba(120,170,185,0.22); border-radius: 5px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.5); transition: all 0.16s; color: #c6d0d6;
+}
+.pm-cat:hover { border-color: rgba(255,160,60,0.7); color: #ffd7a6; transform: translateY(-2px); box-shadow: 0 12px 26px rgba(0,0,0,0.55), 0 0 18px rgba(255,140,40,0.2); }
+.pm-cat-ico { width: 54px; height: 54px; flex: none; display: grid; place-items: center; border-radius: 5px; background: rgba(0,0,0,0.4); border: 1px solid rgba(120,170,185,0.2); color: #aebcc6; transition: color 0.16s, border-color 0.16s; }
+.pm-cat:hover .pm-cat-ico { color: #ffb347; border-color: rgba(255,160,60,0.5); }
+.pm-cat-ico svg { width: 30px; height: 30px; }
+.pm-cat-name { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 1.18rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.pm-cat-name small { display: block; font-size: 0.66rem; letter-spacing: 0.08em; color: #8aa0ac; text-transform: none; margin-top: 3px; }
+
+.pm-rank {
+  position: absolute; left: clamp(30px, 5vw, 90px); right: clamp(30px, 5vw, 90px); bottom: 7%;
+  display: flex; align-items: center; gap: 16px;
+}
+.pm-rank-badge {
+  width: 52px; height: 52px; flex: none; display: grid; place-items: center; border-radius: 5px;
+  font-family: 'Anton'; font-size: 1.7rem; color: #ffd27a;
+  background: linear-gradient(180deg, rgba(30,24,12,0.9), rgba(10,8,5,0.95));
+  border: 1px solid rgba(255,200,110,0.4); box-shadow: inset 0 0 10px rgba(0,0,0,0.7), 0 0 12px rgba(255,180,60,0.15);
+}
+.pm-rank-main { flex: 1; max-width: 520px; }
+.pm-rank-row { display: flex; justify-content: space-between; font-family: 'Oswald', sans-serif; font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+.pm-rank-name { color: #e2e8ec; }
+.pm-rank-next { color: #8aa0ac; }
+.pm-rank-track { height: 8px; border-radius: 4px; background: rgba(150,175,188,0.18); overflow: hidden; box-shadow: inset 0 0 4px rgba(0,0,0,0.6); }
+.pm-rank-track > i { display: block; height: 100%; background: linear-gradient(90deg, #ffb347, #ff8a28); box-shadow: 0 0 10px rgba(255,150,40,0.6); }
+
+.pm-foot { position: absolute; left: clamp(30px, 5vw, 90px); bottom: 3%; font-family: 'Oswald', sans-serif; font-size: 0.72rem; letter-spacing: 0.22em; color: #8aa0ac; text-transform: uppercase; }

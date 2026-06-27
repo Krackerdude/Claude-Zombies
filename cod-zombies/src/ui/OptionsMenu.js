@@ -92,6 +92,9 @@ export class OptionsMenu {
     this.#renderPanel();
   }
 
+  /** Public: jump straight to a category (used by the pause-menu option widgets). */
+  goTo(id) { if (TABS.some((t) => t.id === id)) this.#switch(id); }
+
   #renderPanel() {
     this.#panel.innerHTML = '';
     if (this.#active === 'controls') this.#buildControls();
