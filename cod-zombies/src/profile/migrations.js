@@ -1,4 +1,4 @@
-import { PROFILE_VERSION, defaultProfile } from './schema.js';
+import { PROFILE_VERSION, defaultProfile, defaultPacks } from './schema.js';
 
 /**
  * Ordered, additive migration chain. When a stored profile's `v` is older than
@@ -17,7 +17,8 @@ import { PROFILE_VERSION, defaultProfile } from './schema.js';
  *   { to: 2, up(d) { d.loadouts ??= { saved: [], active: null }; } }
  */
 export const MIGRATIONS = [
-  // { to: 2, up(data) { data.newBucket ??= {}; } },
+  // v2: GobbleGum loadout presets (equipped pack + named 5-slot packs).
+  { to: 2, up(data) { data.gobblegum ??= { equipped: 0, packs: defaultPacks() }; } },
 ];
 
 /**

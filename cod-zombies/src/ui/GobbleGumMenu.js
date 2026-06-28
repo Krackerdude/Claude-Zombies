@@ -1,5 +1,5 @@
 import { RARITIES, ACT, gumsByRarity, rarityName } from '../gobblegums/gobblegums.js';
-import { gumGlyphSvg } from '../gobblegums/gumGlyphs.js';
+import { gumBallHtml } from './gumBall.js';
 
 /**
  * GobbleGum browser overlay. A self-contained full-screen panel (opened from the
@@ -18,13 +18,16 @@ export class GobbleGumMenu {
   #selId = null;
   #onClose;
   #open = false;
+  #packs; // PackStore — when set, clicking a gum edits the equipped pack
 
-  constructor({ onClose } = {}) {
+  constructor({ onClose, packs = null } = {}) {
     this.#onClose = onClose;
+    this.#packs = packs;
     this.#build();
   }
 
   get isOpen() { return this.#open; }
+  get el() { return this.#el; }
 
   open() {
     this.#el.classList.add('show');
@@ -55,14 +58,17 @@ export class GobbleGumMenu {
         <div class="gg-detail"></div>
       </div>
       <div class="gg-foot">
-        <span>[↑↓ / Click] Browse · [Esc] Back</span>
-        <div class="gg-back">Back</div>
+        <span class="gg-foot-hint"></span>
+        <div class="gg-back">Done</div>
       </div>`;
     document.body.appendChild(el);
     this.#el = el;
     this.#grid = el.querySelector('.gg-grid');
     this.#detail = el.querySelector('.gg-detail');
     this.#tabsEl = el.querySelector('.gg-tabs');
+    el.querySelector('.gg-foot-hint').textContent = this.#packs
+      ? 'Click a GobbleGum to add it to your pack · Click a slot to swap · [Esc] Done'
+      : '[↑↓ / Click] Browse · [Esc] Back';
     this.#fillMachine();
 
     // rarity tabs
@@ -78,7 +84,10 @@ export class GobbleGumMenu {
     el.querySelector('.gg-back').addEventListener('click', () => this.close());
     this.#grid.addEventListener('click', (e) => {
       const cell = e.target.closest('.gg-cell');
-      if (cell) this.#select(cell.dataset.id);
+      if (!cell) return;
+      this.#select(cell.dataset.id);
+      // in edit mode, a click also drops the gum into the equipped pack
+      this.#packs?.placeGum(cell.dataset.id);
     });
   }
 
@@ -117,7 +126,7 @@ export class GobbleGumMenu {
       const acol = (ACT[g.act] ?? ACT.time).color;
       return `
       <div class="gg-cell" data-id="${g.id}" style="--acol:${acol}">
-        ${ballHtml(g, 112)}
+        ${gumBallHtml(g, 112)}
         <div class="gg-name">${g.name}</div>
       </div>`;
     }).join('');
@@ -139,14 +148,7 @@ export class GobbleGumMenu {
       <div class="gg-d-name"><span>${gum.name}</span></div>
       <div class="gg-d-rarity">${rarityName(gum.rarity)}</div>
       <div class="gg-d-act"><b>${ACT[gum.act].label}</b> · Lasts ${gum.duration}</div>
-      <div class="gg-d-preview">${ballHtml(gum, 248)}</div>
+      <div class="gg-d-preview">${gumBallHtml(gum, 248)}</div>
       <div class="gg-d-desc">${gum.effect}</div>`;
   }
-}
-
-/** Build a glossy CSS gumball element for a gum at a given pixel diameter. */
-function ballHtml(gum, d) {
-  const act = ACT[gum.act] ?? ACT.time;
-  const rainbow = gum.act === 'whimsy' ? ' gg-rainbow' : '';
-  return `<div class="gg-ball${rainbow}" style="--d:${d}px; --col:${act.color}; --glow:${act.glow}">${gumGlyphSvg(gum.glyph)}</div>`;
 }

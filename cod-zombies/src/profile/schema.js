@@ -14,7 +14,18 @@
  *     gameplay decision, not a storage one.
  */
 
-export const PROFILE_VERSION = 1;
+export const PROFILE_VERSION = 2;
+
+/** A GobbleGum pack holds up to five gum ids (null = empty slot). */
+export const PACK_SLOTS = 5;
+export const PACK_COUNT = 4;
+
+export function emptyPack(name) {
+  return { name, slots: new Array(PACK_SLOTS).fill(null) };
+}
+export function defaultPacks() {
+  return Array.from({ length: PACK_COUNT }, (_, i) => emptyPack(`GobbleGum Pack ${i + 1}`));
+}
 
 /** A fresh, empty profile at the current schema version. */
 export function defaultProfile(id = 'local') {
@@ -59,6 +70,14 @@ export function defaultProfile(id = 'local') {
     emblems: {
       active: null,
       saved: [], // [{ id, name, layers: [...], updatedAt }]
+    },
+
+    // Equipped GobbleGum loadout presets. `packs` are named 5-slot presets the
+    // player fills from the catalog; `equipped` indexes the active one. Slots
+    // hold gum ids (or null when empty). Persists across sessions.
+    gobblegum: {
+      equipped: 0,
+      packs: defaultPacks(),
     },
 
     // Lifetime counters (kills, downs, highestRound, gamesPlayed, ...). Free-form

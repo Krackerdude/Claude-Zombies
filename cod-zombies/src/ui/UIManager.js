@@ -4,6 +4,10 @@ import { OptionsMenu } from './OptionsMenu.js';
 import { levelFromXp, MAX_LEVEL } from '../profile/index.js';
 import { diviniumVialSvg } from './diviniumVial.js';
 import { GobbleGumMenu } from './GobbleGumMenu.js';
+import { GobblePackMenu } from './GobblePackMenu.js';
+import { PlayerWidget } from './PlayerWidget.js';
+import { PackStore } from '../gobblegums/PackStore.js';
+import { GumballMachineView } from './GumballMachineView.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -42,6 +46,7 @@ export class UIManager {
   #fade; #mapSelect; #soon;
   #mapOpen = false; #soonOpen = false; #entering = false;
   #gobblegum; #ggOpen = false;
+  #packs; #widget; #packMenu; #machineView; #gpOpen = false;
 
   constructor(engine) {
     this.#engine = engine;
@@ -60,7 +65,23 @@ export class UIManager {
     this.#buildMainMenu();
     this.#buildPause();
     this.#buildOptions();
-    this.#gobblegum = new GobbleGumMenu({ onClose: () => { this.#ggOpen = false; } });
+
+    // GobbleGum: persistent pack state + the single shared player widget that is
+    // re-parented between menus, the pack pre-menu (with its live 3D machine),
+    // and the catalog (in edit mode it fills the equipped pack).
+    this.#packs = new PackStore(this.#profile, this.#events);
+    this.#widget = new PlayerWidget({ profile: this.#profile, packs: this.#packs, events: this.#events });
+    this.#machineView = new GumballMachineView();
+    this.#gobblegum = new GobbleGumMenu({ packs: this.#packs, onClose: () => this.#onCatalogClosed() });
+    this.#packMenu = new GobblePackMenu({
+      packs: this.#packs,
+      machineView: this.#machineView,
+      onCustomize: () => this.openGobbleGums(),
+      onClose: () => this.#onPackMenuClosed(),
+    });
+    this.#events.on('gobblegum:changed', () => { this.#widget.refresh(); this.#packMenu.refresh(); });
+    // park the widget in its home (main-menu top-right)
+    this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' });
 
     // seed the CSS-overlay vars from the resolved amounts (toggle × amount);
     // applyAll() re-broadcasts the authoritative values on settings:fx next.
@@ -101,9 +122,9 @@ export class UIManager {
     this.#refresh();
   }
 
-  // --- player rank (main-menu widget + pause-menu bar) --------------------
+  // --- player rank (pause-menu bar; the shared widget repaints itself) ----
 
-  /** Snapshot the profile's level/progress and paint both rank displays. */
+  /** Snapshot the profile's level/progress and paint the pause-menu rank bar. */
   #refreshRank() {
     const xp = this.#profile?.get('progression.xp', 0) ?? 0;
     const name = this.#profile?.get('identity.displayName', 'Survivor One') ?? 'Survivor One';
@@ -112,12 +133,6 @@ export class UIManager {
     const next = r.max
       ? 'Max Level'
       : `Next Level: ${(r.needed - r.into).toLocaleString()} XP`;
-
-    // main-menu top-right player widget
-    const ml = this.#root.querySelector('.mm-lvl');
-    const mn = this.#root.querySelector('.mm-name');
-    if (ml) ml.textContent = String(r.level);
-    if (mn) mn.textContent = name;
 
     // pause-menu rank bar
     const badge = this.#root.querySelector('.pm-rank-badge');
@@ -204,10 +219,6 @@ export class UIManager {
         </div>
         <div class="mm-daily-foot">Check Back Tomorrow</div>
       </div>
-      <div class="mm-player">
-        <div class="mm-player-row"><span class="mm-lvl">0</span><span class="mm-name">Survivor One</span></div>
-        <div class="mm-gums"><i></i><i></i><i></i><i></i><i></i></div>
-      </div>
       <div class="mm-title" data-text="Necropolis">Necropolis</div>
       <div class="mm-list"></div>
       <div class="mm-foot">[↑↓] Select · [Enter] Confirm</div>`;
@@ -218,7 +229,7 @@ export class UIManager {
       { label: 'Solo Game', action: () => this.openMapSelect() },
       { label: 'Multiplayer', soon: true, action: soon('Multiplayer', 'Squad up with up to three other survivors against the horde.') },
       { label: 'Theater', soon: true, action: soon('Theater', 'Re-watch and clip your finest (and grisliest) runs.') },
-      { label: 'GobbleGum', action: () => this.openGobbleGums() },
+      { label: 'GobbleGum', action: () => this.openGobblePacks() },
       { label: "Dr. Newton's Factory", soon: true, action: () => this.comingSoon("Dr. Newton's Factory", 'Spend Liquid Divinium to spin for GobbleGums.', { divinium: true }) },
       { label: "Newton's Cookbook", soon: true, action: soon("Newton's Cookbook", 'Trade and convert GobbleGums across rarities.') },
       { label: 'Weapon Kits', soon: true, action: soon('Weapon Kits', 'Customize every weapon with attachments.') },
@@ -328,7 +339,36 @@ export class UIManager {
     return c.toDataURL();
   }
 
-  openGobbleGums() { this.#gobblegum?.open(); this.#ggOpen = true; }
+  /** Main menu → GobbleGum pack pre-menu (widget parks top-left). */
+  openGobblePacks() {
+    this.#widget.setEditable(false);
+    this.#widget.mountTo(this.#packMenu.el ?? document.body, { top: '96px', left: '40px' });
+    this.#packMenu.open();
+    this.#gpOpen = true;
+  }
+  #onPackMenuClosed() {
+    // return the widget to its main-menu home
+    this.#widget.setEditable(false);
+    this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' });
+    this.#gpOpen = false;
+  }
+
+  /** Pack pre-menu → catalog in edit mode (widget moves to bottom-left, fills). */
+  openGobbleGums() {
+    this.#gobblegum.open();
+    this.#widget.setEditable(true);
+    this.#widget.mountTo(this.#gobblegum.el, { bottom: '24px', left: '40px' });
+    this.#ggOpen = true;
+  }
+  #onCatalogClosed() {
+    // back to the pack pre-menu — re-park the widget top-left, stop editing
+    this.#ggOpen = false;
+    this.#widget.setEditable(false);
+    this.#packs.clearSelection();
+    if (this.#gpOpen) this.#widget.mountTo(this.#packMenu.el, { top: '96px', left: '40px' });
+    this.#packMenu.refresh();
+  }
+
   openMapSelect() { this.#mapSelect?.classList.add('show'); this.#mapOpen = true; }
   closeMapSelect() { this.#mapSelect?.classList.remove('show'); this.#mapOpen = false; }
 
@@ -558,6 +598,7 @@ export class UIManager {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
         if (this.#ggOpen) { this.#gobblegum.close(); e.preventDefault(); return; }
+        if (this.#gpOpen) { this.#packMenu.close(); e.preventDefault(); return; }
         if (this.#soonOpen) { this.#closeSoon(); e.preventDefault(); return; }
         if (this.#mapOpen) { this.closeMapSelect(); e.preventDefault(); return; }
         if (this.#optionsOpen) { this.closeOptions(); e.preventDefault(); return; }
@@ -566,7 +607,7 @@ export class UIManager {
         return;
       }
       // Main-menu navigation (suspended while a sub-panel/intro is up).
-      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#entering) {
+      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#entering) {
         if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#select((this.#sel + 1) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'ArrowUp' || e.code === 'KeyW') { this.#select((this.#sel - 1 + this.#mainItems.length) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'Enter' || e.code === 'Space') { this.#mainItems[this.#sel]?.click(); e.preventDefault(); }
