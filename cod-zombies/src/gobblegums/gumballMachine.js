@@ -107,11 +107,11 @@ export function buildGumballMachine() {
   // sculpted lion head protruding from the plaque
   g.add(buildLion(lionMat, maneMat, eyeMat, darkMetal, track, 0, signY - 0.03, 0.085));
 
-  // glowing knob lamp atop the sign
-  mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.04, 16), chrome, 0, signY + 0.4, 0);
-  mesh(new THREE.SphereGeometry(0.045, 20, 16), knobMat, 0, signY + 0.45, 0.01);
+  // glowing knob lamp seated on the apex of the sign
+  mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.05, 16), chrome, 0, signY + 0.18, 0.03);
+  mesh(new THREE.SphereGeometry(0.045, 20, 16), knobMat, 0, signY + 0.23, 0.03);
 
-  g.userData.height = signY + 0.5;     // ~1.7 m to the top of the lamp
+  g.userData.height = signY + 0.29;    // ~1.85 m to the top of the lamp
   g.userData.dispose = () => { for (const t of track) t.dispose?.(); };
   return g;
 }

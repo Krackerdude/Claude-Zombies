@@ -86,8 +86,10 @@ export class GobblePackMenu {
     const eq = this.#packs.equippedIndex;
     this.#list.innerHTML = this.#packs.packs.map((p, i) => `
       <div class="gp-pack${i === eq ? ' sel' : ''}" data-i="${i}">
-        <div class="gp-pack-name">${p.name}</div>
-        <div class="gp-pack-slots">${p.slots.map((id) => `<div class="gp-slot">${slotHtml(id, 46)}</div>`).join('')}</div>
+        <div class="gp-plate">
+          <div class="gp-pack-name">${p.name}</div>
+          <div class="gp-pack-slots">${p.slots.map((id) => `<div class="gp-slot">${slotHtml(id, 46)}</div>`).join('')}</div>
+        </div>
       </div>`).join('');
   }
 }
