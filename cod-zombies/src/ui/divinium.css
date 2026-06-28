@@ -82,14 +82,22 @@
   color: #acd8ff;
 }
 
-/* a quick sheen sweep across the popup on entry */
+/* a quick sheen sweep across the popup on entry. The band is painted as a moving
+   background-position (not a translated box), so it's clipped to the rounded
+   popup and never spills past the edges. */
 #ld-popup::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: linear-gradient(105deg, transparent 30%, rgba(180,225,255,0.28) 48%, transparent 62%);
-  transform: translateX(-120%);
+  background: linear-gradient(105deg, transparent 42%, rgba(180,225,255,0.30) 50%, transparent 58%);
+  background-size: 250% 100%; background-position: 160% 0; background-repeat: no-repeat;
+  opacity: 0;
 }
 #ld-popup.show::after { animation: ldSheen 2.6s ease-out forwards; }
-@keyframes ldSheen { 0%,8% { transform: translateX(-120%); } 26%,100% { transform: translateX(120%); } }
+@keyframes ldSheen {
+  0%   { background-position: 160% 0; opacity: 0; }
+  8%   { opacity: 1; }
+  30%  { background-position: -60% 0; opacity: 1; }
+  34%, 100% { background-position: -60% 0; opacity: 0; }
+}
 
 /* ---------------------- factory tracker widget -------------------------- */
 /* shown inside Dr. Newton's Factory screen — your persistent balance */
