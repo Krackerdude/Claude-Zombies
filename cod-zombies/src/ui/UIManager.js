@@ -8,6 +8,7 @@ import { GobblePackMenu } from './GobblePackMenu.js';
 import { PlayerWidget } from './PlayerWidget.js';
 import { PackStore } from '../gobblegums/PackStore.js';
 import { GumballMachineView } from './GumballMachineView.js';
+import { menuLogoSvg } from './menuLogo.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -219,7 +220,7 @@ export class UIManager {
         </div>
         <div class="mm-daily-foot">Check Back Tomorrow</div>
       </div>
-      <div class="mm-title" data-text="Necropolis">Necropolis</div>
+      <div class="mm-title">${menuLogoSvg()}</div>
       <div class="mm-list"></div>
       <div class="mm-foot">[↑↓] Select · [Enter] Confirm</div>`;
 

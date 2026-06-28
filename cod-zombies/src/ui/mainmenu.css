@@ -10,32 +10,22 @@
   background: radial-gradient(120% 90% at 12% 50%, rgba(4,7,12,0.82) 0%, rgba(4,7,12,0.5) 38%, rgba(4,7,12,0.0) 70%);
 }
 
-/* ---- bloody title -------------------------------------------------------- */
+/* ---- NECROPOLIS logo emblem (designed SVG, see menuLogo.js) -------------- */
 .mm-title {
-  position: absolute; left: clamp(28px, 5vw, 96px); top: 20%;
-  font-family: 'Anton', Impact, sans-serif; font-weight: 400;
-  font-size: clamp(3.4rem, 9vw, 8.2rem); line-height: 0.86; letter-spacing: 0.01em;
-  color: #c5161a; text-transform: uppercase; pointer-events: none; isolation: isolate;
-  text-shadow:
-    0 0 2px #ff2a20, 0 2px 0 #6a0b08, 0 4px 0 #4a0805,
-    0 8px 22px rgba(180,16,12,0.55), 0 22px 30px rgba(0,0,0,0.7);
-  animation: mmTitlePulse 3.4s ease-in-out infinite;
+  position: absolute; left: clamp(20px, 4vw, 84px); top: 15%;
+  pointer-events: none; isolation: isolate;
 }
-.mm-title::before { /* darker drip underlayer, offset for depth */
-  content: attr(data-text); position: absolute; left: 2px; top: 6px; z-index: -1;
-  color: #5c0a07; filter: blur(1px); opacity: 0.8;
+.mm-title .nec-logo {
+  display: block; width: min(62vw, 880px); height: auto; overflow: visible;
+  animation: necFloat 7s ease-in-out infinite;
 }
-.mm-title::after { /* wet highlight that slides across the letters */
-  content: attr(data-text); position: absolute; inset: 0; color: transparent;
-  background: linear-gradient(100deg, transparent 40%, rgba(255,120,110,0.55) 50%, transparent 60%);
-  -webkit-background-clip: text; background-clip: text;
-  background-size: 280% 100%; animation: mmTitleSheen 5s linear infinite;
-}
-@keyframes mmTitlePulse {
-  0%,100% { transform: translateZ(0) skewX(-0.3deg); filter: brightness(1); }
-  50% { transform: translateZ(0) skewX(0.3deg) scale(1.012); filter: brightness(1.15); }
-}
-@keyframes mmTitleSheen { 0% { background-position: 180% 0; } 100% { background-position: -120% 0; } }
+.mm-title .nec-logo text { font-family: 'Grenze Gotisch', 'Anton', serif; font-weight: 900; font-size: 200px; }
+/* breathing glow + a faint shard flicker */
+.mm-title .nec-glow { animation: necGlow 4.6s ease-in-out infinite; }
+.mm-title .nec-shards { animation: necShards 5.5s ease-in-out infinite; }
+@keyframes necFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes necGlow { 0%,100% { opacity: 0.45; } 50% { opacity: 0.9; } }
+@keyframes necShards { 0%,100% { opacity: 0.78; } 50% { opacity: 1; } }
 
 /* ---- the option list ----------------------------------------------------- */
 .mm-list {
