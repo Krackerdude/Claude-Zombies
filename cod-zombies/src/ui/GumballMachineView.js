@@ -8,7 +8,7 @@ import { buildGumballMachine } from '../gobblegums/gumballMachine.js';
  * start()/stop() drive the spin loop; the canvas is reused across opens.
  */
 export class GumballMachineView {
-  #renderer = null; #scene; #camera; #machine; #canvas;
+  #renderer = null; #scene; #camera; #machine; #canvas; #cy = 0;
   #raf = 0; #running = false; #last = 0;
 
   constructor() { this.#init(); }
@@ -22,9 +22,7 @@ export class GumballMachineView {
     this.#canvas.className = 'gp-machine-canvas';
 
     const scene = new THREE.Scene();
-    const cam = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
-    cam.position.set(0, 0, 7);
-    cam.lookAt(0, 0, 0);
+    const cam = new THREE.PerspectiveCamera(34, 1, 0.05, 100);
 
     // fixed light rig (compiled once) — warm key, cool fill, warm rim
     scene.add(new THREE.AmbientLight(0xffffff, 0.75));
@@ -35,6 +33,15 @@ export class GumballMachineView {
     const machine = buildGumballMachine();
     machine.rotation.y = -0.45;
     scene.add(machine);
+
+    // frame the real-scale model: centre it vertically + back the camera off to
+    // fit its full height with a little headroom
+    const h = machine.userData.height || 1.7;
+    this.#cy = -h / 2;
+    machine.position.y = this.#cy;
+    const fitH = h * 1.12;
+    cam.position.set(0, 0, (fitH / 2) / Math.tan((cam.fov / 2) * Math.PI / 180));
+    cam.lookAt(0, 0, 0);
 
     this.#scene = scene; this.#camera = cam; this.#machine = machine;
   }
@@ -59,7 +66,7 @@ export class GumballMachineView {
       if (!this.#running) return;
       const dt = Math.min(0.05, (t - this.#last) / 1000); this.#last = t;
       this.#machine.rotation.y += dt * 0.35;                 // slow turntable
-      this.#machine.position.y = -2.05 + Math.sin(t * 0.0011) * 0.05; // gentle bob
+      this.#machine.position.y = this.#cy + Math.sin(t * 0.0011) * 0.02; // gentle bob
       this.#renderer.render(this.#scene, this.#camera);
       this.#raf = requestAnimationFrame(loop);
     };
