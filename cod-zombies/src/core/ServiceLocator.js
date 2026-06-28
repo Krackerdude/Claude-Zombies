@@ -66,6 +66,7 @@ export const Service = Object.freeze({
   Spawn: 'spawn',
   Hounds: 'hounds',
   Round: 'round',
+  Divinium: 'divinium',
   Weapons: 'weapons',
   AAT: 'aat',
   Economy: 'economy',

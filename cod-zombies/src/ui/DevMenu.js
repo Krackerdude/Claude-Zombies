@@ -47,6 +47,10 @@ export class DevMenu {
     for (const amt of [500, 1000, 5000, 10000]) html += `<button class="dev-btn" data-points="${amt}">+${amt >= 1000 ? amt / 1000 + 'k' : amt}</button>`;
     html += '<button class="dev-btn dev-warn" data-points="clear">Clear</button></div></div>';
 
+    html += '<div class="dev-sec"><div class="dev-title">Liquid Divinium</div><div class="dev-row">';
+    for (const amt of [1, 2, 3]) html += `<button class="dev-btn" data-divinium="${amt}">Grant +${amt}</button>`;
+    html += '</div></div>';
+
     html += '<div class="dev-sec"><div class="dev-title">Perks <button class="dev-btn dev-mini" data-perk="__all">All</button><button class="dev-btn dev-mini dev-warn" data-perk="__none">None</button></div><div class="dev-grid">';
     for (const id of Object.keys(PERKS)) html += `<button class="dev-btn dev-perk" data-perk="${id}" style="--pc:${hex(PERKS[id].color)}">${PERKS[id].name}</button>`;
     html += '</div></div>';
@@ -93,6 +97,7 @@ export class DevMenu {
       const b = e.target.closest('button');
       if (!b) return;
       if (b.dataset.points != null) this.#addPoints(b.dataset.points);
+      else if (b.dataset.divinium != null) { if (this.#engine.services.has(Service.Divinium)) this.#engine.services.get(Service.Divinium).grant(parseInt(b.dataset.divinium, 10)); }
       else if (b.dataset.perk) this.#perk(b.dataset.perk);
       else if (b.dataset.pap) {
         const ws = this.#engine.services.get(Service.Weapons);
