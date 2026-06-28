@@ -3,6 +3,7 @@ import { AppState } from '../core/GameState.js';
 import { OptionsMenu } from './OptionsMenu.js';
 import { levelFromXp, MAX_LEVEL } from '../profile/index.js';
 import { diviniumVialSvg } from './diviniumVial.js';
+import { GobbleGumMenu } from './GobbleGumMenu.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -40,6 +41,7 @@ export class UIManager {
   #intro; #introPlayed = false;
   #fade; #mapSelect; #soon;
   #mapOpen = false; #soonOpen = false; #entering = false;
+  #gobblegum; #ggOpen = false;
 
   constructor(engine) {
     this.#engine = engine;
@@ -58,6 +60,7 @@ export class UIManager {
     this.#buildMainMenu();
     this.#buildPause();
     this.#buildOptions();
+    this.#gobblegum = new GobbleGumMenu({ onClose: () => { this.#ggOpen = false; } });
 
     // seed the CSS-overlay vars from the resolved amounts (toggle × amount);
     // applyAll() re-broadcasts the authoritative values on settings:fx next.
@@ -215,7 +218,7 @@ export class UIManager {
       { label: 'Solo Game', action: () => this.openMapSelect() },
       { label: 'Multiplayer', soon: true, action: soon('Multiplayer', 'Squad up with up to three other survivors against the horde.') },
       { label: 'Theater', soon: true, action: soon('Theater', 'Re-watch and clip your finest (and grisliest) runs.') },
-      { label: 'GobbleGum', soon: true, action: soon('GobbleGum', 'Browse every GobbleGum and build your loadout.') },
+      { label: 'GobbleGum', action: () => this.openGobbleGums() },
       { label: "Dr. Newton's Factory", soon: true, action: () => this.comingSoon("Dr. Newton's Factory", 'Spend Liquid Divinium to spin for GobbleGums.', { divinium: true }) },
       { label: "Newton's Cookbook", soon: true, action: soon("Newton's Cookbook", 'Trade and convert GobbleGums across rarities.') },
       { label: 'Weapon Kits', soon: true, action: soon('Weapon Kits', 'Customize every weapon with attachments.') },
@@ -325,6 +328,7 @@ export class UIManager {
     return c.toDataURL();
   }
 
+  openGobbleGums() { this.#gobblegum?.open(); this.#ggOpen = true; }
   openMapSelect() { this.#mapSelect?.classList.add('show'); this.#mapOpen = true; }
   closeMapSelect() { this.#mapSelect?.classList.remove('show'); this.#mapOpen = false; }
 
@@ -553,6 +557,7 @@ export class UIManager {
   #bindGlobalKeys() {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
+        if (this.#ggOpen) { this.#gobblegum.close(); e.preventDefault(); return; }
         if (this.#soonOpen) { this.#closeSoon(); e.preventDefault(); return; }
         if (this.#mapOpen) { this.closeMapSelect(); e.preventDefault(); return; }
         if (this.#optionsOpen) { this.closeOptions(); e.preventDefault(); return; }
@@ -561,7 +566,7 @@ export class UIManager {
         return;
       }
       // Main-menu navigation (suspended while a sub-panel/intro is up).
-      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#entering) {
+      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#entering) {
         if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#select((this.#sel + 1) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'ArrowUp' || e.code === 'KeyW') { this.#select((this.#sel - 1 + this.#mainItems.length) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'Enter' || e.code === 'Space') { this.#mainItems[this.#sel]?.click(); e.preventDefault(); }
