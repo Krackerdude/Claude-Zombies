@@ -16,6 +16,7 @@ import './ui/devmenu.css';
 import './ui/divinium.css';
 import './ui/gobblegum.css';
 import './ui/gobblepack.css';
+import './ui/questmenu.css';
 
 /**
  * Application bootstrap. This is the only place that touches the DOM chrome

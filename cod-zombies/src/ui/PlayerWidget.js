@@ -1,5 +1,6 @@
 import { levelFromXp } from '../profile/index.js';
 import { slotHtml } from './gumBall.js';
+import { rewardColor, rewardLabel } from '../quests/quests.js';
 
 /**
  * The player widget — level badge, name, and the five GobbleGum slots of the
@@ -13,12 +14,13 @@ import { slotHtml } from './gumBall.js';
  */
 export class PlayerWidget {
   el;
-  #profile; #packs; #events;
-  #editable = false;
+  #profile; #packs; #events; #quests;
+  #editable = false; #showQuest = false;
 
-  constructor({ profile, packs, events }) {
+  constructor({ profile, packs, quests = null, events }) {
     this.#profile = profile;
     this.#packs = packs;
+    this.#quests = quests;
     this.#events = events;
 
     const el = document.createElement('div');
@@ -28,7 +30,15 @@ export class PlayerWidget {
         <div class="pw-lvl"><span class="mm-lvl">0</span><small>LVL</small></div>
         <div class="pw-name"><span class="mm-name">Survivor One</span></div>
       </div>
-      <div class="pw-gums"><span class="pw-gum-tag">GUM</span><div class="mm-gums"></div></div>`;
+      <div class="pw-gums"><span class="pw-gum-tag">GUM</span><div class="mm-gums"></div></div>
+      <div class="pw-quest" hidden>
+        <span class="pw-quest-tag">Current Quest</span>
+        <span class="pw-quest-name">—</span>
+        <div class="pw-quest-pop">
+          <div class="pw-quest-obj">—</div>
+          <div class="pw-quest-rw">—</div>
+        </div>
+      </div>`;
     this.el = el;
 
     el.querySelector('.mm-gums').addEventListener('click', (e) => {
@@ -40,6 +50,16 @@ export class PlayerWidget {
     this.#events?.on('gobblegum:changed', () => this.refresh());
     this.#events?.on('profile:changed', () => this.refresh());
     this.#events?.on('profile:loaded', () => this.refresh());
+    this.#events?.on('quest:changed', () => this.refresh());
+    this.#events?.on('quest:refresh', () => this.refresh());
+    this.refresh();
+  }
+
+  /** Show the Current Quest section — only on the main menu, not other contexts. */
+  setShowQuest(on) {
+    this.#showQuest = on;
+    const q = this.el.querySelector('.pw-quest');
+    if (q) q.hidden = !on;
     this.refresh();
   }
 
@@ -73,5 +93,17 @@ export class PlayerWidget {
     this.el.querySelector('.mm-gums').innerHTML = slots.map((id, i) =>
       `<div class="mm-gum-slot${i === sel ? ' sel' : ''}" data-slot="${i}">${slotHtml(id, 32)}</div>`,
     ).join('');
+
+    // Current Quest (main-menu only)
+    if (this.#showQuest && this.#quests) {
+      const q = this.#quests.tracked();
+      const sec = this.el.querySelector('.pw-quest');
+      if (q && sec) {
+        sec.style.setProperty('--rk', rewardColor(q.reward));
+        sec.querySelector('.pw-quest-name').textContent = q.name;
+        sec.querySelector('.pw-quest-obj').textContent = q.obj;
+        sec.querySelector('.pw-quest-rw').textContent = rewardLabel(q.reward);
+      }
+    }
   }
 }

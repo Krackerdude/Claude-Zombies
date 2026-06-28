@@ -187,6 +187,33 @@
 .pw-gum-tag { transform: skewX(10deg); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.2em; color: #82deef; }
 .mm-gums { transform: skewX(10deg); display: flex; gap: 8px; margin: 0; }
 
+/* Current Quest zone (main menu only) — reward-tinted strip; hover reveals the
+   objective + reward. Same plate language as the GUM strip. */
+.pw-quest {
+  position: relative; isolation: isolate; display: flex; align-items: center; gap: 8px;
+  margin-top: 5px; padding: 7px 14px 7px 11px; transform: skewX(-10deg);
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(24,28,36,0.96), rgba(8,10,14,0.97));
+  background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid color-mix(in srgb, var(--rk, #ffce5c) 38%, transparent); border-bottom: 1px solid rgba(0,0,0,0.7);
+  border-left: 3px solid var(--rk, #ffce5c);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.pw-quest > .pw-quest-tag, .pw-quest > .pw-quest-name { transform: skewX(10deg); }
+.pw-quest-tag { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in srgb, var(--rk, #ffce5c) 60%, #ffffff); flex: none; }
+.pw-quest-name { margin-left: auto; font-weight: 700; font-size: 0.92rem; letter-spacing: 0.03em; text-transform: uppercase; color: #f3f6f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+/* hover popout with the objective + reward (skew-corrected, floats above) */
+.pw-quest-pop {
+  position: absolute; right: 0; bottom: calc(100% + 8px); transform: skewX(10deg);
+  width: 240px; padding: 11px 14px; pointer-events: none; opacity: 0; transition: opacity 0.14s ease;
+  background: linear-gradient(180deg, rgba(18,22,30,0.98), rgba(8,10,14,0.99));
+  border: 1px solid color-mix(in srgb, var(--rk, #ffce5c) 45%, rgba(150,170,185,0.2));
+  border-radius: 6px; box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--rk, #ffce5c) 22%, transparent));
+}
+.pw-quest:hover .pw-quest-pop { opacity: 1; }
+.pw-quest-obj { font-size: 0.86rem; line-height: 1.4; color: #d4dde3; font-weight: 300; }
+.pw-quest-rw { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(150,170,185,0.16); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.04em; color: color-mix(in srgb, var(--rk, #ffce5c) 50%, #ffffff); }
+
 /* ---- footer hint --------------------------------------------------------- */
 .mm-foot {
   position: absolute; left: clamp(30px, 5vw, 100px); bottom: 26px; z-index: 4;
