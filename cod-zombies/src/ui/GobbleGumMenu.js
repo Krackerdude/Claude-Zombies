@@ -62,6 +62,7 @@ export class GobbleGumMenu {
     this.#grid = el.querySelector('.gg-grid');
     this.#detail = el.querySelector('.gg-detail');
     this.#tabsEl = el.querySelector('.gg-tabs');
+    this.#fillMachine();
 
     // rarity tabs
     for (const r of RARITIES) {
@@ -80,6 +81,29 @@ export class GobbleGumMenu {
     });
   }
 
+  /** Fill the background with a heap of colorful gumballs (a real machine well). */
+  #fillMachine() {
+    const bg = this.#el.querySelector('.gg-bg');
+    const palette = ['#ff5db1', '#3aa0ff', '#37d36a', '#9a5cff', '#ff8a28', '#ffd83a', '#ff5d5d', '#2fd6c6', '#ffffff'];
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const pick = () => palette[(Math.random() * palette.length) | 0];
+    const ball = (size, leftPct, edge, edgePct, op = 1) => {
+      const t = rnd(4, 9).toFixed(1);
+      const delay = rnd(0, 5).toFixed(1);
+      const bob = (-rnd(4, 13)).toFixed(0);
+      return `<div class="gg-bg-ball" style="width:${size.toFixed(0)}px;height:${size.toFixed(0)}px;` +
+        `left:${leftPct.toFixed(1)}%;${edge}:${edgePct.toFixed(1)}%;--c:${pick()};--t:${t}s;--delay:${delay}s;--bob:${bob}px;opacity:${op}"></div>`;
+    };
+    const out = [];
+    // dense pile heaped along the bottom of the glass
+    for (let i = 0; i < 38; i++) out.push(ball(rnd(48, 108), rnd(-3, 100), 'bottom', rnd(-7, 26)));
+    // a looser mid scatter rising off the heap
+    for (let i = 0; i < 12; i++) out.push(ball(rnd(30, 60), rnd(0, 100), 'bottom', rnd(26, 66), 0.62));
+    // a few drifting high up in the dome
+    for (let i = 0; i < 7; i++) out.push(ball(rnd(22, 42), rnd(6, 94), 'top', rnd(5, 28), 0.42));
+    bg.innerHTML = out.join('');
+  }
+
   // --- render -------------------------------------------------------------
 
   #selectRarity(rid) {
@@ -87,11 +111,14 @@ export class GobbleGumMenu {
     for (const b of this.#tabsEl.children) b.classList.toggle('active', b.dataset.rarity === rid);
 
     const gums = gumsByRarity(rid);
-    this.#grid.innerHTML = gums.map((g) => `
-      <div class="gg-cell" data-id="${g.id}">
-        ${ballHtml(g, 86)}
+    this.#grid.innerHTML = gums.map((g) => {
+      const acol = (ACT[g.act] ?? ACT.time).color;
+      return `
+      <div class="gg-cell" data-id="${g.id}" style="--acol:${acol}">
+        ${ballHtml(g, 112)}
         <div class="gg-name">${g.name}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     this.#grid.scrollTop = 0;
 
     // select the first gum in the tab
@@ -107,10 +134,10 @@ export class GobbleGumMenu {
     const rcol = RARITIES.find((r) => r.id === gum.rarity)?.color ?? '#ffb347';
     this.#detail.style.setProperty('--rcol', rcol);
     this.#detail.innerHTML = `
-      <div class="gg-d-name">${gum.name}</div>
+      <div class="gg-d-name"><span>${gum.name}</span></div>
       <div class="gg-d-rarity">${rarityName(gum.rarity)}</div>
       <div class="gg-d-act"><b>${ACT[gum.act].label}</b> · Lasts ${gum.duration}</div>
-      <div class="gg-d-preview">${ballHtml(gum, 190)}</div>
+      <div class="gg-d-preview">${ballHtml(gum, 248)}</div>
       <div class="gg-d-desc">
         ${gum.effect}
         <div class="gg-d-flavor">One Gumball is consumed each time this GobbleGum is used. Find Liquid Divinium in-game to craft more in Dr. Newton's Factory.</div>
