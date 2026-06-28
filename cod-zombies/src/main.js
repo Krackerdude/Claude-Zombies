@@ -14,6 +14,7 @@ import './ui/hud.css';
 import './ui/scoreboard.css';
 import './ui/devmenu.css';
 import './ui/divinium.css';
+import './ui/gobblegum.css';
 
 /**
  * Application bootstrap. This is the only place that touches the DOM chrome
