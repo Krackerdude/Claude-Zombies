@@ -113,6 +113,7 @@ export class PerkSystem extends System {
     if (player.points < def.cost) { this.#events.emit('buy:denied', {}); return false; }
     player.points -= def.cost;
     this.#events.emit('score:changed', { points: player.points });
+    this.#events.emit('purchase', { kind: 'perk', cost: def.cost });
     this.#drinking = true; this.#drinkTimer = DRINK_TIME; this.#pending = id;
     this.#events.emit('perk:drink', { active: true, color: def.color });
     return true;

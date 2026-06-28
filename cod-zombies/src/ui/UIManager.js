@@ -2,6 +2,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { AppState } from '../core/GameState.js';
 import { OptionsMenu } from './OptionsMenu.js';
 import { levelFromXp, MAX_LEVEL } from '../profile/index.js';
+import { diviniumVialSvg } from './diviniumVial.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -33,6 +34,7 @@ export class UIManager {
   #pauseSel = 0;
   #hud;
   #profile;
+  #ldPopup; #ldTimer;
 
   // main-menu sub-screens + cold-open intro
   #intro; #introPlayed = false;
@@ -75,6 +77,13 @@ export class UIManager {
     this.#events.on('profile:loaded', () => this.#refreshRank());
     this.#events.on('profile:changed', () => this.#refreshRank());
 
+    // Liquid Divinium: the in-game earn popup + factory tracker.
+    this.#buildDiviniumPopup();
+    this.#events.on('divinium:earned', ({ amount }) => this.#showDivinium(amount));
+    this.#events.on('divinium:earned', () => this.#refreshDivinium());
+    this.#events.on('divinium:changed', () => this.#refreshDivinium());
+    this.#events.on('profile:loaded', () => this.#refreshDivinium());
+
     this.#bindGlobalKeys();
     document.addEventListener('pointerlockchange', () => {
       // User pressed Esc (or otherwise lost lock) mid-game -> pause.
@@ -116,6 +125,42 @@ export class UIManager {
     if (pname) pname.textContent = name;
     if (pnext) pnext.textContent = next;
     if (fill) fill.style.width = `${pct}%`;
+  }
+
+  // --- Liquid Divinium (earn popup + factory tracker) ---------------------
+
+  #buildDiviniumPopup() {
+    const el = document.createElement('div');
+    el.id = 'ld-popup';
+    el.innerHTML = `
+      <div class="ld-popup-vial">${diviniumVialSvg()}</div>
+      <div class="ld-popup-text">
+        <span class="ld-popup-amt">+1</span>
+        <span class="ld-popup-label">Liquid Divinium</span>
+      </div>`;
+    document.body.appendChild(el);
+    this.#ldPopup = el;
+  }
+
+  /** Flash the stylized "+N Liquid Divinium" popup at the top-middle. */
+  #showDivinium(amount) {
+    const el = this.#ldPopup;
+    if (!el) return;
+    el.querySelector('.ld-popup-amt').textContent = `+${amount}`;
+    // restart the entry animation even if it's already mid-show
+    el.classList.remove('show');
+    void el.offsetWidth; // reflow so the animation re-triggers
+    el.classList.add('show');
+    clearTimeout(this.#ldTimer);
+    this.#ldTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  /** Repaint the persistent balance shown on the factory tracker widget. */
+  #refreshDivinium() {
+    const count = this.#profile?.get('currency.liquidDivinium', 0) ?? 0;
+    for (const c of this.#root.querySelectorAll('.ld-track-count')) c.textContent = count.toLocaleString();
+    const soonCount = this.#soon?.querySelector('.ld-track-count');
+    if (soonCount) soonCount.textContent = count.toLocaleString();
   }
 
   // --- FX overlay ---------------------------------------------------------
@@ -171,7 +216,7 @@ export class UIManager {
       { label: 'Multiplayer', soon: true, action: soon('Multiplayer', 'Squad up with up to three other survivors against the horde.') },
       { label: 'Theater', soon: true, action: soon('Theater', 'Re-watch and clip your finest (and grisliest) runs.') },
       { label: 'GobbleGum', soon: true, action: soon('GobbleGum', 'Browse every GobbleGum and build your loadout.') },
-      { label: "Dr. Newton's Factory", soon: true, action: soon("Dr. Newton's Factory", 'Spend Liquid Divinium to spin for GobbleGums.') },
+      { label: "Dr. Newton's Factory", soon: true, action: () => this.comingSoon("Dr. Newton's Factory", 'Spend Liquid Divinium to spin for GobbleGums.', { divinium: true }) },
       { label: "Newton's Cookbook", soon: true, action: soon("Newton's Cookbook", 'Trade and convert GobbleGums across rarities.') },
       { label: 'Weapon Kits', soon: true, action: soon('Weapon Kits', 'Customize every weapon with attachments.') },
       { label: 'Armory', soon: true, action: soon('Armory', 'Choose your survivor, skins, emblems and calling cards.') },
@@ -292,6 +337,13 @@ export class UIManager {
         <div class="tag" id="mm-soon-tag">Feature</div>
         <h2 id="mm-soon-title">—</h2>
         <div class="sub" id="mm-soon-sub"></div>
+        <div class="ld-track" id="mm-soon-divinium" hidden>
+          <div class="ld-track-vial">${diviniumVialSvg()}</div>
+          <div class="ld-track-main">
+            <span class="ld-track-label">Liquid Divinium</span>
+            <span class="ld-track-count">0</span>
+          </div>
+        </div>
         <div class="soon">Coming Soon</div>
       </div>
       <div class="mm-soon-back">Back</div>`;
@@ -300,10 +352,14 @@ export class UIManager {
     this.#soon = el;
   }
 
-  comingSoon(name, sub = '') {
+  comingSoon(name, sub = '', { divinium = false } = {}) {
     if (!this.#soon) return;
     this.#soon.querySelector('#mm-soon-title').textContent = name;
     this.#soon.querySelector('#mm-soon-sub').textContent = sub;
+    // the factory screen shows the player's persistent Liquid Divinium balance
+    const track = this.#soon.querySelector('#mm-soon-divinium');
+    if (track) track.hidden = !divinium;
+    if (divinium) this.#refreshDivinium();
     this.#soon.classList.add('show');
     this.#soonOpen = true;
   }

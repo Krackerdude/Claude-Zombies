@@ -7,6 +7,7 @@ import { Barrier } from '../ai/Barrier.js';
 import { SpawnManager } from '../ai/SpawnManager.js';
 import { HoundManager } from '../ai/HoundManager.js';
 import { RoundManager } from '../ai/RoundManager.js';
+import { registerDivinium } from '../divinium/DiviniumManager.js';
 import { ZombieSystem } from '../ai/ZombieSystem.js';
 import { ZombieAnimSystem } from '../ai/ZombieAnimSystem.js';
 import { CorpseSystem } from '../ai/CorpseSystem.js';
@@ -309,6 +310,10 @@ export function buildArena(engine) {
   const round = new RoundManager(spawn, events, hounds);
   engine.services.register(Service.Round, round);
   engine.services.register(Service.Economy, economy);
+
+  // Liquid Divinium earning (persists to the profile). Needs Round + Profile,
+  // both registered by now; listens for `purchase` events from the spend sites.
+  registerDivinium(engine);
 
   // --- AI systems ---
   const powerups = new PowerupSystem();

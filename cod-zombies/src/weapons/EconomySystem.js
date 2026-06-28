@@ -149,6 +149,7 @@ export class EconomySystem extends System {
     player.points -= cost;
     this.#weapons.giveWeapon(key);
     this.#events.emit('score:changed', { points: player.points });
+    this.#events.emit('purchase', { kind: owns ? 'ammo' : 'wallbuy', cost });
     this.#events.emit('buy:ok', { key, refilled: owns });
   }
 
@@ -167,6 +168,7 @@ export class EconomySystem extends System {
     if (player.points < EconomyConfig.mysteryBoxCost) { this.#events.emit('buy:denied', {}); return; }
     player.points -= EconomyConfig.mysteryBoxCost;
     this.#events.emit('score:changed', { points: player.points });
+    this.#events.emit('purchase', { kind: 'box', cost: EconomyConfig.mysteryBoxCost });
     box.state = 'spinning';
     box.timer = EconomyConfig.boxSpinTime;
     box.cycle = 0.05;
@@ -233,6 +235,7 @@ export class EconomySystem extends System {
       if (!id) { this.#events.emit('buy:denied', {}); return; }
       player.points -= EconomyConfig.papRepackCost;
       this.#events.emit('score:changed', { points: player.points });
+      this.#events.emit('purchase', { kind: 'repack', cost: EconomyConfig.papRepackCost });
       this.#events.emit('buy:ok', { repack: true });
       return;
     }
@@ -242,6 +245,7 @@ export class EconomySystem extends System {
     if (!taken) { this.#events.emit('buy:denied', {}); return; }
     player.points -= EconomyConfig.papCost;
     this.#events.emit('score:changed', { points: player.points });
+    this.#events.emit('purchase', { kind: 'pap', cost: EconomyConfig.papCost });
     pap.weapon = taken.weapon; pap.key = taken.key;
     pap.state = 'inserting'; pap.timer = EconomyConfig.papInsertTime;
     // hand the machine the REAL gun model to show going in/out

@@ -1,0 +1,114 @@
+/* ===========================================================================
+   Liquid Divinium — the stylized blue vial, the in-game "earned" popup, and the
+   factory tracker widget. Cold arcane blue against the game's warm orange UI so
+   it reads as something otherworldly (the BO3 Liquid Divinium feel).
+   =========================================================================== */
+
+/* ------------------------------- the vial ------------------------------- */
+.ld-vial { display: block; overflow: visible; }
+
+.ld-halo {
+  fill: #2ea8ff; opacity: 0.32;
+  filter: blur(5px);
+  animation: ldPulse 2.4s ease-in-out infinite;
+}
+@keyframes ldPulse { 0%,100% { opacity: 0.22; } 50% { opacity: 0.46; } }
+
+.ld-liquid { filter: drop-shadow(0 0 4px rgba(60,170,255,0.7)); }
+.ld-surface { fill: #d6f3ff; opacity: 0.85; animation: ldSurface 3s ease-in-out infinite; }
+@keyframes ldSurface { 0%,100% { transform: translateY(0); } 50% { transform: translateY(1px); } }
+
+/* rising bubbles */
+.ld-bub { fill: #cdeeff; opacity: 0.85; }
+.ld-b1 { animation: ldBubble 2.6s ease-in 0.0s infinite; }
+.ld-b2 { animation: ldBubble 3.1s ease-in 0.7s infinite; }
+.ld-b3 { animation: ldBubble 2.2s ease-in 1.3s infinite; }
+@keyframes ldBubble {
+  0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+  20%  { opacity: 0.9; }
+  100% { transform: translateY(-22px) scale(1); opacity: 0; }
+}
+
+/* faint vertical glint inside the liquid */
+.ld-streak { fill: #eafaff; opacity: 0.25; }
+
+.ld-glass { stroke: none; }
+.ld-glass-edge { fill: none; stroke: #cdeaff; stroke-width: 1.4; opacity: 0.65; }
+.ld-neck { fill: #bfe2f5; opacity: 0.35; stroke: #cdeaff; stroke-width: 1.2; }
+.ld-lip  { fill: #d7eefc; opacity: 0.7; }
+.ld-cork { fill: #6c4a2c; stroke: #3f2a17; stroke-width: 0.8; }
+
+/* ------------------------- in-game earn popup --------------------------- */
+/* top-middle, drops in with a flash, holds, lifts away */
+#ld-popup {
+  position: fixed; top: 78px; left: 50%; z-index: 34;
+  transform: translate(-50%, -24px); /* resting (hidden) position; the show animation drives the rest */
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 26px 12px 18px;
+  pointer-events: none; opacity: 0;
+  font-family: 'Oswald', 'Arial Narrow', sans-serif;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(10,26,52,0.82), rgba(6,14,32,0.9));
+  border: 1px solid rgba(90,180,255,0.45);
+  box-shadow:
+    0 14px 44px rgba(0,0,0,0.6),
+    0 0 30px rgba(40,140,255,0.35),
+    inset 0 0 26px rgba(20,80,180,0.35);
+  backdrop-filter: blur(7px) saturate(1.1);
+  -webkit-backdrop-filter: blur(7px) saturate(1.1);
+}
+#ld-popup.show { animation: ldPopIn 2.6s cubic-bezier(.2,.9,.2,1) forwards; }
+
+@keyframes ldPopIn {
+  0%   { opacity: 0; transform: translate(-50%, -26px) scale(0.92); }
+  10%  { opacity: 1; transform: translate(-50%, 0) scale(1.04); }
+  16%  { transform: translate(-50%, 0) scale(1); }
+  82%  { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -16px) scale(0.98); }
+}
+
+#ld-popup .ld-popup-vial { width: 40px; height: 64px; flex: none; filter: drop-shadow(0 0 8px rgba(60,170,255,0.6)); }
+
+#ld-popup .ld-popup-text { display: flex; flex-direction: column; line-height: 1; }
+#ld-popup .ld-popup-amt {
+  font-family: 'Anton', Impact, sans-serif; font-size: 2.1rem; letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #e9f8ff, #58b6ff 60%, #1f6fe0);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
+}
+#ld-popup .ld-popup-label {
+  margin-top: 4px;
+  font-size: 0.82rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
+  color: #acd8ff;
+}
+
+/* a quick sheen sweep across the popup on entry */
+#ld-popup::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(180,225,255,0.28) 48%, transparent 62%);
+  transform: translateX(-120%);
+}
+#ld-popup.show::after { animation: ldSheen 2.6s ease-out forwards; }
+@keyframes ldSheen { 0%,8% { transform: translateX(-120%); } 26%,100% { transform: translateX(120%); } }
+
+/* ---------------------- factory tracker widget -------------------------- */
+/* shown inside Dr. Newton's Factory screen — your persistent balance */
+.ld-track {
+  display: inline-flex; align-items: center; gap: 14px;
+  margin-top: 22px; padding: 12px 22px 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(12,28,54,0.7), rgba(7,16,34,0.78));
+  border: 1px solid rgba(90,180,255,0.4);
+  box-shadow: 0 0 26px rgba(40,140,255,0.25), inset 0 0 22px rgba(20,80,180,0.3);
+}
+.ld-track .ld-track-vial { width: 34px; height: 54px; flex: none; filter: drop-shadow(0 0 6px rgba(60,170,255,0.55)); }
+.ld-track .ld-track-main { display: flex; flex-direction: column; line-height: 1; }
+.ld-track .ld-track-label {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+  color: #9fccf5; margin-bottom: 5px;
+}
+.ld-track .ld-track-count {
+  font-family: 'Anton', Impact, sans-serif; font-size: 1.9rem; letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #e9f8ff, #58b6ff 60%, #1f6fe0);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
