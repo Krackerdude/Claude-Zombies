@@ -19,6 +19,7 @@ globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext:
 import { GUMS, RARITIES, ACT, gumsByRarity, gumById, rarityName } from '../src/gobblegums/gobblegums.js';
 import { gumGlyphSvg } from '../src/gobblegums/gumGlyphs.js';
 import { buildgumballModel } from '../src/gobblegums/gumballModel.js';
+import { buildGumballMachine } from '../src/gobblegums/gumballMachine.js';
 
 let failures = 0;
 const ok = (m) => console.log('  ok  :', m);
@@ -71,6 +72,16 @@ console.log('\n[5] 3D gumball model builds + disposes for every activation type'
       assert(okShape, `built + disposed gumball for '${a}'`);
     } catch (e) { fail(`build gumball for '${a}'`, e); }
   }
+}
+
+console.log('\n[6] the 3D Dr. Monty\'s machine model builds + disposes');
+{
+  try {
+    const m = buildGumballMachine();
+    const okShape = m && m.children.length > 5 && typeof m.userData.dispose === 'function';
+    m.userData.dispose();
+    assert(okShape, `built the machine (${m.children.length} parts) + disposed`);
+  } catch (e) { fail('build gumball machine', e); }
 }
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : failures + ' FAILURES'}\n`);
