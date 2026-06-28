@@ -17,28 +17,36 @@
    drifting up in the dome). The candy pile is built from .gg-bg-ball elements
    injected by the menu; this layer paints the glass + lighting around them. */
 #gg-screen .gg-bg {
-  position: absolute; inset: 0; overflow: hidden;
+  position: absolute; inset: 0; overflow: hidden; z-index: 0;
+  /* deep, smooth well — only a whisper of warmth up top so nothing reads orange */
   background:
-    radial-gradient(140% 70% at 50% -8%, rgba(120,90,46,0.55), rgba(0,0,0,0) 58%),
-    radial-gradient(120% 90% at 50% 118%, rgba(36,60,96,0.5), rgba(0,0,0,0) 62%),
-    radial-gradient(80% 60% at 50% 50%, rgba(40,46,64,0.35), rgba(0,0,0,0) 70%),
-    linear-gradient(180deg, #1a140d 0%, #100f15 48%, #07090e 100%);
-  backdrop-filter: blur(7px) saturate(0.95);
-  -webkit-backdrop-filter: blur(7px) saturate(0.95);
+    radial-gradient(160% 90% at 50% -25%, rgba(58,46,32,0.40), rgba(0,0,0,0) 72%),
+    radial-gradient(140% 110% at 50% 130%, rgba(22,34,58,0.34), rgba(0,0,0,0) 74%),
+    linear-gradient(180deg, #0e0b08 0%, #090910 52%, #050608 100%);
 }
-/* curved glass dome: a bright crescent of light up top + a sweeping reflection */
+/* very soft dome haze (no hard ring, no punchy amber) */
 #gg-screen .gg-bg::before {
-  content: ''; position: absolute; left: -10%; right: -10%; top: -52%; height: 90%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(255,225,170,0.16), rgba(255,210,150,0.05) 70%, transparent 78%);
-  box-shadow: inset 0 -40px 80px rgba(255,200,130,0.08);
-  pointer-events: none;
+  content: ''; position: absolute; left: -25%; right: -25%; top: -70%; height: 120%;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255,212,150,0.05), rgba(255,200,140,0.015) 75%, transparent 82%);
 }
-#gg-screen .gg-bg::after { /* glass reflection sweep + a deepening vignette */
+#gg-screen .gg-bg::after { /* gentle vignette only */
   content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(125% 125% at 50% 42%, transparent 50%, rgba(0,0,0,0.6) 100%);
+}
+
+/* The glossy glass of the machine — a frosted sheet between the candy pile and
+   the UI. It dims + softly blurs the gumballs behind it (so they read as being
+   *inside* the glass) and carries a curved reflection sweep across the dome. */
+#gg-screen .gg-glass {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  backdrop-filter: blur(3px) brightness(0.62) saturate(1.05);
+  -webkit-backdrop-filter: blur(3px) brightness(0.62) saturate(1.05);
   background:
-    linear-gradient(112deg, transparent 36%, rgba(255,255,255,0.06) 49%, transparent 58%),
-    radial-gradient(120% 120% at 50% 40%, transparent 55%, rgba(0,0,0,0.55) 100%);
+    linear-gradient(118deg, transparent 28%, rgba(255,255,255,0.07) 44%, rgba(255,255,255,0.015) 52%, transparent 66%),
+    radial-gradient(130% 70% at 50% -12%, rgba(255,255,255,0.06), transparent 46%),
+    radial-gradient(80% 60% at 22% 18%, rgba(255,255,255,0.05), transparent 40%),
+    rgba(4,6,11,0.34);
 }
 
 /* a single decorative gumball in the machine pile/dome */
@@ -87,9 +95,11 @@
 }
 #gg-screen .gg-tab > span { display: inline-block; transform: skewX(9deg); }
 #gg-screen .gg-tab:hover { color: #ffd7a6; }
+/* active tab takes on the current rarity's color so the whole menu shifts vibe */
 #gg-screen .gg-tab.active {
-  color: #14110a; background: linear-gradient(180deg, #ffb347, #ff8a28);
-  box-shadow: 0 0 16px rgba(255,150,40,0.4);
+  color: #0d0a07;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rar, #ffb347) 88%, #fff), var(--rar, #ffb347));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--rar, #ffb347) 50%, transparent);
 }
 
 /* -------------------------------- body --------------------------------- */
@@ -110,37 +120,84 @@
 #gg-screen .gg-grid::-webkit-scrollbar-thumb { background: rgba(255,150,40,0.3); border-radius: 5px; }
 
 #gg-screen .gg-cell {
+  position: relative; isolation: isolate; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; gap: 12px;
-  padding: 18px 12px 12px; border-radius: 14px; cursor: pointer;
-  background: linear-gradient(180deg, rgba(22,28,36,0.5), rgba(10,14,20,0.55));
-  border: 1px solid rgba(150,170,185,0.12);
-  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+  padding: 20px 12px 12px; border-radius: 14px; cursor: pointer;
+  background:
+    linear-gradient(180deg, rgba(28,34,44,0.55), rgba(10,14,20,0.6)),
+    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--rar, #ffb347) 14%, transparent), transparent 60%);
+  border: 1px solid color-mix(in srgb, var(--rar, #8090a0) 28%, rgba(150,170,185,0.12));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 6px 18px rgba(0,0,0,0.4);
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
+/* rotating light rays behind the ball — the higher the rarity, the brighter/faster */
+#gg-screen .gg-cell::after {
+  content: ''; position: absolute; top: -6px; left: 50%; width: 150px; height: 150px;
+  transform: translateX(-50%); z-index: -1; opacity: 0; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--rar, #fff) 70%, transparent) 0deg 5deg, transparent 5deg 17deg);
+  -webkit-mask: radial-gradient(circle, #000 18%, transparent 64%);
+  mask: radial-gradient(circle, #000 18%, transparent 64%);
+  filter: blur(1px); mix-blend-mode: screen;
+  animation: ggRays var(--rayspd, 16s) linear infinite;
+}
+/* soft rarity halo bloom behind the ball */
+#gg-screen .gg-cell::before {
+  content: ''; position: absolute; top: 8px; left: 50%; width: 120px; height: 120px;
+  transform: translateX(-50%); z-index: -1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--acol, #fff) 80%, transparent), transparent 68%);
+  opacity: 0.22; filter: blur(6px);
+}
+@keyframes ggRays { to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes ggHaloPulse { 0%,100% { opacity: 0.18; } 50% { opacity: 0.42; } }
+
 #gg-screen .gg-cell:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255,150,40,0.5);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.5), 0 0 18px rgba(255,150,40,0.18);
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--rar, #ffb347) 70%, transparent);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.55), 0 0 22px color-mix(in srgb, var(--rar, #ffb347) 30%, transparent);
 }
 #gg-screen .gg-cell.sel {
-  border-color: rgba(255,150,40,0.85);
-  box-shadow: 0 0 0 1px rgba(255,150,40,0.6), 0 10px 30px rgba(0,0,0,0.55), 0 0 24px rgba(255,150,40,0.3);
-  background: linear-gradient(180deg, rgba(40,30,18,0.55), rgba(16,14,12,0.6));
+  border-color: color-mix(in srgb, var(--rar, #ffb347) 90%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--rar, #ffb347) 60%, transparent),
+    0 12px 32px rgba(0,0,0,0.6),
+    0 0 30px color-mix(in srgb, var(--rar, #ffb347) 40%, transparent);
 }
-/* stylized nameplate: a dark tag bar with the gum's activation color as an
-   underline accent + a glossy top edge */
+#gg-screen .gg-cell.sel::before { animation: ggHaloPulse 2.4s ease-in-out infinite; }
+
+/* the ball + nameplate sit above the aura/ray layers */
+#gg-screen .gg-cell .gg-ball, #gg-screen .gg-cell .gg-name { position: relative; z-index: 1; }
+
+/* ----------------------------- nameplate ------------------------------- */
+/* a forged metal plate: notched ends, bevelled gradient, rarity gem on the
+   left, a glossy top edge and a slow light-sweep across the lettering */
 #gg-screen .gg-cell .gg-name {
-  width: 100%; min-height: 2.5em; padding: 6px 10px 7px;
+  position: relative; overflow: hidden;
+  width: 100%; min-height: 2.6em; padding: 7px 12px 7px 20px;
   display: flex; align-items: center; justify-content: center; text-align: center;
   font-family: 'Oswald', sans-serif; font-weight: 600; text-transform: uppercase;
-  font-size: 0.82rem; letter-spacing: 0.06em; line-height: 1.15; color: #eef3f6;
-  border-radius: 7px;
-  background: linear-gradient(180deg, rgba(10,14,20,0.55), rgba(6,9,14,0.78));
-  border-bottom: 2px solid var(--acol, #ffb347);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 2px 6px rgba(0,0,0,0.4);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  font-size: 0.82rem; letter-spacing: 0.07em; line-height: 1.12; color: #f1f5f8;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  background:
+    linear-gradient(180deg, rgba(46,54,66,0.95) 0%, rgba(20,26,34,0.96) 48%, rgba(8,11,16,0.97) 100%);
+  border-top: 1px solid rgba(255,255,255,0.16);
+  box-shadow: inset 0 -2px 6px rgba(0,0,0,0.5), inset 0 10px 14px rgba(0,0,0,0.28), 0 3px 8px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
 }
-#gg-screen .gg-cell:hover .gg-name { color: #fff; }
-#gg-screen .gg-cell.sel .gg-name { background: linear-gradient(180deg, rgba(36,28,16,0.6), rgba(14,11,8,0.82)); }
+/* rarity gem chip on the left of the plate */
+#gg-screen .gg-cell .gg-name::before {
+  content: ''; position: absolute; left: 6px; top: 50%; transform: translateY(-50%) rotate(45deg);
+  width: 8px; height: 8px;
+  background: var(--rar, #ffb347);
+  box-shadow: 0 0 8px var(--rar, #ffb347), inset 0 0 0 1px rgba(255,255,255,0.5);
+}
+/* light-sweep across the plate */
+#gg-screen .gg-cell .gg-name::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 38%, var(--shimmer, rgba(255,255,255,0.22)) 50%, transparent 62%);
+  background-size: 250% 100%; background-position: 170% 0;
+  animation: ggShimmer 5s ease-in-out var(--shimdelay, 0s) infinite;
+}
+@keyframes ggShimmer { 0%, 66% { background-position: 170% 0; } 86%, 100% { background-position: -70% 0; } }
 
 /* ------------------------- the gumball sphere -------------------------- */
 /* glossy CSS candy ball: base radial shade in the activation color, a swirl
@@ -191,13 +248,24 @@
 
 /* ----------------------------- detail panel ---------------------------- */
 #gg-screen .gg-detail {
+  position: relative; overflow: hidden;
   align-self: stretch; display: flex; flex-direction: column;
   padding: 30px 32px; border-radius: 16px;
-  background: linear-gradient(180deg, rgba(16,22,30,0.72), rgba(8,11,17,0.8));
-  border: 1px solid rgba(150,170,185,0.16);
-  box-shadow: inset 0 0 50px rgba(0,0,0,0.45), 0 18px 50px rgba(0,0,0,0.5);
+  background:
+    linear-gradient(180deg, rgba(16,22,30,0.74), rgba(8,11,17,0.82)),
+    radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--rar, #ffb347) 16%, transparent), transparent 60%);
+  border: 1px solid color-mix(in srgb, var(--rar, #8090a0) 32%, rgba(150,170,185,0.16));
+  box-shadow:
+    inset 0 0 50px rgba(0,0,0,0.45), 0 18px 50px rgba(0,0,0,0.5),
+    0 0 0 1px color-mix(in srgb, var(--rar, #fff) 14%, transparent);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+}
+/* a thin glowing rarity rule along the very top of the panel */
+#gg-screen .gg-detail::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--rar, #ffb347) 30%, var(--rar, #ffb347) 70%, transparent);
+  box-shadow: 0 0 14px var(--rar, #ffb347); opacity: 0.8;
 }
 #gg-screen .gg-d-name {
   display: inline-block; align-self: flex-start; transform: skewX(-7deg);
@@ -217,12 +285,29 @@
 }
 #gg-screen .gg-d-act b { color: #ffffff; font-weight: 600; }
 
-/* big blown-up preview ball, gently floating in the dome */
+/* big blown-up preview ball, floating in the dome over a rarity radiance */
 #gg-screen .gg-d-preview {
-  flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
-  padding: 24px 0;
+  position: relative; flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center; padding: 24px 0;
 }
-#gg-screen .gg-d-preview .gg-ball { animation: ggFloat 4s ease-in-out infinite; }
+/* rotating rarity rays behind the hero ball (intensity set per rarity) */
+#gg-screen .gg-d-preview::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 360px; height: 360px;
+  transform: translate(-50%, -50%); pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--rar, #fff) 65%, transparent) 0 4deg, transparent 4deg 17deg);
+  -webkit-mask: radial-gradient(circle, transparent 28%, #000 44%, transparent 72%);
+  mask: radial-gradient(circle, transparent 28%, #000 44%, transparent 72%);
+  opacity: var(--drays, 0); mix-blend-mode: screen; filter: blur(1px);
+  animation: ggRays var(--rayspd, 16s) linear infinite;
+}
+/* soft rarity bloom hugging the ball */
+#gg-screen .gg-d-preview::before {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 300px; height: 300px;
+  transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--rar, #ffb347) 55%, transparent), transparent 64%);
+  opacity: 0.28; filter: blur(16px); animation: ggHaloPulse 3.2s ease-in-out infinite;
+}
+#gg-screen .gg-d-preview .gg-ball { position: relative; z-index: 1; animation: ggFloat 4s ease-in-out infinite; }
 @keyframes ggFloat { 0%,100% { transform: translateY(-7px); } 50% { transform: translateY(7px); } }
 
 /* effect description box, set apart like the in-game card — sized to READ */
@@ -248,3 +333,57 @@
   border: 1px solid rgba(150,170,185,0.25); transition: all 0.14s ease;
 }
 #gg-screen .gg-back:hover { color: #ffd7a6; border-color: rgba(255,150,40,0.55); background: rgba(255,150,40,0.08); }
+
+/* ===========================================================================
+   PER-RARITY SIGNATURES — each tab gets its own colour, aura intensity, ray
+   speed and plate shimmer so the menu changes character as you flip through it.
+   `--rar` colours everything; `--rayspd` sets the spin speed; `--drays` how
+   bright the hero rays burn; cell ray visibility is set per rarity below.
+   =========================================================================== */
+#gg-screen[data-rarity="classic"] { --rar: #c7b3e6; --rayspd: 18s; --drays: 0.0; }
+#gg-screen[data-rarity="mega"]    { --rar: #b06bff; --rayspd: 15s; --drays: 0.30; }
+#gg-screen[data-rarity="rare"]    { --rar: #ffb347; --rayspd: 12s; --drays: 0.45; }
+#gg-screen[data-rarity="ultra"]   { --rar: #ff5d5d; --rayspd: 8s;  --drays: 0.62; }
+#gg-screen[data-rarity="whimsy"]  { --rar: #5de0ff; --rayspd: 20s; --drays: 0.45; }
+
+/* CLASSIC — understated: no rays, a calm pearl sheen on the plate */
+#gg-screen[data-rarity="classic"] .gg-cell::after { opacity: 0; }
+#gg-screen[data-rarity="classic"] .gg-cell .gg-name { --shimmer: rgba(255,255,255,0.16); }
+
+/* MEGA — a soft violet ray bloom */
+#gg-screen[data-rarity="mega"] .gg-cell::after  { opacity: 0.28; }
+#gg-screen[data-rarity="mega"] .gg-cell::before { opacity: 0.30; }
+#gg-screen[data-rarity="mega"] .gg-cell .gg-name { --shimmer: rgba(196,150,255,0.32); }
+
+/* RARE — premium gold: brighter rays + a strong golden plate shimmer */
+#gg-screen[data-rarity="rare"] .gg-cell::after  { opacity: 0.40; }
+#gg-screen[data-rarity="rare"] .gg-cell::before { opacity: 0.32; }
+#gg-screen[data-rarity="rare"] .gg-cell .gg-name {
+  --shimmer: rgba(255,216,140,0.5); --shimdelay: 0.25s;
+  border-top-color: rgba(255,212,150,0.45);
+}
+
+/* ULTRA — fierce red radiance: fast bright rays + a pulsing halo */
+#gg-screen[data-rarity="ultra"] .gg-cell::after  { opacity: 0.58; filter: blur(0.5px); }
+#gg-screen[data-rarity="ultra"] .gg-cell::before { opacity: 0.40; animation: ggHaloPulse 2.2s ease-in-out infinite; }
+#gg-screen[data-rarity="ultra"] .gg-cell .gg-name { --shimmer: rgba(255,150,150,0.45); }
+
+/* WHIMSICAL — rainbow rays + a candy-coloured plate sweep */
+#gg-screen[data-rarity="whimsy"] .gg-cell::after {
+  opacity: 0.5; filter: none;
+  background: repeating-conic-gradient(from 0deg,
+    #ff5d5d 0 4deg, #ffb347 4deg 8deg, #f6ff5d 8deg 12deg, #5dff8a 12deg 16deg,
+    #5de0ff 16deg 20deg, #9a5cff 20deg 24deg, #ff5db1 24deg 28deg, transparent 28deg 36deg);
+  animation: ggRays var(--rayspd) linear infinite, ggHue 7s linear infinite;
+}
+#gg-screen[data-rarity="whimsy"] .gg-cell::before { opacity: 0.30; }
+#gg-screen[data-rarity="whimsy"] .gg-cell .gg-name::after {
+  background: linear-gradient(100deg, transparent 34%, rgba(255,120,200,0.32) 45%, rgba(120,200,255,0.32) 55%, transparent 66%);
+  background-size: 250% 100%;
+}
+#gg-screen[data-rarity="whimsy"] .gg-d-preview::after { animation: ggRays var(--rayspd) linear infinite, ggHue 7s linear infinite; filter: none;
+  background: repeating-conic-gradient(from 0deg,
+    #ff5d5d 0 4deg, #ffb347 4deg 8deg, #f6ff5d 8deg 12deg, #5dff8a 12deg 16deg,
+    #5de0ff 16deg 20deg, #9a5cff 20deg 24deg, #ff5db1 24deg 28deg, transparent 28deg 36deg); }
+
+@keyframes ggHue { to { filter: hue-rotate(360deg); } }

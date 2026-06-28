@@ -45,6 +45,7 @@ export class GobbleGumMenu {
     el.id = 'gg-screen';
     el.innerHTML = `
       <div class="gg-bg"></div>
+      <div class="gg-glass"></div>
       <div class="gg-head">
         <div class="gg-title">GobbleGum</div>
         <div class="gg-tabs"></div>
@@ -108,6 +109,7 @@ export class GobbleGumMenu {
 
   #selectRarity(rid) {
     this.#rarity = rid;
+    this.#el.dataset.rarity = rid; // drives the per-rarity visual signatures in CSS
     for (const b of this.#tabsEl.children) b.classList.toggle('active', b.dataset.rarity === rid);
 
     const gums = gumsByRarity(rid);
