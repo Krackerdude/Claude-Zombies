@@ -44,7 +44,7 @@ export class UIManager {
   // main-menu sub-screens + cold-open intro
   #intro; #introPlayed = false;
   #fade; #mapSelect; #soon;
-  #mapOpen = false; #soonOpen = false; #entering = false;
+  #mapOpen = false; #soonOpen = false; #entering = false; #selectedMap = null;
   #gobblegum; #ggOpen = false;
   #packs; #widget; #packMenu; #machineView; #gpOpen = false;
 
@@ -291,52 +291,82 @@ export class UIManager {
 
   // --- map select ---------------------------------------------------------
   #buildMapSelect() {
+    const maps = [
+      {
+        id: 'zm_test', name: 'ZM_Test', shot: '/maps/zm_test.jpg',
+        brief: 'A condemned containment annex on the frostbitten rim of Necropolis. The reanimation trials never stopped here — the staff simply stopped leaving. Boarded windows, a dead generator, and something that still paces the dark beyond the walls. Hold out, and learn what they were really making.',
+      },
+      { id: 'locked_1', name: 'Classified', locked: true },
+      { id: 'locked_2', name: 'Classified', locked: true },
+    ];
+    const modes = [
+      { label: 'Solo Game', active: true },
+      { label: 'Join Public Game', soon: true },
+      { label: 'Private Game', soon: true },
+      { label: 'Theater', soon: true },
+    ];
+
     const el = document.createElement('div');
     el.id = 'mm-mapselect';
     el.innerHTML = `
-      <div class="mm-ms-wrap">
-        <div class="mm-ms-list">
-          <div class="mm-ms-head">Select Map</div>
-          <div class="mm-map sel" data-map="zm_test"><span>ZM_Test</span></div>
+      <div class="ms-bg"></div>
+      <div class="ms-title">Maps</div>
+      <div class="ms-left">
+        <div class="ms-maps"></div>
+        <div class="ms-sep"></div>
+        <div class="ms-modes"></div>
+        <div class="ms-party">You are <b>Party Leader</b><br>Party Privacy: <b>Open</b></div>
+      </div>
+      <div class="ms-right">
+        <div class="ms-shot-wrap">
+          <img class="ms-shot" alt="" />
+          <div class="ms-shade"></div>
+          <div class="ms-plate"><span></span></div>
         </div>
-        <div class="mm-ms-preview">
-          <img class="mm-ms-shot" alt="ZM_Test" src="${this.#mapShot()}" />
-          <div class="mm-ms-cap">
-            <h3>ZM_Test</h3>
-            <p>A condemned containment annex on the frostbitten rim of Necropolis. The reanimation trials never stopped here — the staff simply stopped leaving. Boarded windows, a dead generator, and something that still paces the dark beyond the walls. Hold out, and learn what they were really making.</p>
-          </div>
+        <div class="ms-brief">
+          <div class="ms-brief-head">Mission Briefing</div>
+          <p class="ms-brief-body"></p>
         </div>
       </div>
-      <div class="mm-ms-back">Back</div>`;
-    el.querySelector('.mm-map').addEventListener('click', () => this.fadeToPlay());
-    el.querySelector('.mm-ms-back').addEventListener('click', () => this.closeMapSelect());
+      <div class="ms-foot"><div class="ms-back">Back</div><span>[Click] Select · [Enter] Deploy · [Esc] Back</span></div>`;
+
+    const mapsEl = el.querySelector('.ms-maps');
+    const modesEl = el.querySelector('.ms-modes');
+    const shot = el.querySelector('.ms-shot');
+    const plate = el.querySelector('.ms-plate > span');
+    const brief = el.querySelector('.ms-brief-body');
+
+    const select = (m) => {
+      for (const r of mapsEl.children) r.classList.toggle('sel', r.dataset.id === m.id);
+      shot.src = m.shot; shot.alt = m.name;
+      plate.textContent = m.name;
+      brief.textContent = m.brief;
+      this.#selectedMap = m;
+    };
+
+    for (const m of maps) {
+      const r = document.createElement('div');
+      r.className = 'ms-row ms-map' + (m.locked ? ' locked' : '');
+      r.dataset.id = m.id;
+      r.innerHTML = `<div class="ms-rp"><span>${m.locked ? '🔒 ' : ''}${m.name}</span></div>`;
+      if (!m.locked) {
+        r.addEventListener('click', () => select(m));
+        r.addEventListener('dblclick', () => this.fadeToPlay());
+      }
+      mapsEl.appendChild(r);
+    }
+    for (const mo of modes) {
+      const r = document.createElement('div');
+      r.className = 'ms-row ms-mode' + (mo.active ? ' active' : '') + (mo.soon ? ' soon' : '');
+      r.innerHTML = `<div class="ms-rp"><span>${mo.label}${mo.soon ? '<i>Soon</i>' : ''}</span></div>`;
+      if (mo.active) r.addEventListener('click', () => this.fadeToPlay());
+      modesEl.appendChild(r);
+    }
+
+    el.querySelector('.ms-back').addEventListener('click', () => this.closeMapSelect());
     document.body.appendChild(el);
     this.#mapSelect = el;
-  }
-
-  /** A small procedural "screenshot" of the map (dark, foggy, red-lit ruin). */
-  #mapShot() {
-    const c = document.createElement('canvas'); c.width = 520; c.height = 300;
-    const x = c.getContext('2d');
-    const g = x.createLinearGradient(0, 0, 0, 300);
-    g.addColorStop(0, '#0a0f18'); g.addColorStop(0.6, '#0b0a10'); g.addColorStop(1, '#060507');
-    x.fillStyle = g; x.fillRect(0, 0, 520, 300);
-    // distant red glow
-    const rg = x.createRadialGradient(300, 210, 0, 300, 210, 240);
-    rg.addColorStop(0, 'rgba(150,20,16,0.4)'); rg.addColorStop(1, 'rgba(150,20,16,0)');
-    x.fillStyle = rg; x.fillRect(0, 0, 520, 300);
-    // building silhouette
-    x.fillStyle = '#05060a';
-    x.fillRect(120, 120, 300, 160);
-    x.fillRect(90, 170, 80, 110); x.fillRect(360, 150, 90, 130);
-    // lit windows
-    for (let i = 0; i < 7; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(255,120,40,0.7)' : 'rgba(80,160,200,0.5)'; x.fillRect(150 + i * 38, 150 + (i % 2) * 30, 16, 22); }
-    // fog band
-    const fg = x.createLinearGradient(0, 230, 0, 300); fg.addColorStop(0, 'rgba(120,140,160,0)'); fg.addColorStop(1, 'rgba(150,170,190,0.22)');
-    x.fillStyle = fg; x.fillRect(0, 230, 520, 70);
-    // grain
-    for (let i = 0; i < 1400; i++) { x.fillStyle = `rgba(255,255,255,${Math.random() * 0.04})`; x.fillRect(Math.random() * 520, Math.random() * 300, 1, 1); }
-    return c.toDataURL();
+    select(maps[0]);
   }
 
   /** Main menu → GobbleGum pack pre-menu (widget parks top-left). */
@@ -606,6 +636,8 @@ export class UIManager {
         // In-game Esc is handled by the browser (exits lock -> pause).
         return;
       }
+      // Map select: Enter deploys the selected map.
+      if (this.#mapOpen && (e.code === 'Enter' || e.code === 'Space') && !this.#entering) { this.fadeToPlay(); e.preventDefault(); return; }
       // Main-menu navigation (suspended while a sub-panel/intro is up).
       if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#entering) {
         if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#select((this.#sel + 1) % this.#mainItems.length); e.preventDefault(); }
