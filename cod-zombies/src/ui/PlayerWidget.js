@@ -24,8 +24,11 @@ export class PlayerWidget {
     const el = document.createElement('div');
     el.className = 'mm-player';
     el.innerHTML = `
-      <div class="mm-player-row"><span class="mm-lvl">0</span><span class="mm-name">Survivor One</span></div>
-      <div class="mm-gums"></div>`;
+      <div class="pw-row">
+        <div class="pw-lvl"><span class="mm-lvl">0</span><small>LVL</small></div>
+        <div class="pw-name"><span class="mm-name">Survivor One</span></div>
+      </div>
+      <div class="pw-gums"><span class="pw-gum-tag">GUM</span><div class="mm-gums"></div></div>`;
     this.el = el;
 
     el.querySelector('.mm-gums').addEventListener('click', (e) => {
