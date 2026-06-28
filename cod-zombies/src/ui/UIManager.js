@@ -10,6 +10,17 @@ import { PackStore } from '../gobblegums/PackStore.js';
 import { GumballMachineView } from './GumballMachineView.js';
 import { menuLogoSvg } from './menuLogo.js';
 
+/** Black Market Quests — pick one to track on the fly from the main menu. */
+const QUESTS = [
+  { name: 'Headhunter',   obj: 'Get 50 headshot kills in one match', reward: '×1 Liquid Divinium', kind: 'div' },
+  { name: 'Power Trip',   obj: 'Pack-a-Punch a weapon',              reward: '500 XP',            kind: 'xp' },
+  { name: 'Hellbound',    obj: 'Survive a Hellhound round',          reward: '×2 Liquid Divinium', kind: 'div' },
+  { name: 'Big Spender',  obj: 'Spend 7,500 points in one match',    reward: '×1 GobbleGum',      kind: 'gum' },
+  { name: 'Untouchable',  obj: 'Reach round 10 without going down',  reward: '×3 Liquid Divinium', kind: 'div' },
+  { name: 'Sugar Rush',   obj: 'Activate 3 GobbleGums in one match', reward: '250 XP',            kind: 'xp' },
+];
+const REWARD_COLORS = { div: '#3aa0ff', xp: '#ffce5c', gum: '#ff5db1' };
+
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
  * reaches into the page; this is the boundary. It:
@@ -45,7 +56,7 @@ export class UIManager {
   // main-menu sub-screens + cold-open intro
   #intro; #introPlayed = false;
   #fade; #mapSelect; #soon;
-  #mapOpen = false; #soonOpen = false; #entering = false; #selectedMap = null;
+  #mapOpen = false; #soonOpen = false; #entering = false; #selectedMap = null; #questIndex = 0;
   #gobblegum; #ggOpen = false;
   #packs; #widget; #packMenu; #machineView; #gpOpen = false;
 
@@ -212,14 +223,6 @@ export class UIManager {
     s.className = 'screen';
     s.id = 'screen-main';
     s.innerHTML = `
-      <div class="mm-daily" id="mm-daily">
-        <div class="mm-daily-head">Daily Challenge</div>
-        <div class="mm-daily-body">
-          <div class="mm-daily-ring empty"></div>
-          <div class="mm-daily-name">No Daily Quest<small>Active</small></div>
-        </div>
-        <div class="mm-daily-foot">Check Back Tomorrow</div>
-      </div>
       <div class="mm-title">${menuLogoSvg()}</div>
       <div class="mm-list"></div>
       <div class="mm-foot">[↑↓] Select · [Enter] Confirm</div>`;
@@ -249,7 +252,7 @@ export class UIManager {
       this.#mainItems.push(e);
       list.appendChild(e);
     });
-    s.querySelector('#mm-daily').addEventListener('click', () => this.comingSoon('Daily Challenge', "Complete daily objectives for GobbleGums and Liquid Divinium."));
+    this.#buildQuests(list);
 
     this.#root.appendChild(s);
     this.#screens.main = s;
@@ -258,6 +261,37 @@ export class UIManager {
     this.#buildMapSelect();
     this.#buildSoon();
     this.#buildIntro();
+  }
+
+  /** Black Market Quests — a pick-on-the-fly quest selector under the menu list. */
+  #buildQuests(listEl) {
+    const el = document.createElement('div');
+    el.className = 'mm-quests';
+    el.innerHTML = `
+      <div class="bmq-head"><span>Black Market Quests</span></div>
+      <div class="bmq-body">
+        <button class="bmq-nav bmq-prev" aria-label="Previous quest">‹</button>
+        <div class="bmq-quest"><div class="bmq-name"></div><div class="bmq-obj"></div></div>
+        <button class="bmq-nav bmq-next" aria-label="Next quest">›</button>
+      </div>
+      <div class="bmq-reward"><span class="bmq-rlabel">Reward</span><span class="bmq-rval"></span></div>`;
+
+    const render = () => {
+      const q = QUESTS[this.#questIndex];
+      el.querySelector('.bmq-name').textContent = q.name;
+      el.querySelector('.bmq-obj').textContent = q.obj;
+      el.querySelector('.bmq-rval').textContent = q.reward;
+      el.style.setProperty('--rk', REWARD_COLORS[q.kind] || '#ffb347');
+      this.#profile?.set('meta.questIndex', this.#questIndex);
+    };
+    const cycle = (d) => { this.#questIndex = (this.#questIndex + d + QUESTS.length) % QUESTS.length; render(); };
+    el.querySelector('.bmq-prev').addEventListener('click', () => cycle(-1));
+    el.querySelector('.bmq-next').addEventListener('click', () => cycle(1));
+
+    // restore the last-tracked quest
+    this.#questIndex = Math.min(QUESTS.length - 1, Math.max(0, (this.#profile?.get('meta.questIndex', 0) | 0)));
+    render();
+    listEl.appendChild(el);
   }
 
   // --- cold-open intro ----------------------------------------------------
