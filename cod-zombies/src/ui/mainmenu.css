@@ -98,22 +98,69 @@
 .mm-daily-foot::before { content: '◐ '; color: #ffb347; }
 
 /* ---- player widget (top-right) ------------------------------------------- */
+/* ---- player widget — Persona-style: angular, layered, colour-blocked.
+   Three distinct zones (orange LEVEL · black/white NAME · steel/cyan GUM), each
+   sheared with notched clip-paths over a bright back-shard. Re-parented to every
+   menu corner by the UIManager, so it carries its own look (no panel chrome). -- */
 .mm-player {
   position: absolute; right: clamp(24px, 3vw, 64px); top: 6%;
-  min-width: 260px; z-index: 4;
-  background: linear-gradient(180deg, rgba(16,22,28,0.92), rgba(8,11,15,0.95));
-  border: 1px solid rgba(120,170,185,0.28); border-radius: 4px;
-  box-shadow: 0 10px 28px rgba(0,0,0,0.6); padding: 10px 14px;
+  min-width: 270px; z-index: 4;
+  font-family: 'Oswald', sans-serif;
+  filter: drop-shadow(0 12px 24px rgba(0,0,0,0.6));
 }
-.mm-player-row { display: flex; align-items: center; gap: 10px; }
-.mm-lvl { font-family: 'Anton'; font-size: 1.5rem; color: #ffd27a; line-height: 1; padding: 2px 9px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,200,110,0.35); border-radius: 3px; }
-.mm-name { font-family: 'Oswald'; font-weight: 600; font-size: 1.2rem; letter-spacing: 0.06em; color: #eef3f4; text-shadow: 0 2px 5px #000; }
-.mm-gums { display: flex; gap: 9px; margin-top: 10px; }
-.mm-gums > i {
-  width: 30px; height: 30px; border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, rgba(40,52,60,0.9), rgba(10,14,18,0.95));
-  border: 2px solid rgba(150,175,188,0.4); box-shadow: inset 0 0 6px rgba(0,0,0,0.8);
+/* tight hard black drop-shadow shard offset down-right (Persona 5 style) */
+.mm-player::before {
+  content: ''; position: absolute; z-index: -1;
+  left: 5px; top: 6px; right: -5px; bottom: -6px;
+  background: #000;
+  transform: skewX(-10deg);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 15px 100%);
 }
+
+/* top row: LEVEL chip + NAME slab, sheared as one unit */
+.pw-row { position: relative; display: flex; align-items: stretch; transform: skewX(-10deg); }
+.pw-row > * > * { transform: skewX(10deg); } /* un-shear the inner text */
+
+.pw-lvl {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 58px; padding: 5px 14px 4px; color: #160f08; isolation: isolate;
+  /* gritty material — same grunge-over-gradient skin as the [E] prompt */
+  background: var(--hud-grunge), linear-gradient(155deg, #ffd07c, #ff8a28 56%, #ec6f0c);
+  background-size: 66px 66px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(255,238,205,0.6); border-bottom: 1px solid rgba(0,0,0,0.7);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 13px 100%);
+  box-shadow: inset 0 0 14px rgba(0,0,0,0.4);
+}
+.pw-lvl .mm-lvl { font-family: 'Anton', Impact, sans-serif; font-size: 2rem; line-height: 0.82; }
+.pw-lvl small { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.24em; opacity: 0.82; margin-top: 2px; }
+
+.pw-name {
+  flex: 1; display: flex; align-items: center; padding: 0 16px; isolation: isolate;
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(26,30,37,0.95), rgba(8,10,14,0.97));
+  background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(255,180,90,0.32); border-bottom: 1px solid rgba(0,0,0,0.7);
+  border-left: 3px solid #ff8a28;
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.5);
+}
+.pw-name .mm-name {
+  font-weight: 700; font-size: 1.12rem; letter-spacing: 0.05em; color: #f3f6f8;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6); white-space: nowrap;
+}
+
+/* GUM strip: cool steel zone with a cyan edge so it reads apart from the warm row */
+.pw-gums {
+  position: relative; display: flex; align-items: center; gap: 9px; isolation: isolate;
+  margin-top: 5px; padding: 7px 14px 7px 11px;
+  transform: skewX(-10deg);
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(27,40,53,0.96), rgba(9,17,25,0.97));
+  background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(120,210,225,0.45); border-bottom: 1px solid rgba(0,0,0,0.7);
+  border-left: 3px solid #34c6e0;
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.5);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.pw-gum-tag { transform: skewX(10deg); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.2em; color: #82deef; }
+.mm-gums { transform: skewX(10deg); display: flex; gap: 8px; margin: 0; }
 
 /* ---- footer hint --------------------------------------------------------- */
 .mm-foot {
