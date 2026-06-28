@@ -43,10 +43,15 @@ export class PlayerWidget {
     this.refresh();
   }
 
-  /** Move the single widget into a container at an explicit corner. */
-  mountTo(container, { top = 'auto', right = 'auto', bottom = 'auto', left = 'auto' } = {}) {
+  /**
+   * Move the single widget into a container at an explicit corner. `scale` grows
+   * it from whichever corner it's anchored to (so it never drifts off-screen).
+   */
+  mountTo(container, { top = 'auto', right = 'auto', bottom = 'auto', left = 'auto' } = {}, scale = 1.3) {
     const s = this.el.style;
     s.position = 'absolute'; s.top = top; s.right = right; s.bottom = bottom; s.left = left;
+    s.transformOrigin = `${top !== 'auto' ? 'top' : 'bottom'} ${left !== 'auto' ? 'left' : 'right'}`;
+    s.setProperty('--pw-scale', scale);
     container.appendChild(this.el);
   }
 

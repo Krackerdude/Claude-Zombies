@@ -80,8 +80,8 @@ export class UIManager {
       onClose: () => this.#onPackMenuClosed(),
     });
     this.#events.on('gobblegum:changed', () => { this.#widget.refresh(); this.#packMenu.refresh(); });
-    // park the widget in its home (main-menu top-right)
-    this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' });
+    // park the widget in its home (main-menu top-right), extra-large there
+    this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
 
     // seed the CSS-overlay vars from the resolved amounts (toggle × amount);
     // applyAll() re-broadcasts the authoritative values on settings:fx next.
@@ -347,9 +347,9 @@ export class UIManager {
     this.#gpOpen = true;
   }
   #onPackMenuClosed() {
-    // return the widget to its main-menu home
+    // return the widget to its main-menu home (extra-large there)
     this.#widget.setEditable(false);
-    this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' });
+    this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
     this.#gpOpen = false;
   }
 

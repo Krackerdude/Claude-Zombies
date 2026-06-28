@@ -107,6 +107,7 @@
   min-width: 270px; z-index: 4;
   font-family: 'Oswald', sans-serif;
   filter: drop-shadow(0 12px 24px rgba(0,0,0,0.6));
+  transform: scale(var(--pw-scale, 1.3)); /* anchored per-corner via transform-origin */
 }
 /* tight hard black drop-shadow shard offset down-right (Persona 5 style) */
 .mm-player::before {

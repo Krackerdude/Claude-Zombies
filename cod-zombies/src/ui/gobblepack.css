@@ -35,7 +35,7 @@
 }
 
 /* left column: equipped-pack label + pack list + customize */
-#gp-screen .gp-left { position: absolute; top: 224px; left: 40px; width: 470px; z-index: 2; }
+#gp-screen .gp-left { position: absolute; top: 250px; left: 40px; width: 470px; z-index: 2; }
 #gp-screen .gp-label {
   display: inline-block; padding: 5px 14px; margin-bottom: 12px;
   font-size: 0.86rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #e9eef2;
