@@ -9,17 +9,9 @@ import { PlayerWidget } from './PlayerWidget.js';
 import { PackStore } from '../gobblegums/PackStore.js';
 import { GumballMachineView } from './GumballMachineView.js';
 import { menuLogoSvg } from './menuLogo.js';
-
-/** Black Market Quests — pick one to track on the fly from the main menu. */
-const QUESTS = [
-  { name: 'Headhunter',   obj: 'Get 50 headshot kills in one match', reward: '×1 Liquid Divinium', kind: 'div' },
-  { name: 'Power Trip',   obj: 'Pack-a-Punch a weapon',              reward: '500 XP',            kind: 'xp' },
-  { name: 'Hellbound',    obj: 'Survive a Hellhound round',          reward: '×2 Liquid Divinium', kind: 'div' },
-  { name: 'Big Spender',  obj: 'Spend 7,500 points in one match',    reward: '×1 GobbleGum',      kind: 'gum' },
-  { name: 'Untouchable',  obj: 'Reach round 10 without going down',  reward: '×3 Liquid Divinium', kind: 'div' },
-  { name: 'Sugar Rush',   obj: 'Activate 3 GobbleGums in one match', reward: '250 XP',            kind: 'xp' },
-];
-const REWARD_COLORS = { div: '#3aa0ff', xp: '#ffce5c', gum: '#ff5db1' };
+import { QuestStore } from '../quests/QuestStore.js';
+import { QuestMenu } from './QuestMenu.js';
+import { rewardColor, rewardLabel } from '../quests/quests.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -56,7 +48,8 @@ export class UIManager {
   // main-menu sub-screens + cold-open intro
   #intro; #introPlayed = false;
   #fade; #mapSelect; #soon;
-  #mapOpen = false; #soonOpen = false; #entering = false; #selectedMap = null; #questIndex = 0;
+  #mapOpen = false; #soonOpen = false; #entering = false; #selectedMap = null;
+  #quests; #questMenu; #questOpen = false;
   #gobblegum; #ggOpen = false;
   #packs; #widget; #packMenu; #machineView; #gpOpen = false;
 
@@ -73,16 +66,19 @@ export class UIManager {
     this.#root.id = 'ui-root';
     document.body.appendChild(this.#root);
 
+    // persistent state stores must exist before the menus that read them build
+    this.#packs = new PackStore(this.#profile, this.#events);
+    this.#quests = new QuestStore(this.#profile, this.#events);
+
     this.#buildFx();
     this.#buildMainMenu();
     this.#buildPause();
     this.#buildOptions();
 
-    // GobbleGum: persistent pack state + the single shared player widget that is
-    // re-parented between menus, the pack pre-menu (with its live 3D machine),
-    // and the catalog (in edit mode it fills the equipped pack).
-    this.#packs = new PackStore(this.#profile, this.#events);
-    this.#widget = new PlayerWidget({ profile: this.#profile, packs: this.#packs, events: this.#events });
+    // The single shared player widget (re-parented between menus), the pack
+    // pre-menu (with its live 3D machine), the catalog, and the quest chooser.
+    this.#questMenu = new QuestMenu({ quests: this.#quests, onClose: () => { this.#questOpen = false; } });
+    this.#widget = new PlayerWidget({ profile: this.#profile, packs: this.#packs, quests: this.#quests, events: this.#events });
     this.#machineView = new GumballMachineView();
     this.#gobblegum = new GobbleGumMenu({ packs: this.#packs, onClose: () => this.#onCatalogClosed() });
     this.#packMenu = new GobblePackMenu({
@@ -94,6 +90,7 @@ export class UIManager {
     this.#events.on('gobblegum:changed', () => { this.#widget.refresh(); this.#packMenu.refresh(); });
     // park the widget in its home (main-menu top-right), extra-large there
     this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
+    this.#widget.setShowQuest(true); // Current Quest section only on the main menu
 
     // seed the CSS-overlay vars from the resolved amounts (toggle × amount);
     // applyAll() re-broadcasts the authoritative values on settings:fx next.
@@ -263,7 +260,8 @@ export class UIManager {
     this.#buildIntro();
   }
 
-  /** Black Market Quests — a pick-on-the-fly quest selector under the menu list. */
+  /** Black Market Quests widget — shows the tracked quest; arrows quick-cycle the
+   *  available pool, and clicking the centre opens the full chooser. */
   #buildQuests(listEl) {
     const el = document.createElement('div');
     el.className = 'mm-quests';
@@ -271,28 +269,31 @@ export class UIManager {
       <div class="bmq-head"><span>Black Market Quests</span></div>
       <div class="bmq-body">
         <button class="bmq-nav bmq-prev" aria-label="Previous quest">‹</button>
-        <div class="bmq-quest"><div class="bmq-name"></div><div class="bmq-obj"></div></div>
+        <button class="bmq-quest" aria-label="Open quest board"><div class="bmq-name"></div><div class="bmq-obj"></div></button>
         <button class="bmq-nav bmq-next" aria-label="Next quest">›</button>
       </div>
       <div class="bmq-reward"><span class="bmq-rlabel">Reward</span><span class="bmq-rval"></span></div>`;
 
     const render = () => {
-      const q = QUESTS[this.#questIndex];
+      const q = this.#quests.tracked();
+      if (!q) return;
       el.querySelector('.bmq-name').textContent = q.name;
       el.querySelector('.bmq-obj').textContent = q.obj;
-      el.querySelector('.bmq-rval').textContent = q.reward;
-      el.style.setProperty('--rk', REWARD_COLORS[q.kind] || '#ffb347');
-      this.#profile?.set('meta.questIndex', this.#questIndex);
+      el.querySelector('.bmq-rval').textContent = rewardLabel(q.reward);
+      el.style.setProperty('--rk', rewardColor(q.reward));
     };
-    const cycle = (d) => { this.#questIndex = (this.#questIndex + d + QUESTS.length) % QUESTS.length; render(); };
-    el.querySelector('.bmq-prev').addEventListener('click', () => cycle(-1));
-    el.querySelector('.bmq-next').addEventListener('click', () => cycle(1));
+    el.querySelector('.bmq-prev').addEventListener('click', () => this.#quests.cycle(-1));
+    el.querySelector('.bmq-next').addEventListener('click', () => this.#quests.cycle(1));
+    el.querySelector('.bmq-quest').addEventListener('click', () => this.openQuests());
+    this.#events.on('quest:changed', render);
+    this.#events.on('quest:refresh', render);
 
-    // restore the last-tracked quest
-    this.#questIndex = Math.min(QUESTS.length - 1, Math.max(0, (this.#profile?.get('meta.questIndex', 0) | 0)));
     render();
     listEl.appendChild(el);
   }
+
+  /** Open the full Black Market Quests chooser (over the main menu). */
+  openQuests() { this.#questMenu.open(); this.#questOpen = true; }
 
   // --- cold-open intro ----------------------------------------------------
   #buildIntro() {
@@ -407,6 +408,7 @@ export class UIManager {
   /** Main menu → GobbleGum pack pre-menu (widget parks top-left). */
   openGobblePacks() {
     this.#widget.setEditable(false);
+    this.#widget.setShowQuest(false);
     this.#widget.mountTo(this.#packMenu.el ?? document.body, { top: '96px', left: '40px' });
     this.#packMenu.open();
     this.#gpOpen = true;
@@ -415,12 +417,14 @@ export class UIManager {
     // return the widget to its main-menu home (extra-large there)
     this.#widget.setEditable(false);
     this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
+    this.#widget.setShowQuest(true);
     this.#gpOpen = false;
   }
 
   /** Pack pre-menu → catalog in edit mode (widget moves to bottom-left, fills). */
   openGobbleGums() {
     this.#gobblegum.open();
+    this.#widget.setShowQuest(false);
     this.#widget.setEditable(true);
     this.#widget.mountTo(this.#gobblegum.el, { bottom: '24px', left: '40px' });
     this.#ggOpen = true;
@@ -662,6 +666,7 @@ export class UIManager {
   #bindGlobalKeys() {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
+        if (this.#questOpen) { this.#questMenu.close(); e.preventDefault(); return; }
         if (this.#ggOpen) { this.#gobblegum.close(); e.preventDefault(); return; }
         if (this.#gpOpen) { this.#packMenu.close(); e.preventDefault(); return; }
         if (this.#soonOpen) { this.#closeSoon(); e.preventDefault(); return; }
@@ -674,7 +679,7 @@ export class UIManager {
       // Map select: Enter deploys the selected map.
       if (this.#mapOpen && (e.code === 'Enter' || e.code === 'Space') && !this.#entering) { this.fadeToPlay(); e.preventDefault(); return; }
       // Main-menu navigation (suspended while a sub-panel/intro is up).
-      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#entering) {
+      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#questOpen && !this.#entering) {
         if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#select((this.#sel + 1) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'ArrowUp' || e.code === 'KeyW') { this.#select((this.#sel - 1 + this.#mainItems.length) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'Enter' || e.code === 'Space') { this.#mainItems[this.#sel]?.click(); e.preventDefault(); }
