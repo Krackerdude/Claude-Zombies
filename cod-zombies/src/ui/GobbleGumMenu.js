@@ -140,10 +140,7 @@ export class GobbleGumMenu {
       <div class="gg-d-rarity">${rarityName(gum.rarity)}</div>
       <div class="gg-d-act"><b>${ACT[gum.act].label}</b> · Lasts ${gum.duration}</div>
       <div class="gg-d-preview">${ballHtml(gum, 248)}</div>
-      <div class="gg-d-desc">
-        ${gum.effect}
-        <div class="gg-d-flavor">One Gumball is consumed each time this GobbleGum is used. Find Liquid Divinium in-game to craft more in Dr. Newton's Factory.</div>
-      </div>`;
+      <div class="gg-d-desc">${gum.effect}</div>`;
   }
 }
 
