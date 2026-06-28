@@ -42,22 +42,37 @@
   background: linear-gradient(180deg, rgba(40,48,60,0.85), rgba(16,20,28,0.9));
   border-left: 3px solid #ff8a28;
 }
-#gp-screen .gp-packs { display: flex; flex-direction: column; gap: 8px; }
+#gp-screen .gp-packs { display: flex; flex-direction: column; gap: 11px; }
+/* pack rows share the player widget's Persona look: sheared + notched, gritty
+   [E]-prompt material, a black drop-shadow shard, and a rarity-style left edge */
 #gp-screen .gp-pack {
-  display: flex; flex-direction: column; gap: 9px; cursor: pointer;
-  padding: 11px 14px; border-radius: 8px;
-  background: linear-gradient(180deg, rgba(20,26,34,0.6), rgba(10,14,20,0.66));
-  border: 1px solid rgba(150,170,185,0.14);
-  transition: border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+  position: relative; cursor: pointer; isolation: isolate;
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 12px 18px; transform: skewX(-8deg);
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(28,33,41,0.93), rgba(9,12,17,0.96));
+  background-size: 90px 90px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(180,200,210,0.18); border-bottom: 1px solid rgba(0,0,0,0.72);
+  border-left: 3px solid rgba(130,160,175,0.55);
+  clip-path: polygon(11px 0, 100% 0, calc(100% - 11px) 100%, 0 100%);
+  box-shadow: inset 0 0 18px rgba(0,0,0,0.5);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.12s ease;
 }
-#gp-screen .gp-pack:hover { border-color: rgba(255,150,40,0.5); }
+#gp-screen .gp-pack > * { transform: skewX(8deg); } /* un-shear the contents */
+#gp-screen .gp-pack::before { /* hard black drop-shadow shard (P5) */
+  content: ''; position: absolute; z-index: -1;
+  left: 5px; top: 6px; right: -5px; bottom: -6px; background: #000;
+  clip-path: polygon(11px 0, 100% 0, calc(100% - 11px) 100%, 0 100%);
+}
+#gp-screen .gp-pack:hover { border-left-color: #ff8a28; transform: skewX(-8deg) translateX(3px); }
 #gp-screen .gp-pack.sel {
-  background: linear-gradient(180deg, rgba(255,140,40,0.22), rgba(120,60,16,0.28));
-  border-color: rgba(255,150,40,0.85);
-  box-shadow: 0 0 0 1px rgba(255,150,40,0.5), 0 8px 22px rgba(0,0,0,0.5), 0 0 22px rgba(255,150,40,0.22);
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(255,140,40,0.30), rgba(120,58,14,0.4));
+  background-size: 90px 90px, auto; background-blend-mode: overlay, normal;
+  border-top-color: rgba(255,210,150,0.5); border-left: 3px solid #ff8a28;
+  box-shadow: inset 0 0 18px rgba(0,0,0,0.4), 0 0 22px rgba(255,150,40,0.25);
 }
 #gp-screen .gp-pack-name {
-  font-weight: 600; font-size: 1.0rem; letter-spacing: 0.04em; color: #ffd7a6;
+  font-weight: 700; font-size: 1.02rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #cdd7de; text-shadow: 0 1px 3px rgba(0,0,0,0.7);
 }
 #gp-screen .gp-pack.sel .gp-pack-name { color: #fff; }
 #gp-screen .gp-pack-slots { display: flex; gap: 10px; }
