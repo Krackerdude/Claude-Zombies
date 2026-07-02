@@ -12,7 +12,7 @@
 
 /* ---- NECROPOLIS logo emblem (designed SVG, see menuLogo.js) -------------- */
 .mm-title {
-  position: absolute; left: clamp(20px, 4vw, 84px); top: 8%;
+  position: absolute; left: clamp(-8px, 1.5vw, 40px); top: 3.5%;
   pointer-events: none; isolation: isolate;
 }
 .mm-title .nec-logo {

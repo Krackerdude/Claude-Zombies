@@ -8,6 +8,47 @@
  * The flowing purple→teal→green gradient, the glow and a gentle float animate it.
  */
 export function menuLogoSvg() {
+  // A faceted crystal shard: split down a central spine into a shadow facet and
+  // a lit facet, with a bright chine-line and a tip glint so it reads as cut
+  // gemstone rather than a flat triangle. `tone` picks the base gradient.
+  const P = (x, y) => `${x.toFixed(1)},${y.toFixed(1)}`;
+  const shard = (cx, tipY, baseY, w, tone, opacity = 1, tilt = 0) => {
+    const tip = [cx + tilt, tipY];
+    const bl = [cx - w, baseY];
+    const br = [cx + w, baseY];
+    const bm = [cx - w * 0.18, baseY];               // spine meets the base off-centre
+    const knee = [cx + w * 0.34, baseY + (tipY - baseY) * 0.42]; // a bevel breaking the right edge
+    const glint = [cx + tilt * 0.55, tipY + (baseY - tipY) * 0.16];
+    return `<g opacity="${opacity}">
+      <polygon points="${P(...tip)} ${P(...bl)} ${P(...br)}" fill="url(#necShard${tone})"/>
+      <polygon points="${P(...tip)} ${P(...bl)} ${P(...bm)}" fill="#05010f" opacity="0.34"/>
+      <polygon points="${P(...tip)} ${P(...bm)} ${P(...knee)}" fill="#ffffff" opacity="0.10"/>
+      <polygon points="${P(...tip)} ${P(...knee)} ${P(...br)}" fill="#ffffff" opacity="0.20"/>
+      <polygon points="${P(...tip)} ${P(...glint)} ${P(cx - w * 0.14, tipY + (baseY - tipY) * 0.28)}" fill="#ffffff" opacity="0.6"/>
+      <polyline points="${P(...tip)} ${P(...bm)}" fill="none" stroke="#ffffff" stroke-width="1.1" opacity="0.5"/>
+      <polyline points="${P(...tip)} ${P(...knee)}" fill="none" stroke="#04030a" stroke-width="1" opacity="0.4"/>
+    </g>`;
+  };
+
+  // Two clusters: a tall crown behind the wordmark, plus shorter risers below.
+  // Slim sliver shards tucked between the big ones make it read as a fractured
+  // cluster (the detail the plain triangles were missing).
+  const shards = [
+    shard(150, -46, 154, 33, 'P', 1, 6),
+    shard(214, 96, 150, 12, 'T', 0.75, -3),
+    shard(286, -58, 145, 44, 'T', 1, -5),
+    shard(404, -66, 138, 31, 'P', 1, 4),
+    shard(462, 84, 140, 11, 'G', 0.7, 2),
+    shard(520, -74, 135, 36, 'G', 1, 0),
+    shard(648, -60, 140, 35, 'P', 1, -4),
+    shard(716, 90, 146, 12, 'P', 0.72, 3),
+    shard(772, -52, 145, 41, 'T', 1, 5),
+    shard(874, -40, 155, 33, 'P', 1, -6),
+    shard(332, 348, 251, 33, 'P', 0.82, -4),
+    shard(518, 360, 254, 34, 'T', 0.82, 3),
+    shard(694, 352, 251, 33, 'P', 0.82, -3),
+  ].join('');
+
   // runic tick band under the wordmark
   const runes = [];
   const glyphs = ['M2 0 L10 6 L2 12 M10 0 L2 6 L10 12', 'M0 0 L12 0 M6 0 L6 12 M0 12 L12 12',
@@ -49,18 +90,9 @@ export function menuLogoSvg() {
     <filter id="necShardGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3"/></filter>
   </defs>
 
-  <!-- crystal shards bursting out behind the wordmark -->
+  <!-- faceted crystal shards bursting out behind the wordmark -->
   <g class="nec-shards" filter="url(#necShardGlow)">
-    <polygon points="118,150 152,-46 182,158" fill="url(#necShardP)"/>
-    <polygon points="236,140 286,-58 322,150" fill="url(#necShardT)"/>
-    <polygon points="372,134 404,-66 432,142" fill="url(#necShardP)"/>
-    <polygon points="486,130 520,-72 556,140" fill="url(#necShardG)"/>
-    <polygon points="612,134 648,-60 680,146" fill="url(#necShardP)"/>
-    <polygon points="724,140 772,-52 804,150" fill="url(#necShardT)"/>
-    <polygon points="838,150 874,-40 902,160" fill="url(#necShardP)"/>
-    <polygon points="300,250 332,348 364,252" fill="url(#necShardP)" opacity="0.8"/>
-    <polygon points="486,256 518,360 552,252" fill="url(#necShardT)" opacity="0.8"/>
-    <polygon points="660,252 694,352 724,250" fill="url(#necShardP)" opacity="0.8"/>
+    ${shards}
   </g>
 
   <!-- breathing spectral glow -->
