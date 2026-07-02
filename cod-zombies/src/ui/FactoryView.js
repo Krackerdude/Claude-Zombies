@@ -35,22 +35,28 @@ export class FactoryView {
       this.#renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     } catch { this.#renderer = null; return; }
     this.#renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // filmic tone-map + sRGB output for a moodier, less "flat/cartoony" look
+    this.#renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.#renderer.toneMappingExposure = 1.05;
+    this.#renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.#canvas = this.#renderer.domElement;
     this.#canvas.className = 'fx-factory-canvas';
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x3a6a92, 0.03); // pale-blue hall haze
+    scene.fog = new THREE.FogExp2(0x14303f, 0.05); // deep, cool haze that swallows the back of the hall
     const cam = new THREE.PerspectiveCamera(46, 1.7, 0.05, 120);
     cam.position.set(-0.2, 0.6, 6.2);
     cam.lookAt(0.6, -0.05, -0.5);
 
-    // warm factory rig + a cool cyan kick from the transport tube
-    scene.add(new THREE.HemisphereLight(0xdcecff, 0x241c14, 0.7));
-    scene.add(new THREE.AmbientLight(0xbfd0e0, 0.35));
-    const key = new THREE.DirectionalLight(0xffe6c2, 1.9); key.position.set(3, 5, 6); scene.add(key);
-    const fill = new THREE.DirectionalLight(0x8fb4ff, 0.7); fill.position.set(-5, 1, 4); scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffca88, 1.0); rim.position.set(-2, 4, -6); scene.add(rim);
-    const front = new THREE.DirectionalLight(0xfff2e0, 0.6); front.position.set(0, 1.5, 8); scene.add(front); // camera-side fill
+    // Moody rig: a dim cool ambient, a warm key + rim on the hero vats, and let
+    // the vats' own emissive glow + the transport tube carry the scene. The
+    // background falls into shadow so the machinery reads as silhouettes.
+    scene.add(new THREE.HemisphereLight(0x9fc0dc, 0x1a1410, 0.28));
+    scene.add(new THREE.AmbientLight(0x8fa8bd, 0.12));
+    const key = new THREE.DirectionalLight(0xffe0b0, 1.55); key.position.set(2.5, 4.5, 6); scene.add(key);
+    const fill = new THREE.DirectionalLight(0x6f9cff, 0.28); fill.position.set(-5, 1, 4); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffbe7a, 0.7); rim.position.set(-2, 4, -6); scene.add(rim);
+    const front = new THREE.SpotLight(0xfff0dc, 0.9, 12, Math.PI / 5, 0.5); front.position.set(0, 1.2, 8); front.target.position.set(0.2, -0.2, 0); scene.add(front); scene.add(front.target);
     const tubeGlow = new THREE.PointLight(0x8fdcff, 1.1, 9); tubeGlow.position.set(3.55, 1.2, 1); scene.add(tubeGlow);
 
     const factory = buildFactory();
