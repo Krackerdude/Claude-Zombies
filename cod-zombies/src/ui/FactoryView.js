@@ -20,7 +20,7 @@ export class FactoryView {
   #raf = 0; #running = false; #last = 0; #t = 0;
   #ray = new THREE.Raycaster(); #ptr = new THREE.Vector2(-2, -2);
   #hover = -1; #busy = false;
-  #tweens = []; #timers = []; #plates = []; #balls = [];
+  #tweens = []; #sched = []; #plates = []; #balls = [];
   #onWager; #onBusy; #onBanner;
 
   constructor({ onWager, onBusy = null, onBanner = null } = {}) {
@@ -45,11 +45,13 @@ export class FactoryView {
     cam.lookAt(0.6, -0.05, -0.5);
 
     // warm factory rig + a cool cyan kick from the transport tube
-    scene.add(new THREE.AmbientLight(0xbfd0e0, 0.6));
-    const key = new THREE.DirectionalLight(0xffe6c2, 1.35); key.position.set(3, 5, 6); scene.add(key);
-    const fill = new THREE.DirectionalLight(0x6fa0ff, 0.5); fill.position.set(-5, 1, 4); scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffca88, 0.8); rim.position.set(-2, 4, -6); scene.add(rim);
-    const tubeGlow = new THREE.PointLight(0x8fdcff, 0.9, 8); tubeGlow.position.set(3.6, 1.2, 1); scene.add(tubeGlow);
+    scene.add(new THREE.HemisphereLight(0xdcecff, 0x241c14, 0.7));
+    scene.add(new THREE.AmbientLight(0xbfd0e0, 0.35));
+    const key = new THREE.DirectionalLight(0xffe6c2, 1.9); key.position.set(3, 5, 6); scene.add(key);
+    const fill = new THREE.DirectionalLight(0x8fb4ff, 0.7); fill.position.set(-5, 1, 4); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffca88, 1.0); rim.position.set(-2, 4, -6); scene.add(rim);
+    const front = new THREE.DirectionalLight(0xfff2e0, 0.6); front.position.set(0, 1.5, 8); scene.add(front); // camera-side fill
+    const tubeGlow = new THREE.PointLight(0x8fdcff, 1.1, 9); tubeGlow.position.set(3.55, 1.2, 1); scene.add(tubeGlow);
 
     const factory = buildFactory();
     scene.add(factory);
@@ -99,9 +101,11 @@ export class FactoryView {
   }
 
   #pressButton(btn) {
-    this.#addTween({ dur: 0.09, apply: (p) => { btn.group.position.y = btn.restY - 0.06 * p; } });
-    this.#after(0.09, () => this.#addTween({ dur: 0.16, ease: easeOut, apply: (p) => { btn.group.position.y = btn.restY - 0.06 * (1 - p); } }));
-    this.#flash(btn.glowMat, 0.85, 2.4, 0.4);
+    // depress the DOME within its housing (restY is the dome's LOCAL y), not the
+    // whole button group — moving the group launched it up to the vat.
+    this.#addTween({ dur: 0.09, apply: (p) => { btn.mesh.position.y = btn.restY - 0.06 * p; } });
+    this.#after(0.09, () => this.#addTween({ dur: 0.18, ease: easeOut, apply: (p) => { btn.mesh.position.y = btn.restY - 0.06 * (1 - p); } }));
+    this.#flash(btn.glowMat, 0.85, 2.6, 0.4);
   }
 
   #denyPress(btn) {
@@ -116,60 +120,59 @@ export class FactoryView {
     const vats = this.#factory.userData.vats;
     const tube = this.#factory.userData.tube;
     const rewards = result.rewards;
-    const slotGap = 0.62;
-    const topSlot = tube.topY - 0.45;
+    const slotGap = 0.8;
+    const topSlot = tube.topY - 0.7;
 
     rewards.forEach((rw, i) => {
-      const start = i * 0.28;                          // stagger the pulls
+      const start = i * 0.32;                          // stagger the pulls
       const originVat = vats[rw.vat] ?? vats[0];
-      const ball = buildgumballModel(rw.gum.act, { radius: 0.26 });
-      const startPos = new THREE.Vector3(originVat.world.x, -1.7, 0.4);
-      ball.position.copy(startPos);
-      ball.userData.spin = 1.2 + Math.random();
+      const ball = buildgumballModel(rw.gum.act, { radius: 0.34 });
+      const core = ball.children[0];
+      if (core?.material) { core.material.emissiveIntensity = 0.6; } // read boldly in the tube
+      // all rewards are SUCKED UP from the tube's funnel base, regardless of vat
+      const bottom = new THREE.Vector3(tube.world.x, tube.botY + 0.25, 0);
+      ball.position.copy(bottom);
+      ball.scale.setScalar(0.3);
+      ball.userData.spin = 1.0 + Math.random() * 0.6;
       this.#scene.add(ball);
       this.#balls.push(ball);
 
       const slot = new THREE.Vector3(tube.world.x, topSlot - i * slotGap, 0);
-      // 1) rise out of the floor at the vat
+      // 1) suck up the tube to the hover slot (grow as it enters)
       this.#after(start, () => {
-        this.#flash(originVat.windowMat, 0.55, 1.3, 0.5);
-        const from = ball.position.clone();
-        const mid = new THREE.Vector3(originVat.world.x, 0.2, 0.4);
-        this.#addTween({ dur: 0.5, ease: easeOut, apply: (p) => ball.position.lerpVectors(from, mid, p) });
-      });
-      // 2) draw across into the transport tube (arc up)
-      this.#after(start + 0.5, () => {
-        const from = ball.position.clone();
+        this.#flash(originVat.windowMat, originVat.base, originVat.base + 1.2, 0.4);
         this.#addTween({
-          dur: 0.7, ease: easeInOut,
-          apply: (p) => {
-            ball.position.lerpVectors(from, slot, p);
-            ball.position.y += Math.sin(p * Math.PI) * 0.35;   // gentle arc
-          },
+          dur: 0.85, ease: easeOut,
+          apply: (p) => { ball.position.lerpVectors(bottom, slot, p); ball.scale.setScalar(0.3 + 0.7 * Math.min(1, p * 1.4)); },
         });
       });
-      // nameplate fades in once it's home in the tube
-      this.#after(start + 1.25, () => this.#spawnPlate(ball, rw));
+      // nameplate fades in once it's hovering
+      this.#after(start + 0.95, () => this.#spawnPlate(ball, rw));
     });
 
     // modifier banners
-    if (result.powerBooster) this.#after(1.4, () => this.#onBanner?.({ kind: 'boost', text: 'POWER BOOSTER — every vat pays out!' }));
-    if (result.doubles > 0) this.#after(1.6, () => this.#onBanner?.({ kind: 'double', text: `DOUBLE REWARDS ×${result.multiplier}` }));
+    if (result.powerBooster) this.#after(1.0, () => this.#onBanner?.({ kind: 'boost', text: 'POWER BOOSTER — every vat pays out!' }));
+    if (result.doubles > 0) this.#after(1.2, () => this.#onBanner?.({ kind: 'double', text: `DOUBLE REWARDS ×${result.multiplier}` }));
 
-    // 3) after the hold, deliver each ball into its vat window
-    const holdEnd = rewards.length * 0.28 + 2.2;
+    // 2) after the showcase hold, each gum flies LEFT into its origin vat window
+    const holdEnd = rewards.length * 0.35 + 2.6;
     rewards.forEach((rw, i) => {
       const originVat = vats[rw.vat] ?? vats[0];
-      this.#after(holdEnd + i * 0.16, () => {
+      this.#after(holdEnd + i * 0.22, () => {
         const ball = this.#balls[i]; if (!ball) return;
         this.#removePlate(ball);
         const from = ball.position.clone();
         const to = originVat.world.clone();
+        const arcUp = Math.max(from.y, to.y) + 0.4;
         this.#addTween({
-          dur: 0.55, ease: easeIn,
-          apply: (p) => { ball.position.lerpVectors(from, to, p); ball.scale.setScalar(1 - 0.7 * p); },
+          dur: 0.7, ease: easeInOut,
+          apply: (p) => {
+            ball.position.lerpVectors(from, to, p);
+            ball.position.y += Math.sin(p * Math.PI) * (arcUp - Math.max(from.y, to.y)); // slight arc over
+            ball.scale.setScalar(1 - 0.68 * p);
+          },
           onDone: () => {
-            this.#flash(originVat.windowMat, 1.6, 2.0, 0.6);
+            this.#flash(originVat.windowMat, originVat.base, originVat.base + 2.4, 0.7);
             this.#scene.remove(ball); ball.userData.dispose?.();
             this.#balls[i] = null;
           },
@@ -178,7 +181,7 @@ export class FactoryView {
     });
 
     // release the console
-    this.#after(holdEnd + rewards.length * 0.16 + 0.9, () => { this.#busy = false; this.#onBusy?.(false); this.#balls.length = 0; });
+    this.#after(holdEnd + rewards.length * 0.22 + 1.0, () => { this.#busy = false; this.#onBusy?.(false); this.#balls.length = 0; });
   }
 
   #spawnPlate(ball, rw) {
@@ -209,14 +212,22 @@ export class FactoryView {
       const v = p.ball.position.clone().project(this.#camera);
       const x = (v.x * 0.5 + 0.5) * r.width;
       const y = (-v.y * 0.5 + 0.5) * r.height;
-      p.el.style.transform = `translate(-50%, -50%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      // anchor the plate's right edge just left of the gum so it never covers it
+      p.el.style.transform = `translate(${(x - 30).toFixed(1)}px, ${y.toFixed(1)}px) translate(-100%, -50%)`;
     }
   }
 
   // --- tiny tween/timer runner -------------------------------------------
 
   #addTween(t) { t.start = this.#t; t.ease = t.ease || linear; this.#tweens.push(t); }
-  #after(sec, fn) { const id = setTimeout(fn, sec * 1000); this.#timers.push(id); }
+  // schedule on the render clock (not wall-clock) so the choreography stays in
+  // step with the tweens even if the frame-rate dips.
+  #after(sec, fn) { this.#sched.push({ at: this.#t + sec, fn }); }
+  #stepSched() {
+    for (let i = this.#sched.length - 1; i >= 0; i--) {
+      if (this.#t >= this.#sched[i].at) { const fn = this.#sched[i].fn; this.#sched.splice(i, 1); fn(); }
+    }
+  }
   #flash(mat, base, peak, dur) {
     this.#addTween({ dur, apply: (p) => { mat.emissiveIntensity = peak + (base - peak) * p; }, onDone: () => { mat.emissiveIntensity = base; } });
   }
@@ -238,11 +249,13 @@ export class FactoryView {
     this.#running = true; this.#last = performance.now();
     const loop = (now) => {
       if (!this.#running) return;
-      const dt = Math.min(0.05, (now - this.#last) / 1000); this.#last = now; this.#t += dt;
+      const dt = Math.max(0, Math.min(0.05, (now - this.#last) / 1000)); this.#last = now; this.#t += dt;
       const ud = this.#factory.userData;
 
       for (const s of ud.spin) s.mesh.rotation.z += s.speed * dt;
-      ud.tube.beamMats.forEach((b, k) => { b.opacity = (0.12 + k * 0.05) * (0.7 + 0.3 * Math.sin(this.#t * 3 + k)); });
+      ud.tube.beamMats.forEach((b, k) => { b.opacity = (0.2 + k * 0.08) * (0.7 + 0.3 * Math.sin(this.#t * 3 + k)); });
+      // vats "whir" — the brew glow breathes (flash tweens override during a pull)
+      if (!this.#busy) ud.vats.forEach((vt, i) => { vt.windowMat.emissiveIntensity = vt.base + 0.28 * Math.sin(this.#t * 1.8 + i * 1.3); });
       for (const st of ud.steam) { st.mesh.position.y = st.base.y + Math.sin(this.#t * 0.3 + st.phase) * 0.25; st.mesh.material.opacity = 0.04 + 0.03 * (0.5 + 0.5 * Math.sin(this.#t * 0.5 + st.phase)); }
       for (const ball of this.#balls) if (ball) ball.rotation.y += (ball.userData.spin || 1) * dt;
 
@@ -250,6 +263,7 @@ export class FactoryView {
       if (!this.#busy) this.#updateHover();
       this.#applyHover(dt);
 
+      this.#stepSched();
       this.#stepTweens(dt);
       this.#updatePlates();
 
@@ -288,8 +302,7 @@ export class FactoryView {
     this.#running = false;
     if (this.#raf) cancelAnimationFrame(this.#raf);
     this.#raf = 0;
-    for (const id of this.#timers) clearTimeout(id);
-    this.#timers.length = 0; this.#tweens.length = 0;
+    this.#sched.length = 0; this.#tweens.length = 0;
     for (const p of this.#plates) p.el.remove();
     this.#plates.length = 0;
     for (const b of this.#balls) if (b) { this.#scene.remove(b); b.userData.dispose?.(); }

@@ -95,38 +95,49 @@ export function buildFactory() {
     v.add(M(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 20), brass, -0.34, 0.5, 0.58, Math.PI / 2));  // gauge
     v.add(M(new THREE.CylinderGeometry(0.086, 0.086, 0.02, 20), iron, -0.34, 0.5, 0.61, Math.PI / 2));
 
-    // glowing view-window
-    const winY = 0.02, winZ = 0.665;
-    v.add(M(roundedRectGeo(0.6, 0.82, 0.08), brass, 0, winY, winZ - 0.02));
-    const glowMat = mat({ color: 0x120a06, emissive: new THREE.Color(vatTint[i]), emissiveIntensity: 0.55, roughness: 0.4, metalness: 0.1 });
-    v.add(M(new THREE.PlaneGeometry(0.52, 0.74), glowMat, 0, winY, winZ));
-    v.add(M(new THREE.PlaneGeometry(0.5, 0.72), glass, 0, winY, winZ + 0.002));
+    // glowing view-window — a brass surround (solid backing) with the lit brew
+    // pane sitting IN FRONT of it so a border of brass frames the glow.
+    const winY = 0.02, frameZ = 0.6, paneZ = 0.7;
+    v.add(M(roundedRectGeo(0.62, 0.84, 0.09), brass, 0, winY, frameZ)); // solid backing (front face ≈ 0.69)
+    const glowMat = mat({
+      color: 0x05070a, emissive: new THREE.Color(vatTint[i]), emissiveIntensity: 1.35,
+      emissiveMap: brewTex(vatTint[i], track), roughness: 0.5, metalness: 0,
+    });
+    v.add(M(new THREE.PlaneGeometry(0.5, 0.72), glowMat, 0, winY, paneZ));       // the glowing brew
+    v.add(M(new THREE.PlaneGeometry(0.52, 0.74), glass, 0, winY, paneZ + 0.006)); // glass sheen over it
+    // inner point light so each vat throws colored light into the room
+    const vl = new THREE.PointLight(vatTint[i], 0.6, 3.5); vl.position.set(0, 0.1, 0.5); v.add(vl);
 
     g.add(v);
-    g.userData.vats.push({ group: v, windowMat: glowMat, world: new THREE.Vector3(x, winY, winZ) });
+    g.userData.vats.push({ group: v, windowMat: glowMat, base: 1.35, world: new THREE.Vector3(x, winY, paneZ + 0.12) });
   });
 
   // ------------------------------------------------- transport tube (right)
-  const tubeX = 3.6;
+  const tubeX = 3.55;
   const tube = new THREE.Group(); tube.position.set(tubeX, 0, 0);
-  const botY = -1.15, topY = 1.75;
+  const botY = -1.15, topY = 1.85;
   const tubeH = topY - botY;
-  tube.add(M(new THREE.CylinderGeometry(0.5, 0.78, 0.4, 24), brassDk, 0, botY + 0.1, 0));   // funnel
-  tube.add(M(new THREE.CylinderGeometry(0.52, 0.52, 0.1, 24), brass, 0, botY + 0.32, 0));
-  tube.add(M(new THREE.CylinderGeometry(0.5, 0.5, tubeH, 32, 1, true), glass, 0, (botY + topY) / 2, 0)); // column
-  for (let k = 0; k <= 4; k++) { const ry = botY + 0.4 + k * (tubeH - 0.6) / 4; tube.add(M(new THREE.TorusGeometry(0.5, 0.04, 10, 32), brass, 0, ry, 0, Math.PI / 2)); }
-  tube.add(M(new THREE.CylinderGeometry(0.56, 0.5, 0.16, 24), brass, 0, topY + 0.05, 0));   // cap
-  tube.add(M(new THREE.TorusGeometry(0.34, 0.16, 14, 24, Math.PI / 2), copper, 0.34, topY + 0.1, 0, 0, 0, Math.PI)); // elbow
-  tube.add(M(new THREE.CylinderGeometry(0.16, 0.16, 1.2, 20), copper, 1.28, topY + 0.44, 0, 0, 0, Math.PI / 2));      // exit pipe
+  const tubeR = 0.55;
+  // frosted-cyan glass that actually reads as glass (brighter, double-sided)
+  const tubeGlass = mat({ color: 0xbfeaf7, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.24, side: THREE.DoubleSide });
+  tube.add(M(new THREE.CylinderGeometry(0.5, 0.82, 0.42, 28), brassDk, 0, botY + 0.1, 0));   // funnel
+  tube.add(M(new THREE.CylinderGeometry(tubeR, tubeR, 0.12, 28), brass, 0, botY + 0.34, 0)); // base collar
+  tube.add(M(new THREE.CylinderGeometry(tubeR, tubeR, tubeH, 36, 1, true), tubeGlass, 0, (botY + topY) / 2, 0)); // column
+  for (let k = 0; k <= 4; k++) { const ry = botY + 0.42 + k * (tubeH - 0.7) / 4; tube.add(M(new THREE.TorusGeometry(tubeR, 0.045, 12, 36), brass, 0, ry, 0, Math.PI / 2)); }
+  // clean domed brass cap
+  tube.add(M(new THREE.CylinderGeometry(tubeR + 0.05, tubeR, 0.14, 28), brass, 0, topY + 0.04, 0));
+  tube.add(M(new THREE.SphereGeometry(tubeR - 0.02, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), brass, 0, topY + 0.1, 0));
+  tube.add(M(new THREE.SphereGeometry(0.09, 16, 12), lampMat, 0, topY + 0.34, 0)); // glowing finial
 
-  // upward tractor-beam: two additive cylinders scrolled in the loop
+  // upward tractor-beam: additive cylinders scrolled in the loop, brighter
   const beamMats = [];
   for (let b = 0; b < 2; b++) {
-    const bm = new THREE.MeshBasicMaterial({ color: 0x8fdcff, transparent: true, opacity: 0.12 + b * 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }); track.push(bm);
-    const bg = new THREE.CylinderGeometry(0.34 - b * 0.12, 0.34 - b * 0.12, tubeH - 0.2, 20, 1, true); track.push(bg);
+    const bm = new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.2 + b * 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }); track.push(bm);
+    const bg = new THREE.CylinderGeometry(0.36 - b * 0.14, 0.36 - b * 0.14, tubeH - 0.2, 24, 1, true); track.push(bg);
     const beam = new THREE.Mesh(bg, bm); beam.position.y = (botY + topY) / 2; tube.add(beam);
     beamMats.push(bm);
   }
+  const tubeLight = new THREE.PointLight(0x9fe6ff, 0.8, 5); tubeLight.position.set(0, 0.6, 0.3); tube.add(tubeLight);
   g.add(tube);
   g.userData.tube = { group: tube, world: new THREE.Vector3(tubeX, 0, 0), topY, botY, beamMats };
 
@@ -150,18 +161,20 @@ export function buildFactory() {
     g.userData.buttons.push({ mesh: dome, group: grp, restY: 0.12, glowMat, world: new THREE.Vector3(bx, consoleY + 0.28, consoleZ), wager: i + 1 });
   });
 
-  // -------------------------------------------------------------- steam puffs
-  for (let s = 0; s < 6; s++) {
-    const sg = new THREE.SphereGeometry(0.4 + Math.random() * 0.3, 10, 8); track.push(sg);
-    const sm = new THREE.MeshBasicMaterial({ color: 0xdfe9ee, transparent: true, opacity: 0.05, depthWrite: false }); track.push(sm);
-    const mesh = new THREE.Mesh(sg, sm);
-    const base = new THREE.Vector3((Math.random() * 2 - 1) * 4, 1 + Math.random() * 2, -3 - Math.random() * 1.5);
-    mesh.position.copy(base); g.add(mesh);
-    g.userData.steam.push({ mesh, phase: Math.random() * Math.PI * 2, base });
-  }
-
   g.userData.dispose = () => { for (const t of track) t.dispose?.(); };
   return g;
+}
+
+/** Emissive map for a vat window: a bright hot core fading to dark edges, with a
+ *  couple of lighter "brew" streaks so it glows like lit liquid, not a flat panel. */
+function brewTex(hex, track) {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const ctx = c.getContext('2d');
+  const grd = ctx.createRadialGradient(64, 78, 6, 64, 64, 78);
+  grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.4, '#cfd6dd'); grd.addColorStop(1, '#0a0d12');
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, 128, 128);
+  ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) { ctx.beginPath(); const y = 40 + i * 26; ctx.moveTo(10, y); ctx.bezierCurveTo(45, y - 16, 85, y + 16, 118, y - 6); ctx.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; track.push(t); return t;
 }
 
 // rounded-rect plate geometry (for vat window frames)
