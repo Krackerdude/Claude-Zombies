@@ -175,80 +175,152 @@ export function buildFactory() {
   // wide enough to sit in the corners falls off the frame, and centred ones cover
   // the console. Left clean; revisit if the FOV is widened for framing room.)
 
-  // ---------------------------------------------------------------- the vats
+  // -------------------------------------------------- the gobblegum machines
+  // Each is a verdigris cabinet with: a RAISED CLEAR GLASS chamber (you can see
+  // the gum spin/hover inside), a real tesla coil up top, a brass NAMEPLATE
+  // plaque above the glass, and side detailing. `userData.vats[i]` exposes the
+  // chamber centre, coil top, plate anchor + the coil material for the reveal.
+  const chrome     = mat({ color: 0xccd1d8, roughness: 0.22, metalness: 0.95 });
+  const ceramic    = mat({ color: 0xe6dfce, roughness: 0.6, metalness: 0.05 });
+  const clearGlass = mat({ color: 0xdff2ff, roughness: 0.03, metalness: 0, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
+  const darkBack   = mat({ color: 0x080b10, roughness: 0.92, metalness: 0.08 });
   const vatX = [-1.85, 0, 1.85];
   const vatTint = [0x37d36a, 0x9a5cff, 0xff8a28];
   vatX.forEach((x, i) => {
     const v = new THREE.Group(); v.position.set(x, 0, 0);
 
-    v.add(M(new THREE.CylinderGeometry(0.72, 0.78, 0.18, 24), iron, 0, -1.16, 0));
-    v.add(M(new THREE.CylinderGeometry(0.66, 0.7, 1.9, 28, 1), verd, 0, -0.2, 0));
-    for (const by of [-1.0, -0.5, 0.05, 0.55]) v.add(M(new THREE.TorusGeometry(0.685, 0.035, 10, 32), brass, 0, by, 0, Math.PI / 2));
-    const rivGeo = new THREE.SphereGeometry(0.022, 8, 6); track.push(rivGeo);
-    for (let r = 0; r < 20; r++) { const a = (r / 20) * Math.PI * 2; const o = new THREE.Mesh(rivGeo, brassDk); o.position.set(Math.cos(a) * 0.7, 0.55, Math.sin(a) * 0.7); v.add(o); }
-    v.add(M(new THREE.SphereGeometry(0.68, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2), brass, 0, 0.75, 0));
-    v.add(M(new THREE.TorusGeometry(0.66, 0.05, 10, 32), brassDk, 0, 0.76, 0, Math.PI / 2));
-    v.add(M(new THREE.CylinderGeometry(0.09, 0.11, 0.34, 14), copper, 0.18, 1.05, 0.12));
-    v.add(M(new THREE.CylinderGeometry(0.13, 0.09, 0.1, 14), brass, 0.18, 1.24, 0.12));
-    v.add(M(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 10), brassDk, -0.16, 1.02, -0.05));
-    v.add(M(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 20), brass, -0.34, 0.5, 0.58, Math.PI / 2));
-    v.add(M(new THREE.CylinderGeometry(0.086, 0.086, 0.02, 20), iron, -0.34, 0.5, 0.61, Math.PI / 2));
+    // cabinet
+    v.add(M(new THREE.CylinderGeometry(0.72, 0.78, 0.18, 24), iron, 0, -1.16, 0));       // footing
+    v.add(M(new THREE.CylinderGeometry(0.66, 0.7, 1.9, 28, 1), verd, 0, -0.2, 0));       // body
+    for (const by of [-1.0, -0.55, 0.62]) v.add(M(new THREE.TorusGeometry(0.685, 0.035, 10, 32), brass, 0, by, 0, Math.PI / 2)); // hoops
+    const rivGeo = new THREE.SphereGeometry(0.02, 8, 6); track.push(rivGeo);
+    for (let r = 0; r < 20; r++) { const a = (r / 20) * Math.PI * 2; const o = new THREE.Mesh(rivGeo, brassDk); o.position.set(Math.cos(a) * 0.7, -0.9, Math.sin(a) * 0.7); v.add(o); }
+    // brass shoulder cap the coil sits on
+    v.add(M(new THREE.CylinderGeometry(0.58, 0.68, 0.16, 28), brass, 0, 0.83, 0));
+    v.add(M(new THREE.TorusGeometry(0.6, 0.04, 10, 32), brassDk, 0, 0.76, 0, Math.PI / 2));
 
-    const winY = 0.02, frameZ = 0.6, paneZ = 0.7;
-    v.add(M(roundedRectGeo(0.62, 0.84, 0.09), brass, 0, winY, frameZ));
-    const glowMat = mat({ color: 0x05070a, emissive: new THREE.Color(vatTint[i]), emissiveIntensity: 1.35, emissiveMap: brewTex(vatTint[i], track), roughness: 0.5, metalness: 0 });
-    v.add(M(new THREE.PlaneGeometry(0.5, 0.72), glowMat, 0, winY, paneZ));
-    v.add(M(new THREE.PlaneGeometry(0.52, 0.74), glass, 0, winY, paneZ + 0.006));
-    const vl = new THREE.PointLight(vatTint[i], 0.6, 3.5); vl.position.set(0, 0.1, 0.5); v.add(vl);
+    // --- tesla coil ---
+    v.add(M(new THREE.CylinderGeometry(0.11, 0.13, 0.34, 16), ceramic, 0, 1.05, 0));                    // insulator base
+    for (let k = 0; k < 6; k++) v.add(M(new THREE.TorusGeometry(0.115 - k * 0.004, 0.02, 8, 22), copper, 0, 0.98 + k * 0.055, 0, Math.PI / 2)); // secondary windings
+    v.add(M(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 12), chrome, 0, 1.36, 0));                     // stalk
+    v.add(M(new THREE.TorusGeometry(0.15, 0.055, 14, 30), chrome, 0, 1.46, 0, Math.PI / 2));            // toroid electrode
+    const coilMat = mat({ color: 0x9fd4ff, emissive: new THREE.Color(0x3d86ff), emissiveIntensity: 0.5, roughness: 0.3, metalness: 0.5 });
+    v.add(M(new THREE.SphereGeometry(0.075, 18, 14), coilMat, 0, 1.53, 0));                             // discharge terminal
+    // two flanking glass tubes with faint inner glow
+    for (const sx of [-0.34, 0.34]) {
+      v.add(M(new THREE.CylinderGeometry(0.05, 0.05, 0.52, 12, 1, true), clearGlass, sx, 1.06, 0.02));
+      v.add(M(new THREE.CylinderGeometry(0.018, 0.018, 0.5, 8), coilMat, sx, 1.06, 0.02));
+      v.add(M(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 12), brass, sx, 0.82, 0.02));
+    }
+
+    // --- raised clear-glass display chamber (front) ---
+    const cy = 0.06, backZ = 0.66, glassZ = 0.99, barZc = (backZ + glassZ) / 2, barD = glassZ - backZ;
+    const fw = 0.5, fh = 0.78;
+    v.add(M(new THREE.PlaneGeometry(fw + 0.02, fh + 0.02), darkBack, 0, cy, backZ + 0.002)); // dark interior backing
+    // brass frame bars around the raised box
+    v.add(M(new THREE.BoxGeometry(fw + 0.14, 0.08, barD), brass, 0, cy + fh / 2, barZc));
+    v.add(M(new THREE.BoxGeometry(fw + 0.14, 0.08, barD), brass, 0, cy - fh / 2, barZc));
+    v.add(M(new THREE.BoxGeometry(0.08, fh, barD), brass, -fw / 2 - 0.03, cy, barZc));
+    v.add(M(new THREE.BoxGeometry(0.08, fh, barD), brass, fw / 2 + 0.03, cy, barZc));
+    // corner bolts
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) v.add(M(new THREE.SphereGeometry(0.028, 8, 6), brassDk, sx * (fw / 2 + 0.03), cy + sy * fh / 2, glassZ - 0.02));
+    // the clear front pane
+    v.add(M(new THREE.PlaneGeometry(fw, fh), clearGlass, 0, cy, glassZ));
+    // dim rarity glow inside so the empty chamber reads (brightens during a spin)
+    const vl = new THREE.PointLight(vatTint[i], 0.3, 2.2); vl.position.set(0, cy, 0.78); v.add(vl);
+
+    // --- nameplate plating (brass marquee above the glass) ---
+    v.add(M(new THREE.BoxGeometry(0.78, 0.02, 0.14), brassDk, 0, 0.6, 0.86));       // shelf under the plate
+    v.add(M(new THREE.BoxGeometry(0.72, 0.15, 0.05), brass, 0, 0.68, 0.9));          // the plaque (DOM name projects here)
+    v.add(M(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 8), brassDk, 0, 0.78, 0.9, Math.PI / 2)); // plate light bar
+    v.add(M(new THREE.SphereGeometry(0.03, 10, 8), lampMat, -0.3, 0.68, 0.94));      // marquee bulbs
+    v.add(M(new THREE.SphereGeometry(0.03, 10, 8), lampMat, 0.3, 0.68, 0.94));
+
+    // side gauge detail
+    v.add(M(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 20), brass, -0.52, 0.2, 0.42, Math.PI / 2));
+    v.add(M(new THREE.CylinderGeometry(0.086, 0.086, 0.02, 20), iron, -0.52, 0.2, 0.44, Math.PI / 2));
+    v.add(M(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 10), copper, 0.5, -0.3, 0.3, 0, 0, 0.2)); // side pipe
 
     g.add(v);
-    g.userData.vats.push({ group: v, windowMat: glowMat, base: 1.35, world: new THREE.Vector3(x, winY, paneZ + 0.12) });
+    g.userData.vats.push({
+      group: v, baseX: x, tint: vatTint[i], light: vl, coilMat,
+      coilLocal: new THREE.Vector3(0, 1.53, 0),
+      chamberLocal: new THREE.Vector3(0, cy, 0.8),
+      chamberWorld: new THREE.Vector3(x, cy, 0.8),
+      plateWorld: new THREE.Vector3(x, 0.68, 0.95),
+    });
   });
 
-  // ------------------------------------------------- transport tube (right)
+  // -------------------------------- transport tube (right) — runs off-screen
+  // A tall glass down-pipe: gums enter near the top for a last glance, then shoot
+  // DOWN and out of frame. Open top rim (no cap) + open bottom into the depths.
   const tubeX = 3.55;
   const tube = new THREE.Group(); tube.position.set(tubeX, 0, 0);
-  const botY = -1.15, topY = 1.85;
+  const topY = 1.95, entryY = 1.5, botY = -8.5;   // botY is well below the frame
   const tubeH = topY - botY;
-  const tubeR = 0.55;
-  const tubeGlass = mat({ color: 0xbfeaf7, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.24, side: THREE.DoubleSide });
-  tube.add(M(new THREE.CylinderGeometry(0.5, 0.82, 0.42, 28), brassDk, 0, botY + 0.1, 0));
-  tube.add(M(new THREE.CylinderGeometry(tubeR, tubeR, 0.12, 28), brass, 0, botY + 0.34, 0));
-  tube.add(M(new THREE.CylinderGeometry(tubeR, tubeR, tubeH, 36, 1, true), tubeGlass, 0, (botY + topY) / 2, 0));
-  for (let k = 0; k <= 4; k++) { const ry = botY + 0.42 + k * (tubeH - 0.7) / 4; tube.add(M(new THREE.TorusGeometry(tubeR, 0.045, 12, 36), brass, 0, ry, 0, Math.PI / 2)); }
-  tube.add(M(new THREE.CylinderGeometry(tubeR + 0.05, tubeR, 0.14, 28), brass, 0, topY + 0.04, 0));
-  tube.add(M(new THREE.SphereGeometry(tubeR - 0.02, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), brass, 0, topY + 0.1, 0));
-  tube.add(M(new THREE.SphereGeometry(0.09, 16, 12), lampMat, 0, topY + 0.34, 0));
+  const tubeR = 0.5;
+  const tubeGlass = mat({ color: 0xbfeaf7, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
+  tube.add(M(new THREE.CylinderGeometry(tubeR, tubeR, tubeH, 36, 1, true), tubeGlass, 0, (topY + botY) / 2, 0)); // long column
+  // brass rings only down the visible portion
+  for (let ry = topY - 0.05; ry > -1.6; ry -= 0.72) tube.add(M(new THREE.TorusGeometry(tubeR, 0.045, 12, 36), brass, 0, ry, 0, Math.PI / 2));
+  // open flared brass rim at the top (gums drop in here)
+  tube.add(M(new THREE.CylinderGeometry(tubeR + 0.12, tubeR, 0.16, 28, 1, true), brass, 0, topY + 0.02, 0));
+  tube.add(M(new THREE.TorusGeometry(tubeR + 0.1, 0.04, 12, 32), brass, 0, topY + 0.1, 0, Math.PI / 2));
 
+  // downward light streaks (scrolled in the loop)
   const beamMats = [];
   for (let b = 0; b < 2; b++) {
-    const bm = new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.2 + b * 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }); track.push(bm);
-    const bg = new THREE.CylinderGeometry(0.36 - b * 0.14, 0.36 - b * 0.14, tubeH - 0.2, 24, 1, true); track.push(bg);
-    const beam = new THREE.Mesh(bg, bm); beam.position.y = (botY + topY) / 2; tube.add(beam);
+    const bm = new THREE.MeshBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.18 + b * 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }); track.push(bm);
+    const bg = new THREE.CylinderGeometry(0.34 - b * 0.13, 0.34 - b * 0.13, 4.5, 24, 1, true); track.push(bg);
+    const beam = new THREE.Mesh(bg, bm); beam.position.y = 0.2; tube.add(beam);
     beamMats.push(bm);
   }
-  const tubeLight = new THREE.PointLight(0x9fe6ff, 0.8, 5); tubeLight.position.set(0, 0.6, 0.3); tube.add(tubeLight);
+  const tubeLight = new THREE.PointLight(0x9fe6ff, 0.7, 5); tubeLight.position.set(0, 0.9, 0.3); tube.add(tubeLight);
   g.add(tube);
-  g.userData.tube = { group: tube, world: new THREE.Vector3(tubeX, 0, 0), topY, botY, beamMats };
+  g.userData.tube = { group: tube, world: new THREE.Vector3(tubeX, 0, 0), topY, entryY, botY, beamMats };
 
   // ---------------------------------------------------------- wager console
+  // A mechanical control bench: riveted iron housing, a slanted brass control
+  // deck, exposed gears + pipes on the front, gauges, and the three dome buttons.
   const consoleZ = 1.7, consoleY = -1.12;
-  g.add(M(new THREE.BoxGeometry(2.4, 0.4, 0.7), iron, 0.1, consoleY - 0.1, consoleZ));
-  g.add(M(new THREE.BoxGeometry(2.5, 0.08, 0.8), brassDk, 0.1, consoleY + 0.11, consoleZ));
+  const deck = new THREE.Group();
+  deck.add(M(new THREE.BoxGeometry(2.5, 0.5, 0.8), iron, 0, consoleY - 0.14, consoleZ));            // main housing
+  deck.add(M(new THREE.BoxGeometry(2.6, 0.1, 0.9), brassDk, 0, consoleY + 0.13, consoleZ));          // top lip
+  // slanted control deck the buttons sit on
+  const deckTop = M(new THREE.BoxGeometry(2.4, 0.06, 0.62), brass, 0, consoleY + 0.19, consoleZ + 0.02, -0.18);
+  deck.add(deckTop);
+  // riveted front band
+  const cRiv = new THREE.SphereGeometry(0.022, 8, 6); track.push(cRiv);
+  for (let r = -5; r <= 5; r++) { const o = new THREE.Mesh(cRiv, brass); o.position.set(r * 0.22, consoleY - 0.02, consoleZ + 0.41); deck.add(o); }
+  // front gauges
+  for (const gx of [-1.0, 1.0]) {
+    deck.add(M(new THREE.CylinderGeometry(0.11, 0.11, 0.05, 20), brass, gx, consoleY - 0.12, consoleZ + 0.4, Math.PI / 2));
+    deck.add(M(new THREE.CylinderGeometry(0.095, 0.095, 0.02, 20), iron, gx, consoleY - 0.12, consoleZ + 0.42, Math.PI / 2));
+    deck.add(M(new THREE.BoxGeometry(0.01, 0.08, 0.01), lampMat, gx, consoleY - 0.09, consoleZ + 0.44));
+  }
+  // exposed brass pipe running along the base + valve
+  deck.add(M(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 12), copper, 0, consoleY - 0.32, consoleZ + 0.34, 0, 0, Math.PI / 2));
+  deck.add(M(new THREE.TorusGeometry(0.1, 0.03, 8, 16), brass, 0.7, consoleY - 0.32, consoleZ + 0.36, Math.PI / 2));
+  g.add(deck);
+  // little spinning gears flanking the deck (added to the spin list)
+  gear(-1.32, consoleY + 0.02, consoleZ + 0.36, 0.22, 12, brass, 1.1);
+  gear(1.32, consoleY + 0.02, consoleZ + 0.36, 0.22, 12, brass, -1.1);
+
   const btnColors = [0x2fd36a, 0xffc23a, 0xff4632];
   const btnEmis   = [0x14d05a, 0xffab00, 0xff2a12];
   [-0.72, 0.1, 0.92].forEach((bx, i) => {
-    const grp = new THREE.Group(); grp.position.set(bx, consoleY + 0.16, consoleZ);
-    grp.add(M(new THREE.BoxGeometry(0.42, 0.16, 0.42), iron, 0, 0, 0));
-    grp.add(M(new THREE.CylinderGeometry(0.2, 0.22, 0.06, 24), brass, 0, 0.1, 0));
+    const grp = new THREE.Group(); grp.position.set(bx, consoleY + 0.24, consoleZ + 0.06); grp.rotation.x = -0.18;
+    grp.add(M(new THREE.BoxGeometry(0.44, 0.12, 0.44), steelDk, 0, -0.02, 0));         // pedestal
+    grp.add(M(new THREE.CylinderGeometry(0.21, 0.24, 0.07, 24), brass, 0, 0.05, 0));   // brass collar
+    grp.add(M(new THREE.TorusGeometry(0.2, 0.02, 8, 24), brassDk, 0, 0.08, 0, Math.PI / 2));
     const glowMat = mat({ color: btnColors[i], emissive: new THREE.Color(btnEmis[i]), emissiveIntensity: 0.85, roughness: 0.3, metalness: 0.2 });
     const dome = M(new THREE.SphereGeometry(0.16, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), glowMat, 0, 0.12, 0);
     grp.add(dome);
-    grp.add(M(new THREE.PlaneGeometry(0.26, 0.16), brass, 0, -0.02, 0.22));
+    grp.add(M(new THREE.PlaneGeometry(0.24, 0.16), brass, 0, -0.06, 0.24, -0.4));       // number plate
     const numMat = new THREE.MeshBasicMaterial({ map: numberTex(i + 1, track), transparent: true, depthWrite: false }); track.push(numMat);
-    grp.add(M(new THREE.PlaneGeometry(0.2, 0.14), numMat, 0, -0.02, 0.226));
+    grp.add(M(new THREE.PlaneGeometry(0.18, 0.13), numMat, 0, -0.06, 0.247, -0.4));
     g.add(grp);
-    g.userData.buttons.push({ mesh: dome, group: grp, restY: 0.12, glowMat, world: new THREE.Vector3(bx, consoleY + 0.28, consoleZ), wager: i + 1 });
+    g.userData.buttons.push({ mesh: dome, group: grp, restY: 0.12, glowMat, world: new THREE.Vector3(bx, consoleY + 0.4, consoleZ), wager: i + 1 });
   });
 
   g.userData.dispose = () => {
