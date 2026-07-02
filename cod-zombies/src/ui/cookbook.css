@@ -1,0 +1,129 @@
+/* ============================================================================
+   Newton's Cookbook — a physical open book of trade recipes. Unique signature:
+   aged parchment pages + leather spine, corner page-flip arrows with a real
+   page-turn animation. Consistent with the game's angular/frosted accents.
+   ========================================================================== */
+
+#cookbook-screen {
+  position: fixed; inset: 0; z-index: 39; display: none;
+  font-family: 'Oswald', sans-serif; color: #efe6d0;
+  background: radial-gradient(130% 100% at 50% 26%, #241a12 0%, #150d08 58%, #090604 100%);
+}
+#cookbook-screen.show { display: block; }
+.cb-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(130% 100% at 50% 46%, transparent 52%, rgba(0,0,0,0.72) 100%); }
+
+/* ---- header + sort tabs -------------------------------------------------- */
+.cb-head { position: absolute; top: 24px; left: 0; right: 0; text-align: center; z-index: 3; }
+.cb-title { font-family: 'Anton', Impact, sans-serif; font-weight: 400; font-size: 2.4rem; letter-spacing: 0.05em; color: #f4e8c6; text-shadow: 0 2px 10px #000, 0 0 22px rgba(200,150,70,0.2); }
+.cb-sub { margin-top: 3px; font-size: 0.85rem; letter-spacing: 0.05em; color: #b9a67e; }
+.cb-refresh { color: #ffcf7a; font-weight: 700; }
+
+.cb-tabs { position: absolute; top: 92px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px; z-index: 3; }
+.cb-tab {
+  appearance: none; cursor: pointer; border: 0; padding: 6px 18px; transform: skewX(-9deg); font: inherit;
+  font-weight: 700; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: #cbb98c;
+  background: linear-gradient(180deg, rgba(62,45,26,0.92), rgba(34,24,14,0.95));
+  border-top: 1px solid rgba(205,165,95,0.4); border-bottom: 1px solid rgba(0,0,0,0.7);
+  transition: color 0.14s, transform 0.14s;
+}
+.cb-tab > span { display: inline-block; transform: skewX(9deg); }
+.cb-tab:hover { transform: skewX(-9deg) translateY(-1px); color: #f0dfae; }
+.cb-tab.active { color: #1a1206; background: linear-gradient(180deg, #ffcf7a, #e0922a); }
+
+/* ---- the open book ------------------------------------------------------- */
+.cb-book {
+  position: absolute; top: 140px; bottom: 78px; left: 50%; transform: translateX(-50%);
+  width: min(1120px, 92vw); display: flex; perspective: 2600px; transform-style: preserve-3d;
+  filter: drop-shadow(0 26px 40px rgba(0,0,0,0.6));
+}
+.cb-page {
+  position: relative; flex: 1; padding: 30px 34px 46px; overflow: hidden;
+  background: var(--hud-grunge), linear-gradient(160deg, #efe3c1 0%, #e3d3a8 55%, #d3bf8f 100%);
+  background-size: 90px 90px, auto; background-blend-mode: overlay, normal;
+  box-shadow: inset 0 0 60px rgba(120,90,50,0.28), inset 0 0 0 1px rgba(150,110,60,0.25);
+}
+.cb-left  { border-radius: 10px 2px 2px 10px; box-shadow: inset -34px 0 46px rgba(90,64,32,0.4), inset 0 0 60px rgba(120,90,50,0.22); }
+.cb-right { border-radius: 2px 10px 10px 2px; box-shadow: inset  34px 0 46px rgba(90,64,32,0.4), inset 0 0 60px rgba(120,90,50,0.22); }
+/* torn/aged edge tint at the outer edges */
+.cb-page::after { content: ''; position: absolute; top: 0; bottom: 0; width: 26px; pointer-events: none; }
+.cb-left::after  { left: 0;  background: linear-gradient(90deg, rgba(80,55,28,0.35), transparent); }
+.cb-right::after { right: 0; background: linear-gradient(270deg, rgba(80,55,28,0.35), transparent); }
+.cb-spine { width: 26px; flex: none; background: linear-gradient(90deg, #3a2413, #6b4423 45%, #2a1810 55%, #3a2413); box-shadow: 0 0 22px rgba(0,0,0,0.6) inset; border-radius: 3px; }
+
+.cb-recipes { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 20px; height: 100%; }
+
+/* page-turn leaf */
+.cb-leaf {
+  position: absolute; top: 0; bottom: 0; width: calc(50% - 13px); pointer-events: none; opacity: 0; z-index: 5;
+  background: var(--hud-grunge), linear-gradient(160deg, #ecdfbb, #d4c091);
+  background-size: 90px 90px, auto; background-blend-mode: overlay, normal;
+  backface-visibility: hidden;
+}
+.cb-book.turn-next .cb-leaf { left: 50%; transform-origin: left center; border-radius: 2px 10px 10px 2px; box-shadow: -14px 0 30px rgba(0,0,0,0.4); animation: cbTurnNext 0.48s ease-in-out both; }
+.cb-book.turn-prev .cb-leaf { right: 50%; transform-origin: right center; border-radius: 10px 2px 2px 10px; box-shadow: 14px 0 30px rgba(0,0,0,0.4); animation: cbTurnPrev 0.48s ease-in-out both; }
+@keyframes cbTurnNext { 0% { opacity: 1; transform: rotateY(0); } 100% { opacity: 1; transform: rotateY(-172deg); } }
+@keyframes cbTurnPrev { 0% { opacity: 1; transform: rotateY(0); } 100% { opacity: 1; transform: rotateY(172deg); } }
+
+/* ---- recipe card --------------------------------------------------------- */
+.cb-recipe {
+  position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 12px 14px 14px; color: #2a1d0e;
+  background: linear-gradient(180deg, rgba(255,250,232,0.6), rgba(220,200,158,0.35));
+  border: 1px solid rgba(120,86,44,0.5); border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255,250,230,0.35), 0 6px 14px rgba(90,64,32,0.25);
+}
+.cb-recipe.cb-empty { background: transparent; border: 1px dashed rgba(120,86,44,0.25); box-shadow: none; }
+.cb-recipe.cb-special { border-color: var(--rcol, #e0922a); box-shadow: inset 0 0 0 1px rgba(255,250,230,0.4), 0 0 18px color-mix(in srgb, var(--rcol, #e0922a) 40%, transparent), 0 6px 14px rgba(90,64,32,0.3); }
+.cb-recipe.crafted { animation: cbCrafted 0.5s ease; }
+@keyframes cbCrafted { 0% { transform: scale(1); } 30% { transform: scale(1.04); box-shadow: 0 0 26px rgba(120,220,140,0.7); } 100% { transform: scale(1); } }
+
+.cb-kind { position: absolute; top: 8px; left: 12px; font-family: 'Anton', Impact, sans-serif; font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: #8a5f2c; }
+.cb-deal {
+  position: absolute; top: -8px; right: 10px; transform: rotate(6deg);
+  font-family: 'Anton', Impact, sans-serif; font-size: 0.8rem; letter-spacing: 0.04em; color: #fff;
+  padding: 3px 12px; background: linear-gradient(180deg, #ff5d5d, #c5161a);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4), 0 0 14px rgba(255,80,80,0.5); animation: cbDeal 1.4s ease-in-out infinite;
+}
+@keyframes cbDeal { 0%,100% { transform: rotate(6deg) scale(1); } 50% { transform: rotate(6deg) scale(1.06); } }
+
+.cb-trade { display: flex; align-items: center; gap: 14px; margin: 6px 0 10px; }
+.cb-side { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 118px; }
+.cb-ball { position: relative; }
+.cb-qty { position: absolute; right: -6px; bottom: -4px; font-family: 'Anton', Impact, sans-serif; font-size: 1.05rem; color: #2a1d0e; background: #f3e7c6; border: 1px solid rgba(120,86,44,0.6); border-radius: 8px; padding: 0 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+.cb-gname { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.02em; text-align: center; line-height: 1.1; color: #3a280f; max-width: 116px; }
+.cb-have { font-size: 0.7rem; color: #6b5432; }
+.cb-have.short { color: #c5161a; font-weight: 700; }
+.cb-mid { font-family: 'Anton', Impact, sans-serif; font-size: 1.8rem; color: #8a5f2c; }
+
+.cb-craft {
+  appearance: none; cursor: pointer; border: 0; font: inherit; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 6px 26px; color: #f3ead0; background: linear-gradient(180deg, #6b4423, #3a2413);
+  border-top: 1px solid rgba(210,170,100,0.5); border-radius: 4px; transform: skewX(-8deg);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35); transition: filter 0.14s, transform 0.14s;
+}
+.cb-craft:disabled { opacity: 0.4; cursor: default; filter: grayscale(0.5); }
+.cb-recipe.cb-can .cb-craft:not(:disabled) { background: linear-gradient(180deg, #ffcf7a, #e0922a); color: #1a1206; }
+.cb-craft:not(:disabled):hover { filter: brightness(1.08); transform: skewX(-8deg) translateY(-1px); }
+
+/* ---- page arrows + folio ------------------------------------------------- */
+.cb-arrow {
+  position: absolute; bottom: 12px; width: 42px; height: 42px; z-index: 4;
+  appearance: none; cursor: pointer; border: 0; border-radius: 50%; font-size: 1.6rem; line-height: 1; color: #f3ead0;
+  background: radial-gradient(circle at 40% 35%, #6b4423, #2a1810);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(210,170,100,0.4); transition: all 0.14s;
+}
+.cb-prev { left: 16px; } .cb-next { right: 16px; }
+.cb-arrow:not(:disabled):hover { color: #ffcf7a; transform: scale(1.1); }
+.cb-arrow:disabled { opacity: 0.28; cursor: default; }
+.cb-folio { position: absolute; bottom: 20px; font-family: 'Anton', Impact, sans-serif; font-size: 0.9rem; color: #8a5f2c; }
+.cb-folio-l { right: 20px; } .cb-folio-r { left: 20px; }
+
+/* ---- footer -------------------------------------------------------------- */
+.cb-foot { position: absolute; left: 40px; right: 40px; bottom: 22px; display: flex; align-items: center; color: #9c8a63; font-size: 0.84rem; letter-spacing: 0.04em; z-index: 3; }
+.cb-back {
+  margin-left: auto; cursor: pointer; color: #1a1206; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 8px 24px; transform: skewX(-9deg); background: linear-gradient(180deg, #ffcf7a, #e0922a);
+  clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%); box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+}
+.cb-back:hover { filter: brightness(1.08); }
