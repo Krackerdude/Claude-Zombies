@@ -117,6 +117,7 @@ export class UIManager {
     this.#events.on('divinium:earned', () => this.#refreshDivinium());
     this.#events.on('divinium:changed', () => this.#refreshDivinium());
     this.#events.on('profile:loaded', () => this.#refreshDivinium());
+    this.#refreshDivinium(); // paint the main-menu badge with the loaded balance
 
     this.#bindGlobalKeys();
     document.addEventListener('pointerlockchange', () => {
@@ -275,7 +276,7 @@ export class UIManager {
       { label: 'Multiplayer', soon: true, action: soon('Multiplayer', 'Squad up with up to three other survivors against the horde.') },
       { label: 'Theater', soon: true, action: soon('Theater', 'Re-watch and clip your finest (and grisliest) runs.') },
       { label: 'GobbleGum', action: () => this.openGobblePacks() },
-      { label: "Dr. Newton's Factory", soon: true, action: () => this.comingSoon("Dr. Newton's Factory", 'Spend Liquid Divinium to spin for GobbleGums.', { divinium: true }) },
+      { label: "Dr. Newton's Factory", ld: true, action: () => this.openFactory() },
       { label: "Newton's Cookbook", soon: true, action: soon("Newton's Cookbook", 'Trade and convert GobbleGums across rarities.') },
       { label: 'Weapon Kits', soon: true, action: soon('Weapon Kits', 'Customize every weapon with attachments.') },
       { label: 'Armory', soon: true, action: soon('Armory', 'Choose your survivor, skins, emblems and calling cards.') },
@@ -291,7 +292,27 @@ export class UIManager {
       e.addEventListener('click', it.action);
       e.addEventListener('mouseenter', () => this.#select(this.#mainItems.indexOf(e)));
       this.#mainItems.push(e);
-      list.appendChild(e);
+
+      // Dr. Newton's Factory carries a square Liquid Divinium balance widget
+      // pinned to its right — the currency is always visible on the main menu.
+      if (it.ld) {
+        const wrap = document.createElement('div');
+        wrap.className = 'mm-opt-row';
+        const badge = document.createElement('button');
+        badge.className = 'mm-ld-badge';
+        badge.type = 'button';
+        badge.setAttribute('aria-label', 'Liquid Divinium balance');
+        badge.innerHTML = `
+          <div class="mm-ld-vial">${diviniumVialSvg()}</div>
+          <div class="mm-ld-num"><span class="ld-track-count">0</span></div>
+          <div class="mm-ld-cap">Divinium</div>`;
+        badge.addEventListener('click', it.action); // clicking the badge also opens the factory
+        wrap.appendChild(e);
+        wrap.appendChild(badge);
+        list.appendChild(wrap);
+      } else {
+        list.appendChild(e);
+      }
     });
     this.#buildQuests(list);
 
@@ -486,6 +507,13 @@ export class UIManager {
     this.#packs.clearSelection();
     if (this.#gpOpen) this.#widget.mountTo(this.#packMenu.el, { top: '96px', left: '40px' });
     this.#packMenu.refresh();
+  }
+
+  /** Main menu → Dr. Newton's Factory (the 3D crafting/gamble scene). */
+  openFactory() {
+    // The 3D scene is wired in a following change; until then, the divinium
+    // balance is fully visible on the main-menu badge.
+    this.comingSoon("Dr. Newton's Factory", 'Spend Liquid Divinium to spin for GobbleGums.', { divinium: true });
   }
 
   openMapSelect() { this.#playTransition(); this.#mapSelect?.classList.add('show'); this.#mapOpen = true; }

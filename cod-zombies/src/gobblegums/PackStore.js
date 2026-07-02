@@ -103,4 +103,46 @@ export class PackStore {
   }
 
   get slotCount() { return PACK_SLOTS; }
+
+  // --- gum inventory (owned counts, filled by Dr. Newton's Factory) --------
+  // Stored in the same persistent `gobblegum` bucket under `inventory`:
+  //   { [gumId]: count }. This is the stock the player has crafted and can
+  // spend/consume; the packs above are just which gums are *equipped*.
+
+  #inv() {
+    const d = this.#data();
+    if (!d.inventory || typeof d.inventory !== 'object') d.inventory = {};
+    return d.inventory;
+  }
+
+  /** How many of a gum the player owns. */
+  owned(gumId) { return this.#inv()[gumId] | 0; }
+
+  /** The whole { gumId: count } map (a copy). */
+  inventory() { return { ...this.#inv() }; }
+
+  /** Total gums owned across all ids. */
+  totalOwned() { return Object.values(this.#inv()).reduce((n, c) => n + (c | 0), 0); }
+
+  /** Add `n` of a gum to the owned stock. Returns the new count. */
+  grantGum(gumId, n = 1) {
+    if (!gumId || n <= 0) return this.owned(gumId);
+    const inv = this.#inv();
+    inv[gumId] = (inv[gumId] | 0) + n;
+    this.#commit();
+    return inv[gumId];
+  }
+
+  /** Grant many at once (e.g. a factory roll). `rewards` = [{ gum, count }]. */
+  grantMany(rewards = []) {
+    const inv = this.#inv();
+    let any = false;
+    for (const r of rewards) {
+      if (!r?.gum || !(r.count > 0)) continue;
+      inv[r.gum] = (inv[r.gum] | 0) + r.count;
+      any = true;
+    }
+    if (any) this.#commit();
+    return any;
+  }
 }

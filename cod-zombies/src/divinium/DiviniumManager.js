@@ -92,6 +92,24 @@ export class DiviniumManager {
     else this.#events.emit('divinium:changed', { total });
     return total;
   }
+
+  /** True if the player can afford `amount` vials. */
+  canAfford(amount) { return this.count() >= amount; }
+
+  /**
+   * Deduct `amount` vials for a purchase (Dr. Newton's Factory wager). Returns
+   * true if it went through, false if the balance was insufficient. Emits
+   * `divinium:changed` so the widgets repaint (no earn popup on a spend).
+   */
+  spend(amount) {
+    if (!amount || amount <= 0) return true;
+    const have = this.count();
+    if (have < amount) return false;
+    const total = have - amount;
+    this.#profile?.set(CURRENCY_PATH, total);
+    this.#events.emit('divinium:changed', { total, spent: amount });
+    return total >= 0;
+  }
 }
 
 /** Wire the manager into the service container (call once Round + Profile exist). */

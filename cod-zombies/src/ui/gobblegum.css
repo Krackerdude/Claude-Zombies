@@ -167,6 +167,24 @@
 /* the ball + nameplate sit above the aura/ray layers */
 #gg-screen .gg-cell .gg-ball, #gg-screen .gg-cell .gg-name { position: relative; z-index: 1; }
 
+/* owned-count badge (top-right). Zero owned dims the whole cell + reddens the 0 */
+#gg-screen .gg-count {
+  position: absolute; top: 8px; right: 10px; z-index: 2;
+  font-family: 'Anton', Impact, sans-serif; font-size: 0.92rem; letter-spacing: 0.02em;
+  color: #eaf1f6; text-shadow: 0 1px 3px #000, 0 0 8px color-mix(in srgb, var(--rar, #fff) 40%, transparent);
+  padding: 1px 7px; border-radius: 8px;
+  background: linear-gradient(180deg, rgba(20,26,34,0.85), rgba(8,12,18,0.9));
+  border: 1px solid color-mix(in srgb, var(--rar, #8090a0) 40%, rgba(150,170,185,0.2));
+}
+#gg-screen .gg-count.zero { color: #ff5252; text-shadow: 0 1px 3px #000, 0 0 8px rgba(255,60,60,0.6); border-color: rgba(255,80,80,0.4); }
+#gg-screen .gg-cell.gg-zero .gg-ball { filter: grayscale(0.8) brightness(0.6); opacity: 0.66; transition: filter 0.16s, opacity 0.16s; }
+#gg-screen .gg-cell.gg-zero:hover .gg-ball { filter: grayscale(0.4) brightness(0.85); opacity: 0.9; }
+#gg-screen .gg-cell.gg-zero { opacity: 0.9; }
+/* detail-panel owned line */
+#gg-screen .gg-d-owned { margin: 2px 0 10px; font-size: 0.86rem; letter-spacing: 0.08em; text-transform: uppercase; color: #b9c6cf; }
+#gg-screen .gg-d-owned b { font-family: 'Anton', Impact, sans-serif; font-weight: 400; font-size: 1.1rem; color: #eaf1f6; margin-left: 4px; }
+#gg-screen .gg-d-owned.zero b { color: #ff5252; }
+
 /* ----------------------------- nameplate ------------------------------- */
 /* a forged metal plate: notched ends, bevelled gradient, rarity gem on the
    left, a glossy top edge and a slow light-sweep across the lettering */

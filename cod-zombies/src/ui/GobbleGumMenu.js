@@ -124,8 +124,13 @@ export class GobbleGumMenu {
     const gums = gumsByRarity(rid);
     this.#grid.innerHTML = gums.map((g) => {
       const acol = (ACT[g.act] ?? ACT.time).color;
+      const owned = this.#packs ? this.#packs.owned(g.id) : null;
+      const zero = owned === 0;
+      const countHtml = owned != null
+        ? `<div class="gg-count${zero ? ' zero' : ''}">×${owned}</div>` : '';
       return `
-      <div class="gg-cell" data-id="${g.id}" style="--acol:${acol}">
+      <div class="gg-cell${zero ? ' gg-zero' : ''}" data-id="${g.id}" style="--acol:${acol}">
+        ${countHtml}
         ${gumBallHtml(g, 112)}
         <div class="gg-name">${g.name}</div>
       </div>`;
@@ -144,11 +149,15 @@ export class GobbleGumMenu {
 
     const rcol = RARITIES.find((r) => r.id === gum.rarity)?.color ?? '#ffb347';
     this.#detail.style.setProperty('--rcol', rcol);
+    const owned = this.#packs ? this.#packs.owned(gid) : null;
+    const ownedHtml = owned != null
+      ? `<div class="gg-d-owned${owned === 0 ? ' zero' : ''}">Owned <b>×${owned}</b></div>` : '';
     this.#detail.innerHTML = `
       <div class="gg-d-name"><span>${gum.name}</span></div>
       <div class="gg-d-rarity">${rarityName(gum.rarity)}</div>
       <div class="gg-d-act"><b>${ACT[gum.act].label}</b> · Lasts ${gum.duration}</div>
       <div class="gg-d-preview">${gumBallHtml(gum, 248)}</div>
+      ${ownedHtml}
       <div class="gg-d-desc">${gum.effect}</div>`;
   }
 }
