@@ -1,6 +1,7 @@
 import { gumBallHtml } from './gumBall.js';
 import { gumById, RARITIES } from '../gobblegums/gobblegums.js';
 import { currentRecipes, canCraft, craft, msToRefresh, TRADEABLE } from '../cookbook/cookbook.js';
+import { deskSceneHtml } from './cookbookDesk.js';
 
 /**
  * Newton's Cookbook — a physical open book of trade recipes. The spread shows
@@ -55,12 +56,15 @@ export class CookbookMenu {
     el.id = 'cookbook-screen';
     const tabs = [['all', 'All'], ...TRADEABLE.map((r) => [r, RARITIES.find((x) => x.id === r)?.tab ?? r])];
     el.innerHTML = `
+      ${deskSceneHtml()}
       <div class="cb-vignette"></div>
-      <div class="cb-head">
-        <div class="cb-title"><span class="cb-quill"></span>Newton's Cookbook</div>
-        <div class="cb-sub">Trade GobbleGums across rarities · new recipes in <span class="cb-refresh">—</span></div>
+      <div class="cb-topbar">
+        <div class="cb-head">
+          <div class="cb-title">Newton's Cookbook</div>
+          <div class="cb-sub">Trade GobbleGums across rarities · new recipes in <span class="cb-refresh">—</span></div>
+        </div>
+        <div class="cb-tabs">${tabs.map(([id, label]) => `<button class="cb-tab${id === 'all' ? ' active' : ''}" data-sort="${id}"><span>${label}</span></button>`).join('')}</div>
       </div>
-      <div class="cb-tabs">${tabs.map(([id, label]) => `<button class="cb-tab${id === 'all' ? ' active' : ''}" data-sort="${id}"><span>${label}</span></button>`).join('')}</div>
       <div class="cb-book">
         <div class="cb-page cb-left">
           <div class="cb-recipes"></div>
@@ -124,13 +128,15 @@ export class CookbookMenu {
         <div class="cb-kind">${r.type === 'up' ? 'Refine' : 'Break Down'}</div>
         <div class="cb-trade">
           <div class="cb-side">
-            <div class="cb-ball">${gumBallHtml(inGum, 58)}<span class="cb-qty">×${r.input.count}</span></div>
+            <div class="cb-ring${afford ? ' ready' : ''}" style="--p:${Math.min(1, have / r.input.count)}">
+              <div class="cb-ball">${gumBallHtml(inGum, 56)}<span class="cb-qty">×${r.input.count}</span></div>
+            </div>
             <div class="cb-gname">${inGum.name}</div>
-            <div class="cb-have${have >= r.input.count ? '' : ' short'}">Have ${have}</div>
+            <div class="cb-have${afford ? '' : ' short'}">${have} / ${r.input.count}</div>
           </div>
           <div class="cb-mid">→</div>
           <div class="cb-side">
-            <div class="cb-ball">${gumBallHtml(outGum, 58)}<span class="cb-qty">×${r.output.count}</span></div>
+            <div class="cb-ring out"><div class="cb-ball">${gumBallHtml(outGum, 56)}<span class="cb-qty">×${r.output.count}</span></div></div>
             <div class="cb-gname">${outGum.name}</div>
           </div>
         </div>

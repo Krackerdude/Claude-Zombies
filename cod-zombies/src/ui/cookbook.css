@@ -7,34 +7,67 @@
 #cookbook-screen {
   position: fixed; inset: 0; z-index: 39; display: none;
   font-family: 'Oswald', sans-serif; color: #efe6d0;
-  background: radial-gradient(130% 100% at 50% 26%, #241a12 0%, #150d08 58%, #090604 100%);
+  /* dark stained-wood desk */
+  background:
+    radial-gradient(140% 120% at 50% 40%, #3a2414 0%, #241509 55%, #120b05 100%),
+    repeating-linear-gradient(92deg, rgba(0,0,0,0.10) 0 3px, rgba(255,220,160,0.02) 3px 7px);
 }
 #cookbook-screen.show { display: block; }
-.cb-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(130% 100% at 50% 46%, transparent 52%, rgba(0,0,0,0.72) 100%); }
+.cb-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(130% 100% at 50% 46%, transparent 46%, rgba(0,0,0,0.78) 100%); }
+
+/* ---- desk scene (props framing the book) --------------------------------- */
+.cb-desk { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+.cb-desk-grain { position: absolute; inset: 0; opacity: 0.5; mix-blend-mode: overlay; background-image: var(--hud-grunge); background-size: 320px 320px; }
+.cb-stain { position: absolute; border-radius: 50%; filter: blur(6px); }
+.cb-stain.s1 { width: 260px; height: 180px; left: 6%; bottom: 8%; background: radial-gradient(circle, rgba(60,36,14,0.5), transparent 70%); }
+.cb-stain.s2 { width: 200px; height: 160px; right: 10%; top: 12%; background: radial-gradient(circle, rgba(50,30,12,0.5), transparent 70%); }
+.cb-stain.blood { width: 150px; height: 120px; right: 22%; bottom: 14%; background: radial-gradient(circle, rgba(90,14,10,0.45), transparent 68%); }
+.cb-prop { position: absolute; z-index: 0; filter: drop-shadow(0 10px 14px rgba(0,0,0,0.55)); }
+.cb-prop svg { display: block; width: 100%; height: 100%; }
+.cb-prop.teapot   { width: 200px; height: 150px; left: 1%;  bottom: 3%; transform: rotate(-6deg); }
+.cb-prop.magnifier{ width: 200px; height: 200px; left: 20%; bottom: -3%; transform: rotate(8deg); }
+.cb-prop.inkwell  { width: 120px; height: 150px; right: 5%; bottom: 5%; transform: rotate(6deg); }
+.cb-prop.candle   { width: 90px;  height: 150px; left: 3%;  top: 8%; }
+.cb-prop.compass  { width: 150px; height: 150px; right: 2%; top: 18%; transform: rotate(-10deg); }
+.cb-prop.scroll   { width: 190px; height: 90px;  left: -2%; top: 44%; transform: rotate(-8deg); }
+.cb-prop.vial     { width: 60px;  height: 120px; right: 15%; top: 6%; transform: rotate(12deg); }
+.cb-flame { transform-origin: center bottom; animation: cbFlame 1.6s ease-in-out infinite; }
+@keyframes cbFlame { 0%,100% { transform: scaleY(1) scaleX(1); opacity: 0.9; } 50% { transform: scaleY(1.12) scaleX(0.92); opacity: 1; } }
+.cb-scrap { position: absolute; z-index: 0; filter: drop-shadow(0 8px 12px rgba(0,0,0,0.5)); }
+.cb-scrap svg { width: 100%; height: 100%; }
+.cb-scrap.sc1 { width: 220px; height: 160px; left: 4%;  top: 30%; transform: rotate(-7deg); }
+.cb-scrap.sc2 { width: 210px; height: 170px; right: 3%; bottom: 6%; transform: rotate(9deg); }
+.cb-scrap.sc3 { width: 200px; height: 150px; right: 6%; top: 40%; transform: rotate(-4deg); }
+.cb-corner { position: absolute; width: 120px; height: 120px; z-index: 0; opacity: 0.7; }
+.cb-corner.tl { top: 8px; left: 8px; }
+.cb-corner.tr { top: 8px; right: 8px; transform: scaleX(-1); }
+.cb-corner.bl { bottom: 8px; left: 8px; transform: scaleY(-1); }
+.cb-corner.br { bottom: 8px; right: 8px; transform: scale(-1); }
 
 /* ---- header + sort tabs -------------------------------------------------- */
-.cb-head { position: absolute; top: 24px; left: 0; right: 0; text-align: center; z-index: 3; }
-.cb-title { font-family: 'Anton', Impact, sans-serif; font-weight: 400; font-size: 2.4rem; letter-spacing: 0.05em; color: #f4e8c6; text-shadow: 0 2px 10px #000, 0 0 22px rgba(200,150,70,0.2); }
-.cb-sub { margin-top: 3px; font-size: 0.85rem; letter-spacing: 0.05em; color: #b9a67e; }
+.cb-topbar { position: absolute; top: 16px; left: 0; right: 0; z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.cb-head { text-align: center; }
+.cb-title { font-family: 'Anton', Impact, sans-serif; font-weight: 400; font-size: 2.7rem; letter-spacing: 0.05em; color: #f4e8c6; text-shadow: 0 2px 12px #000, 0 0 26px rgba(200,150,70,0.25); }
+.cb-sub { margin-top: 2px; font-size: 0.88rem; letter-spacing: 0.05em; color: #cdb98a; text-shadow: 0 1px 4px #000; }
 .cb-refresh { color: #ffcf7a; font-weight: 700; }
 
-.cb-tabs { position: absolute; top: 92px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px; z-index: 3; }
+.cb-tabs { display: flex; justify-content: center; gap: 8px; }
 .cb-tab {
   appearance: none; cursor: pointer; border: 0; padding: 6px 18px; transform: skewX(-9deg); font: inherit;
   font-weight: 700; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: #cbb98c;
-  background: linear-gradient(180deg, rgba(62,45,26,0.92), rgba(34,24,14,0.95));
-  border-top: 1px solid rgba(205,165,95,0.4); border-bottom: 1px solid rgba(0,0,0,0.7);
+  background: linear-gradient(180deg, rgba(62,45,26,0.94), rgba(34,24,14,0.97));
+  border-top: 1px solid rgba(205,165,95,0.4); border-bottom: 1px solid rgba(0,0,0,0.7); box-shadow: 0 4px 10px rgba(0,0,0,0.4);
   transition: color 0.14s, transform 0.14s;
 }
 .cb-tab > span { display: inline-block; transform: skewX(9deg); }
 .cb-tab:hover { transform: skewX(-9deg) translateY(-1px); color: #f0dfae; }
 .cb-tab.active { color: #1a1206; background: linear-gradient(180deg, #ffcf7a, #e0922a); }
 
-/* ---- the open book ------------------------------------------------------- */
+/* ---- the open book (bigger, fills the desk) ------------------------------ */
 .cb-book {
-  position: absolute; top: 140px; bottom: 78px; left: 50%; transform: translateX(-50%);
-  width: min(1120px, 92vw); display: flex; perspective: 2600px; transform-style: preserve-3d;
-  filter: drop-shadow(0 26px 40px rgba(0,0,0,0.6));
+  position: absolute; top: 128px; bottom: 60px; left: 50%; transform: translateX(-50%);
+  width: min(1360px, 90vw); display: flex; perspective: 3000px; transform-style: preserve-3d;
+  z-index: 2; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.7));
 }
 .cb-page {
   position: relative; flex: 1; padding: 30px 34px 46px; overflow: hidden;
@@ -87,8 +120,16 @@
 }
 @keyframes cbDeal { 0%,100% { transform: rotate(6deg) scale(1); } 50% { transform: rotate(6deg) scale(1.06); } }
 
-.cb-trade { display: flex; align-items: center; gap: 14px; margin: 6px 0 10px; }
-.cb-side { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 118px; }
+.cb-trade { display: flex; align-items: center; gap: 16px; margin: 8px 0 12px; }
+.cb-side { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 128px; }
+/* radial progress ring — fills toward the amount needed; solid green when ready */
+.cb-ring {
+  position: relative; width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(#e0922a calc(var(--p, 0) * 360deg), rgba(70,52,26,0.4) 0);
+  box-shadow: 0 0 0 2px rgba(120,86,44,0.4), 0 3px 7px rgba(0,0,0,0.3);
+}
+.cb-ring.ready { background: conic-gradient(#3fbf5e 0 360deg); box-shadow: 0 0 0 2px rgba(63,191,94,0.5), 0 0 14px rgba(63,191,94,0.4); }
+.cb-ring.out { background: conic-gradient(var(--rcol, #e0922a) 0 360deg); box-shadow: 0 0 0 2px color-mix(in srgb, var(--rcol, #e0922a) 55%, transparent), 0 0 12px color-mix(in srgb, var(--rcol, #e0922a) 30%, transparent); }
 .cb-ball { position: relative; }
 .cb-qty { position: absolute; right: -6px; bottom: -4px; font-family: 'Anton', Impact, sans-serif; font-size: 1.05rem; color: #2a1d0e; background: #f3e7c6; border: 1px solid rgba(120,86,44,0.6); border-radius: 8px; padding: 0 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
 .cb-gname { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.02em; text-align: center; line-height: 1.1; color: #3a280f; max-width: 116px; }
@@ -120,7 +161,7 @@
 .cb-folio-l { right: 20px; } .cb-folio-r { left: 20px; }
 
 /* ---- footer -------------------------------------------------------------- */
-.cb-foot { position: absolute; left: 40px; right: 40px; bottom: 22px; display: flex; align-items: center; color: #9c8a63; font-size: 0.84rem; letter-spacing: 0.04em; z-index: 3; }
+.cb-foot { position: absolute; left: 40px; right: 40px; bottom: 20px; display: flex; align-items: center; color: #cdb98a; font-size: 0.84rem; letter-spacing: 0.04em; z-index: 6; text-shadow: 0 1px 4px #000; }
 .cb-back {
   margin-left: auto; cursor: pointer; color: #1a1206; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
   padding: 8px 24px; transform: skewX(-9deg); background: linear-gradient(180deg, #ffcf7a, #e0922a);
