@@ -42,44 +42,75 @@
   transform: scale(var(--hud-scale)); transform-origin: bottom left;
 }
 
-/* --- player widget: portrait left, points right (BO3) --- */
-#hud-player { display: flex; align-items: center; gap: 16px; }
+/* --- player widget — the Persona dossier row from the menus, brought in-game:
+   a teal-edged portrait CHIP fused to an amber-edged POINTS slab, sheared as one
+   unit over a hard black drop-shadow shard. Same shape/colour language as
+   .mm-player, tuned for the live HUD. --- */
+#hud-player {
+  position: relative; display: flex; align-items: stretch;
+  transform: skewX(-9deg);
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.55));
+}
+#hud-player::before { /* hard black shard offset down-right (Persona 5) */
+  content: ''; position: absolute; z-index: -1;
+  left: 5px; top: 6px; right: -5px; bottom: -6px; background: #000;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 14px 100%);
+}
 
 #hud-portrait {
-  position: relative; width: 72px; height: 80px; flex: none;
-  border-radius: 8px; overflow: hidden;
+  position: relative; width: 60px; height: 76px; flex: none; overflow: hidden; isolation: isolate;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 13px 100%);
   background:
-    linear-gradient(150deg, rgba(70,195,186,0.0) 30%, rgba(70,195,186,0.18)),
-    radial-gradient(120% 120% at 35% 25%, #1a2630, #070b0e 78%);
-  border: 1px solid rgba(120,150,160,0.32);
-  box-shadow: 0 3px 12px rgba(0,0,0,0.7), inset 0 0 14px rgba(0,0,0,0.6),
-              0 0 0 1px rgba(0,0,0,0.6);
+    var(--hud-grunge),
+    radial-gradient(120% 120% at 35% 22%, #1a2630, #060a0d 80%);
+  background-size: 70px 70px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(120,210,225,0.5); border-bottom: 1px solid rgba(0,0,0,0.7);
+  border-left: 3px solid var(--hud-teal);
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.6);
 }
 #hud-portrait .face {
-  position: absolute; inset: 0; background-size: cover; background-position: center 18%;
+  position: absolute; inset: -6% -6% -6% 2%;
+  background-size: cover; background-position: center 18%;
+  transform: skewX(9deg); transform-origin: center; /* un-shear the face */
 }
 /* a slow cold sheen drifts across the frame */
 #hud-portrait .sheen {
-  position: absolute; inset: -40%; pointer-events: none;
-  background: linear-gradient(115deg, transparent 42%, rgba(120,210,225,0.16) 50%, transparent 58%);
+  position: absolute; inset: -40%; pointer-events: none; z-index: 2;
+  background: linear-gradient(115deg, transparent 42%, rgba(120,210,225,0.18) 50%, transparent 58%);
   animation: hudSheen 6.5s ease-in-out infinite;
 }
 @keyframes hudSheen { 0%,100% { transform: translateX(-30%); } 50% { transform: translateX(30%); } }
 
-#hud-points-wrap { position: relative; display: flex; flex-direction: column; justify-content: center; }
+#hud-points-wrap {
+  position: relative; display: flex; flex-direction: column; justify-content: center;
+  padding: 4px 20px 4px 14px; isolation: isolate;
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(28,32,40,0.96), rgba(8,10,14,0.97));
+  background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(255,180,90,0.34); border-bottom: 1px solid rgba(0,0,0,0.7);
+  border-left: 3px solid var(--hud-amber);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.5);
+}
+/* a whisper-quiet "POINTS" tag over the counter, for hierarchy */
+#hud-points-wrap::before {
+  content: 'POINTS'; transform: skewX(9deg);
+  font-family: 'Oswald', sans-serif; font-size: 0.5rem; font-weight: 700;
+  letter-spacing: 0.28em; color: color-mix(in srgb, var(--hud-amber) 60%, #ffffff); opacity: 0.65;
+  margin-bottom: -1px;
+}
 #hud-points {
-  font-family: 'Anton', Impact, sans-serif; font-size: 3rem; line-height: 0.92; letter-spacing: 0.01em;
+  transform: skewX(9deg); transform-origin: left center;
+  font-family: 'Anton', Impact, sans-serif; font-size: 2.7rem; line-height: 0.92; letter-spacing: 0.01em;
   background: linear-gradient(178deg, #fff0c0 4%, var(--hud-amber) 46%, var(--hud-amber-deep) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 2px 5px rgba(0,0,0,0.85)) drop-shadow(0 0 10px rgba(243,198,78,0.28));
-  transition: none;
 }
 #hud-points.bump { animation: hudBump 0.28s cubic-bezier(.2,.9,.2,1); }
-@keyframes hudBump { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes hudBump { 0% { transform: skewX(9deg) scale(1); } 35% { transform: skewX(9deg) scale(1.12); } 100% { transform: skewX(9deg) scale(1); } }
 
 /* +X point-gain floaters, stacked rising from the counter (BO3) */
 #hud-gains {
-  position: absolute; left: calc(100% + 12px); bottom: 6px;
+  position: absolute; left: calc(100% + 8px); bottom: 6px; transform: skewX(9deg);
   display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 1px;
 }
 .gain {
