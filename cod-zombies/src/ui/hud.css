@@ -235,68 +235,62 @@
   100% { transform: scale(1); box-shadow: 0 2px 7px rgba(0,0,0,0.6), 0 0 12px color-mix(in srgb, var(--aat) 55%, transparent), inset 0 0 2px rgba(255,255,255,0.85); }
 }
 
-/* --- the glowing ammo tube (no overflow clip: digits + their glow run free;
-   the moving glow/texture layers each round to the tube via border-radius) --- */
+/* --- the ammo readout: a machined, sheared gunmetal housing (not a glowing
+   tube). The housing itself is drawn by the clipped .tube-glow layer so the
+   grenade/tactical readouts perched ABOVE the box never get clipped; the box is
+   just an unclipped layout frame. Teal energy accent, grooved metal, ONE slow
+   scan — mechanical + alive, never flickery. --- */
 .wpn-tube {
   position: relative; display: flex; align-items: center; justify-content: flex-start;
-  width: 152px; padding: 19px 16px 19px 30px; /* FIXED size — the digits scale to fit, not the tube */
-  border-radius: 36px 16px 16px 36px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0) 26%),
-    linear-gradient(180deg, #121a20 0%, #0a1014 62%, #06090c 100%);
-  border: 1px solid rgba(var(--wpn-energy), 0.5);
-  box-shadow: inset 0 0 30px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08),
-              inset 0 0 22px rgba(var(--wpn-energy), 0.18), 0 0 24px rgba(var(--wpn-energy), 0.22);
+  width: 168px; padding: 15px 18px 15px 26px; /* FIXED size — the digits scale to fit, not the housing */
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,0.6));
 }
-.wpn-tube .tube-glow { /* breathing energy field + a sweeping scan, behind the digits */
-  position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
-  overflow: hidden;
+.wpn-tube .tube-glow { /* THE HOUSING: sheared gunmetal plate, grooved, teal-edged */
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  clip-path: polygon(13px 0, 100% 0, calc(100% - 13px) 100%, 0 100%);
   background:
-    linear-gradient(100deg, transparent 30%, rgba(var(--wpn-energy), 0.22) 50%, transparent 70%),
-    radial-gradient(130% 200% at 28% 55%, rgba(var(--wpn-energy), 0.42), rgba(var(--wpn-energy), 0.08) 52%, transparent 74%);
-  background-size: 220% 100%, 100% 100%;
-  animation: tubeScan 4.5s linear infinite, tubeBreath 2.1s ease-in-out infinite;
+    linear-gradient(90deg, rgba(120,210,225,0.9) 0 3px, transparent 3px), /* teal leading edge */
+    var(--hud-grunge),
+    radial-gradient(120% 180% at 18% 62%, rgba(var(--wpn-energy), 0.24), transparent 62%),
+    linear-gradient(180deg, #1b2329 0%, #0e151a 58%, #080c10 100%);
+  background-size: auto, 90px 90px, auto, auto;
+  background-blend-mode: normal, overlay, normal, normal;
+  box-shadow: inset 0 1px 0 rgba(var(--wpn-energy),0.5), inset 0 -1px 0 rgba(0,0,0,0.9), inset 0 0 26px rgba(0,0,0,0.72);
 }
-/* crackling electric filaments flickering fast behind the digits */
+/* fine vertical machining grooves — subtle mechanical texture, static */
 .wpn-tube .tube-glow::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background:
-    repeating-linear-gradient(74deg, transparent 0 6px, rgba(var(--wpn-energy), 0.13) 6px 7px),
-    repeating-linear-gradient(-66deg, transparent 0 9px, rgba(var(--wpn-energy), 0.10) 9px 10px);
-  mix-blend-mode: screen;
-  animation: voltCrackle 0.42s steps(3, jump-none) infinite;
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 7px, rgba(0,0,0,0.24) 7px 8px);
+  opacity: 0.5; mix-blend-mode: multiply;
 }
-/* a bright electric bolt that periodically streaks across the tube */
+/* a single slow energy scan gliding across the readout */
 .wpn-tube .tube-glow::after {
-  content: ''; position: absolute; top: -12%; bottom: -12%; left: -22%; width: 16%; border-radius: 50%;
-  background: linear-gradient(90deg, transparent, rgba(var(--wpn-energy), 0.9) 50%, transparent);
-  filter: blur(2.5px); mix-blend-mode: screen; opacity: 0;
-  animation: voltBolt 3.4s ease-in-out infinite;
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 40%, rgba(var(--wpn-energy), 0.18) 50%, transparent 60%);
+  background-size: 240% 100%; animation: wpnScan 5.5s linear infinite;
 }
-@keyframes tubeScan { to { background-position: -220% 0, 0 0; } }
-@keyframes tubeBreath { 0%,100% { opacity: 0.7; filter: brightness(0.95); } 50% { opacity: 1; filter: brightness(1.32); } }
-@keyframes voltCrackle {
-  0%   { opacity: 0.16; transform: translate(0, 0); }
-  50%  { opacity: 0.52; transform: translate(1px, -1px); }
-  100% { opacity: 0.28; transform: translate(-1px, 1px); }
-}
-@keyframes voltBolt {
-  0%, 60% { left: -22%; opacity: 0; }
-  66% { opacity: 0.95; }
-  78% { left: 106%; opacity: 0.95; }
-  80%, 100% { left: 106%; opacity: 0; }
-}
+@keyframes wpnScan { to { background-position: -240% 0; } }
 /* digits live in a wrapper that JS scales to fit the fixed tube (no widget jump) */
 .ammo-digits {
   position: relative; z-index: 3; display: inline-flex; align-items: baseline; gap: 11px;
   white-space: nowrap; transform-origin: left center;
 }
 .wpn-tube .mag, .wpn-tube .res { font-family: 'Anton', Impact, sans-serif; line-height: 0.8; }
+/* PRIMARY — the loaded magazine, bright cool-white with a teal charge */
 .wpn-tube .mag {
-  font-size: 3.55rem; color: #eafffd;
-  text-shadow: 0 0 12px rgba(var(--wpn-energy), 0.9), 0 0 28px rgba(var(--wpn-energy), 0.5), 0 2px 4px #000;
+  font-size: 3.5rem; color: #eafffd;
+  text-shadow: 0 0 12px rgba(var(--wpn-energy), 0.85), 0 0 26px rgba(var(--wpn-energy), 0.45), 0 2px 4px #000;
 }
-.wpn-tube .res { font-size: 1.65rem; color: #8fe2db; text-shadow: 0 0 10px rgba(var(--wpn-energy), 0.55), 0 1px 2px #000; }
+/* SECONDARY — reserve, muted + smaller behind a machined sheared divider */
+.wpn-tube .res {
+  position: relative; font-size: 1.55rem; color: #6fa8ab; padding-left: 14px; align-self: center;
+  text-shadow: 0 0 8px rgba(var(--wpn-energy), 0.35), 0 1px 2px #000;
+}
+.wpn-tube .res::before { /* the sheared machined divider (upright number, angled line) */
+  content: ''; position: absolute; left: 0; top: -2px; bottom: -2px; width: 2px;
+  transform: skewX(-10deg);
+  background: linear-gradient(180deg, rgba(var(--wpn-energy),0.55), rgba(var(--wpn-energy),0.12));
+}
 #hud-ammo.low .mag { color: #ffd9d2; text-shadow: 0 0 12px rgba(226,58,46,0.95), 0 0 28px rgba(226,58,46,0.5), 0 2px 4px #000; }
 #hud-ammo.reloading .mag, #hud-ammo.reloading .res { animation: ammoBlink 0.55s steps(2, jump-none) infinite; }
 @keyframes ammoBlink { 50% { opacity: 0.42; } }
@@ -453,32 +447,59 @@
     radial-gradient(circle 2px at 21% 79%, #565b63, transparent 62%),
     radial-gradient(circle 2px at 79% 79%, #565b63, transparent 62%);
 }
-.pod-lens { /* dim idle core — decorative only, awaiting a future readout */
-  position: absolute; width: 46px; height: 46px; border-radius: 50%; z-index: 1;
-  background: radial-gradient(circle at 40% 34%, #6f8e91 0%, #2c4b4a 42%, #102726 74%, #081413 100%);
-  box-shadow: 0 0 10px rgba(var(--wpn-energy), 0.28), inset 0 0 9px rgba(255,255,255,0.18), inset 0 0 16px rgba(0,0,0,0.5);
+.pod-lens { /* glowing iris core with an aperture hint */
+  position: absolute; width: 42px; height: 42px; border-radius: 50%; z-index: 1;
+  background: radial-gradient(circle at 42% 34%, #c3eff1 0%, #3fb0b4 24%, #16494b 60%, #061615 100%);
+  box-shadow: 0 0 14px rgba(var(--wpn-energy), 0.5), inset 0 0 10px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.28);
   animation: lensPulse 3.4s ease-in-out infinite;
 }
-@keyframes lensPulse {
-  0%,100% { filter: brightness(0.8); }
-  50% { filter: brightness(1.08); }
+.pod-lens::after { /* aperture blades — a faint iris shutter over the core */
+  content: ''; position: absolute; inset: 7px; border-radius: 50%;
+  background: conic-gradient(from 18deg, rgba(0,0,0,0.55), transparent 26%, rgba(0,0,0,0.55) 52%, transparent 78%, rgba(0,0,0,0.55));
+  mix-blend-mode: multiply;
 }
-.pod-ring { /* slowly spinning notched iris around the lens */
-  position: absolute; inset: 11px; border-radius: 50%; z-index: 2; pointer-events: none;
-  border: 2px dashed rgba(var(--wpn-energy), 0.42);
-  box-shadow: inset 0 0 8px rgba(var(--wpn-energy), 0.22);
-  animation: podSpin 13s linear infinite;
+@keyframes lensPulse {
+  0%,100% { filter: brightness(0.85); }
+  50% { filter: brightness(1.15); }
+}
+.pod-ring { /* slowly spinning toothed gear ring around the lens */
+  position: absolute; inset: 8px; border-radius: 50%; z-index: 2; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(var(--wpn-energy), 0.6) 0 5deg, transparent 5deg 15deg);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%);
+          mask: radial-gradient(circle, transparent 58%, #000 60%);
+  filter: drop-shadow(0 0 4px rgba(var(--wpn-energy), 0.4));
+  animation: podSpin 18s linear infinite;
+}
+.pod-ring::before { /* a finer counter-rotating notch ring for depth */
+  content: ''; position: absolute; inset: 5px; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(var(--wpn-energy), 0.32) 0 3deg, transparent 3deg 12deg);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%);
+          mask: radial-gradient(circle, transparent 62%, #000 64%);
+  animation: podSpinR 27s linear infinite;
 }
 @keyframes podSpin { to { transform: rotate(360deg); } }
+@keyframes podSpinR { to { transform: rotate(-360deg); } }
 
-/* --- gun name: left-aligned under the ammo tube, not snug to the edge --- */
+/* --- gun name: a sheared steel nameplate tucked under the ammo housing --- */
 .wpn-name {
-  align-self: flex-start; margin-left: 30px;
-  position: relative; padding: 2px 12px 3px; overflow: hidden;
-  font-family: 'Anton', Impact, sans-serif; font-size: 1.4rem; letter-spacing: 0.16em; text-transform: uppercase;
-  background: linear-gradient(180deg, #f0ece0, #b9b2a2);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+  align-self: flex-start; margin-left: 10px; margin-top: 4px;
+  position: relative; padding: 4px 20px 5px 15px; isolation: isolate;
+  font-family: 'Anton', Impact, sans-serif; font-size: 1.32rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #eef4f6;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 9px rgba(70,195,186,0.3);
+}
+.wpn-name::before { /* the sheared plate behind the steel lettering */
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(26,32,40,0.96), rgba(8,12,16,0.97));
+  background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(120,210,225,0.42); border-bottom: 1px solid rgba(0,0,0,0.75);
+  box-shadow: 3px 4px 0 rgba(0,0,0,0.5), inset 0 0 12px rgba(0,0,0,0.5);
+}
+.wpn-name::after { /* teal leading accent down the shear */
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; z-index: -1;
+  background: linear-gradient(180deg, rgba(120,210,225,0.9), rgba(70,195,186,0.2));
+  box-shadow: 0 0 7px rgba(70,195,186,0.55);
 }
 .wpn-name.swap { animation: wpnSwap 0.4s ease; }
 @keyframes wpnSwap { 0% { opacity: 0; transform: translateX(14px) skewX(-8deg); } 100% { opacity: 1; transform: translateX(0) skewX(0); } }
