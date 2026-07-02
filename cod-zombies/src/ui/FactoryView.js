@@ -36,29 +36,38 @@ export class FactoryView {
       this.#renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     } catch { this.#renderer = null; return; }
     this.#renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    // filmic tone-map + sRGB output for a moodier, less "flat/cartoony" look
+    // filmic tone-map + sRGB output + soft shadows for a moodier, cinematic look
     this.#renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.#renderer.toneMappingExposure = 1.05;
+    this.#renderer.toneMappingExposure = 1.12;
     this.#renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.#renderer.shadowMap.enabled = true;
+    this.#renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.#canvas = this.#renderer.domElement;
     this.#canvas.className = 'fx-factory-canvas';
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x14303f, 0.05); // deep, cool haze that swallows the back of the hall
-    const cam = new THREE.PerspectiveCamera(46, 1.7, 0.05, 120);
-    cam.position.set(-0.2, 0.6, 6.2);
-    cam.lookAt(0.6, -0.05, -0.5);
+    scene.fog = new THREE.FogExp2(0x0f2432, 0.055); // deep, cool haze that swallows the back of the hall
+    // more focused: slightly tighter (telephoto) FOV to compress depth + crop
+    // the background, pulled back to keep the (now bigger) machines framed.
+    const cam = new THREE.PerspectiveCamera(42, 1.7, 0.05, 120);
+    cam.position.set(-0.2, 0.62, 6.8);
+    cam.lookAt(0.55, -0.02, -0.5);
 
-    // Moody rig: a dim cool ambient, a warm key + rim on the hero vats, and let
-    // the vats' own emissive glow + the transport tube carry the scene. The
-    // background falls into shadow so the machinery reads as silhouettes.
-    scene.add(new THREE.HemisphereLight(0x9fc0dc, 0x1a1410, 0.28));
-    scene.add(new THREE.AmbientLight(0x8fa8bd, 0.12));
-    const key = new THREE.DirectionalLight(0xffe0b0, 1.55); key.position.set(2.5, 4.5, 6); scene.add(key);
-    const fill = new THREE.DirectionalLight(0x6f9cff, 0.28); fill.position.set(-5, 1, 4); scene.add(fill);
-    const rim = new THREE.DirectionalLight(0xffbe7a, 0.7); rim.position.set(-2, 4, -6); scene.add(rim);
-    const front = new THREE.SpotLight(0xfff0dc, 0.9, 12, Math.PI / 5, 0.5); front.position.set(0, 1.2, 8); front.target.position.set(0.2, -0.2, 0); scene.add(front); scene.add(front.target);
-    const tubeGlow = new THREE.PointLight(0x8fdcff, 1.1, 9); tubeGlow.position.set(3.55, 1.2, 1); scene.add(tubeGlow);
+    // Dramatic 3-point rig: a hard warm KEY casting real shadows, a strong cool
+    // back-RIM for edge separation, a low fill, plus warm pools on the brass.
+    // Ambient is kept very low so the background genuinely falls into darkness.
+    scene.add(new THREE.HemisphereLight(0x8fb4d8, 0x120d09, 0.16));
+    scene.add(new THREE.AmbientLight(0x7f97ad, 0.06));
+    const key = new THREE.DirectionalLight(0xffdca6, 2.1); key.position.set(3.5, 6, 5);
+    key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.left = -4.5; key.shadow.camera.right = 4.5; key.shadow.camera.top = 4; key.shadow.camera.bottom = -3;
+    key.shadow.camera.near = 1; key.shadow.camera.far = 22; key.shadow.bias = -0.0006; key.shadow.normalBias = 0.02;
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x6fb2ff, 1.3); rim.position.set(-3.5, 3, -5); scene.add(rim);       // cool back rim
+    const fill = new THREE.DirectionalLight(0x5f88c0, 0.18); fill.position.set(-5, 1, 4); scene.add(fill);
+    const front = new THREE.SpotLight(0xffe6c0, 0.8, 14, Math.PI / 5.5, 0.6, 1.2); front.position.set(0, 1.4, 8); front.target.position.set(0.2, -0.2, 0); scene.add(front); scene.add(front.target);
+    for (const px of [-1.85, 1.85]) { const pl = new THREE.PointLight(0xffb774, 0.5, 4); pl.position.set(px, 0.4, 1.4); scene.add(pl); } // warm brass pools
+    const tubeGlow = new THREE.PointLight(0x8fdcff, 1.2, 9); tubeGlow.position.set(3.55, 1.2, 1); scene.add(tubeGlow);
 
     const factory = buildFactory();
     scene.add(factory);
@@ -351,8 +360,15 @@ export class FactoryView {
       });
       for (const ball of this.#balls) if (ball) ball.rotation.y += (ball.userData.spin || 1) * dt;
       this.#stepRevealFx(dt);
-      // perk bottles ride the conveyor and loop
-      if (ud.conveyor) { const cv = ud.conveyor; for (const bt of cv.bottles) { const u = (bt.u0 + this.#t * cv.speed) % 1; bt.mesh.position.lerpVectors(cv.a, cv.b, u); bt.mesh.rotation.y = this.#t * 0.6; } }
+      // perk bottles ride ON the belt surface and loop along it
+      if (ud.conveyor) {
+        const cv = ud.conveyor;
+        for (const bt of cv.bottles) {
+          const u = (bt.u0 + this.#t * cv.speed) % 1;
+          bt.mesh.position.lerpVectors(cv.a, cv.b, u).addScaledVector(cv.up, cv.offset);
+          bt.mesh.rotation.y = this.#t * 0.4;
+        }
+      }
 
       // hover raycast (only when idle)
       if (!this.#busy) this.#updateHover();
@@ -363,9 +379,9 @@ export class FactoryView {
       this.#updatePlates();
 
       // slow parallax sway of the camera
-      this.#camera.position.x = -0.2 + Math.sin(this.#t * 0.18) * 0.22;
-      this.#camera.position.y = 0.6 + Math.sin(this.#t * 0.13) * 0.06;
-      this.#camera.lookAt(0.6, -0.05, -0.5);
+      this.#camera.position.x = -0.2 + Math.sin(this.#t * 0.18) * 0.18;
+      this.#camera.position.y = 0.62 + Math.sin(this.#t * 0.13) * 0.05;
+      this.#camera.lookAt(0.55, -0.02, -0.5);
 
       this.#renderer.render(this.#scene, this.#camera);
       this.#raf = requestAnimationFrame(loop);

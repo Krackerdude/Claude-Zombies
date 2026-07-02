@@ -82,7 +82,8 @@ export function buildFactory() {
 
   // =========================================================== floor + walls
   const floorMat = mat({ color: 0x0c1119, roughness: 0.55, metalness: 0.5 });
-  g.add(M(new THREE.PlaneGeometry(70, 46), floorMat, 0, -1.35, -8, -Math.PI / 2));
+  const floorPlane = M(new THREE.PlaneGeometry(70, 46), floorMat, 0, -1.35, -8, -Math.PI / 2);
+  floorPlane.receiveShadow = true; g.add(floorPlane);
   g.add(M(new THREE.PlaneGeometry(70, 30), wallMat, 0, 5, -18));
   g.add(M(new THREE.PlaneGeometry(46, 30), wallMat, -13, 5, -8, 0, Math.PI / 2));
   g.add(M(new THREE.PlaneGeometry(46, 30), wallMat, 13, 5, -8, 0, -Math.PI / 2));
@@ -128,32 +129,38 @@ export function buildFactory() {
   g.add(M(new THREE.CylinderGeometry(0.04, 0.04, 24, 8), brass, 0, 2.7, -11, 0, 0, Math.PI / 2));
 
   // ============================================ perk-bottle conveyor (top-right)
-  const beltA = new THREE.Vector3(3.4, 2.6, -1.5), beltB = new THREE.Vector3(9.5, 3.7, -8);
+  // The belt runs A(near/low) → B(far/high). Bottles ride ON its top surface,
+  // computed from the belt's own up-normal so they actually sit on the belt.
+  const beltA = new THREE.Vector3(3.6, 2.5, -1.8), beltB = new THREE.Vector3(9.2, 3.5, -8);
   const beltDir = new THREE.Vector3().subVectors(beltB, beltA);
-  const beltLen = beltDir.length(); const beltRot = Math.atan2(beltDir.y, Math.hypot(beltDir.x, beltDir.z));
-  const beltYaw = Math.atan2(beltDir.x, -beltDir.z);
+  const beltLen = beltDir.length();
+  const bdN = beltDir.clone().normalize();
+  const beltRight = new THREE.Vector3().crossVectors(bdN, new THREE.Vector3(0, 1, 0)).normalize();
+  const beltUp = new THREE.Vector3().crossVectors(beltRight, bdN).normalize(); // surface normal
   const beltMid = new THREE.Vector3().addVectors(beltA, beltB).multiplyScalar(0.5);
-  const belt = new THREE.Group(); belt.position.copy(beltMid); belt.rotation.set(0, beltYaw, 0);
-  const beltSurf = new THREE.Group(); beltSurf.rotation.x = -beltRot; belt.add(beltSurf);
-  P(beltSurf, new THREE.BoxGeometry(0.9, 0.08, beltLen), beltMat, 0, 0, 0);
-  P(beltSurf, new THREE.BoxGeometry(0.06, 0.16, beltLen), steelDk, -0.48, 0.05, 0);
-  P(beltSurf, new THREE.BoxGeometry(0.06, 0.16, beltLen), steelDk, 0.48, 0.05, 0);
-  for (let z = -beltLen / 2; z <= beltLen / 2; z += 0.5) P(beltSurf, new THREE.CylinderGeometry(0.09, 0.09, 1.0, 10), steel, 0, -0.02, z, 0, 0, Math.PI / 2);
-  for (const zz of [beltLen * 0.35, -beltLen * 0.35]) { const foot = beltA.clone().lerp(beltB, 0.5 + zz / beltLen); g.add(M(new THREE.CylinderGeometry(0.06, 0.06, foot.y + 1.35, 8), iron, foot.x, (foot.y - 1.35) / 2, foot.z)); }
+  // belt slab oriented from A to B, tilted with the slope
+  const belt = new THREE.Group(); belt.position.copy(beltMid);
+  belt.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(beltRight, beltUp, bdN.clone().negate()));
+  P(belt, new THREE.BoxGeometry(0.85, 0.08, beltLen), beltMat, 0, 0, 0);            // belt surface
+  P(belt, new THREE.BoxGeometry(0.06, 0.18, beltLen), steelDk, -0.46, 0.06, 0);     // side rails
+  P(belt, new THREE.BoxGeometry(0.06, 0.18, beltLen), steelDk, 0.46, 0.06, 0);
+  for (let z = -beltLen / 2 + 0.25; z < beltLen / 2; z += 0.5) P(belt, new THREE.CylinderGeometry(0.085, 0.085, 0.95, 10), steel, 0, 0.02, z, 0, 0, Math.PI / 2); // rollers
   g.add(belt);
+  // support legs from the belt down to the floor
+  for (const u of [0.25, 0.75]) { const foot = beltA.clone().lerp(beltB, u); g.add(M(new THREE.CylinderGeometry(0.06, 0.07, foot.y + 1.35, 8), iron, foot.x, (foot.y - 1.35) / 2 - 0.08, foot.z)); }
   const perkCaps = [0xff3b30, 0x2fd36a, 0xffd23a, 0x59a6ff, 0xff8a28, 0xb06bff];
   const bottles = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     const bo = new THREE.Group();
-    const liquid = mat({ color: perkCaps[i], emissive: new THREE.Color(perkCaps[i]), emissiveIntensity: 0.5, roughness: 0.4 });
+    const liquid = mat({ color: perkCaps[i % perkCaps.length], emissive: new THREE.Color(perkCaps[i % perkCaps.length]), emissiveIntensity: 0.45, roughness: 0.4 });
     P(bo, new THREE.CylinderGeometry(0.11, 0.12, 0.34, 14), bottleGlass, 0, 0.17, 0);
     P(bo, new THREE.CylinderGeometry(0.1, 0.1, 0.26, 14), liquid, 0, 0.15, 0);
     P(bo, new THREE.CylinderGeometry(0.05, 0.07, 0.1, 12), steel, 0, 0.37, 0);
     P(bo, new THREE.SphereGeometry(0.05, 10, 8), liquid, 0, 0.44, 0);
-    g.add(bo); bottles.push({ mesh: bo, u0: i / 6 });
+    g.add(bo); bottles.push({ mesh: bo, u0: i / 7 });
   }
-  // travel from the far/high end down toward the near end (correct direction)
-  g.userData.conveyor = { a: beltB, b: beltA, speed: 0.05, bottles };
+  // bottles sit on the belt top (offset along the surface normal) and travel A→B
+  g.userData.conveyor = { a: beltA, b: beltB, up: beltUp, offset: 0.09, speed: 0.06, bottles };
 
   // pale-blue haze glow deep in the hall
   const hazeMat = new THREE.MeshBasicMaterial({ color: 0x7fb4e0, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false }); track.push(hazeMat);
@@ -186,8 +193,9 @@ export function buildFactory() {
   const darkBack   = mat({ color: 0x080b10, roughness: 0.92, metalness: 0.08 });
   const vatX = [-1.85, 0, 1.85];
   const vatTint = [0x37d36a, 0x9a5cff, 0xff8a28];
+  const vatScale = 1.2; // machines 20% larger
   vatX.forEach((x, i) => {
-    const v = new THREE.Group(); v.position.set(x, 0, 0);
+    const v = new THREE.Group(); v.position.set(x, 0, 0); v.scale.setScalar(vatScale);
 
     // cabinet
     v.add(M(new THREE.CylinderGeometry(0.72, 0.78, 0.18, 24), iron, 0, -1.16, 0));       // footing
@@ -241,13 +249,14 @@ export function buildFactory() {
     v.add(M(new THREE.CylinderGeometry(0.086, 0.086, 0.02, 20), iron, -0.52, 0.2, 0.44, Math.PI / 2));
     v.add(M(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 10), copper, 0.5, -0.3, 0.3, 0, 0, 0.2)); // side pipe
 
+    v.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     g.add(v);
     g.userData.vats.push({
       group: v, baseX: x, tint: vatTint[i], light: vl, coilMat,
       coilLocal: new THREE.Vector3(0, 1.53, 0),
       chamberLocal: new THREE.Vector3(0, cy, 0.8),
-      chamberWorld: new THREE.Vector3(x, cy, 0.8),
-      plateWorld: new THREE.Vector3(x, 0.68, 0.95),
+      chamberWorld: new THREE.Vector3(x, cy * vatScale, 0.8 * vatScale),
+      plateWorld: new THREE.Vector3(x, 0.68 * vatScale, 0.95 * vatScale),
     });
   });
 
@@ -256,16 +265,13 @@ export function buildFactory() {
   // DOWN and out of frame. Open top rim (no cap) + open bottom into the depths.
   const tubeX = 3.55;
   const tube = new THREE.Group(); tube.position.set(tubeX, 0, 0);
-  const topY = 1.95, entryY = 1.5, botY = -8.5;   // botY is well below the frame
+  const topY = 6.0, entryY = 1.5, botY = -8.5;   // runs off both the top and bottom of frame
   const tubeH = topY - botY;
   const tubeR = 0.5;
   const tubeGlass = mat({ color: 0xbfeaf7, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
-  tube.add(M(new THREE.CylinderGeometry(tubeR, tubeR, tubeH, 36, 1, true), tubeGlass, 0, (topY + botY) / 2, 0)); // long column
-  // brass rings only down the visible portion
-  for (let ry = topY - 0.05; ry > -1.6; ry -= 0.72) tube.add(M(new THREE.TorusGeometry(tubeR, 0.045, 12, 36), brass, 0, ry, 0, Math.PI / 2));
-  // open flared brass rim at the top (gums drop in here)
-  tube.add(M(new THREE.CylinderGeometry(tubeR + 0.12, tubeR, 0.16, 28, 1, true), brass, 0, topY + 0.02, 0));
-  tube.add(M(new THREE.TorusGeometry(tubeR + 0.1, 0.04, 12, 32), brass, 0, topY + 0.1, 0, Math.PI / 2));
+  tube.add(M(new THREE.CylinderGeometry(tubeR, tubeR, tubeH, 36, 1, true), tubeGlass, 0, (topY + botY) / 2, 0)); // long column (open both ends)
+  // brass rings down the visible portion only
+  for (let ry = 2.4; ry > -1.6; ry -= 0.72) tube.add(M(new THREE.TorusGeometry(tubeR, 0.045, 12, 36), brass, 0, ry, 0, Math.PI / 2));
 
   // downward light streaks (scrolled in the loop)
   const beamMats = [];
