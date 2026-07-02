@@ -53,6 +53,14 @@ export class RoundSystem extends System {
     this.#events.on('player:down', () => { this.#pendingDeath = true; });
     // pause-menu "Restart Level": wipe the field + player and start over at round 1
     this.#events.on('game:restart', () => this.#resetField());
+    // the death cinematic finished (or the player skipped it): clean up + menu.
+    // Safe to reset here — the sim is frozen for the whole DEATHCAM, so no system
+    // is mid-iteration over the zombie list.
+    this.#events.on('death:finish', () => {
+      if (this.#gameState.current !== AppState.DEATHCAM) return;
+      this.#resetField();
+      this.#gameState.set(AppState.MENU);
+    });
   }
 
   #startRun() {
@@ -133,12 +141,14 @@ export class RoundSystem extends System {
     this.#hounds?.update(dt);
   }
 
-  // Death teardown happens here, after every sim/anim system has finished its
-  // pass for the frame — so no one is left holding a freed body.
+  // On death we DON'T snap to the menu anymore — we hand off to the death
+  // cinematic. Flip to DEATHCAM (which freezes the sim on the live frame) and
+  // announce it; DeathCamSystem drives the camera and the UI shows Game Over.
+  // The actual field reset + return to menu happens later, on `death:finish`.
   lateUpdate() {
     if (!this.#pendingDeath) return;
     this.#pendingDeath = false;
-    this.#resetField();
-    this.#gameState.set(AppState.MENU);
+    this.#gameState.set(AppState.DEATHCAM);
+    this.#events.emit('death:begin', {});
   }
 }
