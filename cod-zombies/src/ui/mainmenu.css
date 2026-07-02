@@ -100,7 +100,9 @@
   clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 }
 .bmq-body > * { transform: skewX(9deg); }
-.bmq-quest { flex: 1; text-align: center; min-width: 0; }
+/* the centre is a <button> that opens the quest board — strip its native chrome */
+.bmq-quest { flex: 1; min-width: 0; text-align: center; appearance: none; background: transparent; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.bmq-quest:hover .bmq-name { color: #fff; }
 .bmq-name { font-weight: 700; font-size: 1.0rem; letter-spacing: 0.03em; color: #f3f6f8; text-transform: uppercase; }
 .bmq-obj { font-size: 0.74rem; color: #9fb0bb; margin-top: 2px; letter-spacing: 0.02em; line-height: 1.25; }
 .bmq-nav {
