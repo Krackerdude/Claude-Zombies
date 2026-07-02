@@ -34,25 +34,23 @@
 }
 
 /* ------------------------------- frame --------------------------------- */
-/* Blown up to fill most of the screen (BO3 scale), and semi-transparent so the
-   frozen arena reads through it rather than a solid slab. */
+/* FULLSCREEN. The dossier takes over the entire viewport — no centered bubble.
+   Semi-transparent so the frozen arena still reads faintly behind it. */
 #scoreboard .tab-frame {
-  position: relative;
-  width: min(1320px, 92vw);
+  position: absolute; inset: 0;
   display: flex; flex-direction: column;
-  padding: 34px 44px 40px;
-  border-radius: 8px;
+  padding: clamp(20px, 3.4vh, 40px) clamp(28px, 5vw, 84px) clamp(18px, 3vh, 36px);
   background:
-    linear-gradient(180deg, rgba(20,28,32,0.62), rgba(9,13,15,0.70));
-  border: 1px solid rgba(120,150,160,0.30);
+    linear-gradient(180deg, rgba(16,23,27,0.72), rgba(7,11,13,0.82));
+  border-top: 2px solid rgba(120,150,160,0.28);
+  border-bottom: 2px solid rgba(120,150,160,0.28);
   box-shadow:
-    0 30px 90px rgba(0,0,0,0.6),
-    inset 0 0 60px rgba(0,0,0,0.4),
-    0 0 0 1px rgba(0,0,0,0.5);
+    inset 0 0 200px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(0,0,0,0.5);
   isolation: isolate;
-  animation: sbRise 0.22s cubic-bezier(.2,.9,.2,1);
+  animation: sbRise 0.24s cubic-bezier(.2,.9,.2,1);
 }
-@keyframes sbRise { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes sbRise { from { opacity: 0; } to { opacity: 1; } }
 
 /* grunge + scanline wash over the whole frame (blended, never flat) */
 #scoreboard .tab-frame::before {
@@ -93,9 +91,80 @@
 #scoreboard .tab-sep { width: 0; margin: 0 2px; }
 
 /* -------------------------------- body --------------------------------- */
-#scoreboard .tab-body { position: relative; z-index: 1; }
-#scoreboard .tab-panel { display: none; flex-direction: column; gap: 24px; }
+#scoreboard .tab-body { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; }
+#scoreboard .tab-panel { display: none; flex-direction: column; gap: clamp(28px, 4vh, 56px); flex: 1; justify-content: center; }
 #scoreboard .tab-panel.active { display: flex; }
+
+/* -------------------------- framed sections ---------------------------- */
+/* A bordered slab hosting a centered nameplate on its top edge (gobblegum pack
+   up top, quest items along the bottom). Same language as the pause menu. */
+#scoreboard .sb-section {
+  position: relative; padding: clamp(30px, 4vh, 50px) clamp(20px, 3vw, 44px) clamp(18px, 2.6vh, 30px);
+  border-radius: 6px;
+  background:
+    radial-gradient(140% 120% at 50% 0%, rgba(60,72,84,0.10), rgba(0,0,0,0.42) 96%),
+    linear-gradient(180deg, rgba(22,30,36,0.5), rgba(9,13,16,0.55));
+  border: 1px solid rgba(120,150,160,0.22);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 6px 20px rgba(0,0,0,0.4);
+  isolation: isolate;
+}
+#scoreboard .sb-section::before { /* grit wash */
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: var(--hud-grunge); background-size: 120px 120px; opacity: 0.06; mix-blend-mode: overlay;
+}
+
+/* the sheared, notched nameplate centered on a section's top edge */
+.sb-plate {
+  position: absolute; top: -17px; left: 50%; z-index: 2;
+  transform: translateX(-50%) skewX(-9deg);
+  padding: 7px 40px;
+  background: var(--hud-grunge), linear-gradient(180deg, rgba(40,50,62,0.98), rgba(12,18,26,0.99));
+  background-size: 70px 70px, auto; background-blend-mode: overlay, normal;
+  border-top: 1px solid rgba(120,210,225,0.5); border-left: 3px solid #34c6e0;
+  clip-path: polygon(11px 0, 100% 0, calc(100% - 11px) 100%, 0 100%);
+  box-shadow: 4px 6px 0 rgba(0,0,0,0.6);
+}
+.sb-plate > span {
+  display: inline-block; transform: skewX(9deg);
+  font-family: 'Oswald', sans-serif; font-weight: 700;
+  font-size: clamp(0.9rem, 1.5vh, 1.15rem); letter-spacing: 0.2em; text-transform: uppercase;
+  color: #eaf1f4; text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+}
+
+/* -------------------------- gobblegum pack ----------------------------- */
+#scoreboard .sb-gum-row {
+  display: flex; align-items: flex-start; justify-content: center;
+  gap: clamp(20px, 4vw, 64px); flex-wrap: wrap;
+}
+#scoreboard .sb-gum { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#scoreboard .sb-gum-ball { filter: drop-shadow(0 8px 14px rgba(0,0,0,0.55)); }
+/* each gum gets its OWN little nameplate, attached beneath it */
+#scoreboard .sb-gum-plate {
+  transform: skewX(-9deg); padding: 5px 16px; max-width: 210px;
+  background: linear-gradient(180deg, rgba(34,44,54,0.96), rgba(12,18,26,0.98));
+  border-top: 1px solid rgba(120,210,225,0.4); border-left: 3px solid #34c6e0;
+  clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+  box-shadow: 3px 4px 0 rgba(0,0,0,0.55);
+}
+#scoreboard .sb-gum-plate > span {
+  display: block; transform: skewX(9deg);
+  font-family: 'Oswald', sans-serif; font-weight: 600;
+  font-size: 0.9rem; letter-spacing: 0.05em; text-transform: uppercase; text-align: center;
+  color: #e6edf1; text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#scoreboard .sb-gum.empty .sb-gum-plate { border-left-color: rgba(120,150,160,0.4); }
+#scoreboard .sb-gum.empty .sb-gum-plate > span { color: rgba(150,166,172,0.55); font-style: italic; }
+
+/* --------------------------- quest items ------------------------------- */
+#scoreboard .sb-quests { min-height: clamp(110px, 15vh, 170px); display: flex; }
+#scoreboard .sb-quest-body {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+}
+#scoreboard .sb-quest-empty {
+  font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(140,162,168,0.45);
+}
 
 /* ---- blank "suitcase interior" case (reserved, intentionally empty) ---- */
 #scoreboard .sb-case {
@@ -214,3 +283,139 @@
   font-size: 1.05rem; letter-spacing: 0.08em; text-transform: uppercase;
   color: rgba(140,162,168,0.5);
 }
+
+/* ===========================================================================
+   Death screen — the Game Over card that rides on top of the cinematic death
+   cam (DeathCamSystem). The world stays visible (only a vignette + a rising
+   hand silhouette frame it) while the camera collapses and pans the map; a
+   full-black layer fades it out at the very end into the main menu.
+   =========================================================================== */
+#deathscreen {
+  position: fixed; inset: 0; z-index: 50;
+  display: none; pointer-events: none;
+  font-family: 'Oswald', 'Arial Narrow', sans-serif; user-select: none;
+}
+#deathscreen.show { display: block; }
+
+/* the live HUD is knocked out while the death card is up */
+body.death-cam #hud { opacity: 0 !important; transition: opacity 0.4s ease; pointer-events: none; }
+
+/* a heavy edge vignette so the overlaid text stays legible over the arena */
+#deathscreen .ds-vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 42%, rgba(0,0,0,0) 40%, rgba(3,4,6,0.72) 100%),
+    linear-gradient(180deg, rgba(5,6,9,0.35), rgba(0,0,0,0) 30%);
+}
+
+/* dark outstretched hand rising from the bottom of the frame */
+#deathscreen .ds-hand {
+  position: absolute; left: 50%; bottom: -2vh; width: min(560px, 60vw); height: 42vh;
+  transform: translateX(-50%);
+  opacity: 0; filter: drop-shadow(0 -8px 26px rgba(0,0,0,0.7));
+  animation: dsHandRise 2.6s cubic-bezier(.18,.7,.2,1) 0.5s both;
+}
+#deathscreen .ds-hand svg { width: 100%; height: 100%; display: block; }
+@keyframes dsHandRise {
+  from { opacity: 0; transform: translate(-50%, 40%); }
+  60%  { opacity: 0.92; }
+  to   { opacity: 0.88; transform: translate(-50%, 0); }
+}
+/* the hand recedes once the camera pulls away into the pan */
+#deathscreen.fading .ds-hand { opacity: 0; transition: opacity 0.8s ease; }
+
+/* the Game Over card, near the top-middle */
+#deathscreen .ds-card {
+  position: absolute; top: clamp(40px, 8vh, 110px); left: 50%; transform: translateX(-50%);
+  width: min(880px, 92vw);
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  text-align: center;
+  animation: dsCardIn 0.9s cubic-bezier(.2,.8,.2,1) 0.35s both;
+}
+@keyframes dsCardIn { from { opacity: 0; transform: translate(-50%, -14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+#deathscreen .ds-title {
+  font-family: 'Anton', Impact, sans-serif;
+  font-size: clamp(2.8rem, 8vw, 6rem); line-height: 0.92; letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #f3d7d0 4%, #d24634 48%, #6d1810 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 4px 2px rgba(0,0,0,0.9)) drop-shadow(0 0 26px rgba(190,40,24,0.35));
+}
+#deathscreen .ds-sub {
+  margin-top: -4px; font-size: clamp(0.8rem, 1.8vh, 1.05rem);
+  letter-spacing: 0.28em; text-transform: uppercase; color: rgba(210,150,140,0.7);
+}
+
+/* the survivor stat block on the card — reuses the scoreboard skin */
+#deathscreen .ds-stats { width: 100%; margin-top: 10px; pointer-events: none; }
+#deathscreen .sb-stats {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 18px; border-radius: 6px;
+  background: linear-gradient(180deg, rgba(16,22,26,0.66), rgba(8,11,14,0.74));
+  border: 1px solid rgba(120,150,160,0.24);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.5);
+}
+#deathscreen .sb-grid {
+  display: grid; grid-template-columns: minmax(180px, 2.4fr) repeat(5, 1fr);
+  align-items: center; column-gap: 14px;
+}
+#deathscreen .sb-head {
+  padding: 0 12px 8px; border-bottom: 1px solid rgba(120,150,160,0.16);
+  font-size: 0.82rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(140,162,168,0.6);
+}
+#deathscreen .sb-head > span:not(.c-name) { text-align: center; }
+#deathscreen .sb-row {
+  padding: 12px; border-radius: 5px;
+  background:
+    linear-gradient(90deg, rgba(210,60,40,0.12), rgba(210,60,40,0) 42%),
+    linear-gradient(180deg, rgba(30,24,24,0.6), rgba(14,11,11,0.6));
+  border: 1px solid rgba(210,70,50,0.28);
+  box-shadow: inset 3px 0 0 rgba(210,70,50,0.6);
+}
+#deathscreen .sb-row .c-name {
+  display: flex; align-items: center; gap: 12px;
+  font-weight: 600; font-size: 1.35rem; color: #eef2f4;
+}
+#deathscreen .sb-row .sb-pip {
+  width: 9px; height: 9px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 30%, #ffb0a0, #b2281a);
+  box-shadow: 0 0 8px rgba(200,40,24,0.7), 0 0 0 1px rgba(0,0,0,0.5);
+}
+#deathscreen .sb-row > span:not(.c-name) {
+  text-align: center; font-family: 'Anton', Impact, sans-serif; font-size: 1.7rem; line-height: 1;
+  background: linear-gradient(178deg, #fff0c0 6%, var(--hud-amber, #f3c64e) 50%, var(--hud-amber-deep, #8a5e16));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+}
+
+/* Skip button, directly under the scoreboard block */
+#deathscreen .ds-skip {
+  margin-top: 8px; pointer-events: auto; appearance: none; cursor: pointer;
+  padding: 12px 40px; border: 0;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  transform: skewX(-9deg);
+  background: linear-gradient(180deg, rgba(40,50,60,0.95), rgba(16,22,30,0.98));
+  border-top: 1px solid rgba(120,210,225,0.4); border-bottom: 1px solid rgba(0,0,0,0.7);
+  box-shadow: 3px 5px 0 rgba(0,0,0,0.55);
+  transition: filter 0.14s ease, transform 0.12s ease;
+}
+#deathscreen .ds-skip > span {
+  display: inline-block; transform: skewX(9deg);
+  font-family: 'Oswald', sans-serif; font-weight: 700;
+  font-size: 1rem; letter-spacing: 0.16em; text-transform: uppercase; color: #dbe6ec;
+}
+#deathscreen .ds-skip:hover { filter: brightness(1.2); transform: skewX(-9deg) translateY(-1px); }
+#deathscreen .ds-skip:hover > span { color: #ffd7a6; }
+#deathscreen .ds-skip:active { transform: skewX(-9deg) translateY(0); }
+
+/* the final black-out (and the fade back into the menu) */
+#deathscreen .ds-fade {
+  position: absolute; inset: 0; pointer-events: none; background: #000;
+  opacity: 0; transition: opacity 1.4s ease;
+}
+#deathscreen.fading .ds-fade { opacity: 1; }
+/* once we start revealing the menu, drop the card + hand instantly under the black */
+#deathscreen.revealing .ds-card,
+#deathscreen.revealing .ds-hand,
+#deathscreen.revealing .ds-vignette { opacity: 0; transition: none; }

@@ -1,24 +1,38 @@
 import { Service } from '../core/ServiceLocator.js';
 import { AppState } from '../core/GameState.js';
+import { PackStore } from '../gobblegums/PackStore.js';
+import { gumById } from '../gobblegums/gobblegums.js';
+import { slotHtml } from './gumBall.js';
 
 /**
- * The Tab menu — a Scoreboard/Objectives overlay, fully separate from the pause
- * menu. Pressing Tab pauses the game (via the dedicated `scoreboard` app state,
- * which freezes the world on the live frame) and shows the player stats; Tab
- * again resumes, Esc routes to the pause menu.
+ * The Tab menu — a fullscreen Scoreboard / Objectives overlay, separate from the
+ * pause menu. Tab pauses the game (via the `scoreboard` app state, which freezes
+ * the world on the live frame) and shows a full dossier:
  *
- * For now the Scoreboard screen is just the centred player-stats block, with
- * blank "easter-egg" cases framed above/below (room for future map widgets).
+ *   • the equipped GobbleGum pack across the top, each gum on its own nameplate,
+ *     under a "GobbleGums" section nameplate;
+ *   • the survivor stat table in the middle;
+ *   • a "Quest Items" section along the bottom (reserved for collected relics).
+ *
  * Stats are tallied from gameplay events: Score is the running sum of all points
  * EARNED (not the spendable balance), and a headshot kill counts in both Kills
  * and Headshots.
+ *
+ * This class ALSO owns the death screen (`#deathscreen`) — the Game Over card
+ * that rides on top of the DeathCamSystem's cinematic. It reuses the same
+ * survivor stat block (gobblegum + quest sections omitted) and offers a Skip
+ * button that jumps straight back to the main menu.
  */
 export class Scoreboard {
   #events;
   #gameState;
   #input;
+  #packs;
 
   #el;
+  #death;
+  #dsStats;
+  #dsFade;
   #panels = {};
   #tabBtns = [];
   #vals = {};
@@ -31,12 +45,65 @@ export class Scoreboard {
     this.#events = engine.services.get(Service.Events);
     this.#gameState = engine.services.get(Service.GameState);
     this.#input = engine.services.get(Service.Input);
+    const profile = engine.services.has(Service.Profile) ? engine.services.get(Service.Profile) : null;
+    // a fresh PackStore over the shared profile — reads the same persistent
+    // equipped loadout as every other menu (it's stateless bar transient UI)
+    this.#packs = new PackStore(profile, this.#events);
     this.#build();
+    this.#buildDeath();
     this.#wireStats();
     this.#bindKeys();
   }
 
   get isOpen() { return this.#gameState.current === AppState.SCOREBOARD; }
+
+  // --- shared markup ------------------------------------------------------
+
+  /** A stylized, sheared section nameplate (centered on a section's top edge). */
+  #plate(text) { return `<div class="sb-plate"><span>${text}</span></div>`; }
+
+  /** The equipped GobbleGum pack — five gums, each on its own nameplate. */
+  #gumRowHtml() {
+    const slots = this.#packs.slots();
+    let out = '';
+    for (let i = 0; i < this.#packs.slotCount; i++) {
+      const gid = slots[i];
+      const gum = gid ? gumById(gid) : null;
+      out += `
+        <div class="sb-gum${gum ? '' : ' empty'}">
+          <div class="sb-gum-ball">${slotHtml(gid, 76)}</div>
+          <div class="sb-gum-plate"><span>${gum ? gum.name : 'Empty'}</span></div>
+        </div>`;
+    }
+    return out;
+  }
+
+  /** The survivor stat table. `openSlots` adds the reserved co-op rows; `baked`
+   *  freezes the current values (for the death card) instead of live `.v-*` spans. */
+  #statsHtml({ openSlots = true, baked = false } = {}) {
+    const cell = (k) => baked
+      ? `<span>${this.#stats[k].toLocaleString()}</span>`
+      : `<span class="v-${k}">0</span>`;
+    const open = `
+      <div class="sb-grid sb-row sb-empty-slot">
+        <span class="c-name"><i class="sb-pip"></i>Open Slot</span>
+        <span>—</span><span>—</span><span>—</span><span>—</span><span>—</span>
+      </div>`;
+    return `
+      <div class="sb-stats">
+        <div class="sb-grid sb-head">
+          <span class="c-name">Survivor</span>
+          <span>Score</span><span>Kills</span><span>Downs</span><span>Revives</span><span>Headshots</span>
+        </div>
+        <div class="sb-grid sb-row">
+          <span class="c-name"><i class="sb-pip"></i>Survivor One</span>
+          ${cell('score')}${cell('kills')}${cell('downs')}${cell('revives')}${cell('headshots')}
+        </div>
+        ${openSlots ? open.repeat(3) : ''}
+      </div>`;
+  }
+
+  // --- build --------------------------------------------------------------
 
   #build() {
     const el = document.createElement('div');
@@ -52,29 +119,15 @@ export class Scoreboard {
         </div>
         <div class="tab-body">
           <section class="tab-panel active" data-panel="scoreboard">
-            <div class="sb-stats">
-              <div class="sb-grid sb-head">
-                <span class="c-name">Survivor</span>
-                <span>Score</span><span>Kills</span><span>Downs</span><span>Revives</span><span>Headshots</span>
-              </div>
-              <div class="sb-grid sb-row">
-                <span class="c-name"><i class="sb-pip"></i>Survivor One</span>
-                <span class="v-score">0</span><span class="v-kills">0</span><span class="v-downs">0</span><span class="v-revives">0</span><span class="v-headshots">0</span>
-              </div>
-              <div class="sb-grid sb-row sb-empty-slot">
-                <span class="c-name"><i class="sb-pip"></i>Open Slot</span>
-                <span>—</span><span>—</span><span>—</span><span>—</span><span>—</span>
-              </div>
-              <div class="sb-grid sb-row sb-empty-slot">
-                <span class="c-name"><i class="sb-pip"></i>Open Slot</span>
-                <span>—</span><span>—</span><span>—</span><span>—</span><span>—</span>
-              </div>
-              <div class="sb-grid sb-row sb-empty-slot">
-                <span class="c-name"><i class="sb-pip"></i>Open Slot</span>
-                <span>—</span><span>—</span><span>—</span><span>—</span><span>—</span>
-              </div>
+            <div class="sb-section sb-gums">
+              ${this.#plate('GobbleGums')}
+              <div class="sb-gum-row"></div>
             </div>
-            <div class="sb-case sb-bottom"></div>
+            ${this.#statsHtml({ openSlots: true })}
+            <div class="sb-section sb-quests">
+              ${this.#plate('Quest Items')}
+              <div class="sb-quest-body"><span class="sb-quest-empty">No quest items collected.</span></div>
+            </div>
           </section>
           <section class="tab-panel" data-panel="objectives">
             <div class="sb-empty">No active objectives.</div>
@@ -90,7 +143,92 @@ export class Scoreboard {
     });
     el.querySelectorAll('.tab-panel').forEach((p) => { this.#panels[p.dataset.panel] = p; });
     for (const k of ['score', 'kills', 'downs', 'revives', 'headshots']) this.#vals[k] = el.querySelector('.v-' + k);
+
+    // keep the equipped pack live if it changes while open
+    this.#events.on('gobblegum:changed', () => { if (this.isOpen) this.#renderGums(); });
   }
+
+  #buildDeath() {
+    const el = document.createElement('div');
+    el.id = 'deathscreen';
+    el.innerHTML = `
+      <div class="ds-vignette"></div>
+      <div class="ds-hand">${this.#handSvg()}</div>
+      <div class="ds-card">
+        <div class="ds-title">Game Over</div>
+        <div class="ds-sub">The dead have claimed another soul</div>
+        <div class="ds-stats"></div>
+        <button class="ds-skip"><span>Skip to Menu ›</span></button>
+      </div>
+      <div class="ds-fade"></div>`;
+    document.body.appendChild(el);
+    this.#death = el;
+    this.#dsStats = el.querySelector('.ds-stats');
+    this.#dsFade = el.querySelector('.ds-fade');
+    el.querySelector('.ds-skip').addEventListener('click', () => {
+      this.#hideDeathNow();
+      this.#events.emit('death:finish', {}); // skip straight back to the menu
+    });
+
+    // driven by RoundSystem + DeathCamSystem across the cinematic
+    this.#events.on('death:begin', () => this.#showDeath());
+    this.#events.on('death:fade', () => this.#death.classList.add('fading'));
+    this.#events.on('state:change', ({ state }) => { if (state === 'menu') this.#endDeath(); });
+  }
+
+  // --- death screen -------------------------------------------------------
+
+  #showDeath() {
+    this.#dsStats.innerHTML = this.#statsHtml({ openSlots: false, baked: true });
+    this.#death.classList.remove('fading', 'revealing');
+    this.#death.classList.add('show');
+    document.body.classList.add('death-cam'); // hides the live HUD behind the card
+    this.#input.exitPointerLock?.();
+  }
+
+  /** Reached when the run returns to the menu (natural finish or skip). If we've
+   *  already faded to black, fade back OUT to reveal the menu; otherwise cut. */
+  #endDeath() {
+    if (!this.#death.classList.contains('show')) return;
+    if (this.#death.classList.contains('fading')) {
+      this.#death.classList.add('revealing');                 // drop the card instantly
+      requestAnimationFrame(() => this.#death.classList.remove('fading')); // black → clear
+      const done = (e) => {
+        if (e.target !== this.#dsFade) return;
+        this.#dsFade.removeEventListener('transitionend', done);
+        this.#hideDeathNow();
+      };
+      this.#dsFade.addEventListener('transitionend', done);
+    } else {
+      this.#hideDeathNow();
+    }
+  }
+
+  #hideDeathNow() {
+    this.#death.classList.remove('show', 'fading', 'revealing');
+    document.body.classList.remove('death-cam');
+  }
+
+  /** A dark outstretched-hand silhouette that rises from the floor of the frame. */
+  #handSvg() {
+    return `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+      <defs>
+        <linearGradient id="dsHandG" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#05070a"/><stop offset="1" stop-color="#161c22"/>
+        </linearGradient>
+      </defs>
+      <g fill="url(#dsHandG)" stroke="#2b3640" stroke-width="2" stroke-linejoin="round">
+        <path d="M150 300 q-6 -70 8 -120 q6 -22 24 -18 q10 3 9 22 l-4 46
+                 q22 -60 40 -96 q9 -18 24 -11 q13 6 6 24 l-26 74
+                 q30 -46 52 -70 q12 -13 24 -3 q11 9 0 24 l-46 66
+                 q28 -26 46 -38 q13 -9 22 3 q8 11 -4 22 l-52 48
+                 q26 -12 40 -12 q16 0 14 14 q-2 12 -20 18 l-58 22
+                 q34 4 30 22 q-4 14 -34 14 q-40 0 -70 -6 q-30 -6 -46 -32 q-14 -22 -12 -55Z"/>
+      </g>
+    </svg>`;
+  }
+
+  // --- live stats ---------------------------------------------------------
 
   #wireStats() {
     // Score = sum of all positive point gains (the run's earned total). The first
@@ -108,10 +246,16 @@ export class Scoreboard {
     this.#events.on('state:change', ({ state }) => { if (state === 'menu') reset(); });
   }
 
+  #renderGums() {
+    const row = this.#el.querySelector('.sb-gum-row');
+    if (row) row.innerHTML = this.#gumRowHtml();
+  }
+
   #render() {
     for (const k of ['score', 'kills', 'downs', 'revives', 'headshots']) {
       if (this.#vals[k]) this.#vals[k].textContent = this.#stats[k].toLocaleString();
     }
+    this.#renderGums();
   }
 
   #select(tab) {
