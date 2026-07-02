@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { PERKS, buildPerkMachine } from '../perks/perks.js';
+import { buildGumballMachine } from '../gobblegums/gumballMachine.js';
 
 /**
  * Dr. Newton's Factory — the 3D set for the Liquid Divinium gamble menu, built
@@ -69,32 +71,17 @@ export function buildFactory() {
     g.add(b);
   };
 
-  const perkMachine = (x, z, ry, accent) => {
-    const pm = new THREE.Group(); pm.position.set(x, -1.35, z); pm.rotation.y = ry;
-    P(pm, new THREE.BoxGeometry(1.1, 2.0, 0.9), steelDk, 0, 1.0, 0);
-    P(pm, new THREE.BoxGeometry(1.16, 0.24, 0.96), brassDk, 0, 2.0, 0);
-    const sign = mat({ color: 0x05070a, emissive: new THREE.Color(accent), emissiveIntensity: 1.5, roughness: 0.5 });
-    P(pm, new THREE.PlaneGeometry(0.8, 1.2), sign, 0, 1.05, 0.46);
-    P(pm, new THREE.PlaneGeometry(0.9, 0.16), sign, 0, 2.0, 0.49);
-    for (const sx of [-0.45, 0.45]) P(pm, new THREE.CylinderGeometry(0.08, 0.08, 0.2, 8), iron, sx, 0.05, 0.3);
-    const pl = new THREE.PointLight(accent, 0.5, 4); pl.position.set(0, 1.1, 0.8); pm.add(pl);
-    g.add(pm);
+  // real perk + gobblegum machines lining the hall (built from the game models).
+  // Placed on the floor (base y=0 → factory floor y=-1.35), collected for disposal.
+  const bgMachines = [];
+  const addMachine = (grp, x, z, ry = 0, s = 1) => {
+    grp.position.set(x, -1.35, z); grp.rotation.y = ry; grp.scale.setScalar(s);
+    g.add(grp); bgMachines.push(grp); return grp;
   };
-
-  const bgGum = (x, z, s) => {
-    const gm = new THREE.Group(); gm.position.set(x, -1.35, z); gm.scale.setScalar(s);
-    const red = mat({ color: 0xb01c14, roughness: 0.4, metalness: 0.3 });
-    P(gm, new THREE.CylinderGeometry(0.3, 0.34, 0.1, 8), iron, 0, 0.05, 0);
-    P(gm, new THREE.CylinderGeometry(0.26, 0.3, 1.0, 8), red, 0, 0.6, 0, 0, Math.PI / 8);
-    P(gm, new THREE.SphereGeometry(0.3, 20, 16), glass, 0, 1.25, 0);
-    const candy = mat({ color: 0xff7ab0, emissive: 0xff3d86, emissiveIntensity: 0.5, roughness: 0.4 });
-    P(gm, new THREE.SphereGeometry(0.2, 16, 12), candy, 0, 1.15, 0);
-    P(gm, new THREE.CylinderGeometry(0.12, 0.16, 0.18, 16), brass, 0, 1.55, 0);
-    g.add(gm);
-  };
+  const perkDefs = Object.values(PERKS);
 
   // =========================================================== floor + walls
-  const floorMat = mat({ color: 0x141b24, roughness: 0.62, metalness: 0.4 });
+  const floorMat = mat({ color: 0x0c1119, roughness: 0.55, metalness: 0.5 });
   g.add(M(new THREE.PlaneGeometry(70, 46), floorMat, 0, -1.35, -8, -Math.PI / 2));
   g.add(M(new THREE.PlaneGeometry(70, 30), wallMat, 0, 5, -18));
   g.add(M(new THREE.PlaneGeometry(46, 30), wallMat, -13, 5, -8, 0, Math.PI / 2));
@@ -115,16 +102,30 @@ export function buildFactory() {
   }
 
   // ================================================ sprawling machine hall
-  boiler(-5.2, -4.5, 1.05, 0x37d36a); boiler(-6.4, -8.5, 1.2, 0xffb44e); boiler(-7.6, -13, 1.35, 0x9a5cff);
-  boiler(5.2, -4.5, 1.05, 0xff8a28);  boiler(6.4, -8.5, 1.2, 0x37d36a);  boiler(7.6, -13, 1.35, 0x59d0ff);
-  perkMachine(-9.0, -6.5, 0.5, 0xff3b30);
-  perkMachine(-10.2, -11, 0.35, 0x2fd36a);
-  perkMachine(9.3, -7.5, -0.6, 0xffd23a);
-  perkMachine(10.4, -12, -0.4, 0x59a6ff);
-  bgGum(-3.2, -12.5, 1.1); bgGum(2.6, -14, 1.2); bgGum(8.5, -15.5, 1.3);
-  g.add(M(new THREE.BoxGeometry(24, 0.16, 0.7), steelDk, 0, 1.6, -11));
-  for (let x = -11; x <= 11; x += 1.4) g.add(M(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), steel, x, 1.95, -11));
-  g.add(M(new THREE.CylinderGeometry(0.04, 0.04, 24, 8), brass, 0, 2.3, -11, 0, 0, Math.PI / 2));
+  // Densely line both flanks with the real perk + gobblegum machines, angled to
+  // face inward and receding into the fog. Kept off to the sides / behind so
+  // they never crowd the hero vats. [x, z, yaw, scale, kind, perkIndex]
+  const layout = [
+    // left flank (turned to face right/in)
+    [-4.6, -5.0, 0.45, 1.0, 'perk', 1], [-6.1, -6.3, 0.5, 1.0, 'gum'],
+    [-7.4, -7.8, 0.55, 1.0, 'perk', 2], [-8.8, -9.6, 0.6, 1.05, 'gum'],
+    [-5.4, -10.8, 0.4, 1.05, 'perk', 7], [-9.9, -12.4, 0.6, 1.1, 'perk', 4],
+    // right flank (turned to face left/in)
+    [4.9, -5.2, -0.5, 1.0, 'gum'], [6.3, -6.5, -0.5, 1.0, 'perk', 3],
+    [7.7, -8.1, -0.55, 1.0, 'gum'], [9.0, -9.9, -0.6, 1.05, 'perk', 5],
+    [5.6, -11.0, -0.4, 1.05, 'perk', 6], [10.0, -12.6, -0.6, 1.1, 'gum'],
+    // a couple deep down the centre aisle behind the vats
+    [-1.6, -13.5, 0.15, 1.05, 'perk', 8], [1.8, -14.2, -0.15, 1.05, 'gum'],
+  ];
+  for (const [x, z, ry, s, kind, pi] of layout) {
+    addMachine(kind === 'gum' ? buildGumballMachine() : buildPerkMachine(perkDefs[pi % perkDefs.length]), x, z, ry, s);
+  }
+  // a few plain boiler tanks tucked between them for silhouette variety
+  boiler(-3.0, -8.0, 1.0, 0x2f6b62); boiler(3.2, -8.4, 1.0, 0x2f6b62);
+  // catwalk spanning mid-depth (kept high + dark)
+  g.add(M(new THREE.BoxGeometry(24, 0.16, 0.7), steelDk, 0, 2.0, -11));
+  for (let x = -11; x <= 11; x += 1.6) g.add(M(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), steel, x, 2.35, -11));
+  g.add(M(new THREE.CylinderGeometry(0.04, 0.04, 24, 8), brass, 0, 2.7, -11, 0, 0, Math.PI / 2));
 
   // ============================================ perk-bottle conveyor (top-right)
   const beltA = new THREE.Vector3(3.4, 2.6, -1.5), beltB = new THREE.Vector3(9.5, 3.7, -8);
@@ -151,22 +152,28 @@ export function buildFactory() {
     P(bo, new THREE.SphereGeometry(0.05, 10, 8), liquid, 0, 0.44, 0);
     g.add(bo); bottles.push({ mesh: bo, u0: i / 6 });
   }
-  g.userData.conveyor = { a: beltA, b: beltB, speed: 0.05, bottles };
+  // travel from the far/high end down toward the near end (correct direction)
+  g.userData.conveyor = { a: beltB, b: beltA, speed: 0.05, bottles };
 
   // pale-blue haze glow deep in the hall
   const hazeMat = new THREE.MeshBasicMaterial({ color: 0x7fb4e0, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false }); track.push(hazeMat);
   const hazeGeo = new THREE.PlaneGeometry(30, 16); track.push(hazeGeo);
   const haze = new THREE.Mesh(hazeGeo, hazeMat); haze.position.set(0, 2, -15); g.add(haze);
 
-  // background gears + pipework framing the depth
-  gear(-4.4, 2.0, -4.4, 0.9, 16, brassDk, 0.5);
-  gear(-3.2, 2.8, -4.8, 0.6, 13, copper, -0.75);
-  gear(4.6, 1.3, -4.5, 1.05, 18, brassDk, -0.4);
-  gear(3.4, 2.7, -4.9, 0.55, 12, copper, 0.9);
-  pipe(-1.6, 3.4, -5.2, 8, Math.PI / 2, copper, 0.09);
-  pipe(2.2, 3.9, -5.4, 6, Math.PI / 2 + 0.12, brassDk, 0.07);
-  pipe(-8.5, 1.2, -6, 4, 0.25, copper, 0.1);
-  pipe(8.6, 0.6, -6, 4, -0.2, brassDk, 0.1);
+  // background gears mounted on backplates up on the side walls (not floating),
+  // with pipes running the wall lines to tie the machinery together.
+  const gearPlate = (x, y, z) => g.add(M(new THREE.BoxGeometry(2.0, 2.0, 0.2), steelDk, x, y, z));
+  gearPlate(-7.2, 2.4, -7.4); gear(-6.6, 2.7, -7.2, 0.85, 16, brassDk, 0.5); gear(-7.7, 1.9, -7.2, 0.55, 13, copper, -0.75);
+  gearPlate(7.2, 2.4, -7.4);  gear(6.6, 2.7, -7.2, 0.85, 16, brassDk, -0.4); gear(7.7, 1.9, -7.2, 0.55, 12, copper, 0.9);
+  // horizontal service pipes running along the upper wall line + verticals down
+  pipe(-7, 3.6, -7.6, 9, Math.PI / 2, copper, 0.1);
+  pipe(7, 3.9, -7.6, 9, Math.PI / 2, brassDk, 0.08);
+  pipe(-9.2, 0.8, -8, 5, 0.0, copper, 0.09);
+  pipe(9.2, 0.6, -8, 5, 0.0, brassDk, 0.09);
+
+  // (foreground framing gears removed — at this close, narrow-FOV camera any gear
+  // wide enough to sit in the corners falls off the frame, and centred ones cover
+  // the console. Left clean; revisit if the FOV is widened for framing room.)
 
   // ---------------------------------------------------------------- the vats
   const vatX = [-1.85, 0, 1.85];
@@ -244,7 +251,13 @@ export function buildFactory() {
     g.userData.buttons.push({ mesh: dome, group: grp, restY: 0.12, glowMat, world: new THREE.Vector3(bx, consoleY + 0.28, consoleZ), wager: i + 1 });
   });
 
-  g.userData.dispose = () => { for (const t of track) t.dispose?.(); };
+  g.userData.dispose = () => {
+    for (const t of track) t.dispose?.();
+    for (const m of bgMachines) {
+      m.userData?.dispose?.();
+      m.traverse((o) => { o.geometry?.dispose?.(); if (Array.isArray(o.material)) o.material.forEach((mm) => mm.dispose?.()); else o.material?.dispose?.(); });
+    }
+  };
   return g;
 }
 
