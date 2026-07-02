@@ -177,6 +177,8 @@
   border: 1px solid color-mix(in srgb, var(--rar, #8090a0) 40%, rgba(150,170,185,0.2));
 }
 #gg-screen .gg-count.zero { color: #ff5252; text-shadow: 0 1px 3px #000, 0 0 8px rgba(255,60,60,0.6); border-color: rgba(255,80,80,0.4); }
+#gg-screen .gg-count.gg-inf { color: #7fe6ff; font-size: 1.05rem; text-shadow: 0 1px 3px #000, 0 0 10px rgba(90,200,255,0.6); border-color: rgba(90,200,255,0.4); }
+#gg-screen .gg-d-owned.gg-inf b { color: #7fe6ff; }
 #gg-screen .gg-cell.gg-zero .gg-ball { filter: grayscale(0.8) brightness(0.6); opacity: 0.66; transition: filter 0.16s, opacity 0.16s; }
 #gg-screen .gg-cell.gg-zero:hover .gg-ball { filter: grayscale(0.4) brightness(0.85); opacity: 0.9; }
 #gg-screen .gg-cell.gg-zero { opacity: 0.9; }

@@ -25,10 +25,12 @@ export const DOUBLE_CHANCE = 0.20;    // chance each Double Rewards roll procs
 
 // Per-vat rarity odds (index 0 = leftmost). Higher vats reach for rarer gums.
 // Each row is { rarityId: weight }; weights need not sum to 1.
+// Classic gums are always-available infinites — they are NEVER rolled here; the
+// factory only dispenses the earnable rarities (mega/rare/ultra/whimsy).
 const VAT_ODDS = [
-  { classic: 68, mega: 27, rare: 4, ultra: 0.6, whimsy: 0.4 },   // vat 1 — bread & butter
-  { classic: 44, mega: 40, rare: 12, ultra: 2.5, whimsy: 1.5 },  // vat 2 — better
-  { classic: 24, mega: 40, rare: 24, ultra: 8, whimsy: 4 },      // vat 3 — best shot at rare
+  { mega: 82, rare: 14, ultra: 2.5, whimsy: 1.5 },   // vat 1 — bread & butter
+  { mega: 66, rare: 25, ultra: 6, whimsy: 3 },        // vat 2 — better
+  { mega: 50, rare: 32, ultra: 12, whimsy: 6 },       // vat 3 — best shot at rare
 ];
 
 const GUMS_BY_RARITY = Object.fromEntries(
@@ -43,7 +45,7 @@ function pickGum(vat, rng) {
   let rarity = 'classic';
   for (const [rid, w] of Object.entries(odds)) { roll -= w; if (roll <= 0) { rarity = rid; break; } }
   let pool = GUMS_BY_RARITY[rarity];
-  if (!pool || !pool.length) pool = GUMS_BY_RARITY.classic;
+  if (!pool || !pool.length) pool = GUMS_BY_RARITY.mega; // never fall back to classic
   return pool[(rng() * pool.length) | 0];
 }
 
