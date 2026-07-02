@@ -84,17 +84,25 @@
         position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
         display: flex; gap: 8px; align-items: flex-end; pointer-events: none;
       }
-      .pu-chip { display: flex; flex-direction: column; align-items: center; font-family: 'Oswald', sans-serif; color: #ffe07a; animation: puIn 0.25s ease; }
-      .pu-chip .pu-time { font-size: 0.85rem; font-weight: 700; text-shadow: 0 1px 3px #000; }
-      .pu-chip .pu-bar { width: 40px; height: 4px; margin: 3px 0; background: rgba(0,0,0,0.5); border: 1px solid #3a3833; }
-      .pu-chip .pu-bar > i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #39ff14, #ffd23a); }
+      .pu-chip { --pu-tint: #ffd23a; display: flex; flex-direction: column; align-items: center; font-family: 'Oswald', sans-serif; color: #e9eef2; animation: puIn 0.25s cubic-bezier(.2,.9,.2,1); }
+      .pu-chip .pu-time { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.04em; color: color-mix(in srgb, var(--pu-tint) 70%, #fff); text-shadow: 0 1px 3px #000; }
+      /* thin machined track, tinted fill */
+      .pu-chip .pu-bar { width: 42px; height: 4px; margin: 4px 0; border-radius: 2px; background: rgba(0,0,0,0.6); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.7), inset 0 1px 2px rgba(0,0,0,0.8); overflow: hidden; }
+      .pu-chip .pu-bar > i { display: block; height: 100%; width: 100%; border-radius: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--pu-tint) 55%, #000), var(--pu-tint)); box-shadow: 0 0 8px var(--pu-tint); }
+      /* the AAT-style disc: brushed collar, dark inset face, the icon inside */
       .pu-chip .pu-icon {
-        width: 38px; height: 38px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-        font-family: 'Anton', Impact, sans-serif; font-size: 1.05rem; color: #1a1206;
-        background: radial-gradient(circle at 50% 35%, #ffe680, #d89a1e);
-        box-shadow: 0 0 12px rgba(70,255,120,0.6), inset 0 0 6px rgba(255,255,255,0.5); border: 1px solid #fff2c0;
+        width: 44px; height: 44px; border-radius: 50%; box-sizing: border-box; padding: 3px;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(150deg, #eef2f6 0%, #aab2bd 38%, #5a616b 72%, #d6dde4 100%);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.65), 0 0 14px color-mix(in srgb, var(--pu-tint) 55%, transparent), inset 0 0 2px rgba(255,255,255,0.85);
       }
-      @keyframes puIn { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      .pu-chip .pu-icon > svg {
+        width: 100%; height: 100%; padding: 5px; box-sizing: border-box; border-radius: 50%;
+        background: radial-gradient(circle at 50% 34%, #1a1e25 0%, #090b0e 100%);
+        box-shadow: inset 0 0 7px rgba(0,0,0,0.85), inset 0 0 5px color-mix(in srgb, var(--pu-tint) 40%, transparent);
+        filter: drop-shadow(0 0 3px color-mix(in srgb, var(--pu-tint) 60%, transparent));
+      }
+      @keyframes puIn { from { transform: scale(0.2) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
       #powerup-announce {
         position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%) skewX(-8deg);
         font-family: 'Anton', Impact, sans-serif; font-size: clamp(2.2rem, 6vw, 5rem); text-transform: uppercase;
@@ -237,11 +245,11 @@
       <!-- bottom-right: BO3-style weapon device — glowing ammo tube wired into a
            mechanical pod that reads out the grenade count -->
       <div id="hud-weapon">
-        <!-- Re-Pack alternate-ammo badge: silver-framed, colour per AAT, sits
-             diagonally up-left of the widget (clear of the lethal counter) -->
-        <div id="hud-aat" hidden><span class="aat-glyph"></span></div>
         <div class="wpn-widget">
-          <div class="wpn-tube hud-tex" id="hud-ammo">
+          <!-- Re-Pack alternate-ammo (ammo-mod) badge: a gunmetal/teal disc that
+               matches the pod, tucked onto the left of the ammo housing -->
+          <div id="hud-aat" hidden><span class="aat-glyph"></span></div>
+          <div class="wpn-tube" id="hud-ammo">
             <span class="wpn-nade" id="hud-lethal"><i class="nade-glyph"></i><b class="nade-n" id="hud-lethal-count">0</b></span>
             <span class="wpn-tac" id="hud-tac" hidden><b class="tac-n" id="hud-tactical-count">0</b><i class="tac-glyph"></i></span>
             <span class="tube-glow"></span>

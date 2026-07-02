@@ -230,59 +230,59 @@ export const PAP_SPECIAL = {
   ballista: 'burst', svu: 'burst',
 };
 
-// Pack-a-Punch renames. Four naming conventions spread evenly across the
-// arsenal: [A] aura-farming badass, [P] dad-level pun, [F] future-ified,
-// [X] alien-ified. Applied to weapon.data.name when a gun is punched.
+// Pack-a-Punch renames. Three naming conventions alternated across the arsenal
+// for a full spread of fun: [A] aura-farming badass, [M] musical reference,
+// [P] dad-level pun. Applied to weapon.data.name when a gun is punched.
 export const PAP_NAMES = {
   // --- pistols ---
   m1911: 'WIDOWMAKER',            // A
-  rk5: 'RK-5X PULSAR',            // F
-  coda9: "COD'XAAN PRIME",        // X
+  rk5: 'LEAD ZEPPELIN',           // M  (Led Zeppelin)
+  coda9: 'CODA RED',              // P  (code red / coda)
   fiveSeven: 'FIVE ALIVE',        // P
   newArmy: 'GRAVE DUTY',          // A
   // --- SMGs ---
   vector: 'VECTOR VICTOR',        // P
-  mp5: 'MP-5X QUANTUM',           // F
-  uzi: "OOZI'KAVAR",              // X
+  mp5: 'HELLS BELLS',             // M  (AC/DC)
+  uzi: 'LIL UZI VERT',            // M  (the rapper)
   kuda: 'NIGHTKUDA',              // A
   ppsh: "PAPA'S PPSH",            // P
-  mp40: 'MP-40K NOVA',            // F
+  mp40: 'MOSH PIT',               // M
   // --- assault rifles ---
-  galil: "GALAAX'IL",             // X
+  galil: 'GALILEO FIGARO',        // M  (Bohemian Rhapsody)
   xm4: "REAPER'S MARK",           // A
   an94: 'BURST MY BUBBLE',        // P
-  stg44: 'STG-44X VOLT',          // F
-  icr1: "IXR'KOTH",               // X
+  stg44: 'ENTER SANDMAN',         // M  (Metallica)
+  icr1: 'ICR YOU LATER',          // P  (I'll see ya later)
   fal: 'FALLEN ANGEL',            // A
   // --- LMGs ---
   dingo: 'DINGO ATE MY AMMO',     // P
-  rpd: 'RPD-9 ION',               // F
-  hamr: "HAMM'XAR",               // X
+  rpd: 'PURPLE RAIN',             // M  (Prince)
+  hamr: 'MC HAMR',                // M  (MC Hammer)
   stoner63: 'TOMBSTONER',         // A
   lsat: 'LSAT PREP',              // P
-  hk21: 'HK-XXI VORTEX',          // F
+  hk21: 'HIGHWAY TO HELL',        // M  (AC/DC)
   // --- shotguns ---
   executioner: 'ORDER & MAW',     // P  (court pun)
-  olympia: "OLYMP'XA",            // X
+  olympia: 'WE WILL ROCK YOU',    // M  (Queen)
   krm: 'KRAKEN',                  // A
   mog12: 'MOG-NIFICENT',          // P
-  haymaker: 'HAYMAKER-X DRUM',    // F
-  stakeout: "STAK'OUTHE",         // X
+  haymaker: 'STAMPEDE',           // A
+  stakeout: 'STEAK-OUT',          // P
   doubleBarrel: 'TWIN FANGS',     // A
   // --- snipers ---
   dsr: 'DSR-IOUSLY?',             // P
-  svg300: 'SVG-300X RAILGUN',     // F
-  k31: "K'THIRTY-VOON",           // X
+  svg300: 'SNIPER OF THE OPERA',  // P  (Phantom of the Opera)
+  k31: 'SWISS BEATZ',             // M  (Swizz Beatz; the K31 is Swiss)
   svu: 'SILENT WIDOW',            // A
   ballista: 'BOLT FROM THE BLUE', // P
-  drakon: 'DRAKON-9 PLASMA',      // F
+  drakon: 'PUFF THE MAGIC DRAGON',// M  (drakon = dragon)
   // --- launchers / specials / wonder ---
   rpg: 'DOOMBRINGER',             // A
   rpg7: 'ROCKET SURGEON',         // P
-  hellionSalvo: 'HELLION-X SALVO',// F
-  deathMachine: "DEATH'XAKK",     // X
+  hellionSalvo: 'BAT OUT OF HELL',// M  (Meat Loaf)
+  deathMachine: 'RAGE MACHINE',   // M  (Rage Against the Machine)
   rayGun: 'STARKILLER',           // A
-  thundergun: 'THUNDER STRUCK',   // P
+  thundergun: 'THUNDERSTRUCK',    // M  (AC/DC)
 };
 
 export const WEAPON_KEYS = Object.keys(defs);

@@ -101,25 +101,52 @@ function labelTexture(def) {
   return t;
 }
 
-// glyph drawn for the bottle-cap emblem (theme symbol, white on clear)
-// Double Tap — crossed bullets over a starburst (the perk's signature emblem)
+// ===========================================================================
+// Perk emblems — bold, centred, defined. Each draws a white primary silhouette
+// with a mid-grey (STEEL) for secondary planes and thin dark grooves (INK) to
+// separate overlapping white shapes, composed around the canvas centre (128,128)
+// so the bottle-cap / HUD crest reads true. Modelled on the canonical BO icons.
+// ===========================================================================
+const INK = 'rgba(8,10,14,0.42)';   // groove between white shapes
+const STEEL = '#c9cdd3';            // secondary plane / metal
+const CX = 128, CY = 122;           // emblem centre (a touch high for the crest)
+
+function emblemCanvas() { const c = document.createElement('canvas'); c.width = 256; c.height = 256; return c; }
+
+// centred rounded-rect path (caller fills/strokes)
+function rrPath(x, cx, cy, w, h, r) {
+  const l = cx - w / 2, t = cy - h / 2; r = Math.min(r, w / 2, h / 2);
+  x.beginPath(); x.moveTo(l + r, t);
+  x.arcTo(l + w, t, l + w, t + h, r); x.arcTo(l + w, t + h, l, t + h, r);
+  x.arcTo(l, t + h, l, t, r); x.arcTo(l, t, l + w, t, r); x.closePath();
+}
+function rrFill(x, cx, cy, w, h, r, fill = '#fff') { rrPath(x, cx, cy, w, h, r); x.fillStyle = fill; x.fill(); }
+
+// a cartridge pointing up, centred at the current origin (case + ogive + rim)
+function cartridge(x, len, w, tone = '#fff') {
+  const h = len / 2, s = w / 2;
+  x.fillStyle = tone;
+  x.beginPath();
+  x.moveTo(-s, h); x.lineTo(s, h); x.lineTo(s, -h * 0.35); x.lineTo(0, -h); x.lineTo(-s, -h * 0.35);
+  x.closePath(); x.fill();
+  x.strokeStyle = INK; x.lineWidth = 4; x.lineCap = 'butt';
+  x.beginPath(); x.moveTo(-s, h * 0.5); x.lineTo(s, h * 0.5); x.stroke();   // case rim
+  x.beginPath(); x.moveTo(-s * 0.5, -h * 0.35); x.lineTo(s * 0.5, -h * 0.35); x.stroke(); // shoulder
+}
+function mkTex(c) { const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t; }
+
+// Double Tap — two crossed cartridges over a small 4-point spark (decluttered)
 function doubleTapIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  x.translate(128, 128); x.scale(1.12, 1.12); x.translate(-128, -128);
-  // starburst rays behind
-  x.fillStyle = '#fff'; x.save(); x.translate(128, 128);
-  for (let i = 0; i < 12; i++) { x.rotate(Math.PI / 6); x.beginPath(); x.moveTo(0, -44); x.lineTo(8, -100); x.lineTo(-8, -100); x.closePath(); x.fill(); }
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.lineJoin = 'round';
+  // subtle 4-point spark behind the X (not the old 12-ray burst)
+  x.save(); x.translate(CX, CY); x.fillStyle = 'rgba(255,255,255,0.9)';
+  for (let i = 0; i < 4; i++) { x.rotate(Math.PI / 2); x.beginPath(); x.moveTo(0, -18); x.lineTo(9, -78); x.lineTo(-9, -78); x.closePath(); x.fill(); }
   x.restore();
-  // two crossed bullets (tips up, casings crossing low)
-  const bullet = () => {
-    x.fillStyle = '#fff'; x.fillRect(-13, -10, 26, 72);                 // casing
-    x.beginPath(); x.moveTo(-13, -10); x.lineTo(0, -38); x.lineTo(13, -10); x.closePath(); x.fill(); // tip
-    x.fillStyle = '#bdbdbd'; x.fillRect(-13, 52, 26, 12);               // rim
-  };
-  x.save(); x.translate(122, 120); x.rotate(-0.5); bullet(); x.restore();
-  x.save(); x.translate(134, 120); x.rotate(0.5); bullet(); x.restore();
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  // two crossed cartridges, tips up-and-out, grooved so they read apart
+  x.save(); x.translate(CX - 22, CY + 6); x.rotate(-0.42); cartridge(x, 150, 44); x.restore();
+  x.save(); x.translate(CX + 22, CY + 6); x.rotate(0.42); cartridge(x, 150, 44); x.restore();
+  return mkTex(c);
 }
 
 function glyphTexture(def) {
@@ -327,24 +354,30 @@ function scriptTexture(text, colorHex, w = 512, h = 160) {
 }
 
 // white "rising figure" revive emblem on a clear field (sits over a glowing disc)
+// Quick Revive — a survivor sitting up off a folding cot (the canonical icon)
 function reviveIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round';
-  // no inner frame (the chip is the crest) — scale the symbol up to fill it
-  x.translate(128, 128); x.scale(1.32, 1.32); x.translate(-128, -128);
-  // downed figure lying across the bottom (head left)
-  x.lineCap = 'round';
-  x.beginPath(); x.arc(80, 170, 14, 0, 7); x.fill();                    // head
-  x.lineWidth = 15; x.beginPath(); x.moveTo(92, 174); x.lineTo(150, 180); x.stroke(); // body
-  x.lineWidth = 11; x.beginPath(); x.moveTo(150, 180); x.lineTo(178, 170); x.stroke(); // legs
-  // helper kneeling over them, one arm reaching down
-  x.beginPath(); x.arc(150, 94, 15, 0, 7); x.fill();                    // head
-  x.lineWidth = 13;
-  x.beginPath(); x.moveTo(150, 108); x.lineTo(147, 150); x.stroke();    // torso
-  x.beginPath(); x.moveTo(147, 150); x.lineTo(172, 168); x.stroke();    // kneeling leg
-  x.beginPath(); x.moveTo(150, 120); x.lineTo(118, 152); x.stroke();    // arm reaching to the body
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  const bedY = CY + 52;
+  // folding X-frame legs (drawn first, under the cot)
+  x.strokeStyle = '#fff'; x.lineWidth = 11;
+  x.beginPath(); x.moveTo(CX - 44, bedY); x.lineTo(CX - 16, bedY + 40); x.moveTo(CX - 16, bedY); x.lineTo(CX - 44, bedY + 40); x.stroke();
+  x.beginPath(); x.moveTo(CX + 16, bedY); x.lineTo(CX + 44, bedY + 40); x.moveTo(CX + 44, bedY); x.lineTo(CX + 16, bedY + 40); x.stroke();
+  // cot platform
+  rrFill(x, CX, bedY, 138, 17, 8, '#fff');
+  // --- the patient, sitting upright at the head (left) end ---
+  x.fillStyle = '#fff';
+  x.beginPath(); x.arc(CX - 46, CY - 42, 18, 0, 7); x.fill();                 // head
+  x.strokeStyle = '#fff'; x.lineWidth = 27;                                    // torso, rising
+  x.beginPath(); x.moveTo(CX - 8, bedY - 16); x.lineTo(CX - 40, CY - 22); x.stroke();
+  x.lineWidth = 21;                                                            // legs along the cot
+  x.beginPath(); x.moveTo(CX - 8, bedY - 14); x.lineTo(CX + 52, bedY - 12); x.stroke();
+  x.lineWidth = 11;                                                            // arm braced back
+  x.beginPath(); x.moveTo(CX - 30, CY - 18); x.lineTo(CX - 2, CY + 20); x.stroke();
+  // groove where the body meets the cot, so they read apart
+  x.strokeStyle = INK; x.lineWidth = 5;
+  x.beginPath(); x.moveTo(CX - 60, bedY - 9); x.lineTo(CX + 58, bedY - 9); x.stroke();
+  return mkTex(c);
 }
 
 // "ICE COLD" / "SOLD HERE 40" + bubble rings, blue-on-clear decal for the cooler face
@@ -445,20 +478,19 @@ function buildDinerMachine(def) {
 // Juggernog — vintage pin-up art-deco machine (deep red + cream, red cross sign)
 // ---------------------------------------------------------------------------
 
+// Juggernog — a bold medical cross with a cartridge laid across it
 function juggIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  x.translate(128, 128); x.scale(1.12, 1.12); x.translate(-128, -128);
-  // white cross
-  x.fillStyle = '#fff';
-  x.fillRect(108, 56, 40, 144);
-  x.fillRect(56, 108, 144, 40);
-  // brass bullet across the diagonal
-  x.save(); x.translate(128, 128); x.rotate(-0.7);
-  x.fillStyle = '#d8b36a'; x.fillRect(-14, -70, 28, 120);
-  x.beginPath(); x.moveTo(-14, -70); x.lineTo(0, -96); x.lineTo(14, -70); x.fill();
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.lineJoin = 'round';
+  // rounded-arm cross, centred
+  rrFill(x, CX, CY, 50, 138, 12, '#fff');  // vertical arm
+  rrFill(x, CX, CY, 138, 50, 12, '#fff');  // horizontal arm
+  // diagonal cartridge over it; a dark halo separates it from the white cross
+  x.save(); x.translate(CX, CY + 4); x.rotate(-0.72);
+  x.save(); x.scale(1.2, 1.08); cartridge(x, 156, 42, INK); x.restore(); // outline halo
+  cartridge(x, 156, 42, '#fff');
   x.restore();
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  return mkTex(c);
 }
 
 function juggLabel() {
@@ -608,19 +640,26 @@ function speedColaScript(colorHex) {
   const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
 }
 
+// Speed Cola — an open palm (fast hands) with speed streaks; proper anatomy
 function speedColaIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round'; x.lineCap = 'round';
-  x.translate(128, 128); x.scale(1.3, 1.3); x.translate(-128, -128);
-  // open hand (Speed Cola = fast hands / quick reload)
-  x.fillStyle = '#fff';
-  for (let i = 0; i < 4; i++) { const fx = 106 + i * 13; const trim = (i === 0 || i === 3) ? 8 : 0; x.fillRect(fx, 90 + trim, 10, 54 - trim); } // four fingers
-  x.beginPath(); x.moveTo(104, 134); x.lineTo(160, 134); x.lineTo(160, 166); x.quadraticCurveTo(132, 190, 104, 166); x.closePath(); x.fill(); // palm
-  x.save(); x.translate(106, 150); x.rotate(-0.9); x.fillRect(-30, -7, 34, 14); x.restore(); // thumb
-  // speed lines streaking off the wrist
-  x.lineWidth = 7; for (const yy of [120, 140]) { x.beginPath(); x.moveTo(58, yy); x.lineTo(88, yy); x.stroke(); }
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  // speed streaks behind, off the left
+  x.strokeStyle = '#fff'; x.lineWidth = 9;
+  for (const [yy, x0] of [[CY - 8, CX - 98], [CY + 14, CX - 106], [CY + 36, CX - 92]]) { x.beginPath(); x.moveTo(x0, yy); x.lineTo(CX - 56, yy); x.stroke(); }
+  // palm + cuff
+  rrFill(x, CX + 6, CY + 28, 72, 66, 22, '#fff');
+  rrFill(x, CX + 6, CY + 60, 60, 20, 9, '#fff');
+  // four fingers, graduated lengths, thick round capsules (middle longest)
+  x.strokeStyle = '#fff';
+  const fingers = [[CX - 20, CY - 42, 16], [CX - 2, CY - 52, 18], [CX + 16, CY - 46, 17], [CX + 34, CY - 28, 15]];
+  for (const [fx, ty, w] of fingers) { x.lineWidth = w; x.beginPath(); x.moveTo(fx, CY + 8); x.lineTo(fx, ty); x.stroke(); }
+  // thumb — a natural angle off the lower-left of the palm (no impossible bend)
+  x.lineWidth = 18; x.beginPath(); x.moveTo(CX - 26, CY + 36); x.lineTo(CX - 54, CY + 4); x.stroke();
+  // knuckle grooves so the fingers read apart from the palm
+  x.strokeStyle = INK; x.lineWidth = 4;
+  for (const [fx] of fingers) { x.beginPath(); x.moveTo(fx - 8, CY + 4); x.lineTo(fx + 8, CY + 4); x.stroke(); }
+  return mkTex(c);
 }
 
 // papel-picado bunting flag (cut-paper) in a given color
@@ -785,23 +824,27 @@ function funkEmblem() {
 // Stamin-Up — 1970s disco/funk jukebox (brass + glowing tubes + diamond lights)
 // ---------------------------------------------------------------------------
 
+// Stamin-Up — a sprinting figure over a tilted speed loop
 function staminIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineJoin = 'round'; x.lineCap = 'round';
-  x.translate(128, 128); x.scale(1.3, 1.3); x.translate(-128, -128);
-  // swoosh / motion track curving under the runner's feet
-  x.lineWidth = 11; x.beginPath(); x.ellipse(126, 168, 60, 20, -0.16, Math.PI * 0.02, Math.PI * 1.2); x.stroke();
-  // running figure
-  x.beginPath(); x.arc(132, 92, 15, 0, 7); x.fill();
-  x.lineWidth = 13;
-  x.beginPath(); x.moveTo(120, 112); x.lineTo(142, 136); x.lineTo(124, 162); x.stroke(); // torso+front leg
-  x.beginPath(); x.moveTo(142, 136); x.lineTo(168, 154); x.stroke(); // back leg
-  x.beginPath(); x.moveTo(128, 118); x.lineTo(102, 130); x.stroke(); // front arm
-  x.beginPath(); x.moveTo(134, 122); x.lineTo(160, 112); x.stroke(); // back arm
-  // motion lines
-  x.lineWidth = 6; for (const yy of [108, 126]) { x.beginPath(); x.moveTo(62, yy); x.lineTo(90, yy); x.stroke(); }
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  // the speed loop under the runner
+  x.strokeStyle = '#fff'; x.lineWidth = 13;
+  x.beginPath(); x.ellipse(CX, CY + 46, 68, 26, -0.18, 0, Math.PI * 2); x.stroke();
+  // motion streaks off the back
+  x.lineWidth = 8; for (const [yy, x0] of [[CY - 26, CX - 94], [CY - 4, CX - 102]]) { x.beginPath(); x.moveTo(x0, yy); x.lineTo(x0 + 34, yy); x.stroke(); }
+  // sprinting figure, leaning forward, centred over the loop
+  x.fillStyle = '#fff';
+  x.beginPath(); x.arc(CX + 18, CY - 52, 16, 0, 7); x.fill();                          // head
+  x.strokeStyle = '#fff';
+  x.lineWidth = 16; x.beginPath(); x.moveTo(CX + 6, CY - 36); x.lineTo(CX + 22, CY + 4); x.stroke(); // torso
+  x.lineWidth = 14;
+  x.beginPath(); x.moveTo(CX + 22, CY + 4); x.lineTo(CX + 40, CY + 22); x.lineTo(CX + 30, CY + 46); x.stroke(); // front leg
+  x.beginPath(); x.moveTo(CX + 22, CY + 4); x.lineTo(CX - 2, CY + 18); x.lineTo(CX - 22, CY + 8); x.stroke();   // back leg
+  x.lineWidth = 12;
+  x.beginPath(); x.moveTo(CX + 10, CY - 28); x.lineTo(CX + 36, CY - 16); x.stroke();   // front arm
+  x.beginPath(); x.moveTo(CX + 8, CY - 24); x.lineTo(CX - 16, CY - 30); x.stroke();    // back arm
+  return mkTex(c);
 }
 
 function staminMarquee() {
@@ -986,23 +1029,30 @@ function buildDiscoMachine(def) {
 // Mule Kick — western gun-rack machine bristling with guns + a longhorn skull
 // ---------------------------------------------------------------------------
 
+// Mule Kick — THREE magazine-fed pistols fanned in a stack (the third-weapon perk)
 function pistolIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round';
-  x.translate(128, 128); x.scale(1.3, 1.3); x.translate(-128, -128);
-  // a single side-on pistol silhouette, drawn at the current transform
-  const pistol = () => {
-    x.fillStyle = '#fff';
-    x.fillRect(-48, -11, 96, 22);                       // slide / barrel
-    x.save(); x.translate(20, 11); x.rotate(0.32); x.fillRect(-11, 0, 22, 42); x.restore(); // grip
-    x.lineWidth = 8; x.strokeStyle = '#fff';
-    x.beginPath(); x.arc(2, 22, 15, 0.15, Math.PI - 0.15); x.stroke(); // trigger guard
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.lineJoin = 'round'; x.lineCap = 'round';
+  // one side-on pistol (muzzle left, grip down-right) in the given tone
+  const pistol = (tone) => {
+    rrFill(x, 0, 0, 98, 22, 7, tone);          // slide
+    rrFill(x, -47, 0, 12, 14, 3, tone);        // muzzle
+    x.save(); x.translate(28, 4); x.rotate(0.44);
+    rrFill(x, 0, 24, 26, 52, 7, tone);         // grip
+    rrFill(x, 0, 52, 22, 15, 3, tone);         // magazine protruding from the grip
+    x.restore();
+    x.strokeStyle = tone; x.lineWidth = 9;
+    x.beginPath(); x.arc(10, 20, 13, 0.15, Math.PI - 0.15); x.stroke(); // trigger guard
   };
-  // TWO overlapping pistols (Mule Kick = carry a third weapon)
-  x.save(); x.translate(112, 110); x.rotate(-0.16); pistol(); x.restore();
-  x.save(); x.translate(140, 140); x.rotate(-0.16); x.scale(0.92, 0.92); pistol(); x.restore();
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  // three pistols, fanned + stacked, each haloed in INK so overlaps read apart
+  const fan = [[CX + 8, CY - 36, -0.1, 0.84], [CX + 2, CY - 2, -0.1, 0.94], [CX - 4, CY + 34, -0.1, 1.04]];
+  for (const [px, py, rot, s] of fan) {
+    x.save(); x.translate(px, py); x.rotate(rot); x.scale(s, s);
+    x.save(); x.scale(1.14, 1.18); pistol(INK); x.restore(); // dark separation halo
+    pistol('#fff');
+    x.restore();
+  }
+  return mkTex(c);
 }
 
 // a crude rifle/pistol silhouette that juts out of the cabinet
@@ -1186,21 +1236,20 @@ function buildMuleKickMachine(def) {
 // PHD Flopper — purple atomic art-deco machine with a sputnik light burst
 // ---------------------------------------------------------------------------
 
+// PhD Flopper — the classic radiation trefoil (gap between hub and blades)
 function radIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round';
-  x.translate(128, 128); x.scale(1.34, 1.34); x.translate(-128, -128);
-  // radiation trefoil
-  x.translate(128, 128);
-  x.fillStyle = '#fff';
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.translate(CX, CY); x.fillStyle = '#fff';
+  const r1 = 23, r2 = 66, half = 0.52;   // inner gap, outer radius, blade half-angle
   for (let i = 0; i < 3; i++) {
-    x.beginPath(); x.moveTo(0, 0);
-    const a0 = i * 2.094 - 0.5, a1 = i * 2.094 + 0.5;
-    x.arc(0, 0, 46, a0, a1); x.closePath(); x.fill();
+    const a = i * 2.0944 - Math.PI / 2;   // first blade points up
+    x.beginPath();
+    x.arc(0, 0, r2, a - half, a + half);
+    x.arc(0, 0, r1, a + half, a - half, true);
+    x.closePath(); x.fill();
   }
-  x.beginPath(); x.arc(0, 0, 12, 0, 7); x.fill();
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  x.beginPath(); x.arc(0, 0, 15, 0, 7); x.fill();   // centre hub
+  return mkTex(c);
 }
 
 // glowing mushroom-cloud panel with vertical FLOPPER text
@@ -1314,18 +1363,29 @@ function buildAtomicMachine(def) {
 // Electric Cherry — riveted electric-chair cooler with neon retro-futurist flair
 // ---------------------------------------------------------------------------
 
+// Electric Cherry — a pair of cherries jolted by a lightning bolt
 function cherryIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  x.strokeStyle = '#fff'; x.fillStyle = '#fff'; x.lineWidth = 12; x.lineJoin = 'round'; x.lineCap = 'round';
-  x.translate(128, 128); x.scale(1.24, 1.24); x.translate(-128, -128);
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.lineJoin = 'round'; x.lineCap = 'round';
   // cherries
-  x.beginPath(); x.arc(108, 158, 24, 0, 7); x.fill();
-  x.beginPath(); x.arc(152, 168, 20, 0, 7); x.fill();
-  x.lineWidth = 7; x.beginPath(); x.moveTo(108, 134); x.bezierCurveTo(120, 100, 150, 96, 158, 86); x.moveTo(152, 148); x.bezierCurveTo(156, 120, 156, 100, 158, 86); x.stroke();
-  // lightning bolt
-  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(150, 84); x.lineTo(176, 92); x.lineTo(160, 104); x.lineTo(184, 118); x.lineTo(146, 120); x.lineTo(158, 104); x.closePath(); x.fill();
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  x.fillStyle = '#fff';
+  x.beginPath(); x.arc(CX - 28, CY + 38, 25, 0, 7); x.fill();
+  x.beginPath(); x.arc(CX + 20, CY + 46, 21, 0, 7); x.fill();
+  // a soft form groove on each so they read round
+  x.strokeStyle = INK; x.lineWidth = 4;
+  x.beginPath(); x.arc(CX - 28, CY + 38, 25, 0.15, 1.0); x.stroke();
+  x.beginPath(); x.arc(CX + 20, CY + 46, 21, 0.15, 1.0); x.stroke();
+  // stems meeting at a common point up top
+  x.strokeStyle = '#fff'; x.lineWidth = 8;
+  x.beginPath(); x.moveTo(CX - 26, CY + 14); x.bezierCurveTo(CX - 10, CY - 22, CX - 2, CY - 34, CX + 4, CY - 48); x.stroke();
+  x.beginPath(); x.moveTo(CX + 18, CY + 26); x.bezierCurveTo(CX + 14, CY - 6, CX + 6, CY - 30, CX + 4, CY - 48); x.stroke();
+  // the lightning bolt (hero), striking down the right into the cherries
+  x.beginPath();
+  x.moveTo(CX + 34, CY - 54); x.lineTo(CX + 14, CY - 14); x.lineTo(CX + 28, CY - 14);
+  x.lineTo(CX + 4, CY + 34); x.lineTo(CX + 16, CY - 2); x.lineTo(CX + 2, CY - 2); x.closePath();
+  x.strokeStyle = INK; x.lineWidth = 5; x.stroke();  // dark rim reads over cherries/stems
+  x.fillStyle = '#fff'; x.fill();
+  return mkTex(c);
 }
 
 function buildElectricMachine(def) {
@@ -1513,20 +1573,22 @@ function buildElectricMachine(def) {
 // Deadshot Daiquiri — heavy-metal spiked tower w/ skull, flaming guitars, glass
 // ---------------------------------------------------------------------------
 
+// Deadshot — a head-and-shoulders target framed by a crosshair sight
 function reticleIcon() {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
-  const x = c.getContext('2d'); x.clearRect(0, 0, 256, 256);
-  // head + shoulders silhouette inside the sight (Deadshot = aim for the head)
+  const c = emblemCanvas(); const x = c.getContext('2d');
+  x.lineJoin = 'round';
+  // head + shoulders silhouette (aim for the head)
   x.fillStyle = '#fff';
-  x.beginPath(); x.arc(128, 116, 26, 0, 7); x.fill();                         // head
-  x.beginPath(); x.moveTo(94, 178); x.quadraticCurveTo(128, 146, 162, 178); x.lineTo(162, 192); x.lineTo(94, 192); x.closePath(); x.fill(); // shoulders
-  // crosshair ring + ticks + centre dot
+  x.beginPath(); x.arc(CX, CY - 8, 25, 0, 7); x.fill();                        // head
+  x.beginPath(); x.moveTo(CX - 36, CY + 54); x.quadraticCurveTo(CX, CY + 18, CX + 36, CY + 54); x.lineTo(CX + 36, CY + 66); x.lineTo(CX - 36, CY + 66); x.closePath(); x.fill(); // shoulders
+  // crosshair ring + four inward ticks
   x.strokeStyle = '#fff'; x.lineWidth = 10;
-  x.beginPath(); x.arc(128, 128, 82, 0, 7); x.stroke();
-  x.lineWidth = 8;
-  for (const a of [0, 1, 2, 3]) { x.save(); x.translate(128, 128); x.rotate(a * Math.PI / 2); x.beginPath(); x.moveTo(0, -104); x.lineTo(0, -66); x.stroke(); x.restore(); }
-  x.fillStyle = '#fff'; x.beginPath(); x.arc(128, 128, 7, 0, 7); x.fill();
-  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.LinearFilter; return t;
+  x.beginPath(); x.arc(CX, CY, 82, 0, 7); x.stroke();
+  x.lineWidth = 9;
+  for (const a of [0, 1, 2, 3]) { x.save(); x.translate(CX, CY); x.rotate(a * Math.PI / 2); x.beginPath(); x.moveTo(0, -102); x.lineTo(0, -64); x.stroke(); x.restore(); }
+  // thin dark groove just inside the ring so the target reads within the sight
+  x.strokeStyle = INK; x.lineWidth = 4; x.beginPath(); x.arc(CX, CY, 74, 0, 7); x.stroke();
+  return mkTex(c);
 }
 
 function skullMesh(bone, eyeMat) {
