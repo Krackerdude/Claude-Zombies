@@ -269,7 +269,7 @@ export class UIManager {
       <div class="bmq-head"><span>Black Market Quests</span></div>
       <div class="bmq-body">
         <button class="bmq-nav bmq-prev" aria-label="Previous quest">‹</button>
-        <button class="bmq-quest" aria-label="Open quest board"><div class="bmq-name"></div><div class="bmq-obj"></div></button>
+        <button class="bmq-quest" aria-label="Open quest board"><div class="bmq-txt"><div class="bmq-name"></div><div class="bmq-obj"></div></div><span class="pw-ring bmq-ring" style="--qp:0"></span></button>
         <button class="bmq-nav bmq-next" aria-label="Next quest">›</button>
       </div>
       <div class="bmq-reward"><span class="bmq-rlabel">Reward</span><span class="bmq-rval"></span></div>`;
@@ -281,6 +281,8 @@ export class UIManager {
       el.querySelector('.bmq-obj').textContent = q.obj;
       el.querySelector('.bmq-rval').textContent = rewardLabel(q.reward);
       el.style.setProperty('--rk', rewardColor(q.reward));
+      const ring = el.querySelector('.bmq-ring');
+      if (ring) { ring.style.setProperty('--qp', '0'); ring.dataset.pct = '0%'; }
     };
     el.querySelector('.bmq-prev').addEventListener('click', () => this.#quests.cycle(-1));
     el.querySelector('.bmq-next').addEventListener('click', () => this.#quests.cycle(1));

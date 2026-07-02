@@ -101,7 +101,9 @@
 }
 .bmq-body > * { transform: skewX(9deg); }
 /* the centre is a <button> that opens the quest board — strip its native chrome */
-.bmq-quest { flex: 1; min-width: 0; text-align: center; appearance: none; background: transparent; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.bmq-quest { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; appearance: none; background: transparent; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.bmq-txt { flex: 1; min-width: 0; text-align: center; }
+.bmq-ring { --rk: #ff8a28; }
 .bmq-quest:hover .bmq-name { color: #fff; }
 .bmq-name { font-weight: 700; font-size: 1.0rem; letter-spacing: 0.03em; color: #f3f6f8; text-transform: uppercase; }
 .bmq-obj { font-size: 0.74rem; color: #9fb0bb; margin-top: 2px; letter-spacing: 0.02em; line-height: 1.25; }
@@ -158,11 +160,11 @@
   clip-path: polygon(0 0, 100% 0, 100% 100%, 13px 100%);
   box-shadow: inset 0 0 14px rgba(0,0,0,0.4);
 }
-.pw-lvl .mm-lvl { font-family: 'Anton', Impact, sans-serif; font-size: 2rem; line-height: 0.82; }
-.pw-lvl small { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.24em; opacity: 0.82; margin-top: 2px; }
+.pw-lvl .mm-lvl { font-family: 'Anton', Impact, sans-serif; font-size: 2.05rem; line-height: 1; text-align: center; }
 
 .pw-name {
-  flex: 1; display: flex; align-items: center; padding: 0 16px; isolation: isolate;
+  flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  padding: 6px 16px; isolation: isolate;
   background: var(--hud-grunge), linear-gradient(180deg, rgba(26,30,37,0.95), rgba(8,10,14,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
   border-top: 1px solid rgba(255,180,90,0.32); border-bottom: 1px solid rgba(0,0,0,0.7);
@@ -171,7 +173,19 @@
 }
 .pw-name .mm-name {
   font-weight: 700; font-size: 1.12rem; letter-spacing: 0.05em; color: #f3f6f8;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.6); white-space: nowrap;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6); white-space: nowrap; line-height: 1;
+}
+/* XP bar — thin amber sliver directly under the name, right of the level chip */
+.pw-xp {
+  position: relative; height: 5px; border-radius: 3px; overflow: hidden;
+  background: rgba(0,0,0,0.55);
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,180,90,0.14);
+}
+.pw-xp-fill {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, #ffb347, #ff8a28);
+  box-shadow: 0 0 6px rgba(255,138,40,0.7);
+  transition: width 0.5s cubic-bezier(0.16,1,0.3,1);
 }
 
 /* GUM strip: cool steel zone with a cyan edge so it reads apart from the warm row */
@@ -202,8 +216,28 @@
   clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 }
 .pw-quest-plate > * { transform: skewX(10deg); }
-.pw-quest-tag { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in srgb, var(--rk) 60%, #ffffff); flex: none; }
-.pw-quest-name { margin-left: auto; font-weight: 700; font-size: 0.92rem; letter-spacing: 0.03em; text-transform: uppercase; color: #f3f6f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 195px; }
+.pw-quest-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pw-quest-tag { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in srgb, var(--rk) 60%, #ffffff); }
+.pw-quest-name { font-weight: 700; font-size: 0.92rem; letter-spacing: 0.03em; text-transform: uppercase; color: #f3f6f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* circular progress ring — shared by the widget + Black Market tracker.
+   conic-gradient sweep on --qp (0..1) in the reward colour --rk, punched hollow
+   by a radial mask so only the ring shows; the centre reads the % as a label. */
+.pw-ring {
+  flex: none; position: relative; width: 30px; height: 30px; border-radius: 50%;
+  background:
+    conic-gradient(var(--rk) calc(var(--qp, 0) * 360deg), rgba(255,255,255,0.09) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--rk) 40%, transparent));
+}
+/* percentage read-out sits in the punched-out centre (own element, no mask) */
+.pw-ring::after {
+  content: attr(data-pct); position: absolute; inset: 0; -webkit-mask: none; mask: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.5rem; font-weight: 700; letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--rk) 45%, #ffffff);
+}
 /* hover popout — under the strip, not clipped (container has no clip-path) */
 .pw-quest-pop {
   position: absolute; right: 4px; top: calc(100% + 8px); z-index: 20;
