@@ -178,9 +178,20 @@ export function buildFactory() {
   pipe(-9.2, 0.8, -8, 5, 0.0, copper, 0.09);
   pipe(9.2, 0.6, -8, 5, 0.0, brassDk, 0.09);
 
-  // (foreground framing gears removed — at this close, narrow-FOV camera any gear
-  // wide enough to sit in the corners falls off the frame, and centred ones cover
-  // the console. Left clean; revisit if the FOV is widened for framing room.)
+  // ---- FOREGROUND framing: vertical pipes down the left/right edges + a row of
+  // gears rising from the bottom edge, all close to the lens so they frame the
+  // shot without covering the machines/buttons. (No shadow-casting on these.)
+  const sidePipe = (x, z) => {
+    g.add(M(new THREE.CylinderGeometry(0.12, 0.12, 4.4, 14), copper, x, 0.4, z));
+    for (const yy of [-1.0, 0.4, 1.7]) g.add(M(new THREE.TorusGeometry(0.15, 0.03, 8, 18), brass, x, yy, z, Math.PI / 2));
+    g.add(M(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 10), brassDk, x + (x < 0 ? 0.25 : -0.25), -0.7, z, 0, 0, Math.PI / 2)); // stub branch inward
+  };
+  sidePipe(-1.55, 4.4);
+  sidePipe(1.62, 4.4);
+  gear(-0.9, -0.9, 4.4, 0.55, 18, brassDk, 0.4);
+  gear(0.05, -1.1, 4.6, 0.38, 12, copper, -0.6);
+  gear(1.05, -0.9, 4.4, 0.55, 18, brassDk, -0.35);
+  pipe(0.1, -1.02, 4.5, 5, 0, iron, 0.08, 'x');
 
   // -------------------------------------------------- the gobblegum machines
   // Each is a verdigris cabinet with: a RAISED CLEAR GLASS chamber (you can see
