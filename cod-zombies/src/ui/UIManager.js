@@ -33,6 +33,7 @@ export class UIManager {
   #fxVars;
   #screens = {};
   #options;
+  #transition; #lastVisible = null;
 
   #optionsOpen = false;
   #optionsReturn = AppState.MENU;
@@ -77,7 +78,7 @@ export class UIManager {
 
     // The single shared player widget (re-parented between menus), the pack
     // pre-menu (with its live 3D machine), the catalog, and the quest chooser.
-    this.#questMenu = new QuestMenu({ quests: this.#quests, onClose: () => { this.#questOpen = false; } });
+    this.#questMenu = new QuestMenu({ quests: this.#quests, onClose: () => { this.#playTransition(); this.#questOpen = false; } });
     this.#widget = new PlayerWidget({ profile: this.#profile, packs: this.#packs, quests: this.#quests, events: this.#events });
     this.#machineView = new GumballMachineView();
     this.#gobblegum = new GobbleGumMenu({ packs: this.#packs, onClose: () => this.#onCatalogClosed() });
@@ -203,6 +204,33 @@ export class UIManager {
       <div class="flicker"></div>`;
     this.#root.appendChild(fx);
     this.#fxVars = document.documentElement;
+
+    // Menu-to-menu transition veil — a "signal hack through dark aether" wipe that
+    // plays over EVERY menu change. Layered on top of everything (even the 3D
+    // scenes underneath the main/pack menus), so it covers the swap regardless of
+    // whether the screen is DOM or a live canvas.
+    const t = document.createElement('div');
+    t.id = 'menu-transition';
+    t.setAttribute('aria-hidden', 'true');
+    t.innerHTML = `
+      <div class="mt-aether"></div>
+      <div class="mt-bars"></div>
+      <div class="mt-tear"></div>
+      <div class="mt-split"></div>
+      <div class="mt-scan"></div>`;
+    // body-level (not inside #ui-root) so it layers above the body-mounted
+    // sub-menus (map-select, pack, catalog, quests) as well as the screens.
+    document.body.appendChild(t);
+    this.#transition = t;
+  }
+
+  /** Fire the dark-aether / CRT-signal-hack veil once (restartable). */
+  #playTransition() {
+    const t = this.#transition;
+    if (!t) return;
+    t.classList.remove('go');
+    void t.offsetWidth; // reflow to restart the keyframes
+    t.classList.add('go');
   }
 
   #applyFxVars(fx) {
@@ -295,7 +323,7 @@ export class UIManager {
   }
 
   /** Open the full Black Market Quests chooser (over the main menu). */
-  openQuests() { this.#questMenu.open(); this.#questOpen = true; }
+  openQuests() { this.#playTransition(); this.#questMenu.open(); this.#questOpen = true; }
 
   // --- cold-open intro ----------------------------------------------------
   #buildIntro() {
@@ -409,6 +437,7 @@ export class UIManager {
 
   /** Main menu → GobbleGum pack pre-menu (widget parks top-left). */
   openGobblePacks() {
+    this.#playTransition();
     this.#widget.setEditable(false);
     this.#widget.setShowQuest(false);
     this.#widget.mountTo(this.#packMenu.el ?? document.body, { top: '96px', left: '40px' });
@@ -416,6 +445,7 @@ export class UIManager {
     this.#gpOpen = true;
   }
   #onPackMenuClosed() {
+    this.#playTransition();
     // return the widget to its main-menu home (extra-large there)
     this.#widget.setEditable(false);
     this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
@@ -425,6 +455,7 @@ export class UIManager {
 
   /** Pack pre-menu → catalog in edit mode (widget moves to bottom-left, fills). */
   openGobbleGums() {
+    this.#playTransition();
     this.#gobblegum.open();
     this.#widget.setShowQuest(false);
     this.#widget.setEditable(true);
@@ -432,6 +463,7 @@ export class UIManager {
     this.#ggOpen = true;
   }
   #onCatalogClosed() {
+    this.#playTransition();
     // back to the pack pre-menu — re-park the widget top-left, stop editing
     this.#ggOpen = false;
     this.#widget.setEditable(false);
@@ -440,8 +472,8 @@ export class UIManager {
     this.#packMenu.refresh();
   }
 
-  openMapSelect() { this.#mapSelect?.classList.add('show'); this.#mapOpen = true; }
-  closeMapSelect() { this.#mapSelect?.classList.remove('show'); this.#mapOpen = false; }
+  openMapSelect() { this.#playTransition(); this.#mapSelect?.classList.add('show'); this.#mapOpen = true; }
+  closeMapSelect() { this.#playTransition(); this.#mapSelect?.classList.remove('show'); this.#mapOpen = false; }
 
   // --- coming soon --------------------------------------------------------
   #buildSoon() {
@@ -475,10 +507,11 @@ export class UIManager {
     const track = this.#soon.querySelector('#mm-soon-divinium');
     if (track) track.hidden = !divinium;
     if (divinium) this.#refreshDivinium();
+    this.#playTransition();
     this.#soon.classList.add('show');
     this.#soonOpen = true;
   }
-  #closeSoon() { this.#soon?.classList.remove('show'); this.#soonOpen = false; }
+  #closeSoon() { this.#playTransition(); this.#soon?.classList.remove('show'); this.#soonOpen = false; }
 
   // --- map enter: fade to black, start the run, fade back in --------------
   fadeToPlay() {
@@ -645,6 +678,10 @@ export class UIManager {
     if (this.#optionsOpen) visible = 'options';
     else if (state === AppState.MENU) visible = 'main';
     else if (state === AppState.PAUSED) visible = 'pause';
+
+    // veil the swap between top-level screens (skip the very first paint)
+    if (visible && this.#lastVisible && visible !== this.#lastVisible) this.#playTransition();
+    this.#lastVisible = visible;
 
     for (const [id, el] of Object.entries(this.#screens)) {
       const on = id === visible;
