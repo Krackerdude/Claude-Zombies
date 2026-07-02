@@ -39,8 +39,8 @@ export class FactoryView {
     this.#canvas.className = 'fx-factory-canvas';
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a1420, 0.055);
-    const cam = new THREE.PerspectiveCamera(46, 1.7, 0.05, 100);
+    scene.fog = new THREE.FogExp2(0x3a6a92, 0.03); // pale-blue hall haze
+    const cam = new THREE.PerspectiveCamera(46, 1.7, 0.05, 120);
     cam.position.set(-0.2, 0.6, 6.2);
     cam.lookAt(0.6, -0.05, -0.5);
 
@@ -258,6 +258,8 @@ export class FactoryView {
       if (!this.#busy) ud.vats.forEach((vt, i) => { vt.windowMat.emissiveIntensity = vt.base + 0.28 * Math.sin(this.#t * 1.8 + i * 1.3); });
       for (const st of ud.steam) { st.mesh.position.y = st.base.y + Math.sin(this.#t * 0.3 + st.phase) * 0.25; st.mesh.material.opacity = 0.04 + 0.03 * (0.5 + 0.5 * Math.sin(this.#t * 0.5 + st.phase)); }
       for (const ball of this.#balls) if (ball) ball.rotation.y += (ball.userData.spin || 1) * dt;
+      // perk bottles ride the conveyor and loop
+      if (ud.conveyor) { const cv = ud.conveyor; for (const bt of cv.bottles) { const u = (bt.u0 + this.#t * cv.speed) % 1; bt.mesh.position.lerpVectors(cv.a, cv.b, u); bt.mesh.rotation.y = this.#t * 0.6; } }
 
       // hover raycast (only when idle)
       if (!this.#busy) this.#updateHover();
