@@ -308,22 +308,6 @@ body.death-cam #hud { opacity: 0 !important; transition: opacity 0.4s ease; poin
     linear-gradient(180deg, rgba(5,6,9,0.35), rgba(0,0,0,0) 30%);
 }
 
-/* dark outstretched hand rising from the bottom of the frame */
-#deathscreen .ds-hand {
-  position: absolute; left: 50%; bottom: -2vh; width: min(560px, 60vw); height: 42vh;
-  transform: translateX(-50%);
-  opacity: 0; filter: drop-shadow(0 -8px 26px rgba(0,0,0,0.7));
-  animation: dsHandRise 2.6s cubic-bezier(.18,.7,.2,1) 0.5s both;
-}
-#deathscreen .ds-hand svg { width: 100%; height: 100%; display: block; }
-@keyframes dsHandRise {
-  from { opacity: 0; transform: translate(-50%, 40%); }
-  60%  { opacity: 0.92; }
-  to   { opacity: 0.88; transform: translate(-50%, 0); }
-}
-/* the hand recedes once the camera pulls away into the pan */
-#deathscreen.fading .ds-hand { opacity: 0; transition: opacity 0.8s ease; }
-
 /* the Game Over card, near the top-middle */
 #deathscreen .ds-card {
   position: absolute; top: clamp(40px, 8vh, 110px); left: 50%; transform: translateX(-50%);
@@ -415,7 +399,6 @@ body.death-cam #hud { opacity: 0 !important; transition: opacity 0.4s ease; poin
   opacity: 0; transition: opacity 1.4s ease;
 }
 #deathscreen.fading .ds-fade { opacity: 1; }
-/* once we start revealing the menu, drop the card + hand instantly under the black */
+/* once we start revealing the menu, drop the card instantly under the black */
 #deathscreen.revealing .ds-card,
-#deathscreen.revealing .ds-hand,
 #deathscreen.revealing .ds-vignette { opacity: 0; transition: none; }

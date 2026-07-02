@@ -153,7 +153,6 @@ export class Scoreboard {
     el.id = 'deathscreen';
     el.innerHTML = `
       <div class="ds-vignette"></div>
-      <div class="ds-hand">${this.#handSvg()}</div>
       <div class="ds-card">
         <div class="ds-title">Game Over</div>
         <div class="ds-sub">The dead have claimed another soul</div>
@@ -207,25 +206,6 @@ export class Scoreboard {
   #hideDeathNow() {
     this.#death.classList.remove('show', 'fading', 'revealing');
     document.body.classList.remove('death-cam');
-  }
-
-  /** A dark outstretched-hand silhouette that rises from the floor of the frame. */
-  #handSvg() {
-    return `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
-      <defs>
-        <linearGradient id="dsHandG" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stop-color="#05070a"/><stop offset="1" stop-color="#161c22"/>
-        </linearGradient>
-      </defs>
-      <g fill="url(#dsHandG)" stroke="#2b3640" stroke-width="2" stroke-linejoin="round">
-        <path d="M150 300 q-6 -70 8 -120 q6 -22 24 -18 q10 3 9 22 l-4 46
-                 q22 -60 40 -96 q9 -18 24 -11 q13 6 6 24 l-26 74
-                 q30 -46 52 -70 q12 -13 24 -3 q11 9 0 24 l-46 66
-                 q28 -26 46 -38 q13 -9 22 3 q8 11 -4 22 l-52 48
-                 q26 -12 40 -12 q16 0 14 14 q-2 12 -20 18 l-58 22
-                 q34 4 30 22 q-4 14 -34 14 q-40 0 -70 -6 q-30 -6 -46 -32 q-14 -22 -12 -55Z"/>
-      </g>
-    </svg>`;
   }
 
   // --- live stats ---------------------------------------------------------

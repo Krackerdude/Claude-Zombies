@@ -138,16 +138,22 @@ export function buildMenuScene() {
   };
 }
 
-// --- the leaning survivor (repurposed humanoid rig, posed + de-zombified) -----
-function buildSurvivor() {
-  const M = {
+// The survivor's material "look" (bare-skin, de-zombified). Shared so anything
+// that needs the SAME hero — e.g. the fallen body in the death cinematic —
+// renders the identical character we pose on the menu.
+export function survivorLook() {
+  return {
     flesh: new THREE.MeshStandardMaterial({ color: 0xc89878, roughness: 0.65 }),      // human skin
     shirt: new THREE.MeshStandardMaterial({ color: 0x6a4a32, roughness: 0.7 }),       // worn leather jacket (warm, catches firelight)
     pants: new THREE.MeshStandardMaterial({ color: 0x44474e, roughness: 0.82 }),      // grey trousers
     shoe: new THREE.MeshStandardMaterial({ color: 0x1c1812, roughness: 0.7 }),
     eye: new THREE.MeshStandardMaterial({ color: 0x0c0d11, roughness: 0.4 }),          // dark, NOT glowing
   };
-  const rig = buildZombieRig(M); // bare-skin look -> no zombie cosmetics
+}
+
+// --- the leaning survivor (repurposed humanoid rig, posed + de-zombified) -----
+function buildSurvivor() {
+  const rig = buildZombieRig(survivorLook()); // bare-skin look -> no zombie cosmetics
   const J = rig.userData.joints;
 
   // lean the whole body back onto the tree
