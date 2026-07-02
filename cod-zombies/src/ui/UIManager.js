@@ -12,6 +12,9 @@ import { menuLogoSvg } from './menuLogo.js';
 import { QuestStore } from '../quests/QuestStore.js';
 import { QuestMenu } from './QuestMenu.js';
 import { rewardColor, rewardLabel } from '../quests/quests.js';
+import { FactoryView } from './FactoryView.js';
+import { FactoryMenu } from './FactoryMenu.js';
+import { rollFactory, wagerCost } from '../factory/factory.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -53,6 +56,7 @@ export class UIManager {
   #quests; #questMenu; #questOpen = false;
   #gobblegum; #ggOpen = false;
   #packs; #widget; #packMenu; #machineView; #gpOpen = false;
+  #factoryView; #factoryMenu; #factoryOpen = false;
 
   constructor(engine) {
     this.#engine = engine;
@@ -89,6 +93,17 @@ export class UIManager {
       onClose: () => this.#onPackMenuClosed(),
     });
     this.#events.on('gobblegum:changed', () => { this.#widget.refresh(); this.#packMenu.refresh(); });
+
+    // Dr. Newton's Factory — the 3D Liquid Divinium gamble scene. The view calls
+    // back to spend + roll + grant here (so persistence is safe even if the
+    // player leaves mid-reveal); it returns the resolved roll for presentation.
+    this.#factoryView = new FactoryView({
+      onWager: (wager) => this.#factoryWager(wager),
+      onBusy: (on) => this.#factoryMenu?.setBusy(on),
+      onBanner: (b) => this.#factoryMenu?.banner(b),
+    });
+    this.#factoryMenu = new FactoryMenu({ view: this.#factoryView, onClose: () => this.#onFactoryClosed() });
+
     // park the widget in its home (main-menu top-right), extra-large there
     this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
     this.#widget.setShowQuest(true); // Current Quest section only on the main menu
@@ -190,6 +205,7 @@ export class UIManager {
     for (const c of this.#root.querySelectorAll('.ld-track-count')) c.textContent = count.toLocaleString();
     const soonCount = this.#soon?.querySelector('.ld-track-count');
     if (soonCount) soonCount.textContent = count.toLocaleString();
+    this.#factoryMenu?.setDivinium(count);
   }
 
   // --- FX overlay ---------------------------------------------------------
@@ -511,9 +527,30 @@ export class UIManager {
 
   /** Main menu → Dr. Newton's Factory (the 3D crafting/gamble scene). */
   openFactory() {
-    // The 3D scene is wired in a following change; until then, the divinium
-    // balance is fully visible on the main-menu badge.
-    this.comingSoon("Dr. Newton's Factory", 'Spend Liquid Divinium to spin for GobbleGums.', { divinium: true });
+    this.#playTransition();
+    this.#factoryMenu.setDivinium(this.#diviniumBalance());
+    this.#factoryMenu.open();
+    this.#factoryOpen = true;
+  }
+  #onFactoryClosed() { this.#playTransition(); this.#factoryOpen = false; }
+
+  #diviniumBalance() { return this.#profile?.get('currency.liquidDivinium', 0) ?? 0; }
+
+  /**
+   * Resolve a factory wager: check affordability, deduct Liquid Divinium, roll,
+   * and bank the won gums immediately. Returns the roll result for the view to
+   * animate, or null when the player can't afford it (view plays a denial buzz).
+   */
+  #factoryWager(wager) {
+    const cost = wagerCost(wager);
+    if (this.#diviniumBalance() < cost) return null;
+    const total = this.#diviniumBalance() - cost;
+    this.#profile?.set('currency.liquidDivinium', total);
+    this.#events.emit('divinium:changed', { total, spent: cost });
+
+    const result = rollFactory(wager);
+    this.#packs.grantMany(result.rewards); // persist the winnings now
+    return result;
   }
 
   openMapSelect() { this.#playTransition(); this.#mapSelect?.classList.add('show'); this.#mapOpen = true; }
@@ -749,6 +786,7 @@ export class UIManager {
   #bindGlobalKeys() {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
+        if (this.#factoryOpen) { this.#factoryMenu.close(); e.preventDefault(); return; }
         if (this.#questOpen) { this.#questMenu.close(); e.preventDefault(); return; }
         if (this.#ggOpen) { this.#gobblegum.close(); e.preventDefault(); return; }
         if (this.#gpOpen) { this.#packMenu.close(); e.preventDefault(); return; }
@@ -759,10 +797,20 @@ export class UIManager {
         // In-game Esc is handled by the browser (exits lock -> pause).
         return;
       }
+      // Factory: number keys / arrows pick the wager, Enter confirms the hover.
+      if (this.#factoryOpen && !this.#factoryMenu.busy) {
+        if (e.code === 'Digit1' || e.code === 'Numpad1') { this.#factoryView.confirm(1); e.preventDefault(); return; }
+        if (e.code === 'Digit2' || e.code === 'Numpad2') { this.#factoryView.confirm(2); e.preventDefault(); return; }
+        if (e.code === 'Digit3' || e.code === 'Numpad3') { this.#factoryView.confirm(3); e.preventDefault(); return; }
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') { this.#factoryView.setHover(Math.max(0, this.#factoryView.hover - 1)); e.preventDefault(); return; }
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') { this.#factoryView.setHover(Math.min(2, (this.#factoryView.hover < 0 ? -1 : this.#factoryView.hover) + 1)); e.preventDefault(); return; }
+        if (e.code === 'Enter' || e.code === 'Space') { if (this.#factoryView.hover >= 0) this.#factoryView.confirm(this.#factoryView.hover + 1); e.preventDefault(); return; }
+      }
+      if (this.#factoryOpen) return; // swallow other menu nav while in the factory
       // Map select: Enter deploys the selected map.
       if (this.#mapOpen && (e.code === 'Enter' || e.code === 'Space') && !this.#entering) { this.fadeToPlay(); e.preventDefault(); return; }
       // Main-menu navigation (suspended while a sub-panel/intro is up).
-      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#questOpen && !this.#entering) {
+      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#questOpen && !this.#factoryOpen && !this.#entering) {
         if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#select((this.#sel + 1) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'ArrowUp' || e.code === 'KeyW') { this.#select((this.#sel - 1 + this.#mainItems.length) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'Enter' || e.code === 'Space') { this.#mainItems[this.#sel]?.click(); e.preventDefault(); }
