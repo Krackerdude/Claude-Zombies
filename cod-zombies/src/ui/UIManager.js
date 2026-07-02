@@ -549,7 +549,9 @@ export class UIManager {
     this.#events.emit('divinium:changed', { total, spent: cost });
 
     const result = rollFactory(wager);
-    this.#packs.grantMany(result.rewards); // persist the winnings now
+    // rewards carry gum OBJECTS (the view needs name/act/rarity); the inventory
+    // keys by gum id, so map before banking.
+    this.#packs.grantMany(result.rewards.map((r) => ({ gum: r.gum.id, count: r.count })));
     return result;
   }
 
