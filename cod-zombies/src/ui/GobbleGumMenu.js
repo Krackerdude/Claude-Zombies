@@ -124,10 +124,13 @@ export class GobbleGumMenu {
     const gums = gumsByRarity(rid);
     this.#grid.innerHTML = gums.map((g) => {
       const acol = (ACT[g.act] ?? ACT.time).color;
-      const owned = this.#packs ? this.#packs.owned(g.id) : null;
+      // classic gums are always-available infinites: no counter, never greyed
+      const infinite = g.rarity === 'classic';
+      const owned = (!infinite && this.#packs) ? this.#packs.owned(g.id) : null;
       const zero = owned === 0;
-      const countHtml = owned != null
-        ? `<div class="gg-count${zero ? ' zero' : ''}">×${owned}</div>` : '';
+      const countHtml = infinite
+        ? '<div class="gg-count gg-inf">∞</div>'
+        : (owned != null ? `<div class="gg-count${zero ? ' zero' : ''}">×${owned}</div>` : '');
       return `
       <div class="gg-cell${zero ? ' gg-zero' : ''}" data-id="${g.id}" style="--acol:${acol}">
         ${countHtml}
@@ -149,9 +152,11 @@ export class GobbleGumMenu {
 
     const rcol = RARITIES.find((r) => r.id === gum.rarity)?.color ?? '#ffb347';
     this.#detail.style.setProperty('--rcol', rcol);
-    const owned = this.#packs ? this.#packs.owned(gid) : null;
-    const ownedHtml = owned != null
-      ? `<div class="gg-d-owned${owned === 0 ? ' zero' : ''}">Owned <b>×${owned}</b></div>` : '';
+    const infinite = gum.rarity === 'classic';
+    const owned = (!infinite && this.#packs) ? this.#packs.owned(gid) : null;
+    const ownedHtml = infinite
+      ? '<div class="gg-d-owned gg-inf">Always Available <b>∞</b></div>'
+      : (owned != null ? `<div class="gg-d-owned${owned === 0 ? ' zero' : ''}">Owned <b>×${owned}</b></div>` : '');
     this.#detail.innerHTML = `
       <div class="gg-d-name"><span>${gum.name}</span></div>
       <div class="gg-d-rarity">${rarityName(gum.rarity)}</div>
