@@ -247,7 +247,23 @@ export class UIManager {
     const s = document.createElement('div');
     s.className = 'screen';
     s.id = 'screen-main';
+    // drifting aether motes — a sparse field (deterministic spread, no clutter)
+    let motes = '';
+    for (let i = 0; i < 14; i++) {
+      const x = (7 + (i * 6.7) % 90).toFixed(1);
+      const dur = (9 + (i * 1.7) % 8).toFixed(1);
+      const delay = (-(i * 1.3) % 9).toFixed(1);
+      const size = (2 + (i % 3)).toFixed(0);
+      const hue = i % 3 === 0 ? 'var(--mm-aether)' : i % 3 === 1 ? 'var(--mm-cool)' : 'var(--mm-accent)';
+      motes += `<i style="left:${x}%;width:${size}px;height:${size}px;background:${hue};animation-duration:${dur}s;animation-delay:${delay}s"></i>`;
+    }
     s.innerHTML = `
+      <div class="mm-ambient" aria-hidden="true">
+        <span class="mm-corner tl"></span><span class="mm-corner tr"></span>
+        <span class="mm-corner bl"></span><span class="mm-corner br"></span>
+        <div class="mm-motes">${motes}</div>
+        <div class="mm-holo"></div>
+      </div>
       <div class="mm-title">${menuLogoSvg()}</div>
       <div class="mm-list"></div>
       <div class="mm-foot">[↑↓] Select · [Enter] Confirm</div>`;

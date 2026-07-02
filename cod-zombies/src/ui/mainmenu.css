@@ -7,8 +7,55 @@
 
 /* the main-menu screen is transparent so the 3D backdrop shows through */
 #screen-main {
+  /* one shared palette so every accent on this screen agrees:
+     accent = primary (active/orange), cool = secondary (gum/teal),
+     aether = tertiary (quest/void purple). */
+  --mm-accent: #ff8a28; --mm-cool: #34c6e0; --mm-aether: #7a3ff0;
   background: radial-gradient(120% 90% at 12% 50%, rgba(4,7,12,0.82) 0%, rgba(4,7,12,0.5) 38%, rgba(4,7,12,0.0) 70%);
 }
+
+/* ---- ambient layer: corner brackets, drifting motes, holo flicker -------- */
+/* Deliberately sparse and low-opacity — presence, not clutter. Sits behind all
+   the interactive chrome and never eats pointer events. */
+.mm-ambient { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+/* angular HUD corner brackets, each with a faint holographic pulse */
+.mm-corner { position: absolute; width: 46px; height: 46px; opacity: 0.5; animation: mmCornerPulse 5.5s ease-in-out infinite; }
+.mm-corner::before, .mm-corner::after { content: ''; position: absolute; background: linear-gradient(var(--mm-cool), transparent); }
+.mm-corner::before { width: 2px; height: 100%; box-shadow: 0 0 8px color-mix(in srgb, var(--mm-cool) 55%, transparent); }
+.mm-corner::after { width: 100%; height: 2px; box-shadow: 0 0 8px color-mix(in srgb, var(--mm-cool) 55%, transparent); }
+.mm-corner.tl { top: 20px; left: 20px; }
+.mm-corner.tr { top: 20px; right: 20px; animation-delay: 1.3s; }
+.mm-corner.tr::before { right: 0; } .mm-corner.tr::after { right: 0; background: linear-gradient(270deg, var(--mm-cool), transparent); }
+.mm-corner.tr::before { background: linear-gradient(180deg, var(--mm-cool), transparent); }
+.mm-corner.bl { bottom: 20px; left: 20px; animation-delay: 2.6s; }
+.mm-corner.bl::before { bottom: 0; background: linear-gradient(0deg, var(--mm-cool), transparent); }
+.mm-corner.bl::after { bottom: 0; }
+.mm-corner.br { bottom: 20px; right: 20px; animation-delay: 3.9s; }
+.mm-corner.br::before { right: 0; bottom: 0; background: linear-gradient(0deg, var(--mm-cool), transparent); }
+.mm-corner.br::after { right: 0; bottom: 0; background: linear-gradient(270deg, var(--mm-cool), transparent); }
+@keyframes mmCornerPulse { 0%,100% { opacity: 0.34; } 50% { opacity: 0.62; } }
+
+/* drifting aether motes — tiny glowing specks rising slowly */
+.mm-motes { position: absolute; inset: 0; }
+.mm-motes i {
+  position: absolute; bottom: -6px; border-radius: 50%; opacity: 0;
+  filter: blur(0.4px); box-shadow: 0 0 6px currentColor;
+  animation-name: mmMote; animation-timing-function: ease-in; animation-iteration-count: infinite;
+}
+@keyframes mmMote {
+  0% { transform: translateY(0) scale(0.8); opacity: 0; }
+  12% { opacity: 0.55; }
+  80% { opacity: 0.4; }
+  100% { transform: translateY(-96vh) scale(1.1); opacity: 0; }
+}
+/* whole-screen holographic scan flicker — extremely faint */
+.mm-holo {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(120,210,225,0.03) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen; opacity: 0.5; animation: mmHolo 7s steps(1) infinite;
+}
+@keyframes mmHolo { 0%,96%,100% { opacity: 0.5; } 97% { opacity: 0.14; } 98% { opacity: 0.6; } 99% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .mm-motes i, .mm-corner, .mm-holo { animation: none; } }
 
 /* ---- NECROPOLIS logo emblem (designed SVG, see menuLogo.js) -------------- */
 .mm-title {
@@ -58,7 +105,20 @@
 .mm-opt:hover::before, .mm-opt.sel::before {
   background: linear-gradient(180deg, #ffb347, rgba(255,138,40,0.25));
   box-shadow: 0 0 10px rgba(255,150,40,0.8), 0 0 22px rgba(255,120,20,0.4);
+  animation: mmStripePulse 1.6s ease-in-out infinite;
 }
+@keyframes mmStripePulse {
+  0%,100% { box-shadow: 0 0 8px rgba(255,150,40,0.65), 0 0 18px rgba(255,120,20,0.3); }
+  50% { box-shadow: 0 0 14px rgba(255,170,60,0.95), 0 0 30px rgba(255,120,20,0.55); }
+}
+/* faint scan-line sheen drifting across the highlighted plate */
+.mm-opt::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: repeating-linear-gradient(0deg, rgba(255,215,160,0.10) 0 1px, transparent 1px 4px);
+  transition: opacity 0.16s;
+}
+.mm-opt:hover::after, .mm-opt.sel::after { opacity: 1; animation: mmOptScan 2.2s linear infinite; }
+@keyframes mmOptScan { from { background-position: 0 0; } to { background-position: 0 8px; } }
 .mm-opt.disabled { opacity: 0.4; pointer-events: none; }
 .mm-opt .mm-tag { /* "soon" tag */
   margin-left: 12px; font-size: 0.62rem; letter-spacing: 0.18em; color: #8aa0ac;
