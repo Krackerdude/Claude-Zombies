@@ -32,8 +32,7 @@ export class PlayerWidget {
       </div>
       <div class="pw-gums"><span class="pw-gum-tag">GUM</span><div class="mm-gums"></div></div>
       <div class="pw-quest" hidden>
-        <span class="pw-quest-tag">Current Quest</span>
-        <span class="pw-quest-name">—</span>
+        <div class="pw-quest-plate"><span class="pw-quest-tag">Current Quest</span><span class="pw-quest-name">—</span></div>
         <div class="pw-quest-pop">
           <div class="pw-quest-obj">—</div>
           <div class="pw-quest-rw">—</div>
