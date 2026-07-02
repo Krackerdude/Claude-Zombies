@@ -27,12 +27,18 @@ export class PlayerWidget {
     el.className = 'mm-player';
     el.innerHTML = `
       <div class="pw-row">
-        <div class="pw-lvl"><span class="mm-lvl">0</span><small>LVL</small></div>
-        <div class="pw-name"><span class="mm-name">Survivor One</span></div>
+        <div class="pw-lvl"><span class="mm-lvl">0</span></div>
+        <div class="pw-name">
+          <span class="mm-name">Survivor One</span>
+          <div class="pw-xp" title="XP"><i class="pw-xp-fill"></i></div>
+        </div>
       </div>
       <div class="pw-gums"><span class="pw-gum-tag">GUM</span><div class="mm-gums"></div></div>
       <div class="pw-quest" hidden>
-        <div class="pw-quest-plate"><span class="pw-quest-tag">Current Quest</span><span class="pw-quest-name">—</span></div>
+        <div class="pw-quest-plate">
+          <div class="pw-quest-txt"><span class="pw-quest-tag">Current Quest</span><span class="pw-quest-name">—</span></div>
+          <span class="pw-ring pw-quest-ring" style="--qp:0"></span>
+        </div>
         <div class="pw-quest-pop">
           <div class="pw-quest-obj">—</div>
           <div class="pw-quest-rw">—</div>
@@ -84,8 +90,11 @@ export class PlayerWidget {
   refresh() {
     const xp = this.#profile?.get('progression.xp', 0) ?? 0;
     const name = this.#profile?.get('identity.displayName', 'Survivor One') ?? 'Survivor One';
-    this.el.querySelector('.mm-lvl').textContent = String(levelFromXp(xp).level);
+    const lv = levelFromXp(xp);
+    this.el.querySelector('.mm-lvl').textContent = String(lv.level);
     this.el.querySelector('.mm-name').textContent = name;
+    const xpFill = this.el.querySelector('.pw-xp-fill');
+    if (xpFill) xpFill.style.width = `${Math.round((lv.max ? 1 : lv.ratio) * 100)}%`;
 
     const slots = this.#packs?.slots() ?? new Array(5).fill(null);
     const sel = this.#editable ? this.#packs?.selectedSlot : -1;
@@ -102,6 +111,8 @@ export class PlayerWidget {
         sec.querySelector('.pw-quest-name').textContent = q.name;
         sec.querySelector('.pw-quest-obj').textContent = q.obj;
         sec.querySelector('.pw-quest-rw').textContent = rewardLabel(q.reward);
+        const ring = sec.querySelector('.pw-quest-ring');
+        if (ring) { ring.style.setProperty('--qp', '0'); ring.dataset.pct = '0%'; }
       }
     }
   }

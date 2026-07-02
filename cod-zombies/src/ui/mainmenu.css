@@ -7,12 +7,59 @@
 
 /* the main-menu screen is transparent so the 3D backdrop shows through */
 #screen-main {
+  /* one shared palette so every accent on this screen agrees:
+     accent = primary (active/orange), cool = secondary (gum/teal),
+     aether = tertiary (quest/void purple). */
+  --mm-accent: #ff8a28; --mm-cool: #34c6e0; --mm-aether: #7a3ff0;
   background: radial-gradient(120% 90% at 12% 50%, rgba(4,7,12,0.82) 0%, rgba(4,7,12,0.5) 38%, rgba(4,7,12,0.0) 70%);
 }
 
+/* ---- ambient layer: corner brackets, drifting motes, holo flicker -------- */
+/* Deliberately sparse and low-opacity — presence, not clutter. Sits behind all
+   the interactive chrome and never eats pointer events. */
+.mm-ambient { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+/* angular HUD corner brackets, each with a faint holographic pulse */
+.mm-corner { position: absolute; width: 46px; height: 46px; opacity: 0.5; animation: mmCornerPulse 5.5s ease-in-out infinite; }
+.mm-corner::before, .mm-corner::after { content: ''; position: absolute; background: linear-gradient(var(--mm-cool), transparent); }
+.mm-corner::before { width: 2px; height: 100%; box-shadow: 0 0 8px color-mix(in srgb, var(--mm-cool) 55%, transparent); }
+.mm-corner::after { width: 100%; height: 2px; box-shadow: 0 0 8px color-mix(in srgb, var(--mm-cool) 55%, transparent); }
+.mm-corner.tl { top: 20px; left: 20px; }
+.mm-corner.tr { top: 20px; right: 20px; animation-delay: 1.3s; }
+.mm-corner.tr::before { right: 0; } .mm-corner.tr::after { right: 0; background: linear-gradient(270deg, var(--mm-cool), transparent); }
+.mm-corner.tr::before { background: linear-gradient(180deg, var(--mm-cool), transparent); }
+.mm-corner.bl { bottom: 20px; left: 20px; animation-delay: 2.6s; }
+.mm-corner.bl::before { bottom: 0; background: linear-gradient(0deg, var(--mm-cool), transparent); }
+.mm-corner.bl::after { bottom: 0; }
+.mm-corner.br { bottom: 20px; right: 20px; animation-delay: 3.9s; }
+.mm-corner.br::before { right: 0; bottom: 0; background: linear-gradient(0deg, var(--mm-cool), transparent); }
+.mm-corner.br::after { right: 0; bottom: 0; background: linear-gradient(270deg, var(--mm-cool), transparent); }
+@keyframes mmCornerPulse { 0%,100% { opacity: 0.34; } 50% { opacity: 0.62; } }
+
+/* drifting aether motes — tiny glowing specks rising slowly */
+.mm-motes { position: absolute; inset: 0; }
+.mm-motes i {
+  position: absolute; bottom: -6px; border-radius: 50%; opacity: 0;
+  filter: blur(0.4px); box-shadow: 0 0 6px currentColor;
+  animation-name: mmMote; animation-timing-function: ease-in; animation-iteration-count: infinite;
+}
+@keyframes mmMote {
+  0% { transform: translateY(0) scale(0.8); opacity: 0; }
+  12% { opacity: 0.55; }
+  80% { opacity: 0.4; }
+  100% { transform: translateY(-96vh) scale(1.1); opacity: 0; }
+}
+/* whole-screen holographic scan flicker — extremely faint */
+.mm-holo {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(120,210,225,0.03) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen; opacity: 0.5; animation: mmHolo 7s steps(1) infinite;
+}
+@keyframes mmHolo { 0%,96%,100% { opacity: 0.5; } 97% { opacity: 0.14; } 98% { opacity: 0.6; } 99% { opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .mm-motes i, .mm-corner, .mm-holo { animation: none; } }
+
 /* ---- NECROPOLIS logo emblem (designed SVG, see menuLogo.js) -------------- */
 .mm-title {
-  position: absolute; left: clamp(20px, 4vw, 84px); top: 8%;
+  position: absolute; left: clamp(-8px, 1.5vw, 40px); top: 3.5%;
   pointer-events: none; isolation: isolate;
 }
 .mm-title .nec-logo {
@@ -58,7 +105,20 @@
 .mm-opt:hover::before, .mm-opt.sel::before {
   background: linear-gradient(180deg, #ffb347, rgba(255,138,40,0.25));
   box-shadow: 0 0 10px rgba(255,150,40,0.8), 0 0 22px rgba(255,120,20,0.4);
+  animation: mmStripePulse 1.6s ease-in-out infinite;
 }
+@keyframes mmStripePulse {
+  0%,100% { box-shadow: 0 0 8px rgba(255,150,40,0.65), 0 0 18px rgba(255,120,20,0.3); }
+  50% { box-shadow: 0 0 14px rgba(255,170,60,0.95), 0 0 30px rgba(255,120,20,0.55); }
+}
+/* faint scan-line sheen drifting across the highlighted plate */
+.mm-opt::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: repeating-linear-gradient(0deg, rgba(255,215,160,0.10) 0 1px, transparent 1px 4px);
+  transition: opacity 0.16s;
+}
+.mm-opt:hover::after, .mm-opt.sel::after { opacity: 1; animation: mmOptScan 2.2s linear infinite; }
+@keyframes mmOptScan { from { background-position: 0 0; } to { background-position: 0 8px; } }
 .mm-opt.disabled { opacity: 0.4; pointer-events: none; }
 .mm-opt .mm-tag { /* "soon" tag */
   margin-left: 12px; font-size: 0.62rem; letter-spacing: 0.18em; color: #8aa0ac;
@@ -101,7 +161,9 @@
 }
 .bmq-body > * { transform: skewX(9deg); }
 /* the centre is a <button> that opens the quest board — strip its native chrome */
-.bmq-quest { flex: 1; min-width: 0; text-align: center; appearance: none; background: transparent; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.bmq-quest { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; appearance: none; background: transparent; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.bmq-txt { flex: 1; min-width: 0; text-align: center; }
+.bmq-ring { --rk: #ff8a28; }
 .bmq-quest:hover .bmq-name { color: #fff; }
 .bmq-name { font-weight: 700; font-size: 1.0rem; letter-spacing: 0.03em; color: #f3f6f8; text-transform: uppercase; }
 .bmq-obj { font-size: 0.74rem; color: #9fb0bb; margin-top: 2px; letter-spacing: 0.02em; line-height: 1.25; }
@@ -158,11 +220,11 @@
   clip-path: polygon(0 0, 100% 0, 100% 100%, 13px 100%);
   box-shadow: inset 0 0 14px rgba(0,0,0,0.4);
 }
-.pw-lvl .mm-lvl { font-family: 'Anton', Impact, sans-serif; font-size: 2rem; line-height: 0.82; }
-.pw-lvl small { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.24em; opacity: 0.82; margin-top: 2px; }
+.pw-lvl .mm-lvl { font-family: 'Anton', Impact, sans-serif; font-size: 2.05rem; line-height: 1; text-align: center; }
 
 .pw-name {
-  flex: 1; display: flex; align-items: center; padding: 0 16px; isolation: isolate;
+  flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  padding: 6px 16px; isolation: isolate;
   background: var(--hud-grunge), linear-gradient(180deg, rgba(26,30,37,0.95), rgba(8,10,14,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
   border-top: 1px solid rgba(255,180,90,0.32); border-bottom: 1px solid rgba(0,0,0,0.7);
@@ -171,7 +233,19 @@
 }
 .pw-name .mm-name {
   font-weight: 700; font-size: 1.12rem; letter-spacing: 0.05em; color: #f3f6f8;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.6); white-space: nowrap;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.6); white-space: nowrap; line-height: 1;
+}
+/* XP bar — thin amber sliver directly under the name, right of the level chip */
+.pw-xp {
+  position: relative; height: 5px; border-radius: 3px; overflow: hidden;
+  background: rgba(0,0,0,0.55);
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,180,90,0.14);
+}
+.pw-xp-fill {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, #ffb347, #ff8a28);
+  box-shadow: 0 0 6px rgba(255,138,40,0.7);
+  transition: width 0.5s cubic-bezier(0.16,1,0.3,1);
 }
 
 /* GUM strip: cool steel zone with a cyan edge so it reads apart from the warm row */
@@ -202,8 +276,28 @@
   clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 }
 .pw-quest-plate > * { transform: skewX(10deg); }
-.pw-quest-tag { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in srgb, var(--rk) 60%, #ffffff); flex: none; }
-.pw-quest-name { margin-left: auto; font-weight: 700; font-size: 0.92rem; letter-spacing: 0.03em; text-transform: uppercase; color: #f3f6f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 195px; }
+.pw-quest-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pw-quest-tag { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in srgb, var(--rk) 60%, #ffffff); }
+.pw-quest-name { font-weight: 700; font-size: 0.92rem; letter-spacing: 0.03em; text-transform: uppercase; color: #f3f6f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* circular progress ring — shared by the widget + Black Market tracker.
+   conic-gradient sweep on --qp (0..1) in the reward colour --rk, punched hollow
+   by a radial mask so only the ring shows; the centre reads the % as a label. */
+.pw-ring {
+  flex: none; position: relative; width: 30px; height: 30px; border-radius: 50%;
+  background:
+    conic-gradient(var(--rk) calc(var(--qp, 0) * 360deg), rgba(255,255,255,0.09) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3.5px));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--rk) 40%, transparent));
+}
+/* percentage read-out sits in the punched-out centre (own element, no mask) */
+.pw-ring::after {
+  content: attr(data-pct); position: absolute; inset: 0; -webkit-mask: none; mask: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.5rem; font-weight: 700; letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--rk) 45%, #ffffff);
+}
 /* hover popout — under the strip, not clipped (container has no clip-path) */
 .pw-quest-pop {
   position: absolute; right: 4px; top: calc(100% + 8px); z-index: 20;
