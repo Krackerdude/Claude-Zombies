@@ -6,6 +6,7 @@ import { UIManager } from './ui/UIManager.js';
 import { Scoreboard } from './ui/Scoreboard.js';
 import { DevMenu } from './ui/DevMenu.js';
 import { perkIconDataURL } from './perks/perks.js';
+import { POWERUP_ICON_SVG, POWERUP_ICON_TINT } from './powerups/powerupIcons.js';
 import { aatGlyphSvg, aatColor } from './weapons/aat.js';
 import { portraitDataURL } from './ui/portrait.js';
 import './ui/menu.css';
@@ -198,7 +199,6 @@ async function main() {
     const elFlash = document.getElementById('fx-flash');
     const elBlood = document.getElementById('fx-blood');
     const elApp = document.getElementById('app');
-    const PU_ICON = { doublePoints: '2X', instaKill: 'IK', zombieBlood: 'ZB' };
     const puChips = new Map();
     const announce = (text) => {
       if (!elAnnounce) return;
@@ -211,7 +211,8 @@ async function main() {
       if (!chip && elPU) {
         const el = document.createElement('div');
         el.className = 'pu-chip';
-        el.innerHTML = `<div class="pu-time"></div><div class="pu-bar"><i></i></div><div class="pu-icon">${PU_ICON[type] || '★'}</div>`;
+        el.style.setProperty('--pu-tint', POWERUP_ICON_TINT[type] || '#ffd23a');
+        el.innerHTML = `<div class="pu-time"></div><div class="pu-bar"><i></i></div><div class="pu-icon">${POWERUP_ICON_SVG[type] || ''}</div>`;
         elPU.appendChild(el);
         chip = { el, time: el.querySelector('.pu-time'), bar: el.querySelector('.pu-bar > i') };
         puChips.set(type, chip);
