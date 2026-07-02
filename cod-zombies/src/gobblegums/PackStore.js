@@ -145,4 +145,14 @@ export class PackStore {
     if (any) this.#commit();
     return any;
   }
+
+  /** Remove `n` of a gum (e.g. a Cookbook trade). Returns true if it went through. */
+  consumeGum(gumId, n = 1) {
+    const inv = this.#inv();
+    if (n <= 0 || (inv[gumId] | 0) < n) return false;
+    inv[gumId] -= n;
+    if (inv[gumId] <= 0) delete inv[gumId];
+    this.#commit();
+    return true;
+  }
 }

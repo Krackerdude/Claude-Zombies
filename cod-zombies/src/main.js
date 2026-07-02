@@ -18,6 +18,7 @@ import './ui/gobblegum.css';
 import './ui/gobblepack.css';
 import './ui/questmenu.css';
 import './ui/factory.css';
+import './ui/cookbook.css';
 
 /**
  * Application bootstrap. This is the only place that touches the DOM chrome

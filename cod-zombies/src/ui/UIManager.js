@@ -15,6 +15,7 @@ import { rewardColor, rewardLabel } from '../quests/quests.js';
 import { FactoryView } from './FactoryView.js';
 import { FactoryMenu } from './FactoryMenu.js';
 import { rollFactory, wagerCost } from '../factory/factory.js';
+import { CookbookMenu } from './CookbookMenu.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -57,6 +58,7 @@ export class UIManager {
   #gobblegum; #ggOpen = false;
   #packs; #widget; #packMenu; #machineView; #gpOpen = false;
   #factoryView; #factoryMenu; #factoryOpen = false;
+  #cookbook; #cookbookOpen = false;
 
   constructor(engine) {
     this.#engine = engine;
@@ -103,6 +105,9 @@ export class UIManager {
       onBanner: (b) => this.#factoryMenu?.banner(b),
     });
     this.#factoryMenu = new FactoryMenu({ view: this.#factoryView, onClose: () => this.#onFactoryClosed() });
+
+    // Newton's Cookbook — the trade-recipe book. Shares the gum inventory.
+    this.#cookbook = new CookbookMenu({ packs: this.#packs, onClose: () => { this.#playTransition(); this.#cookbookOpen = false; } });
 
     // park the widget in its home (main-menu top-right), extra-large there
     this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
@@ -293,7 +298,7 @@ export class UIManager {
       { label: 'Theater', soon: true, action: soon('Theater', 'Re-watch and clip your finest (and grisliest) runs.') },
       { label: 'GobbleGum', action: () => this.openGobblePacks() },
       { label: "Dr. Newton's Factory", ld: true, action: () => this.openFactory() },
-      { label: "Newton's Cookbook", soon: true, action: soon("Newton's Cookbook", 'Trade and convert GobbleGums across rarities.') },
+      { label: "Newton's Cookbook", action: () => this.openCookbook() },
       { label: 'Weapon Kits', soon: true, action: soon('Weapon Kits', 'Customize every weapon with attachments.') },
       { label: 'Armory', soon: true, action: soon('Armory', 'Choose your survivor, skins, emblems and calling cards.') },
       { label: 'Options', action: () => this.openOptions(AppState.MENU) },
@@ -533,6 +538,9 @@ export class UIManager {
     this.#factoryOpen = true;
   }
   #onFactoryClosed() { this.#playTransition(); this.#factoryOpen = false; }
+
+  /** Main menu → Newton's Cookbook (the trade-recipe book). */
+  openCookbook() { this.#playTransition(); this.#cookbook.open(); this.#cookbookOpen = true; }
 
   #diviniumBalance() { return this.#profile?.get('currency.liquidDivinium', 0) ?? 0; }
 
@@ -789,6 +797,7 @@ export class UIManager {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
         if (this.#factoryOpen) { this.#factoryMenu.close(); e.preventDefault(); return; }
+        if (this.#cookbookOpen) { this.#cookbook.close(); e.preventDefault(); return; }
         if (this.#questOpen) { this.#questMenu.close(); e.preventDefault(); return; }
         if (this.#ggOpen) { this.#gobblegum.close(); e.preventDefault(); return; }
         if (this.#gpOpen) { this.#packMenu.close(); e.preventDefault(); return; }
@@ -809,10 +818,16 @@ export class UIManager {
         if (e.code === 'Enter' || e.code === 'Space') { if (this.#factoryView.hover >= 0) this.#factoryView.confirm(this.#factoryView.hover + 1); e.preventDefault(); return; }
       }
       if (this.#factoryOpen) return; // swallow other menu nav while in the factory
+      // Cookbook: arrow keys flip pages.
+      if (this.#cookbookOpen) {
+        if (e.code === 'ArrowLeft') { this.#cookbook.el.querySelector('.cb-prev')?.click(); e.preventDefault(); }
+        else if (e.code === 'ArrowRight') { this.#cookbook.el.querySelector('.cb-next')?.click(); e.preventDefault(); }
+        return;
+      }
       // Map select: Enter deploys the selected map.
       if (this.#mapOpen && (e.code === 'Enter' || e.code === 'Space') && !this.#entering) { this.fadeToPlay(); e.preventDefault(); return; }
       // Main-menu navigation (suspended while a sub-panel/intro is up).
-      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#questOpen && !this.#factoryOpen && !this.#entering) {
+      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#questOpen && !this.#factoryOpen && !this.#cookbookOpen && !this.#entering) {
         if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#select((this.#sel + 1) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'ArrowUp' || e.code === 'KeyW') { this.#select((this.#sel - 1 + this.#mainItems.length) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'Enter' || e.code === 'Space') { this.#mainItems[this.#sel]?.click(); e.preventDefault(); }

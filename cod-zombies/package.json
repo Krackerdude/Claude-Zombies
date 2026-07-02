@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/sim.mjs && node test/nav.mjs && node test/weapons.mjs && node test/gameplay.mjs && node test/boot.mjs && node test/graphics.mjs && node test/profile.mjs && node test/divinium.mjs && node test/gobblegums.mjs && node test/packs.mjs && node test/quests.mjs && node test/factory.mjs"
+    "test": "node test/sim.mjs && node test/nav.mjs && node test/weapons.mjs && node test/gameplay.mjs && node test/boot.mjs && node test/graphics.mjs && node test/profile.mjs && node test/divinium.mjs && node test/gobblegums.mjs && node test/packs.mjs && node test/quests.mjs && node test/factory.mjs && node test/cookbook.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
