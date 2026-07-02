@@ -12,6 +12,7 @@ export const AppState = Object.freeze({
   PAUSED: 'paused',
   SCOREBOARD: 'scoreboard',
   DEVMENU: 'devmenu', // F2 dev/test overlay — freezes the live frame like scoreboard
+  DEATHCAM: 'dying',  // post-death cinematic: player collapsed, camera panning the map
 });
 
 export class GameState {

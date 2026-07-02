@@ -13,6 +13,7 @@ import { ZombieAnimSystem } from '../ai/ZombieAnimSystem.js';
 import { CorpseSystem } from '../ai/CorpseSystem.js';
 import { PhysicsDebugSystem } from '../rendering/PhysicsDebugSystem.js';
 import { RoundSystem } from '../ai/RoundSystem.js';
+import { DeathCamSystem } from '../camera/DeathCamSystem.js';
 import { WeaponSystem } from '../weapons/WeaponSystem.js';
 import { ProjectileSystem } from '../weapons/ProjectileSystem.js';
 import { EconomySystem } from '../weapons/EconomySystem.js';
@@ -323,6 +324,7 @@ export function buildArena(engine) {
   engine.world.registerSystem(new ZombieAnimSystem());
   engine.world.registerSystem(new CorpseSystem());
   engine.world.registerSystem(new RoundSystem());
+  engine.world.registerSystem(new DeathCamSystem()); // post-death cinematic camera (owns the view while dying)
   engine.world.registerSystem(new PhysicsDebugSystem()); // F3 collider/COM/contact overlay
   // Alternate Ammo Types (Re-Pack) — registered as a service so WeaponSystem can
   // roll procs against it, and as a system so it ticks its effects/FX

@@ -80,8 +80,10 @@ export class CameraController extends System {
 
   lateUpdate(dt) {
     // scoreboard (Tab), dev menu (F2) AND pause all freeze the view on the live
-    // gameplay frame so their menus overlay the paused game (no camera drift)
-    if (this.#gameState.current === 'scoreboard' || this.#gameState.current === 'devmenu' || this.#gameState.current === 'paused') return;
+    // gameplay frame so their menus overlay the paused game (no camera drift).
+    // The death cinematic ('dying') is owned entirely by DeathCamSystem — hands off.
+    const s = this.#gameState.current;
+    if (s === 'scoreboard' || s === 'devmenu' || s === 'paused' || s === 'dying') return;
     if (!this.#gameState.isPlaying) {
       this.#menuDrift(dt); // only the main menu drifts (and MenuSystem overrides it onto the backdrop)
       return;
