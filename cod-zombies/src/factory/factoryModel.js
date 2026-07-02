@@ -156,7 +156,7 @@ export function buildFactory() {
   // pale-blue haze glow deep in the hall
   const hazeMat = new THREE.MeshBasicMaterial({ color: 0x7fb4e0, transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false }); track.push(hazeMat);
   const hazeGeo = new THREE.PlaneGeometry(30, 16); track.push(hazeGeo);
-  g.add(new THREE.Mesh(hazeGeo, hazeMat)).position.set(0, 2, -15);
+  const haze = new THREE.Mesh(hazeGeo, hazeMat); haze.position.set(0, 2, -15); g.add(haze);
 
   // background gears + pipework framing the depth
   gear(-4.4, 2.0, -4.4, 0.9, 16, brassDk, 0.5);
