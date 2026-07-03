@@ -58,7 +58,18 @@ async function main() {
     const elRound = document.getElementById('hud-round');
     const elHealthFill = document.getElementById('hud-health-fill');
     const elPoints = document.getElementById('hud-points');
+    const elPointsVal = document.getElementById('hud-points-val');
     const elGains = document.getElementById('hud-gains');
+    // The points counter is a FIXED-width tube (like the ammo readout): the
+    // number scales down to fit rather than stretching the widget.
+    const POINTS_FIT_W = 168;
+    const fitPoints = () => {
+      if (!elPointsVal) return;
+      elPointsVal.style.transform = 'scale(1)';
+      const w = elPointsVal.scrollWidth;
+      const s = w > POINTS_FIT_W ? Math.max(0.35, POINTS_FIT_W / w) : 1;
+      elPointsVal.style.transform = `scale(${s})`;
+    };
     const elRoundWidget = document.getElementById('hud-round-widget');
     const elBanner = document.getElementById('hud-banner');
 
@@ -94,7 +105,7 @@ async function main() {
     events.on('score:changed', ({ points }) => {
       const delta = points - prevPoints;
       prevPoints = points;
-      if (elPoints) elPoints.textContent = points.toLocaleString();
+      if (elPointsVal) { elPointsVal.textContent = points.toLocaleString(); fitPoints(); }
       if (pointsPrimed && delta !== 0) {
         if (elPoints) replay(elPoints, 'bump');
         if (delta > 0 && elGains) {
