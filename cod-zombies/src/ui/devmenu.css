@@ -48,6 +48,11 @@
   font-family: 'Anton', Impact, sans-serif; letter-spacing: 0.02em;
 }
 
+/* weapon-class sub-header inside the Weapons section */
+#devmenu .dev-subtitle {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em;
+  color: #8a9299; margin: 4px 0 1px;
+}
 #devmenu .dev-row { display: flex; flex-wrap: wrap; gap: 4px; }
 #devmenu .dev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 #devmenu .dev-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }

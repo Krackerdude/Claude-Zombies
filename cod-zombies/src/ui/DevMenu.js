@@ -2,7 +2,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { AppState } from '../core/GameState.js';
 import { PlayerTag } from '../ecs/components/index.js';
 import { PERKS } from '../perks/perks.js';
-import { WEAPON_KEYS, weaponName } from '../weapons/catalog.js';
+import { WEAPON_KEYS, weaponName, weaponCategory } from '../weapons/catalog.js';
 import { AAT_IDS, aatName, aatColor } from '../weapons/aat.js';
 
 /**
@@ -66,9 +66,21 @@ export class DevMenu {
     for (const id of AAT_IDS) html += `<button class="dev-btn dev-aatbtn" data-aat="${id}" style="--ac:${aatColor(id)}">${aatName(id)}</button>`;
     html += '</div></div>';
 
-    html += '<div class="dev-sec"><div class="dev-title">Weapons</div><div class="dev-list">';
-    for (const key of WEAPON_KEYS) html += `<button class="dev-btn dev-gun" data-gun="${key}">${weaponName(key)}</button>`;
-    html += '</div></div>';
+    html += '<div class="dev-sec"><div class="dev-title">Weapons</div>';
+    // grouped by class so the arsenal is easy to navigate
+    const WEAPON_CLASSES = [
+      ['pistol', 'Pistols'], ['smg', 'SMGs'], ['assaultRifle', 'Assault Rifles'],
+      ['hmg', 'LMGs'], ['shotgun', 'Shotguns'], ['sniper', 'Sniper Rifles'],
+      ['launcher', 'Launchers'], ['special', 'Special Weapons'], ['wonder', 'Wonder Weapons'],
+    ];
+    for (const [cat, label] of WEAPON_CLASSES) {
+      const keys = WEAPON_KEYS.filter((k) => weaponCategory(k) === cat);
+      if (!keys.length) continue;
+      html += `<div class="dev-subtitle">${label}</div><div class="dev-list">`;
+      for (const key of keys) html += `<button class="dev-btn dev-gun" data-gun="${key}">${weaponName(key)}</button>`;
+      html += '</div>';
+    }
+    html += '</div>';
 
     html += '<div class="dev-sec"><div class="dev-title">Lethals</div><div class="dev-row">';
     html += '<button class="dev-btn" data-lethal="frag">Frag</button>';
