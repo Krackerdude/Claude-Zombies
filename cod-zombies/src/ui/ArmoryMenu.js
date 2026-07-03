@@ -41,6 +41,7 @@ export class ArmoryMenu {
   #chosen = 'richtofen'; // confirmed selection (Select Character)
   #card;                 // synopsis modal element
   #profTab = 'emblems';  // Player Profile sub-tab: emblems | custom | cards
+  #skinTab = 'richtofen'; // Skins sub-tab: which character's skins are shown
 
   constructor({ profile = null, events = null, onClose } = {}) {
     this.#profileSvc = profile;
@@ -59,6 +60,7 @@ export class ArmoryMenu {
     this.#active = 'character';
     this.#chosen = selectedCharacterId(); // reflect who the player is actually using
     this.#hl = this.#chosen;
+    this.#skinTab = this.#chosen; // Skins opens on the survivor you're using
     this.#closeCard();
     this.#el.classList.add('show');
     this.#open = true;
@@ -122,6 +124,9 @@ export class ArmoryMenu {
       // Player Profile: sub-tab switch + emblem / calling-card pick
       const ptab = e.target.closest('.arm-ptab');
       if (ptab) { this.#profTab = ptab.dataset.ptab; this.#render(); return; }
+      // Skins: per-character sub-tab switch
+      const stab = e.target.closest('.arm-stab');
+      if (stab) { this.#skinTab = stab.dataset.stab; this.#render(); return; }
       const em = e.target.closest('.arm-id-pick[data-kind="emblem"]');
       if (em) { setEmblem(em.dataset.id); this.#render(); return; }
       const cc = e.target.closest('.arm-id-pick[data-kind="card"]');
@@ -279,10 +284,24 @@ export class ArmoryMenu {
   #closeCard() { this.#card?.classList.remove('show'); }
 
   #skins() {
+    // one sub-tab per unlocked survivor; skins are grouped under the active one
+    const chars = CHARACTERS.filter((c) => !c.locked);
+    if (!chars.some((c) => c.id === this.#skinTab)) this.#skinTab = chars[0]?.id ?? 'richtofen';
+    const tabs = chars.map((c) => `<button class="arm-stab${c.id === this.#skinTab ? ' active' : ''}" data-stab="${c.id}">${c.name}</button>`).join('');
+
+    const idx = Math.max(0, chars.findIndex((c) => c.id === this.#skinTab));
+    const base = idx * 57; // per-character hue base so each set reads distinct
     let tiles = '';
-    for (let i = 0; i < 8; i++) tiles += `<div class="arm-skin${i === 0 ? ' sel' : ' locked'}" style="--h:${(i * 41) % 360}"><span class="arm-skin-name">${i === 0 ? 'Default' : 'Locked'}</span></div>`;
+    for (let i = 0; i < 8; i++) {
+      const first = i === 0;
+      tiles += `<div class="arm-skin${first ? ' sel' : ' locked'}" style="--h:${(base + i * 41) % 360}"><span class="arm-skin-name">${first ? 'Default' : 'Locked'}</span></div>`;
+    }
     return `
-      ${this.#head('Skins', 'Reskin the survivor you have equipped.')}
+      <div class="arm-p-head">
+        <div><h2>Skins</h2><p>Pick a survivor, then a skin. Each survivor keeps its own set.</p></div>
+        <span class="arm-soon">Coming Soon</span>
+      </div>
+      <div class="arm-stabs">${tabs}</div>
       <div class="arm-skin-grid">${tiles}</div>
       <div class="arm-note">Unlockable skins per survivor — coming soon.</div>`;
   }
