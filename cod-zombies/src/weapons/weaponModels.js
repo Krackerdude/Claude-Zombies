@@ -258,8 +258,8 @@ function kvector() {
 
   // === green fiber flip-up sights, raised on the rail ===
   g.add(at(box(0.016, 0.02, 0.02, bolt), 0, 0.104, -0.34));            // front base
-  g.add(at(box(0.01, 0.024, 0.01, bolt), 0, 0.124, -0.34));            // front post
-  g.add(at(box(0.008, 0.008, 0.008, green), 0, 0.136, -0.342));        // front dot
+  g.add(at(box(0.01, 0.024, 0.01, bolt), 0, 0.106, -0.34));            // front post (level with rear dots)
+  g.add(at(box(0.008, 0.008, 0.008, green), 0, 0.118, -0.342));        // front dot
   g.add(at(box(0.042, 0.022, 0.02, bolt), 0, 0.104, 0.0));             // rear base
   g.add(at(box(0.008, 0.008, 0.008, green), -0.013, 0.118, 0.0));      // rear left dot
   g.add(at(box(0.008, 0.008, 0.008, green), 0.013, 0.118, 0.0));       // rear right dot
@@ -1136,7 +1136,7 @@ function executioner() {
   g.add(at(box(0.056, 0.105, 0.13, silver), 0, 0.02, 0.135));
   g.add(at(box(0.062, 0.026, 0.14, silver), 0, 0.066, 0.13));        // topstrap
   g.add(at(box(0.058, 0.006, 0.13, silverHi), 0, 0.072, 0.135));     // polished edge
-  g.add(at(box(0.02, 0.014, 0.026, greyDk), 0, 0.084, 0.18));        // rear sight notch
+  g.add(at(box(0.02, 0.014, 0.026, greyDk), 0, 0.092, 0.18));        // rear sight notch (level with front ramp)
   g.add(at(box(0.01, 0.03, 0.05, grey), -0.031, 0.03, 0.09));        // cylinder release latch
   for (const z of [0.1, 0.17]) g.add(at(tube(0.006, 0.006, 0.058, greyDk, 8), 0, 0.0, z, 0, Math.PI / 2)); // frame screws
   g.add(at(box(0.016, 0.05, 0.022, grey), 0, 0.08, 0.205, -0.4));    // exposed hammer
@@ -1610,7 +1610,7 @@ function an94() {
   g.add(at(box(0.024, 0.014, 0.1, blackDk), 0, 0.066, -0.04));      // rail base
   for (let i = 0; i < 5; i++) g.add(at(box(0.026, 0.008, 0.006, dark), 0, 0.074, -0.08 + i * 0.02));
   g.add(at(box(0.03, 0.02, 0.02, blackDk), 0, 0.066, 0.04));        // rear sight base
-  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.006, 0.006, red), sx * 0.012, 0.074, 0.04)); // red rear dots
+  for (const sx of [-1, 1]) g.add(at(box(0.006, 0.006, 0.006, red), sx * 0.012, 0.08, 0.04)); // red rear dots (level with front)
   g.add(at(box(0.014, 0.04, 0.03, blackDk), 0.03, 0.0, -0.02));     // selector (right)
 
   // === curved banana magazine ===
@@ -1887,7 +1887,7 @@ function dingo() {
   // === flip-up GREEN irons: front blade over the shroud, rear aperture ===
   g.add(at(box(0.028, 0.03, 0.022, bodyDk), 0, 0.078, -0.34));        // front sight base
   for (const sx of [-1, 1]) g.add(at(box(0.005, 0.034, 0.01, dark), sx * 0.014, 0.1, -0.34)); // wings
-  g.add(at(box(0.006, 0.022, 0.008, dark), 0, 0.094, -0.34));         // front post
+  g.add(at(box(0.006, 0.022, 0.008, dark), 0, 0.083, -0.34));         // front post (level with rear aperture)
   g.add(at(box(0.007, 0.007, 0.007, green), 0, 0.104, -0.342));       // front green dot
   g.add(at(box(0.032, 0.028, 0.024, bodyDk), 0, 0.084, 0.02));        // rear sight housing
   g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.0035, 6, 14), dark), 0, 0.094, 0.026, 0, Math.PI / 2)); // aperture
@@ -3116,7 +3116,25 @@ const BUILDERS = {
 /**
  * Build a model group for a weapon. @returns {{ group: THREE.Group, muzzle: number }}
  */
+// Per-gun iron-sight height (local Y of the aligned front+rear sight line). ADS
+// drops the viewmodel by exactly this so EACH gun centres on its OWN sights,
+// instead of every gun in a class sharing one offset (which left many misaligned).
+// Keyed by model name; guns absent here fall back to the per-class ADS offset.
+const SIGHT_Y = {
+  'M1911': 0.079, 'RK-5': 0.093, 'NEW ARMY': 0.064, 'FIVE-SEVEN': 0.086, 'EXECUTIONER': 0.099, 'CODA 9': 0.063,
+  'K-Vector': 0.118, 'MP5': 0.066, 'UZI': 0.061, 'KUDA': 0.103, 'PPSH-41': 0.094, 'MP40': 0.09,
+  'GALIL': 0.082, 'XM4': 0.11, 'AN-94': 0.082, 'STG-44': 0.096, 'ICR-1': 0.08, 'FAL': 0.082,
+  'DINGO': 0.094, 'RPD': 0.086, 'HAMR': 0.086, 'STONER 63': 0.09, 'LSAT': 0.088, 'HK21': 0.078,
+};
+
 export function buildWeaponModel(weapon) {
+  const model = buildWeaponModelInner(weapon);
+  const nm = weapon.data.modelName || weapon.data.name;
+  if (model && SIGHT_Y[nm] != null && model.sightY == null) model.sightY = SIGHT_Y[nm];
+  return model;
+}
+
+function buildWeaponModelInner(weapon) {
   const vm = weapon.data.viewmodel || { color: 0x4a4f59, accent: 0x26282e };
   const cat = weapon.data.category;
   const nm = weapon.data.modelName || weapon.data.name; // stable: PaP renames don't swap the model
