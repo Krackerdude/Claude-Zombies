@@ -41,12 +41,13 @@ export function buildZombieRig(look) {
     // nose, ears and a brow — and NO zombie jaw/brow face-plate. Keeps them
     // clearly apart from the shambling dead.
     const sclera = new THREE.MeshStandardMaterial({ color: 0xe9e6dc, roughness: 0.45 });
-    head.add(box(0.185, 0.028, 0.04, skin.flesh, 0, 0.252, 0.10)); // brow ridge
+    const brow = new THREE.MeshStandardMaterial({ color: 0x2c1e12, roughness: 0.75 });
     for (const dx of [-0.05, 0.05]) {
-      head.add(box(0.05, 0.036, 0.025, sclera, dx, 0.214, 0.108)); // eye white
+      head.add(box(0.058, 0.02, 0.03, brow, dx, 0.248, 0.106));      // dual, separated eyebrows
+      head.add(box(0.05, 0.036, 0.025, sclera, dx, 0.214, 0.108));  // eye white
       head.add(box(0.02, 0.028, 0.02, skin.eye, dx, 0.214, 0.122)); // pupil
     }
-    head.add(box(0.05, 0.085, 0.06, skin.flesh, 0, 0.168, 0.125));  // nose (protruding)
+    head.add(box(0.036, 0.056, 0.042, skin.flesh, 0, 0.16, 0.118));  // nose (smaller, protruding)
     head.add(box(0.085, 0.014, 0.025, skin.eye, 0, 0.116, 0.11));   // mouth line
     for (const dx of [-1, 1]) head.add(box(0.028, 0.075, 0.06, skin.flesh, dx * 0.118, 0.188, 0.0)); // ears
   } else {
