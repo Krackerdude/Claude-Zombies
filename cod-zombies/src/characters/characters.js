@@ -1,6 +1,7 @@
 import { buildRichtofen } from './richtofen.js';
 import { buildDempsey } from './dempsey.js';
 import { buildTakeo } from './takeo.js';
+import { buildNikolai } from './nikolai.js';
 
 /**
  * The playable crew. `build` returns a fresh rig (for portraits + later
@@ -52,7 +53,20 @@ export const CHARACTERS = [
       "uniquely prepared to confront the horrors of the Dark Aether. His worldview is deeply rooted in honor, folklore, and " +
       "the balance between the human and spirit worlds, giving him the most fantastical background of the four.",
   },
-  { id: 'char4', name: 'Classified', role: 'Locked', era: '', tags: [], build: null, locked: true, synopsis: '' },
+  {
+    id: 'nikolai',
+    name: 'Nikolai Belinski',
+    role: 'The Tank Engineer',
+    era: 'Soviet–Afghan War',
+    tags: ['Disciplined', 'Technical', 'Dry-Witted'],
+    build: buildNikolai,
+    locked: false,
+    synopsis:
+      "Instead of a Red Army infantryman, this Nikolai is a Soviet armored-warfare specialist who served during the " +
+      "Soviet–Afghan War. He's an engineer and mechanic as much as a soldier, with extensive knowledge of tanks, heavy " +
+      "vehicles, and battlefield logistics. This version is noticeably more disciplined and technically minded, replacing " +
+      "the drunken bravado of earlier Nikolais with practical expertise and dry humor.",
+  },
 ];
 
 export const characterById = (id) => CHARACTERS.find((c) => c.id === id);
