@@ -104,15 +104,24 @@
   letter-spacing: 0.34em; color: color-mix(in srgb, var(--hud-amber) 60%, #ffffff); opacity: 0.7;
   margin-bottom: 1px;
 }
+/* FIXED-WIDTH counter tube — the widget length never changes with the point
+   total (locked to the ~"10,500" width); the number inside scales to fit, just
+   like the ammo readout. */
 #hud-points {
   transform: skewX(9deg); transform-origin: left center;
+  width: 176px; height: 3.35rem; overflow: visible; white-space: nowrap;
+  display: flex; align-items: center;
+}
+/* the number itself — styled + scaled by JS (transform: scale) to fit the tube */
+#hud-points-val {
+  display: inline-block; transform-origin: left center;
   font-family: var(--hud-font-num); font-size: 3.9rem; font-weight: 700; line-height: 0.86; letter-spacing: 0.01em;
   background: linear-gradient(178deg, #fff0c0 4%, var(--hud-amber) 46%, var(--hud-amber-deep) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 2px 5px rgba(0,0,0,0.85)) drop-shadow(0 0 10px rgba(243,198,78,0.28));
 }
 #hud-points.bump { animation: hudBump 0.28s cubic-bezier(.2,.9,.2,1); }
-@keyframes hudBump { 0% { transform: skewX(9deg) scale(1); } 35% { transform: skewX(9deg) scale(1.12); } 100% { transform: skewX(9deg) scale(1); } }
+@keyframes hudBump { 0% { transform: skewX(9deg) scale(1); } 35% { transform: skewX(9deg) scale(1.08); } 100% { transform: skewX(9deg) scale(1); } }
 
 /* +X point-gain floaters, stacked rising from the counter (BO3) */
 #hud-gains {
