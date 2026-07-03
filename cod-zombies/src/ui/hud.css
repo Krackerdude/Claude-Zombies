@@ -42,7 +42,7 @@
    `gap` (round goes down, player stays put). */
 #hud-bl {
   position: absolute; left: calc(30px + var(--hud-inset)); bottom: calc(48px + var(--hud-inset)); z-index: 21;
-  display: flex; flex-direction: column; gap: 60px; pointer-events: none;
+  display: flex; flex-direction: column; gap: 22px; pointer-events: none;
   /* base 1.15 bump so the cluster reads as chunky as the weapon device — still
      multiplied by the user's HUD Scale */
   transform: scale(calc(var(--hud-scale) * 1.15)); transform-origin: bottom left;
@@ -55,22 +55,17 @@
 #hud-player {
   position: relative; display: flex; align-items: stretch;
   transform: skewX(-9deg);
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.55));
-}
-#hud-player::before { /* hard black shard offset down-right (Persona 5) */
-  content: ''; position: absolute; z-index: -1;
-  left: 5px; top: 6px; right: -5px; bottom: -6px; background: #000;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 14px 100%);
 }
 
 #hud-portrait {
-  position: relative; width: 80px; height: 98px; flex: none; overflow: hidden; isolation: isolate;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 13px 100%);
+  position: relative; width: 108px; height: 130px; flex: none; overflow: hidden; isolation: isolate;
   background:
     var(--hud-grunge),
     radial-gradient(120% 120% at 35% 22%, #1a2630, #060a0d 80%);
   background-size: 70px 70px, auto; background-blend-mode: overlay, normal;
-  border-top: 1px solid rgba(120,210,225,0.5); border-bottom: 1px solid rgba(0,0,0,0.7);
+  /* neutral top/bottom edges — only the LEFT edge carries the teal accent, so no
+     teal wedge forms at a corner */
+  border-top: 1px solid rgba(255,255,255,0.08); border-bottom: 1px solid rgba(0,0,0,0.7);
   border-left: 3px solid var(--hud-teal);
   box-shadow: inset 0 0 16px rgba(0,0,0,0.6);
 }
@@ -88,21 +83,14 @@
 @keyframes hudSheen { 0%,100% { transform: translateX(-30%); } 50% { transform: translateX(30%); } }
 
 #hud-points-wrap {
-  position: relative; display: flex; flex-direction: column; justify-content: center;
-  padding: 6px 34px 8px 20px; isolation: isolate;
+  position: relative; display: flex; align-items: center;
+  padding: 4px 34px 4px 20px; isolation: isolate;
   background: var(--hud-grunge), linear-gradient(180deg, rgba(28,32,40,0.96), rgba(8,10,14,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
   border-top: 1px solid rgba(255,180,90,0.34); border-bottom: 1px solid rgba(0,0,0,0.7);
   border-left: 3px solid var(--hud-amber);
   clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
   box-shadow: inset 0 0 16px rgba(0,0,0,0.5);
-}
-/* a whisper-quiet "POINTS" tag over the counter, for hierarchy */
-#hud-points-wrap::before {
-  content: 'POINTS'; transform: skewX(9deg);
-  font-family: var(--hud-font); font-size: 0.62rem; font-weight: 600;
-  letter-spacing: 0.34em; color: color-mix(in srgb, var(--hud-amber) 60%, #ffffff); opacity: 0.7;
-  margin-bottom: 1px;
 }
 /* FIXED-WIDTH counter tube — the widget length never changes with the point
    total (locked to the ~"10,500" width); the number inside scales to fit, just
@@ -123,10 +111,13 @@
 #hud-points.bump { animation: hudBump 0.28s cubic-bezier(.2,.9,.2,1); }
 @keyframes hudBump { 0% { transform: skewX(9deg) scale(1); } 35% { transform: skewX(9deg) scale(1.08); } 100% { transform: skewX(9deg) scale(1); } }
 
-/* +X point-gain floaters, stacked rising from the counter (BO3) */
+/* +X point-gain floaters — spill off the RIGHT edge of the widget and rise,
+   the way classic zombies does it (the widget slab clips its own overflow, so
+   these live outside it, anchored to #hud-player). */
 #hud-gains {
-  position: absolute; left: calc(100% + 8px); bottom: 6px; transform: skewX(9deg);
-  display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 1px;
+  position: absolute; left: calc(100% + 12px); bottom: 16px; transform: skewX(9deg);
+  display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 2px;
+  pointer-events: none;
 }
 .gain {
   font-family: var(--hud-font-num); font-size: 1.4rem; line-height: 1; white-space: nowrap;
@@ -265,9 +256,11 @@
   width: 168px; padding: 15px 18px 15px 26px; /* FIXED size — the digits scale to fit, not the housing */
   filter: drop-shadow(0 8px 18px rgba(0,0,0,0.6));
 }
-.wpn-tube .tube-glow { /* THE HOUSING: sheared gunmetal plate, grooved, teal-edged */
+.wpn-tube .tube-glow { /* THE HOUSING: gunmetal plate, grooved — straight LEFT edge
+   (only the right side shears) so the teal leading strip is a clean edge, not a
+   wedge pinched into a corner */
   position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
-  clip-path: polygon(13px 0, 100% 0, calc(100% - 13px) 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 13px) 100%, 0 100%);
   background:
     linear-gradient(90deg, rgba(120,210,225,0.9) 0 3px, transparent 3px), /* teal leading edge */
     var(--hud-grunge),
@@ -275,7 +268,7 @@
     linear-gradient(180deg, #1b2329 0%, #0e151a 58%, #080c10 100%);
   background-size: auto, 90px 90px, auto, auto;
   background-blend-mode: normal, overlay, normal, normal;
-  box-shadow: inset 0 1px 0 rgba(var(--wpn-energy),0.5), inset 0 -1px 0 rgba(0,0,0,0.9), inset 0 0 26px rgba(0,0,0,0.72);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.9), inset 0 0 26px rgba(0,0,0,0.72);
 }
 /* fine vertical machining grooves — subtle mechanical texture, static */
 .wpn-tube .tube-glow::before {
@@ -508,18 +501,18 @@
   color: #eef4f6;
   text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 9px rgba(70,195,186,0.3);
 }
-.wpn-name::before { /* the sheared plate behind the steel lettering */
+.wpn-name::before { /* the plate behind the steel lettering — straight left edge
+   (so the teal accent lines up), only the RIGHT side is sheared */
   content: ''; position: absolute; inset: 0; z-index: -1;
-  clip-path: polygon(10px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
   background: var(--hud-grunge), linear-gradient(180deg, rgba(26,32,40,0.96), rgba(8,12,16,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
   border-top: 1px solid rgba(120,210,225,0.42); border-bottom: 1px solid rgba(0,0,0,0.75);
-  box-shadow: 3px 4px 0 rgba(0,0,0,0.5), inset 0 0 12px rgba(0,0,0,0.5);
+  box-shadow: inset 0 0 12px rgba(0,0,0,0.5);
 }
-.wpn-name::after { /* teal leading accent down the shear */
+.wpn-name::after { /* teal leading accent down the straight left edge */
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; z-index: -1;
-  background: linear-gradient(180deg, rgba(120,210,225,0.9), rgba(70,195,186,0.2));
-  box-shadow: 0 0 7px rgba(70,195,186,0.55);
+  background: linear-gradient(180deg, rgba(120,210,225,0.9), rgba(70,195,186,0.25));
 }
 .wpn-name.swap { animation: wpnSwap 0.4s ease; }
 @keyframes wpnSwap { 0% { opacity: 0; transform: translateX(14px) skewX(-8deg); } 100% { opacity: 1; transform: translateX(0) skewX(0); } }
