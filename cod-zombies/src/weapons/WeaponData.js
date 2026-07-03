@@ -66,6 +66,12 @@ export class WeaponData {
     this.scopeFov = o.scopeFov ?? 22; // zoom when scoped
     this.focusOnly = o.focusOnly ?? false; // "aim" just eases the FOV in — the viewmodel stays at the hip (no raise)
 
+    // VISUAL recoil multipliers (viewmodel kick only — not the aim penalty).
+    // Hip = 1.0 baseline; ADS is dialled down so aiming is steadier across the
+    // whole arsenal. Tunable per-gun live via the F4 stat menu.
+    this.visualRecoilHip = o.visualRecoilHip ?? 1.0;
+    this.visualRecoilAds = o.visualRecoilAds ?? 0.4;
+
     // movement feel
     this.moveSpeedMult = o.moveSpeedMult ?? 1.0;
     this.adsMoveSpeedMult = o.adsMoveSpeedMult ?? 0.55;

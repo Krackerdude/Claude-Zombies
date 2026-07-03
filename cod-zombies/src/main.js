@@ -5,6 +5,7 @@ import { PlayerTag, Transform } from './ecs/components/index.js';
 import { UIManager } from './ui/UIManager.js';
 import { Scoreboard } from './ui/Scoreboard.js';
 import { DevMenu } from './ui/DevMenu.js';
+import { GunStatsMenu } from './ui/GunStatsMenu.js';
 import { ModelShowcase } from './ui/ModelShowcase.js';
 import { perkIconDataURL } from './perks/perks.js';
 import { POWERUP_ICON_SVG, POWERUP_ICON_TINT } from './powerups/powerupIcons.js';
@@ -363,6 +364,7 @@ async function main() {
     const ui = new UIManager(engine);
     new Scoreboard(engine); // Tab menu (scoreboard / objectives) — pauses the world
     new DevMenu(engine); // F2 dev/test overlay — points / perks / weapons
+    new GunStatsMenu(engine); // F4 live gun-stat tweaker (damage / rof / reload / recoil)
     new ModelShowcase({ // F5 standalone model inspector (boots over everything; exit reloads)
       gameState: engine.services.get(Service.GameState),
       input: engine.services.get(Service.Input),
