@@ -1,4 +1,5 @@
 import { buildRichtofen } from './richtofen.js';
+import { buildDempsey } from './dempsey.js';
 
 /**
  * The playable crew. `build` returns a fresh rig (for portraits + later
@@ -22,7 +23,20 @@ export const CHARACTERS = [
       "technology, authoritarian rule, and catastrophic events — including an alternate history where New York was devastated by a " +
       "German atomic weapon.",
   },
-  { id: 'char2', name: 'Classified', role: 'Locked', era: '', tags: [], build: null, locked: true, synopsis: '' },
+  {
+    id: 'dempsey',
+    name: '"Tank" Dempsey',
+    role: 'The Veteran',
+    era: 'Vietnam War',
+    tags: ['Loud', 'Fearless', 'Instinctive'],
+    build: buildDempsey,
+    locked: false,
+    synopsis:
+      "This version of Dempsey served in the Vietnam War and is shaped by brutal jungle warfare rather than futuristic conflicts. " +
+      "He's still the squad's loud, fearless heavy hitter, but his personality is more grounded — a hardened soldier who trusts " +
+      "firepower and instinct above all else. His combat experience in Vietnam makes him an expert in guerrilla warfare, survival, " +
+      "and improvisation, giving him a very different perspective from previous versions of Dempsey.",
+  },
   { id: 'char3', name: 'Classified', role: 'Locked', era: '', tags: [], build: null, locked: true, synopsis: '' },
   { id: 'char4', name: 'Classified', role: 'Locked', era: '', tags: [], build: null, locked: true, synopsis: '' },
 ];
