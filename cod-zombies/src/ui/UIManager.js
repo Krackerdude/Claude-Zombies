@@ -804,7 +804,7 @@ export class UIManager {
       if (e.code === 'Escape') {
         if (this.#factoryOpen) { this.#factoryMenu.close(); e.preventDefault(); return; }
         if (this.#cookbookOpen) { this.#cookbook.close(); e.preventDefault(); return; }
-        if (this.#armoryOpen) { this.#armory.close(); e.preventDefault(); return; }
+        if (this.#armoryOpen) { this.#armory.escape(); e.preventDefault(); return; }
         if (this.#questOpen) { this.#questMenu.close(); e.preventDefault(); return; }
         if (this.#ggOpen) { this.#gobblegum.close(); e.preventDefault(); return; }
         if (this.#gpOpen) { this.#packMenu.close(); e.preventDefault(); return; }
