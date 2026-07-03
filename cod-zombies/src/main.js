@@ -11,6 +11,7 @@ import { aatGlyphSvg, aatColor } from './weapons/aat.js';
 import { portraitDataURL } from './ui/portrait.js';
 import { characterPortraitDataURL } from './ui/characterPortrait.js';
 import { selectedBuild, initSelectedCharacter, onCharacterChange } from './characters/selection.js';
+import { initIdentity, onIdentityChange } from './ui/identity.js';
 import './ui/hudFont.css';
 import './ui/menu.css';
 import './ui/mainmenu.css';
@@ -54,9 +55,16 @@ async function main() {
       setStatus(`loading ${label}…`, 0.6 + ratio * 0.4),
     );
 
-    // seed the chosen survivor from the saved profile BEFORE the menu scene builds
+    // seed the chosen survivor + identity cosmetics from the saved profile
+    // BEFORE the menu scene / player widget build
     const profile = engine.services.has(Service.Profile) ? engine.services.get(Service.Profile) : null;
     try { const saved = profile?.get('character')?.selected; if (saved) initSelectedCharacter(saved); } catch { /* keep default */ }
+    try {
+      initIdentity({ emblem: profile?.get('identity.emblem'), callingCard: profile?.get('identity.callingCard') });
+    } catch { /* keep defaults */ }
+    onIdentityChange(({ emblem, callingCard }) => {
+      try { profile?.set('identity.emblem', emblem); profile?.set('identity.callingCard', callingCard); } catch { /* non-fatal */ }
+    });
 
     buildArena(engine);
 

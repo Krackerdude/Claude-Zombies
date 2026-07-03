@@ -1,6 +1,7 @@
 import { levelFromXp } from '../profile/index.js';
 import { slotHtml } from './gumBall.js';
 import { rewardColor, rewardLabel } from '../quests/quests.js';
+import { selectedEmblem, selectedCallingCard, onIdentityChange } from './identity.js';
 
 /**
  * The player widget — level badge, name, and the five GobbleGum slots of the
@@ -26,10 +27,14 @@ export class PlayerWidget {
     const el = document.createElement('div');
     el.className = 'mm-player';
     el.innerHTML = `
-      <div class="pw-row">
-        <div class="pw-lvl"><span class="mm-lvl">0</span></div>
-        <div class="pw-name">
-          <span class="mm-name">Survivor One</span>
+      <div class="pw-plate">
+        <div class="pw-name"><span class="mm-name">Survivor One</span></div>
+        <div class="pw-card">
+          <div class="pw-emblem" title="Emblem"></div>
+          <div class="pw-cc">
+            <div class="pw-cc-art"></div>
+            <div class="pw-lvl"><span class="mm-lvl">0</span></div>
+          </div>
           <div class="pw-xp" title="XP"><i class="pw-xp-fill"></i></div>
         </div>
       </div>
@@ -57,6 +62,7 @@ export class PlayerWidget {
     this.#events?.on('profile:loaded', () => this.refresh());
     this.#events?.on('quest:changed', () => this.refresh());
     this.#events?.on('quest:refresh', () => this.refresh());
+    onIdentityChange(() => this.refresh()); // repaint on emblem / calling-card change
     this.refresh();
   }
 
@@ -95,6 +101,12 @@ export class PlayerWidget {
     this.el.querySelector('.mm-name').textContent = name;
     const xpFill = this.el.querySelector('.pw-xp-fill');
     if (xpFill) xpFill.style.width = `${Math.round((lv.max ? 1 : lv.ratio) * 100)}%`;
+
+    // equipped identity — emblem badge + calling-card banner
+    const em = this.el.querySelector('.pw-emblem');
+    if (em) em.innerHTML = selectedEmblem().svg;
+    const cc = this.el.querySelector('.pw-cc-art');
+    if (cc) cc.innerHTML = selectedCallingCard().svg;
 
     const slots = this.#packs?.slots() ?? new Array(5).fill(null);
     const sel = this.#editable ? this.#packs?.selectedSlot : -1;
