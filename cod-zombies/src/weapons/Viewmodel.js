@@ -26,6 +26,7 @@ const ADS_SNIPER = new THREE.Vector3(0.0, -0.0787, -0.32);
 const HIP_DM = new THREE.Vector3(0.22, -0.23, -0.34);
 const ADS_DM = new THREE.Vector3(0.0, -0.0858, -0.32);
 const _off = new THREE.Vector3();
+const _adsGun = new THREE.Vector3();
 const _world = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _e = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -52,6 +53,7 @@ export class Viewmodel {
   #muzzleCore;
   #flash;
   #muzzleZ = -0.5;
+  #sightY = null; // per-gun ADS sight height (null → per-class offset)
   // animated weapon parts exposed by the model's userData (revolver cylinder
   // that advances a chamber per shot; minigun barrel cluster that spins while firing)
   #animParts = null;
@@ -252,8 +254,9 @@ export class Viewmodel {
     }
     if (!weapon) { this.#group.visible = false; this.#dual = false; return; } // empty-handed (PaP)
     this.#group.visible = true;
-    const { group, muzzle } = buildWeaponModel(weapon);
+    const { group, muzzle, sightY } = buildWeaponModel(weapon);
     this.#muzzleZ = muzzle;
+    this.#sightY = sightY ?? null; // per-gun ADS height (null → per-class offset)
 
     // dual-wield: two holders (right normal, left mirrored via scale.x = -1)
     this.#dual = !!weapon.data.dualWield;
@@ -390,12 +393,15 @@ export class Viewmodel {
     // viewmodel stays at the hip — no raise to the eye).
     const a = (dual || weapon.data.focusOnly) ? 0 : weapon.adsProgress * (1 - this.#reload);
     const hipPos = dm ? HIP_DM : dual ? HIP_DUAL : HIP;
-    const adsPos = dm ? ADS_DM
+    const classPos = dm ? ADS_DM
       : cat === 'smg' ? ADS_SMG
       : cat === 'assaultRifle' ? ADS_AR
       : cat === 'hmg' ? ADS_HMG
       : cat === 'sniper' ? ADS_SNIPER
       : ADS;
+    // per-gun sight height wins (centres ADS on this gun's own aligned irons);
+    // fall back to the per-class offset for guns not yet measured
+    const adsPos = this.#sightY != null ? _adsGun.set(0, -this.#sightY, classPos.z) : classPos;
     _off.lerpVectors(hipPos, adsPos, a);
     _off.x += this.#sway.x + bobX - swap * 0.05;
     _off.y += this.#sway.y + bobY - this.#reload * 0.14 - swap * 0.03;
