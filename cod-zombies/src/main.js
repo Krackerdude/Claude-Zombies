@@ -9,6 +9,7 @@ import { perkIconDataURL } from './perks/perks.js';
 import { POWERUP_ICON_SVG, POWERUP_ICON_TINT } from './powerups/powerupIcons.js';
 import { aatGlyphSvg, aatColor } from './weapons/aat.js';
 import { portraitDataURL } from './ui/portrait.js';
+import { characterPortraitDataURL } from './ui/characterPortrait.js';
 import './ui/hudFont.css';
 import './ui/menu.css';
 import './ui/mainmenu.css';
@@ -74,8 +75,10 @@ async function main() {
     const elBanner = document.getElementById('hud-banner');
 
     // procedural survivor portrait in the player widget
+    // A rendered 3D head-shot of the survivor (bald crewman, for now); falls
+    // back to the procedural portrait if the offscreen render can't run.
     const elFace = document.querySelector('#hud-portrait .face');
-    if (elFace) elFace.style.backgroundImage = `url(${portraitDataURL()})`;
+    if (elFace) elFace.style.backgroundImage = `url(${characterPortraitDataURL() || portraitDataURL()})`;
 
     const banner = (text) => {
       if (!elBanner) return;
