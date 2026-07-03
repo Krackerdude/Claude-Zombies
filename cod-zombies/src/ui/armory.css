@@ -300,16 +300,16 @@
 #armory-screen .arm-name-input:hover { border-color: rgba(120,150,160,0.5); }
 #armory-screen .arm-name-input:focus { border-color: var(--teal, #2fb8b0); box-shadow: 0 0 0 1px var(--teal, #2fb8b0), 0 0 16px rgba(47,184,176,0.25); }
 
-/* --- sub-tab rail (Emblems / Custom / Calling Cards) --- */
-#armory-screen .arm-ptabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(120,150,160,0.18); }
-#armory-screen .arm-ptab {
+/* --- sub-tab rails (Emblems / Custom / Cards · and per-character Skins) --- */
+#armory-screen .arm-ptabs, #armory-screen .arm-stabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(120,150,160,0.18); }
+#armory-screen .arm-ptab, #armory-screen .arm-stab {
   padding: 9px 18px; font-family: inherit; font-size: 0.82rem; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--bone-dim, #7c7668); background: none; border: 0; border-bottom: 2px solid transparent;
   cursor: pointer; transform: skewX(-9deg); transition: color 0.15s ease, border-color 0.15s ease;
 }
-#armory-screen .arm-ptab > * { display: inline-block; transform: skewX(9deg); }
-#armory-screen .arm-ptab:hover { color: var(--bone, #d8d2c4); }
-#armory-screen .arm-ptab.active { color: #eef2f4; border-bottom-color: var(--teal, #2fb8b0); }
+#armory-screen .arm-ptab > *, #armory-screen .arm-stab > * { display: inline-block; transform: skewX(9deg); }
+#armory-screen .arm-ptab:hover, #armory-screen .arm-stab:hover { color: var(--bone, #d8d2c4); }
+#armory-screen .arm-ptab.active, #armory-screen .arm-stab.active { color: #eef2f4; border-bottom-color: var(--teal, #2fb8b0); }
 
 /* --- emblem / calling-card grids --- */
 #armory-screen .arm-id-grid { display: grid; gap: 14px; }
