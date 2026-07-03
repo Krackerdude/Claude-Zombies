@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildZombieRig } from './zombieRig.js';
 import { randomZombieLook } from './zombieAssets.js';
+import { selectedBuild, onCharacterChange } from '../characters/selection.js';
 
 /**
  * The main-menu backdrop: a separate, self-lit THREE scene — a dark snowy
@@ -90,12 +91,23 @@ export function buildMenuScene() {
   heroTree.position.set(3.15, 2.4, -0.7); heroTree.rotation.z = 0.06;
   scene.add(heroTree);
 
-  // --- the survivor, leaning (the hero) — close + lit so he reads as the preview ---
-  const survivor = buildSurvivor();
-  survivor.position.set(2.55, 0, 0.35);
-  survivor.rotation.y = -1.05;   // angled toward the fire / camera so the crossed arms read
-  survivor.scale.setScalar(1.18);
+  // --- the survivor, leaning (the hero) — this IS the selected player character,
+  //     posed by the fire; rebuilt in place whenever the Armory changes who you play ---
+  const mkSurvivor = () => {
+    const rig = buildSurvivor(selectedBuild());
+    rig.position.set(2.55, 0, 0.35);
+    rig.rotation.y = -1.05; // angled toward the fire / camera so the crossed arms read
+    rig.scale.setScalar(1.18);
+    return rig;
+  };
+  let survivor = mkSurvivor();
   scene.add(survivor);
+  onCharacterChange(() => {
+    scene.remove(survivor);
+    survivor.traverse((o) => { if (o.isMesh) { o.geometry?.dispose?.(); const m = o.material; Array.isArray(m) ? m.forEach((x) => x?.dispose?.()) : m?.dispose?.(); } });
+    survivor = mkSurvivor();
+    scene.add(survivor);
+  });
   // dedicated warm key + a cool back-rim so he pops off the dark forest
   const keyLight = new THREE.PointLight(0xffc080, 7.0, 10, 2);
   keyLight.position.set(1.5, 1.8, 1.7);
@@ -152,9 +164,9 @@ export function survivorLook() {
   };
 }
 
-// --- the leaning survivor (repurposed humanoid rig, posed + de-zombified) -----
-function buildSurvivor() {
-  const rig = buildZombieRig(survivorLook()); // bare-skin look -> no zombie cosmetics
+// --- the leaning survivor (any character rig, posed by the fire) -------------
+function buildSurvivor(build) {
+  const rig = build ? build() : buildZombieRig(survivorLook()); // selected character, or the bare survivor
   const J = rig.userData.joints;
 
   // lean the whole body back onto the tree

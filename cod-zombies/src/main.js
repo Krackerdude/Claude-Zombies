@@ -10,6 +10,7 @@ import { POWERUP_ICON_SVG, POWERUP_ICON_TINT } from './powerups/powerupIcons.js'
 import { aatGlyphSvg, aatColor } from './weapons/aat.js';
 import { portraitDataURL } from './ui/portrait.js';
 import { characterPortraitDataURL } from './ui/characterPortrait.js';
+import { selectedBuild, initSelectedCharacter, onCharacterChange } from './characters/selection.js';
 import './ui/hudFont.css';
 import './ui/menu.css';
 import './ui/mainmenu.css';
@@ -53,6 +54,10 @@ async function main() {
       setStatus(`loading ${label}…`, 0.6 + ratio * 0.4),
     );
 
+    // seed the chosen survivor from the saved profile BEFORE the menu scene builds
+    const profile = engine.services.has(Service.Profile) ? engine.services.get(Service.Profile) : null;
+    try { const saved = profile?.get('character')?.selected; if (saved) initSelectedCharacter(saved); } catch { /* keep default */ }
+
     buildArena(engine);
 
     // --- gameplay HUD wiring (round / health / points) ---
@@ -75,11 +80,16 @@ async function main() {
     const elRoundWidget = document.getElementById('hud-round-widget');
     const elBanner = document.getElementById('hud-banner');
 
-    // procedural survivor portrait in the player widget
-    // A rendered 3D head-shot of the survivor (bald crewman, for now); falls
-    // back to the procedural portrait if the offscreen render can't run.
+    // The player-widget portrait is the SELECTED character's head-shot (same
+    // framing, different bust); it repaints whenever the Armory swaps characters.
     const elFace = document.querySelector('#hud-portrait .face');
-    if (elFace) elFace.style.backgroundImage = `url(${characterPortraitDataURL() || portraitDataURL()})`;
+    const paintPortrait = () => {
+      if (!elFace) return;
+      const url = characterPortraitDataURL({ build: selectedBuild(), frame: 'head' }) || portraitDataURL();
+      elFace.style.backgroundImage = `url(${url})`;
+    };
+    paintPortrait();
+    onCharacterChange((id) => { paintPortrait(); try { profile?.set('character', { selected: id }); } catch { /* non-fatal */ } });
 
     const banner = (text) => {
       if (!elBanner) return;

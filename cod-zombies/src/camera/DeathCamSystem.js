@@ -5,6 +5,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { AppState } from '../core/GameState.js';
 import { buildZombieRig } from '../scenes/zombieRig.js';
 import { survivorLook } from '../scenes/MenuScene.js';
+import { selectedBuild } from '../characters/selection.js';
 
 const _orbitPos = new THREE.Vector3();
 const _orbitQuat = new THREE.Quaternion();
@@ -114,7 +115,8 @@ export class DeathCamSystem extends System {
 
   /** Build the survivor rig, lay it on its back at the death spot, one arm up. */
   #spawnBody() {
-    const rig = buildZombieRig(survivorLook());
+    const build = selectedBuild();
+    const rig = build ? build() : buildZombieRig(survivorLook());
     const J = rig.userData.joints;
     this.#joints = J;
 
