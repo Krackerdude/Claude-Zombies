@@ -55,13 +55,13 @@ export function buildRichtofen() {
 
 // --- head: slicked-back parted hair, two-strip moustache, cold blue irises ---
 function addHead(head, M) {
-  // hair — dark, combed straight back with a side part
-  head.add(box(0.238, 0.10, 0.20, M.hair, 0, 0.315, -0.02));            // crown (top, set back)
-  head.add(box(0.226, 0.20, 0.055, M.hair, 0, 0.16, -0.116));           // back of the head
-  for (const s of [-1, 1]) head.add(box(0.026, 0.17, 0.20, M.hair, s * 0.114, 0.205, -0.02)); // short sides
-  head.add(box(0.205, 0.075, 0.10, M.hair, 0.012, 0.345, 0.05, [0.28, 0, -0.06]));            // swept-up front
-  // the small forelock swoop dropping onto the left of the forehead
-  head.add(box(0.055, 0.075, 0.05, M.hair, -0.078, 0.30, 0.095, [0.15, 0.2, -0.25]));
+  // hair — thick on top, tapering thin down the sides, fading out under the ear
+  head.add(box(0.238, 0.105, 0.21, M.hair, 0, 0.315, -0.02));           // crown (thick, on top)
+  head.add(box(0.206, 0.13, 0.05, M.hair, 0, 0.228, -0.116));           // back — stops at the hairline
+  for (const s of [-1, 1]) head.add(box(0.02, 0.10, 0.19, M.hair, s * 0.117, 0.278, -0.02));   // upper sides (above the ear)
+  for (const s of [-1, 1]) head.add(box(0.014, 0.075, 0.045, M.hair, s * 0.115, 0.223, 0.06)); // thin sideburn, fades under the ear
+  head.add(box(0.205, 0.075, 0.10, M.hair, 0.012, 0.345, 0.05, [0.28, 0, -0.06]));             // swept-up front
+  head.add(box(0.05, 0.07, 0.05, M.hair, -0.078, 0.322, 0.093, [0.15, 0.2, -0.25]));           // forelock swoop (left)
 
   // a longer nose (taller bridge + tip), sitting over the base human nose
   head.add(box(0.04, 0.095, 0.05, M.flesh, 0, 0.172, 0.12));
