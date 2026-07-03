@@ -4,6 +4,8 @@ import { PackStore } from '../gobblegums/PackStore.js';
 import { gumById } from '../gobblegums/gobblegums.js';
 import { slotHtml } from './gumBall.js';
 
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 /**
  * The Tab menu — a fullscreen Scoreboard / Objectives overlay, separate from the
  * pause menu. Tab pauses the game (via the `scoreboard` app state, which freezes
@@ -28,6 +30,7 @@ export class Scoreboard {
   #gameState;
   #input;
   #packs;
+  #profile;
 
   #el;
   #death;
@@ -46,6 +49,7 @@ export class Scoreboard {
     this.#gameState = engine.services.get(Service.GameState);
     this.#input = engine.services.get(Service.Input);
     const profile = engine.services.has(Service.Profile) ? engine.services.get(Service.Profile) : null;
+    this.#profile = profile;
     // a fresh PackStore over the shared profile — reads the same persistent
     // equipped loadout as every other menu (it's stateless bar transient UI)
     this.#packs = new PackStore(profile, this.#events);
@@ -53,6 +57,18 @@ export class Scoreboard {
     this.#buildDeath();
     this.#wireStats();
     this.#bindKeys();
+    // keep the survivor name live if it changes in the Player Profile
+    this.#events.on('profile:changed', () => this.#syncName());
+    this.#events.on('profile:loaded', () => this.#syncName());
+  }
+
+  /** The current display name from the profile (falls back to the default). */
+  #playerName() { return (this.#profile?.get('identity.displayName', 'Survivor One') ?? 'Survivor One') || 'Survivor One'; }
+
+  /** Push the current name into every rendered survivor row (scoreboard + card). */
+  #syncName() {
+    const n = this.#playerName();
+    for (const el of [this.#el, this.#death]) el?.querySelectorAll('.sb-pname').forEach((s) => { s.textContent = n; });
   }
 
   get isOpen() { return this.#gameState.current === AppState.SCOREBOARD; }
@@ -96,7 +112,7 @@ export class Scoreboard {
           <span>Score</span><span>Kills</span><span>Downs</span><span>Revives</span><span>Headshots</span>
         </div>
         <div class="sb-grid sb-row">
-          <span class="c-name"><i class="sb-pip"></i>Survivor One</span>
+          <span class="c-name"><i class="sb-pip"></i><span class="sb-pname">${esc(this.#playerName())}</span></span>
           ${cell('score')}${cell('kills')}${cell('downs')}${cell('revives')}${cell('headshots')}
         </div>
         ${openSlots ? open.repeat(3) : ''}

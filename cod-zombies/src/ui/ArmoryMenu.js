@@ -26,8 +26,14 @@ const TABS = [
   { id: 'pass', label: 'Progression Pass' },
 ];
 
+const NAME_MAX = 20;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/** Strip control/markup chars, collapse whitespace, clamp length. */
+const cleanName = (s) => String(s).replace(/[<>&"']/g, '').replace(/\s+/g, ' ').trimStart().slice(0, NAME_MAX);
+
 export class ArmoryMenu {
   #el; #panel; #tabsEl; #onClose;
+  #profileSvc; #events;
   #active = 'character';
   #open = false;
   #portraits = {};  // character id -> rendered portrait data URL (cached)
@@ -36,10 +42,15 @@ export class ArmoryMenu {
   #card;                 // synopsis modal element
   #profTab = 'emblems';  // Player Profile sub-tab: emblems | custom | cards
 
-  constructor({ onClose } = {}) {
+  constructor({ profile = null, events = null, onClose } = {}) {
+    this.#profileSvc = profile;
+    this.#events = events;
     this.#onClose = onClose;
     this.#build();
   }
+
+  /** Current display name from the profile (falls back to the default). */
+  #playerName() { return (this.#profileSvc?.get('identity.displayName', 'Survivor One') ?? 'Survivor One') || 'Survivor One'; }
 
   get isOpen() { return this.#open; }
   get el() { return this.#el; }
@@ -117,6 +128,23 @@ export class ArmoryMenu {
       if (cc) { setCallingCard(cc.dataset.id); this.#render(); return; }
       const slot = e.target.closest('.arm-char');
       if (slot) this.#highlight(slot.dataset.id);
+    });
+    // Player Profile: live name editing. Type → preview updates; blur/Enter commits.
+    this.#panel.addEventListener('input', (e) => {
+      const inp = e.target.closest('.arm-name-input');
+      if (!inp) return;
+      inp.value = cleanName(inp.value);
+      const np = this.#panel.querySelector('.arm-np-name');
+      if (np) np.textContent = inp.value.trim() || 'Survivor One';
+    });
+    this.#panel.addEventListener('change', (e) => {
+      const inp = e.target.closest('.arm-name-input');
+      if (inp) this.#commitName(inp);
+    });
+    this.#panel.addEventListener('keydown', (e) => {
+      if (!e.target.closest('.arm-name-input')) return;
+      e.stopPropagation(); // don't let typing drive the menu's tab/esc navigation
+      if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.target.blur(); }
     });
     this.#panel.addEventListener('dblclick', (e) => {
       const slot = e.target.closest('.arm-char');
@@ -274,19 +302,34 @@ export class ArmoryMenu {
       <div class="arm-note">Emblems, calling cards and more will slot in here later.</div>`;
   }
 
+  /** Commit an edited name to the profile (empty → default), reflecting it live. */
+  #commitName(inp) {
+    let v = cleanName(inp.value).trim();
+    if (!v) v = 'Survivor One';
+    inp.value = v;
+    const np = this.#panel.querySelector('.arm-np-name');
+    if (np) np.textContent = v;
+    try { this.#profileSvc?.set('identity.displayName', v); } catch { /* non-fatal */ }
+  }
+
   #profile() {
     const em = selectedEmblem(), cc = selectedCallingCard();
+    const name = this.#playerName();
     // live nameplate preview — name on a tab, emblem + calling card, level + XP
     const nameplate = `
       <div class="arm-np">
-        <div class="arm-np-name">Survivor One</div>
+        <div class="arm-np-name">${esc(name)}</div>
         <div class="arm-np-card">
           <div class="arm-np-emblem">${em.svg}</div>
           <div class="arm-np-cc"><div class="arm-np-cc-art">${cc.svg}</div><div class="arm-np-lvl">1</div></div>
           <div class="arm-np-xp"><i style="width:12%"></i></div>
         </div>
       </div>
-      <div class="arm-np-meta"><span>Recruit · Rank 01</span><span class="arm-np-eq">${em.name} · ${cc.name}</span></div>`;
+      <div class="arm-np-meta"><span>Recruit · Rank 01</span><span class="arm-np-eq">${em.name} · ${cc.name}</span></div>
+      <label class="arm-name-edit">
+        <span class="arm-name-lbl">Player Name</span>
+        <input class="arm-name-input" type="text" maxlength="${NAME_MAX}" spellcheck="false" autocomplete="off" value="${esc(name)}" aria-label="Player name">
+      </label>`;
 
     const ptabs = [['emblems', 'Emblems'], ['custom', 'Custom Emblems'], ['cards', 'Calling Cards']]
       .map(([id, lbl]) => `<button class="arm-ptab${this.#profTab === id ? ' active' : ''}" data-ptab="${id}">${lbl}</button>`)
