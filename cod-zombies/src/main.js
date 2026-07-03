@@ -9,6 +9,7 @@ import { perkIconDataURL } from './perks/perks.js';
 import { POWERUP_ICON_SVG, POWERUP_ICON_TINT } from './powerups/powerupIcons.js';
 import { aatGlyphSvg, aatColor } from './weapons/aat.js';
 import { portraitDataURL } from './ui/portrait.js';
+import './ui/hudFont.css';
 import './ui/menu.css';
 import './ui/mainmenu.css';
 import './ui/hud.css';
