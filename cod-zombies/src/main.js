@@ -5,6 +5,7 @@ import { PlayerTag, Transform } from './ecs/components/index.js';
 import { UIManager } from './ui/UIManager.js';
 import { Scoreboard } from './ui/Scoreboard.js';
 import { DevMenu } from './ui/DevMenu.js';
+import { ModelShowcase } from './ui/ModelShowcase.js';
 import { perkIconDataURL } from './perks/perks.js';
 import { POWERUP_ICON_SVG, POWERUP_ICON_TINT } from './powerups/powerupIcons.js';
 import { aatGlyphSvg, aatColor } from './weapons/aat.js';
@@ -18,6 +19,7 @@ import './ui/mainmenu.css';
 import './ui/hud.css';
 import './ui/scoreboard.css';
 import './ui/devmenu.css';
+import './ui/modelshowcase.css';
 import './ui/divinium.css';
 import './ui/gobblegum.css';
 import './ui/gobblepack.css';
@@ -361,6 +363,10 @@ async function main() {
     const ui = new UIManager(engine);
     new Scoreboard(engine); // Tab menu (scoreboard / objectives) — pauses the world
     new DevMenu(engine); // F2 dev/test overlay — points / perks / weapons
+    new ModelShowcase({ // F5 standalone model inspector (boots over everything; exit reloads)
+      gameState: engine.services.get(Service.GameState),
+      input: engine.services.get(Service.Input),
+    });
     engine.services.get(Service.Settings).applyAll();
     setStatus('ready', 1);
 

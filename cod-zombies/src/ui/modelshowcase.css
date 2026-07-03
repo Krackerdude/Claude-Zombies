@@ -1,0 +1,98 @@
+/* F5 Model Showcase — standalone fullscreen inspector */
+#model-showcase {
+  position: fixed; inset: 0; z-index: 100000; display: none;
+  flex-direction: column; background: #0b0e12; color: #d7dee4;
+  font-family: 'Chakra Petch', 'Oswald', system-ui, sans-serif;
+}
+#model-showcase.show { display: flex; }
+
+#model-showcase .ms-top {
+  display: flex; align-items: center; gap: 16px; padding: 10px 16px;
+  border-bottom: 1px solid rgba(120,150,170,0.18); background: linear-gradient(180deg, #131820, #0c1015);
+}
+#model-showcase .ms-brand { font-family: 'Anton', Impact, sans-serif; letter-spacing: 0.08em; font-size: 1.1rem; color: #ffb638; }
+#model-showcase .ms-brand span { color: #6f7a84; font-size: 0.7rem; margin-left: 4px; }
+#model-showcase .ms-title { flex: 1; text-align: center; letter-spacing: 0.06em; color: #aeb9c2; text-transform: uppercase; font-size: 0.9rem; }
+#model-showcase .ms-exit {
+  appearance: none; cursor: pointer; padding: 6px 14px; font: inherit; font-weight: 600; letter-spacing: 0.06em;
+  color: #ffd9d2; background: rgba(150,40,34,0.5); border: 1px solid rgba(226,58,46,0.6); border-radius: 4px;
+}
+#model-showcase .ms-exit:hover { background: rgba(200,50,42,0.7); }
+
+#model-showcase .ms-body { flex: 1; display: grid; grid-template-columns: 260px 1fr 320px; min-height: 0; }
+#model-showcase .ms-left, #model-showcase .ms-right { display: flex; flex-direction: column; min-height: 0; }
+#model-showcase .ms-left { border-right: 1px solid rgba(120,150,170,0.14); }
+#model-showcase .ms-right { border-left: 1px solid rgba(120,150,170,0.14); }
+
+/* tabs */
+#model-showcase .ms-tabs { display: flex; flex-wrap: wrap; gap: 3px; padding: 8px; border-bottom: 1px solid rgba(120,150,170,0.12); }
+#model-showcase .ms-tab {
+  appearance: none; cursor: pointer; padding: 5px 9px; font: inherit; font-size: 0.72rem; letter-spacing: 0.04em;
+  color: #97a2ab; background: rgba(28,34,42,0.6); border: 1px solid rgba(120,150,170,0.16); border-radius: 3px;
+}
+#model-showcase .ms-tab:hover { color: #d7dee4; border-color: rgba(120,150,170,0.4); }
+#model-showcase .ms-tab.active { color: #071012; background: #ffb638; border-color: #ffb638; font-weight: 600; }
+
+/* model list */
+#model-showcase .ms-list { flex: 1; overflow-y: auto; padding: 6px; }
+#model-showcase .ms-item {
+  padding: 7px 10px; border-radius: 3px; cursor: pointer; font-size: 0.82rem; color: #c3ccd3;
+  border: 1px solid transparent;
+}
+#model-showcase .ms-item:hover { background: rgba(120,150,170,0.1); }
+#model-showcase .ms-item.sel { background: rgba(255,182,56,0.16); border-color: rgba(255,182,56,0.55); color: #ffe4b0; }
+
+/* center preview */
+#model-showcase .ms-center { position: relative; display: flex; min-height: 0; background: #0b0e12; }
+#model-showcase .ms-canvas { flex: 1; min-height: 0; }
+#model-showcase .ms-canvas canvas { display: block; width: 100%; height: 100%; }
+#model-showcase .ms-hint {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: #5c6772; pointer-events: none;
+}
+
+/* right: parts + xform + readout */
+#model-showcase .ms-r-head {
+  display: flex; align-items: center; padding: 8px 12px; font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: #8a95a0; border-bottom: 1px solid rgba(120,150,170,0.12); background: rgba(16,20,26,0.6);
+}
+#model-showcase .ms-copy {
+  margin-left: auto; appearance: none; cursor: pointer; padding: 3px 10px; font: inherit; font-size: 0.68rem;
+  color: #071012; background: #2fb8b0; border: 0; border-radius: 3px; letter-spacing: 0.06em; font-weight: 600;
+}
+#model-showcase .ms-parts { flex: 1 1 0; min-height: 80px; overflow-y: auto; padding: 4px 0; }
+#model-showcase .ms-part { padding: 4px 8px; cursor: pointer; font-size: 0.78rem; color: #b7c0c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#model-showcase .ms-part:hover { background: rgba(120,150,170,0.1); }
+#model-showcase .ms-part.sel { background: rgba(255,182,56,0.18); color: #ffe4b0; }
+#model-showcase .ms-part-t { display: inline-block; width: 14px; opacity: 0.75; }
+#model-showcase .ms-part-t.mesh { color: #4ac3ba; }
+#model-showcase .ms-part-t.grp { color: #7f8a94; }
+#model-showcase .ms-empty { padding: 16px; font-size: 0.8rem; color: #6f7a84; }
+#model-showcase .ms-err { color: #ff8a7a; }
+
+/* transform controls */
+#model-showcase .ms-xform { border-top: 1px solid rgba(120,150,170,0.12); padding: 8px 10px; background: rgba(14,18,24,0.5); }
+#model-showcase .ms-xform:empty { display: none; }
+#model-showcase .ms-x-name { font-size: 0.82rem; color: #eef2f4; margin-bottom: 6px; }
+#model-showcase .ms-x-name span { color: #6f7a84; font-size: 0.72rem; }
+#model-showcase .ms-xrow { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+#model-showcase .ms-xlbl { width: 26px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: #8a95a0; }
+#model-showcase .ms-xf { flex: 1; display: flex; align-items: center; gap: 3px; }
+#model-showcase .ms-xf b { color: #5c6772; font-size: 0.64rem; width: 8px; }
+#model-showcase .ms-xf input {
+  width: 100%; min-width: 0; font: inherit; font-size: 0.76rem; padding: 3px 4px; text-align: right;
+  color: #eef2f4; background: #0c1015; border: 1px solid rgba(120,150,170,0.24); border-radius: 3px; outline: none;
+}
+#model-showcase .ms-xf input:focus { border-color: #ffb638; }
+#model-showcase .ms-xbtns { margin-top: 4px; }
+#model-showcase .ms-resetpart {
+  appearance: none; cursor: pointer; padding: 4px 10px; font: inherit; font-size: 0.7rem;
+  color: #c3ccd3; background: rgba(28,34,42,0.7); border: 1px solid rgba(120,150,170,0.24); border-radius: 3px;
+}
+#model-showcase .ms-resetpart:hover { border-color: rgba(226,58,46,0.6); color: #ffd9d2; }
+
+/* readout */
+#model-showcase .ms-readout {
+  height: 190px; resize: none; font-family: 'Consolas', 'Menlo', monospace; font-size: 0.72rem; line-height: 1.4;
+  color: #cfe6d8; background: #070a0d; border: 0; border-top: 1px solid rgba(120,150,170,0.12); padding: 8px 10px; outline: none;
+}
