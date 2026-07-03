@@ -35,12 +35,28 @@ export function buildZombieRig(look) {
   const head = pivot(0, 0.50, 0.02); J.head = head; torso.add(head);
   head.add(box(0.1, 0.12, 0.1, skin.flesh, 0, 0.03, 0));        // neck
   head.add(box(0.22, 0.24, 0.22, skin.flesh, 0, 0.2, 0));       // skull
-  head.add(box(0.2, 0.08, 0.04, skin.flesh, 0, 0.16, 0.11));    // jaw/brow lump
-  const eyeGeo = new THREE.BoxGeometry(0.045, 0.03, 0.02);
-  for (const dx of [-0.055, 0.055]) {
-    const eye = new THREE.Mesh(eyeGeo, skin.eye);
-    eye.position.set(dx, 0.22, 0.12); // on the skull face, not the head origin
-    head.add(eye);
+
+  if (look && look.human) {
+    // Humanized face for survivors: proper eyes (sclera + pupil), a defined
+    // nose, ears and a brow — and NO zombie jaw/brow face-plate. Keeps them
+    // clearly apart from the shambling dead.
+    const sclera = new THREE.MeshStandardMaterial({ color: 0xe9e6dc, roughness: 0.45 });
+    head.add(box(0.185, 0.028, 0.04, skin.flesh, 0, 0.252, 0.10)); // brow ridge
+    for (const dx of [-0.05, 0.05]) {
+      head.add(box(0.05, 0.036, 0.025, sclera, dx, 0.214, 0.108)); // eye white
+      head.add(box(0.02, 0.028, 0.02, skin.eye, dx, 0.214, 0.122)); // pupil
+    }
+    head.add(box(0.05, 0.085, 0.06, skin.flesh, 0, 0.168, 0.125));  // nose (protruding)
+    head.add(box(0.085, 0.014, 0.025, skin.eye, 0, 0.116, 0.11));   // mouth line
+    for (const dx of [-1, 1]) head.add(box(0.028, 0.075, 0.06, skin.flesh, dx * 0.118, 0.188, 0.0)); // ears
+  } else {
+    head.add(box(0.2, 0.08, 0.04, skin.flesh, 0, 0.16, 0.11));    // jaw/brow lump
+    const eyeGeo = new THREE.BoxGeometry(0.045, 0.03, 0.02);
+    for (const dx of [-0.055, 0.055]) {
+      const eye = new THREE.Mesh(eyeGeo, skin.eye);
+      eye.position.set(dx, 0.22, 0.12); // on the skull face, not the head origin
+      head.add(eye);
+    }
   }
 
   // --- arms (reach forward by default) ---

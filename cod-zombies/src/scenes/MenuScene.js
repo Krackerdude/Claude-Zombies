@@ -143,6 +143,7 @@ export function buildMenuScene() {
 // renders the identical character we pose on the menu.
 export function survivorLook() {
   return {
+    human: true, // build the humanized face (eyes+pupils, nose, ears; no zombie plate)
     flesh: new THREE.MeshStandardMaterial({ color: 0xc89878, roughness: 0.65 }),      // human skin
     shirt: new THREE.MeshStandardMaterial({ color: 0x6a4a32, roughness: 0.7 }),       // worn leather jacket (warm, catches firelight)
     pants: new THREE.MeshStandardMaterial({ color: 0x44474e, roughness: 0.82 }),      // grey trousers
