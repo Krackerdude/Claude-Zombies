@@ -134,8 +134,14 @@ async function main() {
           const g = document.createElement('div');
           g.className = 'gain';
           g.textContent = `+${delta.toLocaleString()}`;
+          // each gain drifts off in its own direction (away from the widget +
+          // a random vertical spread) so multiple lingering gains scatter
+          const dx = 40 + Math.random() * 55;
+          const dy = (Math.random() * 2 - 1) * 52;
+          g.style.setProperty('--dx', `${dx.toFixed(0)}px`);
+          g.style.setProperty('--dy', `${dy.toFixed(0)}px`);
           elGains.appendChild(g);
-          while (elGains.childElementCount > 5) elGains.removeChild(elGains.firstChild);
+          while (elGains.childElementCount > 10) elGains.removeChild(elGains.firstChild);
           g.addEventListener('animationend', () => g.remove());
         }
       }

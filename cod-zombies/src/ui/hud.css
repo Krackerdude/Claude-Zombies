@@ -58,7 +58,7 @@
 }
 
 #hud-portrait {
-  position: relative; width: 108px; height: 130px; flex: none; overflow: hidden; isolation: isolate;
+  position: relative; width: 102px; height: 104px; flex: none; overflow: hidden; isolation: isolate;
   background:
     var(--hud-grunge),
     radial-gradient(120% 120% at 35% 22%, #1a2630, #060a0d 80%);
@@ -111,24 +111,26 @@
 #hud-points.bump { animation: hudBump 0.28s cubic-bezier(.2,.9,.2,1); }
 @keyframes hudBump { 0% { transform: skewX(9deg) scale(1); } 35% { transform: skewX(9deg) scale(1.08); } 100% { transform: skewX(9deg) scale(1); } }
 
-/* +X point-gain floaters — spill off the RIGHT edge of the widget and rise,
-   the way classic zombies does it (the widget slab clips its own overflow, so
-   these live outside it, anchored to #hud-player). */
+/* +X point-gain floaters — each one is INDEPENDENT: it spawns off the widget's
+   right edge and drifts away in its own (JS-randomised) direction, then fades.
+   No stacking, so overlapping gains scatter instead of piling into a column.
+   The anchor is a zero-size point at the widget's right-middle (outside the
+   points slab, which clips its own overflow). */
 #hud-gains {
-  position: absolute; left: calc(100% + 12px); bottom: 16px; transform: skewX(9deg);
-  display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 2px;
-  pointer-events: none;
+  position: absolute; left: 100%; top: 50%; width: 0; height: 0;
+  transform: skewX(9deg); pointer-events: none;
 }
 .gain {
-  font-family: var(--hud-font-num); font-size: 1.4rem; line-height: 1; white-space: nowrap;
+  position: absolute; left: 12px; top: -0.6em; --dx: 46px; --dy: 0px;
+  font-family: var(--hud-font-num); font-size: 1.6rem; line-height: 1; white-space: nowrap;
   color: #ffe9a6; text-shadow: 0 1px 3px #000, 0 0 8px rgba(243,198,78,0.5);
-  animation: gainRise 1.05s ease-out forwards;
+  animation: gainFloat 1.15s ease-out forwards;
 }
-@keyframes gainRise {
-  0% { opacity: 0; transform: translateY(6px) scale(0.8); }
-  18% { opacity: 1; transform: translateY(0) scale(1); }
-  70% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-16px); }
+@keyframes gainFloat {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.7); }
+  16% { opacity: 1; transform: translate(calc(var(--dx) * 0.28), calc(var(--dy) * 0.28)) scale(1); }
+  68% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
 }
 
 /* --- round counter (left) + perks (right), under the player widget --- */
@@ -252,22 +254,29 @@
    just an unclipped layout frame. Teal energy accent, grooved metal, ONE slow
    scan — mechanical + alive, never flickery. --- */
 .wpn-tube {
-  position: relative; display: flex; align-items: center; justify-content: flex-start;
-  width: 168px; padding: 15px 18px 15px 26px; /* FIXED size — the digits scale to fit, not the housing */
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 168px; padding: 15px 30px 15px 22px; /* FIXED size — the digits scale to fit, not the housing.
+     a little extra right padding keeps the centred digits clear of the pod overlap */
   filter: drop-shadow(0 8px 18px rgba(0,0,0,0.6));
 }
-.wpn-tube .tube-glow { /* THE HOUSING: gunmetal plate, grooved — straight LEFT edge
-   (only the right side shears) so the teal leading strip is a clean edge, not a
-   wedge pinched into a corner */
-  position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
-  clip-path: polygon(0 0, 100% 0, calc(100% - 13px) 100%, 0 100%);
+/* teal leading edge sits BEHIND the plate and follows the angular LEFT edge, so
+   it reads as a clean accent rather than a wedge pinched into the corner */
+.wpn-tube::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: var(--hud-teal);
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%);
+}
+.wpn-tube .tube-glow { /* THE HOUSING: gunmetal plate — LEFT edge angular (sheared),
+   RIGHT edge STRAIGHT so it meets the pod with no missing corner. Inset 3px from
+   the teal underlay to reveal a clean teal edge down the shear. */
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;
+  clip-path: polygon(17px 0, 100% 0, 100% 100%, 3px 100%);
   background:
-    linear-gradient(90deg, rgba(120,210,225,0.9) 0 3px, transparent 3px), /* teal leading edge */
     var(--hud-grunge),
     radial-gradient(120% 180% at 18% 62%, rgba(var(--wpn-energy), 0.24), transparent 62%),
     linear-gradient(180deg, #1b2329 0%, #0e151a 58%, #080c10 100%);
-  background-size: auto, 90px 90px, auto, auto;
-  background-blend-mode: normal, overlay, normal, normal;
+  background-size: 90px 90px, auto, auto;
+  background-blend-mode: overlay, normal, normal;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.9), inset 0 0 26px rgba(0,0,0,0.72);
 }
 /* fine vertical machining grooves — subtle mechanical texture, static */
@@ -286,7 +295,7 @@
 /* digits live in a wrapper that JS scales to fit the fixed tube (no widget jump) */
 .ammo-digits {
   position: relative; z-index: 3; display: inline-flex; align-items: baseline; gap: 11px;
-  white-space: nowrap; transform-origin: left center;
+  white-space: nowrap; transform-origin: center; /* stays centred when JS scales it */
 }
 .wpn-tube .mag, .wpn-tube .res { font-family: var(--hud-font-num); line-height: 0.8; }
 /* PRIMARY — the loaded magazine, bright cool-white with a teal charge */
