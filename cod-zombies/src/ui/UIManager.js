@@ -111,8 +111,8 @@ export class UIManager {
     // Newton's Cookbook — the trade-recipe book. Shares the gum inventory.
     this.#cookbook = new CookbookMenu({ packs: this.#packs, onClose: () => { this.#playTransition(); this.#cookbookOpen = false; } });
 
-    // Armory — customization hub (framework: tabs only, no functionality yet)
-    this.#armory = new ArmoryMenu({ onClose: () => { this.#playTransition(); this.#armoryOpen = false; } });
+    // Armory — customization hub (character, identity, ...)
+    this.#armory = new ArmoryMenu({ profile: this.#profile, events: this.#events, onClose: () => { this.#playTransition(); this.#armoryOpen = false; } });
 
     // park the widget in its home (main-menu top-right), extra-large there
     this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
