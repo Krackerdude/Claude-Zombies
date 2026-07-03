@@ -380,6 +380,11 @@ export class Viewmodel {
     // recoil kick (rises on fire, recovers)
     if (weapon.justFired > 0) this.#kick = Math.min(1, this.#kick + dt * 18);
     else this.#kick += (0 - this.#kick) * Math.min(1, dt * 9);
+    // VISUAL recoil scale — blends hip → ADS by aim amount (ADS steadier).
+    const vrHip = weapon.data.visualRecoilHip ?? 1.0;
+    const vrAds = weapon.data.visualRecoilAds ?? 0.4;
+    const vr = vrHip + (vrAds - vrHip) * ads;
+    const kickVis = this.#kick * vr;
 
     // reload pose: ease the gun down + tilt, with a mag-swap surge mid-reload
     const reloadTarget = weapon.reloading ? 1 : 0;
@@ -405,7 +410,7 @@ export class Viewmodel {
     _off.lerpVectors(hipPos, adsPos, a);
     _off.x += this.#sway.x + bobX - swap * 0.05;
     _off.y += this.#sway.y + bobY - this.#reload * 0.14 - swap * 0.03;
-    _off.z += this.#kick * 0.06 - this.#reload * 0.04;
+    _off.z += kickVis * 0.06 - this.#reload * 0.04;
 
     // melee: brief but full down-right holster while the knife crosses
     const melee = opts.melee || 0;
@@ -443,7 +448,7 @@ export class Viewmodel {
     // placed directly in the viewmodel camera's frame (origin, looking -Z),
     // so look/recoil/FOV on the gameplay camera never touch the viewmodel
     this.#group.position.copy(_off);
-    _e.set(this.#kick * 0.14 + this.#reload * 0.55 + swap * 0.25, swap * 0.4 + this.#tuck * 0.18, this.#reload * 0.22 + this.#tuck * 0.22 + dmgRoll);
+    _e.set(kickVis * 0.14 + this.#reload * 0.55 + swap * 0.25, swap * 0.4 + this.#tuck * 0.18, this.#reload * 0.22 + this.#tuck * 0.22 + dmgRoll);
     this.#group.quaternion.setFromEuler(_e);
 
     // dual-wield twin-pistol animation (alternating fire + mirrored reload lean)
