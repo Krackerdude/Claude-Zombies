@@ -63,7 +63,7 @@ function addHead(head, M) {
   head.add(box(0.2, 0.10, 0.05, M.hair, 0, 0.235, -0.116));             // back
   for (const s of [-1, 1]) head.add(box(0.02, 0.08, 0.19, M.hair, s * 0.117, 0.27, -0.02));    // short faded sides
   for (const s of [-1, 1]) head.add(box(0.012, 0.045, 0.04, M.hair, s * 0.115, 0.238, 0.06));  // tiny sideburn
-  head.add(box(0.212, 0.058, 0.078, M.hair, 0.008, 0.335, 0.072, [0.14, 0, -0.04]));           // full front, hairline near the top (not receded, not low)
+  head.add(box(0.212, 0.072, 0.082, M.hair, 0.008, 0.324, 0.074, [0.14, 0, -0.04]));           // full front, hanging slightly lower onto the forehead
 
   // broader, shorter nose (vs Richtofen's long one)
   head.add(box(0.05, 0.058, 0.052, M.flesh, 0, 0.158, 0.12));

@@ -1,5 +1,6 @@
 import { buildRichtofen } from './richtofen.js';
 import { buildDempsey } from './dempsey.js';
+import { buildTakeo } from './takeo.js';
 
 /**
  * The playable crew. `build` returns a fresh rig (for portraits + later
@@ -37,7 +38,20 @@ export const CHARACTERS = [
       "firepower and instinct above all else. His combat experience in Vietnam makes him an expert in guerrilla warfare, survival, " +
       "and improvisation, giving him a very different perspective from previous versions of Dempsey.",
   },
-  { id: 'char3', name: 'Classified', role: 'Locked', era: '', tags: [], build: null, locked: true, synopsis: '' },
+  {
+    id: 'takeo',
+    name: 'Takeo Masaki',
+    role: 'The Yokai Hunter',
+    era: 'Mystical Feudal Japan',
+    tags: ['Honorable', 'Disciplined', 'Spiritual'],
+    build: buildTakeo,
+    locked: false,
+    synopsis:
+      "This Takeo originates from a mystical version of feudal Japan, where supernatural creatures and legends are real. " +
+      "A wandering ronin and hunter of yokai, he combines disciplined swordsmanship with spiritual knowledge, making him " +
+      "uniquely prepared to confront the horrors of the Dark Aether. His worldview is deeply rooted in honor, folklore, and " +
+      "the balance between the human and spirit worlds, giving him the most fantastical background of the four.",
+  },
   { id: 'char4', name: 'Classified', role: 'Locked', era: '', tags: [], build: null, locked: true, synopsis: '' },
 ];
 
