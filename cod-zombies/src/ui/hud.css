@@ -41,8 +41,8 @@
    player without moving the player: drop `bottom` and add the same amount to
    `gap` (round goes down, player stays put). */
 #hud-bl {
-  position: absolute; left: calc(30px + var(--hud-inset)); bottom: calc(48px + var(--hud-inset)); z-index: 21;
-  display: flex; flex-direction: column; gap: 22px; pointer-events: none;
+  position: absolute; left: calc(30px + var(--hud-inset)); bottom: calc(52px + var(--hud-inset)); z-index: 21;
+  display: flex; flex-direction: column; gap: 34px; pointer-events: none;
   /* base 1.15 bump so the cluster reads as chunky as the weapon device — still
      multiplied by the user's HUD Scale */
   transform: scale(calc(var(--hud-scale) * 1.15)); transform-origin: bottom left;
@@ -96,13 +96,13 @@
    total (locked to the ~"10,500" width); the number inside scales to fit, just
    like the ammo readout. */
 #hud-points {
-  transform: skewX(9deg); transform-origin: left center;
+  transform: skewX(9deg); transform-origin: center;
   width: 176px; height: 3.35rem; overflow: visible; white-space: nowrap;
-  display: flex; align-items: center;
+  display: flex; align-items: center; justify-content: center; /* centre the number in the fixed box */
 }
 /* the number itself — styled + scaled by JS (transform: scale) to fit the tube */
 #hud-points-val {
-  display: inline-block; transform-origin: left center;
+  display: inline-block; transform-origin: center;
   font-family: var(--hud-font-num); font-size: 3.9rem; font-weight: 700; line-height: 0.86; letter-spacing: 0.01em;
   background: linear-gradient(178deg, #fff0c0 4%, var(--hud-amber) 46%, var(--hud-amber-deep) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -141,7 +141,7 @@
 
 #hud-round-widget { position: relative; line-height: 0.8; margin-left: 12px; }
 #hud-round {
-  font-family: var(--hud-font-num); font-size: 5.5rem; line-height: 0.8; letter-spacing: -0.01em;
+  font-family: var(--hud-font-num); font-size: 7rem; line-height: 0.8; letter-spacing: -0.01em;
   /* The tight line-height lets the glyph overflow its box; since the gradient is
      clipped to that box (background-clip:text), the overflowing bottom tip would
      render unfilled = "cut off". Pad the box out past the glyph (so the whole
