@@ -111,7 +111,7 @@ export class PlayerWidget {
     const slots = this.#packs?.slots() ?? new Array(5).fill(null);
     const sel = this.#editable ? this.#packs?.selectedSlot : -1;
     this.el.querySelector('.mm-gums').innerHTML = slots.map((id, i) =>
-      `<div class="mm-gum-slot${i === sel ? ' sel' : ''}" data-slot="${i}">${slotHtml(id, 32)}</div>`,
+      `<div class="mm-gum-slot${i === sel ? ' sel' : ''}" data-slot="${i}">${slotHtml(id, 27)}</div>`,
     ).join('');
 
     // Current Quest (main-menu only)

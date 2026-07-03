@@ -297,10 +297,11 @@
   transition: width 0.5s cubic-bezier(0.16,1,0.3,1);
 }
 
-/* GUM strip: cool steel zone with a cyan edge so it reads apart from the warm row */
+/* GUM strip: cool steel zone with a cyan edge so it reads apart from the warm row.
+   Kept deliberately compact so the stack doesn't run tall (matters in co-op). */
 .pw-gums {
-  position: relative; display: flex; align-items: center; gap: 9px; isolation: isolate;
-  margin-top: 5px; padding: 7px 14px 7px 11px;
+  position: relative; display: flex; align-items: center; gap: 8px; isolation: isolate;
+  margin-top: 4px; padding: 4px 12px 4px 10px;
   transform: skewX(-10deg);
   background: var(--hud-grunge), linear-gradient(180deg, rgba(27,40,53,0.96), rgba(9,17,25,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
@@ -309,15 +310,15 @@
   box-shadow: inset 0 0 16px rgba(0,0,0,0.5);
   clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 }
-.pw-gum-tag { transform: skewX(10deg); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.2em; color: #82deef; }
-.mm-gums { transform: skewX(10deg); display: flex; gap: 8px; margin: 0; }
+.pw-gum-tag { transform: skewX(10deg); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.2em; color: #82deef; }
+.mm-gums { transform: skewX(10deg); display: flex; gap: 6px; margin: 0; }
 
 /* Current Quest zone (main menu only). The CONTAINER carries no clip-path so the
    hover popout can extend past it; the visible strip is the inner plate. */
-.pw-quest { position: relative; margin-top: 5px; --rk: #ffce5c; }
+.pw-quest { position: relative; margin-top: 4px; --rk: #ffce5c; }
 .pw-quest[hidden] { display: none; } /* beats the UA rule even with our own styles */
 .pw-quest-plate {
-  display: flex; align-items: center; gap: 8px; padding: 7px 14px 7px 11px; transform: skewX(-10deg);
+  display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 10px; transform: skewX(-10deg);
   background: var(--hud-grunge), linear-gradient(180deg, rgba(24,28,36,0.96), rgba(8,10,14,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
   border-top: 1px solid color-mix(in srgb, var(--rk) 38%, transparent); border-bottom: 1px solid rgba(0,0,0,0.7);
@@ -325,9 +326,11 @@
   clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
 }
 .pw-quest-plate > * { transform: skewX(10deg); }
-.pw-quest-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.pw-quest-tag { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in srgb, var(--rk) 60%, #ffffff); }
-.pw-quest-name { font-weight: 700; font-size: 0.92rem; letter-spacing: 0.03em; text-transform: uppercase; color: #f3f6f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pw-quest-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.pw-quest-tag { font-size: 0.54rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; line-height: 1.1; color: color-mix(in srgb, var(--rk) 60%, #ffffff); }
+.pw-quest-name { font-weight: 700; font-size: 0.82rem; letter-spacing: 0.03em; line-height: 1.1; text-transform: uppercase; color: #f3f6f8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the quest ring is shrunk only inside the widget (Black Market's is untouched) */
+.pw-quest-ring { width: 24px; height: 24px; }
 
 /* circular progress ring — shared by the widget + Black Market tracker.
    conic-gradient sweep on --qp (0..1) in the reward colour --rk, punched hollow
