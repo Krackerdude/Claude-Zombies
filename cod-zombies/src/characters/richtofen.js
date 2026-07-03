@@ -78,8 +78,11 @@ function addOutfit(t, M) {
   // open shirt collar around the neck (light)
   for (const s of [-1, 1]) t.add(box(0.09, 0.13, 0.05, M.shirt, s * 0.078, 0.47, 0.115, [0, 0, s * 0.32]));
 
-  // waistcoat front panel (tan leather) over the chest
-  t.add(box(0.43, 0.47, 0.035, M.vest, 0, 0.27, 0.135));
+  // waistcoat — a REAL vest that wraps the whole torso: front panel, both
+  // sides, and a back panel, not just a plate slapped on the chest
+  t.add(box(0.43, 0.47, 0.035, M.vest, 0, 0.27, 0.135));                // front
+  t.add(box(0.44, 0.47, 0.035, M.vest, 0, 0.27, -0.135));              // back
+  for (const s of [-1, 1]) t.add(box(0.035, 0.47, 0.30, M.vest, s * 0.216, 0.27, 0)); // wrap around the sides
   t.add(box(0.06, 0.2, 0.02, M.shirt, 0, 0.41, 0.156));                 // shirt V at the opening
   for (const by of [0.35, 0.29, 0.23, 0.17]) t.add(box(0.02, 0.02, 0.02, M.vestDk, 0, by, 0.156)); // buttons
   for (const s of [-1, 1]) t.add(box(0.13, 0.10, 0.02, M.vestDk, s * 0.11, 0.15, 0.152));          // lower pockets

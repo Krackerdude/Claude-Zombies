@@ -201,6 +201,8 @@ function addClothing(torso, look, skin, box) {
     }
     case 'vest':
       torso.add(box(0.43, 0.44, 0.03, m, 0, 0.28, 0.13));           // vest front panel
+      torso.add(box(0.44, 0.44, 0.03, m, 0, 0.28, -0.13));          // back panel — vests wrap the body
+      for (const sx of [-1, 1]) torso.add(box(0.03, 0.44, 0.28, m, sx * 0.215, 0.28, 0)); // side panels
       torso.add(box(0.05, 0.44, 0.02, skin.shirt, 0, 0.28, 0.15));  // shirt showing at the opening
       break;
     case 'tie':
