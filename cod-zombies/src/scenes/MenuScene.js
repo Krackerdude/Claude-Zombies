@@ -160,15 +160,13 @@ function buildSurvivor() {
   // lean the whole body back onto the tree
   rig.rotation.x = -0.16;
 
-  // arms crossed in front of the chest. NOTE: bending the elbow on this rig folds
-  // the forearm BACKWARD, so we keep the elbows ~straight and create the X purely
-  // from the shoulders — each upper arm raised forward+up (X), turned in (Y) and
-  // swung across the body (Z). Verified numerically: this lands both hands in
-  // FRONT of the chest (z +0.2) and crossed past centre (handL x +0.2).
-  J.shoulderL.rotation.set(-1.30, 0.40, 0.80);
-  J.elbowL.rotation.x = 0.12;
-  J.shoulderR.rotation.set(-1.30, -0.40, -0.80);
-  J.elbowR.rotation.x = 0.12;
+  // arms crossed over the chest with a relaxed ~90° elbow bend: upper arms drop
+  // down + slightly forward with the elbows out to the sides, then the forearms
+  // fold horizontally across the front, one tucked over the other.
+  J.shoulderL.rotation.set(-1.07, 0.04, 0.28); // left arm a touch more forward — rides on top
+  J.elbowL.rotation.set(-0.05, 0, 1.5);
+  J.shoulderR.rotation.set(-0.95, -0.04, -0.28);
+  J.elbowR.rotation.set(-0.05, 0, -1.5);
 
   // one boot propped back against the trunk (left leg), right leg bears the weight
   J.thighL.rotation.set(0.15, 0, 0.05);
