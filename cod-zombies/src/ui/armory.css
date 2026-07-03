@@ -113,6 +113,16 @@
 #armory-screen .arm-select.off { background: rgba(60,66,72,0.6); color: rgba(200,210,214,0.5); box-shadow: none; cursor: default; }
 #armory-screen .arm-select.done { background: linear-gradient(180deg, #ffce7a, #e0922a); }
 
+/* the two header actions: Dossier (left) + Select Character (right) */
+#armory-screen .arm-char-actions { display: flex; gap: 10px; align-items: center; flex: none; }
+#armory-screen .arm-dossier {
+  appearance: none; cursor: pointer; padding: 9px 22px; transform: skewX(-9deg);
+  font-family: var(--font-ui, 'Oswald', sans-serif); font-weight: 700; font-size: 0.86rem;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--bone, #d8d2c4);
+  background: rgba(20,24,28,0.72); border: 1px solid rgba(120,150,160,0.32); transition: all 0.14s ease;
+}
+#armory-screen .arm-dossier:hover { color: var(--teal, #2fb8b0); border-color: rgba(47,184,176,0.6); background: rgba(47,184,176,0.1); }
+
 /* ------------------------------ Character ------------------------------ */
 #armory-screen .arm-char-row { display: flex; gap: clamp(14px, 1.6vw, 26px); flex-wrap: wrap; }
 #armory-screen .arm-char {

@@ -1,5 +1,6 @@
 import { characterPortraitDataURL } from './characterPortrait.js';
 import { CHARACTERS, characterById } from '../characters/characters.js';
+import { setSelectedCharacter, selectedCharacterId } from '../characters/selection.js';
 
 /**
  * The Armory — the customization hub reached from the main menu. FRAMEWORK ONLY:
@@ -41,6 +42,7 @@ export class ArmoryMenu {
 
   open() {
     this.#active = 'character';
+    this.#chosen = selectedCharacterId(); // reflect who the player is actually using
     this.#hl = this.#chosen;
     this.#closeCard();
     this.#el.classList.add('show');
@@ -100,9 +102,10 @@ export class ArmoryMenu {
     // Character interactions (delegated): click highlights, double-click opens the
     // synopsis card, and the Select button / card confirm the chosen survivor.
     this.#panel.addEventListener('click', (e) => {
+      if (e.target.closest('.arm-dossier')) { this.#openCard(this.#hl); return; }
+      if (e.target.closest('.arm-select')) { this.#confirm(this.#hl); return; }
       const slot = e.target.closest('.arm-char');
-      if (slot) { this.#highlight(slot.dataset.id); return; }
-      if (e.target.closest('.arm-select')) this.#confirm(this.#hl);
+      if (slot) this.#highlight(slot.dataset.id);
     });
     this.#panel.addEventListener('dblclick', (e) => {
       const slot = e.target.closest('.arm-char');
@@ -142,10 +145,14 @@ export class ArmoryMenu {
     return `<div class="arm-p-head"><div><h2>${title}</h2><p>${sub}</p></div><span class="arm-soon">Coming Soon</span></div>`;
   }
 
-  /** The survivor head-shot, rendered once and cached. */
+  /** The selected character's head-shot for the profile card (cached by id). */
   #headshot() {
-    if (this.#portrait === null) this.#portrait = characterPortraitDataURL() || '';
-    return this.#portrait;
+    const id = selectedCharacterId();
+    if (!this.#portrait || this.#portrait.id !== id) {
+      const c = characterById(id);
+      this.#portrait = { id, url: characterPortraitDataURL({ build: c?.build, frame: 'head' }) || '' };
+    }
+    return this.#portrait.url;
   }
 
   #render() {
@@ -176,8 +183,11 @@ export class ArmoryMenu {
     const isChosen = this.#hl === this.#chosen && canSelect;
     return `
       <div class="arm-p-head">
-        <div><h2>Character</h2><p>Choose your survivor — click to highlight, double-click for the dossier.</p></div>
-        <button class="arm-select${canSelect ? '' : ' off'}${isChosen ? ' done' : ''}">${isChosen ? 'Selected' : 'Select Character'}</button>
+        <div><h2>Character</h2><p>Highlight a survivor, open its dossier, then select it as your player.</p></div>
+        <div class="arm-char-actions">
+          <button class="arm-dossier">Dossier</button>
+          <button class="arm-select${canSelect ? '' : ' off'}${isChosen ? ' done' : ''}">${isChosen ? 'Selected' : 'Select Character'}</button>
+        </div>
       </div>
       <div class="arm-char-row">${slots}</div>
       <div class="arm-note">More survivors join the crew soon — Edward Richtofen leads the way.</div>`;
@@ -201,6 +211,7 @@ export class ArmoryMenu {
   #confirm(id) {
     const c = characterById(id);
     if (!c || c.locked) return;
+    setSelectedCharacter(id); // becomes the menu hero + HUD portrait (persisted in main.js)
     this.#chosen = id; this.#hl = id;
     if (this.#active === 'character') this.#render();
   }
