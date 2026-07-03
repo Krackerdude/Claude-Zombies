@@ -16,6 +16,10 @@
   --hud-blood: #d2241c;
   --hud-blood-deep: #5e0907;
   --hud-teal: #46c3ba;
+  /* Custom in-game HUD typefaces (self-contained, see hudFont.css). Teko = tall
+     condensed tech numerals; Chakra Petch = military-tech labels. */
+  --hud-font-num: 'Teko', 'Anton', Impact, sans-serif;
+  --hud-font: 'Chakra Petch', 'Oswald', 'Arial Narrow', sans-serif;
 }
 
 /* texture helpers laid over a panel as blended overlays. `isolation` keeps the
@@ -38,8 +42,10 @@
    `gap` (round goes down, player stays put). */
 #hud-bl {
   position: absolute; left: calc(30px + var(--hud-inset)); bottom: calc(48px + var(--hud-inset)); z-index: 21;
-  display: flex; flex-direction: column; gap: 64px; pointer-events: none;
-  transform: scale(var(--hud-scale)); transform-origin: bottom left;
+  display: flex; flex-direction: column; gap: 60px; pointer-events: none;
+  /* base 1.15 bump so the cluster reads as chunky as the weapon device — still
+     multiplied by the user's HUD Scale */
+  transform: scale(calc(var(--hud-scale) * 1.15)); transform-origin: bottom left;
 }
 
 /* --- player widget — the Persona dossier row from the menus, brought in-game:
@@ -58,7 +64,7 @@
 }
 
 #hud-portrait {
-  position: relative; width: 60px; height: 76px; flex: none; overflow: hidden; isolation: isolate;
+  position: relative; width: 80px; height: 98px; flex: none; overflow: hidden; isolation: isolate;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 13px 100%);
   background:
     var(--hud-grunge),
@@ -83,7 +89,7 @@
 
 #hud-points-wrap {
   position: relative; display: flex; flex-direction: column; justify-content: center;
-  padding: 4px 20px 4px 14px; isolation: isolate;
+  padding: 6px 34px 8px 20px; isolation: isolate;
   background: var(--hud-grunge), linear-gradient(180deg, rgba(28,32,40,0.96), rgba(8,10,14,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
   border-top: 1px solid rgba(255,180,90,0.34); border-bottom: 1px solid rgba(0,0,0,0.7);
@@ -94,13 +100,13 @@
 /* a whisper-quiet "POINTS" tag over the counter, for hierarchy */
 #hud-points-wrap::before {
   content: 'POINTS'; transform: skewX(9deg);
-  font-family: 'Oswald', sans-serif; font-size: 0.5rem; font-weight: 700;
-  letter-spacing: 0.28em; color: color-mix(in srgb, var(--hud-amber) 60%, #ffffff); opacity: 0.65;
-  margin-bottom: -1px;
+  font-family: var(--hud-font); font-size: 0.62rem; font-weight: 600;
+  letter-spacing: 0.34em; color: color-mix(in srgb, var(--hud-amber) 60%, #ffffff); opacity: 0.7;
+  margin-bottom: 1px;
 }
 #hud-points {
   transform: skewX(9deg); transform-origin: left center;
-  font-family: 'Anton', Impact, sans-serif; font-size: 2.7rem; line-height: 0.92; letter-spacing: 0.01em;
+  font-family: var(--hud-font-num); font-size: 3.9rem; font-weight: 700; line-height: 0.86; letter-spacing: 0.01em;
   background: linear-gradient(178deg, #fff0c0 4%, var(--hud-amber) 46%, var(--hud-amber-deep) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 2px 5px rgba(0,0,0,0.85)) drop-shadow(0 0 10px rgba(243,198,78,0.28));
@@ -114,7 +120,7 @@
   display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 1px;
 }
 .gain {
-  font-family: 'Anton', Impact, sans-serif; font-size: 1.4rem; line-height: 1; white-space: nowrap;
+  font-family: var(--hud-font-num); font-size: 1.4rem; line-height: 1; white-space: nowrap;
   color: #ffe9a6; text-shadow: 0 1px 3px #000, 0 0 8px rgba(243,198,78,0.5);
   animation: gainRise 1.05s ease-out forwards;
 }
@@ -133,7 +139,7 @@
 
 #hud-round-widget { position: relative; line-height: 0.8; margin-left: 12px; }
 #hud-round {
-  font-family: 'Anton', Impact, sans-serif; font-size: 5.5rem; line-height: 0.8; letter-spacing: -0.01em;
+  font-family: var(--hud-font-num); font-size: 5.5rem; line-height: 0.8; letter-spacing: -0.01em;
   /* The tight line-height lets the glyph overflow its box; since the gradient is
      clipped to that box (background-clip:text), the overflowing bottom tip would
      render unfilled = "cut off". Pad the box out past the glyph (so the whole
@@ -162,7 +168,7 @@
   position: relative; width: 50px; height: 56px;
   clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 0.74rem; color: #f0f0f0;
+  font-family: var(--hud-font); font-weight: 700; font-size: 0.74rem; color: #f0f0f0;
   text-shadow: 0 1px 2px #000; isolation: isolate;
   filter: drop-shadow(0 0 1px rgba(0,0,0,0.95)) drop-shadow(0 2px 4px rgba(0,0,0,0.72));
   animation: perkpop 0.4s cubic-bezier(.2,.9,.2,1);
@@ -205,8 +211,8 @@
   --wpn-energy: 79, 224, 214;   /* cold cyan core */
   position: absolute; right: calc(34px + var(--hud-inset)); bottom: calc(44px + var(--hud-inset)); z-index: 21;
   display: flex; flex-direction: column; align-items: flex-end; gap: 9px; pointer-events: none;
-  /* 1.35 base bump (widget read ~35% too small) — still multiplied by the user's HUD Scale. */
-  transform: scale(calc(var(--hud-scale) * 1.35)); transform-origin: bottom right;
+  /* base bump so the device reads big + legible — still multiplied by HUD Scale. */
+  transform: scale(calc(var(--hud-scale) * 1.52)); transform-origin: bottom right;
 }
 .wpn-widget { position: relative; display: flex; align-items: center; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.6)); }
 
@@ -280,7 +286,7 @@
   position: relative; z-index: 3; display: inline-flex; align-items: baseline; gap: 11px;
   white-space: nowrap; transform-origin: left center;
 }
-.wpn-tube .mag, .wpn-tube .res { font-family: 'Anton', Impact, sans-serif; line-height: 0.8; }
+.wpn-tube .mag, .wpn-tube .res { font-family: var(--hud-font-num); line-height: 0.8; }
 /* PRIMARY — the loaded magazine, bright cool-white with a teal charge */
 .wpn-tube .mag {
   font-size: 3.5rem; color: #eafffd;
@@ -367,7 +373,7 @@
 }
 .wpn-nade[data-kind="acid"] .nade-n { color: #ecf7c8; text-shadow: 0 0 9px rgba(150,255,60,0.55), 0 2px 3px #000; }
 .nade-n {
-  font-family: 'Anton', Impact, sans-serif; font-size: 1.5rem; line-height: 1; color: #eaf3cf;
+  font-family: var(--hud-font-num); font-size: 1.5rem; line-height: 1; color: #eaf3cf;
   text-shadow: 0 0 9px rgba(150,200,90,0.45), 0 2px 3px #000;
 }
 
@@ -385,7 +391,7 @@
 }
 .tac-glyph::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: radial-gradient(#8a6320, #5a3f12); }
 .tac-n {
-  font-family: 'Anton', Impact, sans-serif; font-size: 1.5rem; line-height: 1; color: #f4e6c0;
+  font-family: var(--hud-font-num); font-size: 1.5rem; line-height: 1; color: #f4e6c0;
   text-shadow: 0 0 9px rgba(220,170,70,0.45), 0 2px 3px #000;
 }
 
@@ -489,7 +495,7 @@
 .wpn-name {
   align-self: flex-start; margin-left: 10px; margin-top: 4px;
   position: relative; padding: 4px 20px 5px 15px; isolation: isolate;
-  font-family: 'Anton', Impact, sans-serif; font-size: 1.32rem; letter-spacing: 0.14em; text-transform: uppercase;
+  font-family: var(--hud-font-num); font-size: 1.32rem; letter-spacing: 0.14em; text-transform: uppercase;
   color: #eef4f6;
   text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 9px rgba(70,195,186,0.3);
 }
@@ -517,7 +523,7 @@
    that reads instantly without shouting. (2-ID specificity beats the inline rule.) */
 #hud #prompt {
   top: 60%; padding: 10px 24px; white-space: nowrap;
-  font-family: 'Oswald', sans-serif; font-size: 1.06rem; font-weight: 600;
+  font-family: var(--hud-font); font-size: 1.06rem; font-weight: 600;
   letter-spacing: 0.14em; text-transform: uppercase; color: #eef3f4; text-shadow: 0 2px 5px #000;
   clip-path: polygon(11px 0, 100% 0, calc(100% - 11px) 100%, 0 100%);
   background: var(--hud-grunge), linear-gradient(180deg, rgba(22,31,37,0.86), rgba(8,12,15,0.9));
@@ -578,7 +584,7 @@
 /* round banner — "THE DEAD RISE": painted, bloody, with a violent focus-in jolt */
 #hud #hud-banner {
   top: 32%;
-  font-family: 'Anton', Impact, sans-serif; font-size: clamp(2.8rem, 8vw, 7rem);
+  font-family: var(--hud-font-num); font-size: clamp(2.8rem, 8vw, 7rem);
   text-transform: uppercase; letter-spacing: 0.02em;
   background: linear-gradient(180deg, #ff4226 0%, var(--hud-blood) 42%, var(--hud-blood-deep) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
