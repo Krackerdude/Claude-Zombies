@@ -48,8 +48,8 @@ export function buildZombieRig(look) {
       head.add(box(0.02, 0.028, 0.02, skin.eye, dx, 0.214, 0.122)); // pupil
     }
     head.add(box(0.036, 0.056, 0.042, skin.flesh, 0, 0.16, 0.118));  // nose (smaller, protruding)
-    head.add(box(0.085, 0.014, 0.025, skin.eye, 0, 0.116, 0.11));   // mouth line
-    for (const dx of [-1, 1]) head.add(box(0.028, 0.075, 0.06, skin.flesh, dx * 0.118, 0.188, 0.0)); // ears
+    head.add(box(0.085, 0.014, 0.025, skin.eye, 0, 0.101, 0.11));   // mouth line (below the nose/'stache)
+    for (const dx of [-1, 1]) head.add(box(0.028, 0.075, 0.06, skin.flesh, dx * 0.118, 0.205, 0.0)); // ears (eye-height)
   } else {
     head.add(box(0.2, 0.08, 0.04, skin.flesh, 0, 0.16, 0.11));    // jaw/brow lump
     const eyeGeo = new THREE.BoxGeometry(0.045, 0.03, 0.02);

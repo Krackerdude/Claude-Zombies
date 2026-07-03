@@ -3,17 +3,19 @@ import { buildZombieRig } from '../scenes/zombieRig.js';
 import { survivorLook } from '../scenes/MenuScene.js';
 
 /**
- * Renders a stylized 3D "head-shot" of the survivor — the same rigged character
- * from the main-menu scene — to a data URL for the HUD player portrait. It's a
+ * Renders a stylized 3D portrait of a rigged character to a data URL. It's a
  * one-shot offscreen render (its own throwaway WebGL context), so there's no
- * per-frame cost: bake the portrait once at boot and hand back a PNG.
+ * per-frame cost — bake the portrait once and hand back a PNG. The whole crew
+ * (survivor, Richtofen, …) flows through this same pipeline; pass a `build`
+ * function that returns a rig, and a `frame` ('head' or 'bust').
  *
- * This is deliberately a single character (the bald survivor) for now — when a
- * real crew exists, each survivor's rig/look drops straight into this same
- * pipeline. The point here is the TECH: a genuine render of the 3D character,
- * not a hand-drawn silhouette.
+ *   characterPortraitDataURL()                        → survivor head-shot (HUD)
+ *   characterPortraitDataURL({ build, frame:'bust' }) → any character, wider
  */
-export function characterPortraitDataURL(w = 320, h = 392) {
+function defaultBuild() { return buildZombieRig(survivorLook()); }
+
+export function characterPortraitDataURL(opts = {}) {
+  const { build = defaultBuild, frame = 'head', w = 320, h = 392 } = (opts && typeof opts === 'object') ? opts : {};
   let renderer = null;
   try {
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
@@ -26,11 +28,9 @@ export function characterPortraitDataURL(w = 320, h = 392) {
 
     const scene = new THREE.Scene();
 
-    // the survivor rig (bald, bare-skin look — no cosmetics for the base crewman)
-    const rig = buildZombieRig(survivorLook());
+    const rig = build();
     const J = rig.userData.joints;
-    // neutral, alive head-shot pose: arms dropped out of the tight crop, a small
-    // 3/4 turn + chin settle so the face reads as a portrait, not a mugshot
+    // neutral, alive portrait pose: arms dropped, a small 3/4 turn + chin settle
     J.shoulderL.rotation.set(-0.06, 0.12, 0.12);
     J.shoulderR.rotation.set(-0.06, -0.12, -0.12);
     J.elbowL.rotation.x = 0.2; J.elbowR.rotation.x = 0.2;
@@ -39,14 +39,20 @@ export function characterPortraitDataURL(w = 320, h = 392) {
     scene.add(rig);
     rig.updateMatrixWorld(true);
 
-    // frame tight on the skull (+ a sliver of shoulders), head high in frame
     const head = new THREE.Vector3();
     J.head.getWorldPosition(head);
     head.y += 0.22; // rise to the skull centre
 
     const cam = new THREE.PerspectiveCamera(25, w / h, 0.1, 20);
-    cam.position.set(head.x + 0.16, head.y + 0.06, head.z + 1.08); // slightly off-axis 3/4
-    cam.lookAt(head.x, head.y - 0.02, head.z);
+    if (frame === 'bust') {
+      // pull back + drop the target to show head, shoulders and the outfit
+      cam.fov = 30; cam.updateProjectionMatrix();
+      cam.position.set(head.x + 0.28, head.y - 0.06, head.z + 1.62);
+      cam.lookAt(head.x, head.y - 0.30, head.z);
+    } else {
+      cam.position.set(head.x + 0.16, head.y + 0.06, head.z + 1.08); // tight 3/4 head-shot
+      cam.lookAt(head.x, head.y - 0.02, head.z);
+    }
 
     // stylized lighting: warm key, cool rim, soft cold fill + ambient floor
     scene.add(new THREE.HemisphereLight(0x9fb6c8, 0x090d11, 0.4));
