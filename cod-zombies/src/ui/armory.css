@@ -244,29 +244,98 @@
 #armory-screen .arm-emblem-hint { position: absolute; bottom: 10px; font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(150,170,185,0.4); }
 
 /* ---------------------------- Player Profile --------------------------- */
-#armory-screen .arm-profile { display: flex; flex-direction: column; gap: 20px; }
-#armory-screen .arm-prof-card {
-  display: flex; gap: 18px; align-items: center; padding: 16px;
-  background: linear-gradient(180deg, rgba(24,30,36,0.62), rgba(10,14,17,0.74));
-  border: 1px solid rgba(120,150,160,0.22); border-left: 3px solid var(--teal, #2fb8b0);
+#armory-screen .arm-prof2 { display: flex; flex-direction: column; gap: 22px; }
+
+/* --- live nameplate preview --- */
+#armory-screen .arm-prof-preview {
+  padding: 20px; align-self: flex-start;
+  background: linear-gradient(180deg, rgba(24,30,36,0.55), rgba(10,14,17,0.7));
+  border: 1px solid rgba(120,150,160,0.2); border-left: 3px solid var(--teal, #2fb8b0);
   box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
 }
-#armory-screen .arm-prof-port {
-  width: 92px; height: 112px; flex: none; border-radius: 5px; overflow: hidden;
-  background: radial-gradient(120% 100% at 50% 20%, #1a2630, #070b0e 82%); border: 1px solid rgba(120,150,160,0.25);
+#armory-screen .arm-np { width: clamp(320px, 40vw, 460px); }
+#armory-screen .arm-np-name {
+  display: inline-flex; margin: 0 0 -1px 8px; padding: 4px 26px 4px 14px;
+  font-family: 'Anton', Impact, sans-serif; font-size: 1.15rem; letter-spacing: 0.03em; color: #eef2f4;
+  background: linear-gradient(180deg, rgba(26,30,37,0.97), rgba(8,10,14,0.98));
+  border-top: 1px solid rgba(255,180,90,0.32); border-left: 3px solid #ff8a28;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
 }
-#armory-screen .arm-prof-port img { width: 100%; height: 100%; object-fit: cover; }
-#armory-screen .arm-prof-name { font-family: 'Anton', Impact, sans-serif; font-size: 1.6rem; letter-spacing: 0.02em; color: #eef2f4; }
-#armory-screen .arm-prof-rank { margin: 2px 0 10px; font-size: 0.85rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal, #2fb8b0); }
-#armory-screen .arm-prof-bar { width: min(340px, 60vw); height: 8px; border-radius: 4px; background: rgba(0,0,0,0.55); box-shadow: inset 0 0 0 1px rgba(120,150,160,0.2); overflow: hidden; }
-#armory-screen .arm-prof-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #ffce7a, #e0922a); box-shadow: 0 0 8px rgba(224,146,42,0.6); }
-#armory-screen .arm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
-#armory-screen .arm-stat {
-  padding: 14px; text-align: center; border-radius: 5px;
-  background: linear-gradient(180deg, rgba(24,30,36,0.5), rgba(10,14,17,0.62)); border: 1px solid rgba(120,150,160,0.18);
+#armory-screen .arm-np-card {
+  position: relative; display: flex; height: 74px; overflow: hidden;
+  border-top: 1px solid rgba(255,180,90,0.28); border-bottom: 1px solid rgba(0,0,0,0.75);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 16px 100%);
 }
-#armory-screen .arm-stat-v { font-family: 'Anton', Impact, sans-serif; font-size: 1.9rem; color: var(--bone, #d8d2c4); }
-#armory-screen .arm-stat-l { font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bone-dim, #7c7668); }
+#armory-screen .arm-np-emblem {
+  flex: none; width: 74px; display: flex; align-items: center; justify-content: center; padding: 8px;
+  background: radial-gradient(circle at 50% 42%, #1b2228, #0a0e11); border-right: 1px solid rgba(0,0,0,0.7);
+}
+#armory-screen .arm-np-emblem svg { width: 100%; height: 100%; }
+#armory-screen .arm-np-cc { position: relative; flex: 1; overflow: hidden; }
+#armory-screen .arm-np-cc-art { position: absolute; inset: 0; }
+#armory-screen .arm-np-cc-art svg { width: 100%; height: 100%; display: block; }
+#armory-screen .arm-np-lvl {
+  position: absolute; left: 0; top: 0; padding: 3px 13px 3px 9px; color: #160f08;
+  font-family: 'Anton', Impact, sans-serif; font-size: 1.35rem; line-height: 1;
+  background: linear-gradient(155deg, #ffd07c, #ff8a28 56%, #ec6f0c);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+#armory-screen .arm-np-xp { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(0,0,0,0.62); overflow: hidden; }
+#armory-screen .arm-np-xp > i { display: block; height: 100%; background: linear-gradient(90deg, #ffb347, #ff8a28); box-shadow: 0 0 6px rgba(255,138,40,0.7); }
+#armory-screen .arm-np-meta {
+  display: flex; justify-content: space-between; gap: 16px; margin-top: 12px;
+  font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bone-dim, #7c7668);
+}
+#armory-screen .arm-np-eq { color: var(--teal, #2fb8b0); }
+
+/* --- sub-tab rail (Emblems / Custom / Calling Cards) --- */
+#armory-screen .arm-ptabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(120,150,160,0.18); }
+#armory-screen .arm-ptab {
+  padding: 9px 18px; font-family: inherit; font-size: 0.82rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--bone-dim, #7c7668); background: none; border: 0; border-bottom: 2px solid transparent;
+  cursor: pointer; transform: skewX(-9deg); transition: color 0.15s ease, border-color 0.15s ease;
+}
+#armory-screen .arm-ptab > * { display: inline-block; transform: skewX(9deg); }
+#armory-screen .arm-ptab:hover { color: var(--bone, #d8d2c4); }
+#armory-screen .arm-ptab.active { color: #eef2f4; border-bottom-color: var(--teal, #2fb8b0); }
+
+/* --- emblem / calling-card grids --- */
+#armory-screen .arm-id-grid { display: grid; gap: 14px; }
+#armory-screen .arm-id-grid.emblems { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+#armory-screen .arm-id-grid.cards { grid-template-columns: 1fr; max-width: 560px; }
+#armory-screen .arm-id-pick {
+  position: relative; cursor: pointer; border: 1px solid rgba(120,150,160,0.2);
+  background: linear-gradient(180deg, rgba(24,30,36,0.5), rgba(10,14,17,0.64));
+  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+#armory-screen .arm-id-pick:hover { border-color: rgba(120,150,160,0.5); transform: translateY(-2px); }
+#armory-screen .arm-id-pick.sel { border-color: var(--teal, #2fb8b0); box-shadow: 0 0 0 1px var(--teal, #2fb8b0), 0 0 18px rgba(47,184,176,0.28); }
+#armory-screen .arm-id-pick.sel::after {
+  content: 'EQUIPPED'; position: absolute; top: 6px; right: 6px; z-index: 2;
+  padding: 2px 7px; font-size: 0.58rem; letter-spacing: 0.14em; color: #071012;
+  background: var(--teal, #2fb8b0); border-radius: 2px;
+}
+#armory-screen .arm-id-pick.emblem .arm-id-art {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center; padding: 14px;
+  background: radial-gradient(circle at 50% 42%, #1b2228, #0a0e11);
+}
+#armory-screen .arm-id-pick.card .arm-id-art { height: 72px; overflow: hidden; }
+#armory-screen .arm-id-art svg { width: 100%; height: 100%; display: block; }
+#armory-screen .arm-id-name {
+  padding: 8px 12px; font-size: 0.82rem; letter-spacing: 0.06em; color: var(--bone, #d8d2c4);
+  border-top: 1px solid rgba(120,150,160,0.16);
+}
+
+/* --- custom emblems (empty state → Emblem Creator) --- */
+#armory-screen .arm-id-custom { display: flex; }
+#armory-screen .arm-id-empty {
+  display: flex; align-items: center; gap: 16px; padding: 26px 30px; max-width: 520px;
+  background: linear-gradient(180deg, rgba(24,30,36,0.5), rgba(10,14,17,0.62));
+  border: 1px dashed rgba(120,150,160,0.3);
+}
+#armory-screen .arm-id-empty .arm-q { font-size: 2rem; color: var(--teal, #2fb8b0); opacity: 0.8; }
+#armory-screen .arm-id-empty p { font-size: 0.95rem; line-height: 1.5; color: var(--bone-dim, #9a9384); }
+#armory-screen .arm-id-empty b { color: var(--bone, #d8d2c4); }
 
 /* -------------------------- Progression Pass --------------------------- */
 #armory-screen .arm-pass-row { display: flex; gap: clamp(14px, 1.6vw, 24px); flex-wrap: wrap; }

@@ -1,6 +1,10 @@
 import { characterPortraitDataURL } from './characterPortrait.js';
 import { CHARACTERS, characterById } from '../characters/characters.js';
 import { setSelectedCharacter, selectedCharacterId } from '../characters/selection.js';
+import {
+  EMBLEMS, CALLING_CARDS, selectedEmblem, selectedCallingCard,
+  selectedEmblemId, selectedCallingCardId, setEmblem, setCallingCard,
+} from './identity.js';
 
 /**
  * The Armory — the customization hub reached from the main menu. FRAMEWORK ONLY:
@@ -26,11 +30,11 @@ export class ArmoryMenu {
   #el; #panel; #tabsEl; #onClose;
   #active = 'character';
   #open = false;
-  #portrait = null; // lazily-rendered survivor head-shot (cached, for the profile card)
   #portraits = {};  // character id -> rendered portrait data URL (cached)
   #hl = 'richtofen';     // highlighted character (single click)
   #chosen = 'richtofen'; // confirmed selection (Select Character)
   #card;                 // synopsis modal element
+  #profTab = 'emblems';  // Player Profile sub-tab: emblems | custom | cards
 
   constructor({ onClose } = {}) {
     this.#onClose = onClose;
@@ -104,6 +108,13 @@ export class ArmoryMenu {
     this.#panel.addEventListener('click', (e) => {
       if (e.target.closest('.arm-dossier')) { this.#openCard(this.#hl); return; }
       if (e.target.closest('.arm-select')) { this.#confirm(this.#hl); return; }
+      // Player Profile: sub-tab switch + emblem / calling-card pick
+      const ptab = e.target.closest('.arm-ptab');
+      if (ptab) { this.#profTab = ptab.dataset.ptab; this.#render(); return; }
+      const em = e.target.closest('.arm-id-pick[data-kind="emblem"]');
+      if (em) { setEmblem(em.dataset.id); this.#render(); return; }
+      const cc = e.target.closest('.arm-id-pick[data-kind="card"]');
+      if (cc) { setCallingCard(cc.dataset.id); this.#render(); return; }
       const slot = e.target.closest('.arm-char');
       if (slot) this.#highlight(slot.dataset.id);
     });
@@ -143,16 +154,6 @@ export class ArmoryMenu {
 
   #head(title, sub) {
     return `<div class="arm-p-head"><div><h2>${title}</h2><p>${sub}</p></div><span class="arm-soon">Coming Soon</span></div>`;
-  }
-
-  /** The selected character's head-shot for the profile card (cached by id). */
-  #headshot() {
-    const id = selectedCharacterId();
-    if (!this.#portrait || this.#portrait.id !== id) {
-      const c = characterById(id);
-      this.#portrait = { id, url: characterPortraitDataURL({ build: c?.build, frame: 'head' }) || '' };
-    }
-    return this.#portrait.url;
   }
 
   #render() {
@@ -274,24 +275,58 @@ export class ArmoryMenu {
   }
 
   #profile() {
-    const hs = this.#headshot();
-    const stat = (v, l) => `<div class="arm-stat"><div class="arm-stat-v">${v}</div><div class="arm-stat-l">${l}</div></div>`;
-    return `
-      ${this.#head('Player Profile', 'Your identity, rank and lifetime record.')}
-      <div class="arm-profile">
-        <div class="arm-prof-card">
-          <div class="arm-prof-port">${hs ? `<img src="${hs}" alt="">` : ''}</div>
-          <div class="arm-prof-id">
-            <div class="arm-prof-name">Survivor One</div>
-            <div class="arm-prof-rank">Recruit · Rank 01</div>
-            <div class="arm-prof-bar"><i style="width:12%"></i></div>
-          </div>
-        </div>
-        <div class="arm-stats">
-          ${stat('—', 'Kills')}${stat('—', 'Best Round')}${stat('—', 'Downs')}${stat('—', 'Games')}
+    const em = selectedEmblem(), cc = selectedCallingCard();
+    // live nameplate preview — name on a tab, emblem + calling card, level + XP
+    const nameplate = `
+      <div class="arm-np">
+        <div class="arm-np-name">Survivor One</div>
+        <div class="arm-np-card">
+          <div class="arm-np-emblem">${em.svg}</div>
+          <div class="arm-np-cc"><div class="arm-np-cc-art">${cc.svg}</div><div class="arm-np-lvl">1</div></div>
+          <div class="arm-np-xp"><i style="width:12%"></i></div>
         </div>
       </div>
-      <div class="arm-note">Rank, emblem and lifetime stats will live here — coming soon.</div>`;
+      <div class="arm-np-meta"><span>Recruit · Rank 01</span><span class="arm-np-eq">${em.name} · ${cc.name}</span></div>`;
+
+    const ptabs = [['emblems', 'Emblems'], ['custom', 'Custom Emblems'], ['cards', 'Calling Cards']]
+      .map(([id, lbl]) => `<button class="arm-ptab${this.#profTab === id ? ' active' : ''}" data-ptab="${id}">${lbl}</button>`)
+      .join('');
+
+    let grid;
+    if (this.#profTab === 'cards') {
+      const selId = selectedCallingCardId();
+      grid = `<div class="arm-id-grid cards">${CALLING_CARDS.map((c) => `
+        <div class="arm-id-pick card${c.id === selId ? ' sel' : ''}" data-kind="card" data-id="${c.id}">
+          <div class="arm-id-art">${c.svg}</div>
+          <div class="arm-id-name">${c.name}</div>
+        </div>`).join('')}</div>`;
+    } else if (this.#profTab === 'custom') {
+      grid = `<div class="arm-id-custom">
+          <div class="arm-id-empty">
+            <span class="arm-q">✦</span>
+            <p>No custom emblems yet. Build one in the <b>Emblem Creator</b>, then equip it here.</p>
+          </div>
+        </div>`;
+    } else {
+      const selId = selectedEmblemId();
+      grid = `<div class="arm-id-grid emblems">${EMBLEMS.map((e) => `
+        <div class="arm-id-pick emblem${e.id === selId ? ' sel' : ''}" data-kind="emblem" data-id="${e.id}">
+          <div class="arm-id-art">${e.svg}</div>
+          <div class="arm-id-name">${e.name}</div>
+        </div>`).join('')}</div>`;
+    }
+
+    return `
+      <div class="arm-p-head">
+        <div><h2>Player Profile</h2><p>Set yourself apart — equip an emblem and a calling card.</p></div>
+      </div>
+      <div class="arm-prof2">
+        <div class="arm-prof-preview">${nameplate}</div>
+        <div class="arm-id">
+          <div class="arm-ptabs">${ptabs}</div>
+          ${grid}
+        </div>
+      </div>`;
   }
 
   #pass() {
