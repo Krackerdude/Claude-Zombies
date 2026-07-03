@@ -16,6 +16,7 @@ import { FactoryView } from './FactoryView.js';
 import { FactoryMenu } from './FactoryMenu.js';
 import { rollFactory, wagerCost } from '../factory/factory.js';
 import { CookbookMenu } from './CookbookMenu.js';
+import { ArmoryMenu } from './ArmoryMenu.js';
 
 /**
  * Owns all menu DOM and orchestrates app-state transitions. The engine never
@@ -59,6 +60,7 @@ export class UIManager {
   #packs; #widget; #packMenu; #machineView; #gpOpen = false;
   #factoryView; #factoryMenu; #factoryOpen = false;
   #cookbook; #cookbookOpen = false;
+  #armory; #armoryOpen = false;
 
   constructor(engine) {
     this.#engine = engine;
@@ -108,6 +110,9 @@ export class UIManager {
 
     // Newton's Cookbook — the trade-recipe book. Shares the gum inventory.
     this.#cookbook = new CookbookMenu({ packs: this.#packs, onClose: () => { this.#playTransition(); this.#cookbookOpen = false; } });
+
+    // Armory — customization hub (framework: tabs only, no functionality yet)
+    this.#armory = new ArmoryMenu({ onClose: () => { this.#playTransition(); this.#armoryOpen = false; } });
 
     // park the widget in its home (main-menu top-right), extra-large there
     this.#widget.mountTo(this.#screens.main, { top: '6%', right: 'clamp(24px,3vw,64px)' }, 1.85);
@@ -300,7 +305,7 @@ export class UIManager {
       { label: "Dr. Newton's Factory", ld: true, action: () => this.openFactory() },
       { label: "Newton's Cookbook", action: () => this.openCookbook() },
       { label: 'Weapon Kits', soon: true, action: soon('Weapon Kits', 'Customize every weapon with attachments.') },
-      { label: 'Armory', soon: true, action: soon('Armory', 'Choose your survivor, skins, emblems and calling cards.') },
+      { label: 'Armory', action: () => this.openArmory() },
       { label: 'Options', action: () => this.openOptions(AppState.MENU) },
       { label: 'Quit', action: () => this.#quit() },
     ];
@@ -541,6 +546,7 @@ export class UIManager {
 
   /** Main menu → Newton's Cookbook (the trade-recipe book). */
   openCookbook() { this.#playTransition(); this.#cookbook.open(); this.#cookbookOpen = true; }
+  openArmory() { this.#playTransition(); this.#armory.open(); this.#armoryOpen = true; }
 
   #diviniumBalance() { return this.#profile?.get('currency.liquidDivinium', 0) ?? 0; }
 
@@ -798,6 +804,7 @@ export class UIManager {
       if (e.code === 'Escape') {
         if (this.#factoryOpen) { this.#factoryMenu.close(); e.preventDefault(); return; }
         if (this.#cookbookOpen) { this.#cookbook.close(); e.preventDefault(); return; }
+        if (this.#armoryOpen) { this.#armory.close(); e.preventDefault(); return; }
         if (this.#questOpen) { this.#questMenu.close(); e.preventDefault(); return; }
         if (this.#ggOpen) { this.#gobblegum.close(); e.preventDefault(); return; }
         if (this.#gpOpen) { this.#packMenu.close(); e.preventDefault(); return; }
@@ -824,10 +831,16 @@ export class UIManager {
         else if (e.code === 'ArrowRight') { this.#cookbook.el.querySelector('.cb-next')?.click(); e.preventDefault(); }
         return;
       }
+      // Armory: up/down cycle the section tabs.
+      if (this.#armoryOpen) {
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#armory.cycle(1); e.preventDefault(); }
+        else if (e.code === 'ArrowUp' || e.code === 'KeyW') { this.#armory.cycle(-1); e.preventDefault(); }
+        return;
+      }
       // Map select: Enter deploys the selected map.
       if (this.#mapOpen && (e.code === 'Enter' || e.code === 'Space') && !this.#entering) { this.fadeToPlay(); e.preventDefault(); return; }
       // Main-menu navigation (suspended while a sub-panel/intro is up).
-      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#questOpen && !this.#factoryOpen && !this.#cookbookOpen && !this.#entering) {
+      if (this.#gameState.current === AppState.MENU && !this.#optionsOpen && !this.#mapOpen && !this.#soonOpen && !this.#ggOpen && !this.#gpOpen && !this.#questOpen && !this.#factoryOpen && !this.#cookbookOpen && !this.#armoryOpen && !this.#entering) {
         if (e.code === 'ArrowDown' || e.code === 'KeyS') { this.#select((this.#sel + 1) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'ArrowUp' || e.code === 'KeyW') { this.#select((this.#sel - 1 + this.#mainItems.length) % this.#mainItems.length); e.preventDefault(); }
         else if (e.code === 'Enter' || e.code === 'Space') { this.#mainItems[this.#sel]?.click(); e.preventDefault(); }
