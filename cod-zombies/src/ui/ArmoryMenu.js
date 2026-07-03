@@ -1,4 +1,5 @@
 import { characterPortraitDataURL } from './characterPortrait.js';
+import { CHARACTERS, characterById } from '../characters/characters.js';
 
 /**
  * The Armory — the customization hub reached from the main menu. FRAMEWORK ONLY:
@@ -24,7 +25,11 @@ export class ArmoryMenu {
   #el; #panel; #tabsEl; #onClose;
   #active = 'character';
   #open = false;
-  #portrait = null; // lazily-rendered survivor head-shot (cached)
+  #portrait = null; // lazily-rendered survivor head-shot (cached, for the profile card)
+  #portraits = {};  // character id -> rendered portrait data URL (cached)
+  #hl = 'richtofen';     // highlighted character (single click)
+  #chosen = 'richtofen'; // confirmed selection (Select Character)
+  #card;                 // synopsis modal element
 
   constructor({ onClose } = {}) {
     this.#onClose = onClose;
@@ -36,6 +41,8 @@ export class ArmoryMenu {
 
   open() {
     this.#active = 'character';
+    this.#hl = this.#chosen;
+    this.#closeCard();
     this.#el.classList.add('show');
     this.#open = true;
     this.#syncTabs();
@@ -43,16 +50,24 @@ export class ArmoryMenu {
   }
 
   close() {
+    this.#closeCard();
     this.#el.classList.remove('show');
     this.#open = false;
     this.#onClose?.();
   }
 
-  /** Arrow-key tab cycling from the UIManager. */
+  /** Arrow-key tab cycling from the UIManager (suspended while a dossier is up). */
   cycle(dir) {
+    if (this.#card?.classList.contains('show')) return;
     const i = TABS.findIndex((t) => t.id === this.#active);
     const n = (i + dir + TABS.length) % TABS.length;
     this.#switch(TABS[n].id);
+  }
+
+  /** Esc from the UIManager: dismiss an open dossier first, else close the menu. */
+  escape() {
+    if (this.#card?.classList.contains('show')) { this.#closeCard(); return; }
+    this.close();
   }
 
   // --- build --------------------------------------------------------------
@@ -74,11 +89,29 @@ export class ArmoryMenu {
       <div class="arm-foot">
         <span>[↑↓] Section · [Esc] Back</span>
         <button class="arm-back">Back</button>
-      </div>`;
+      </div>
+      <div class="arm-modal"><div class="arm-card"></div></div>`;
     document.body.appendChild(el);
     this.#el = el;
     this.#panel = el.querySelector('.arm-panel');
     this.#tabsEl = el.querySelector('.arm-tabs');
+    this.#card = el.querySelector('.arm-modal');
+
+    // Character interactions (delegated): click highlights, double-click opens the
+    // synopsis card, and the Select button / card confirm the chosen survivor.
+    this.#panel.addEventListener('click', (e) => {
+      const slot = e.target.closest('.arm-char');
+      if (slot) { this.#highlight(slot.dataset.id); return; }
+      if (e.target.closest('.arm-select')) this.#confirm(this.#hl);
+    });
+    this.#panel.addEventListener('dblclick', (e) => {
+      const slot = e.target.closest('.arm-char');
+      if (slot) this.#openCard(slot.dataset.id);
+    });
+    this.#card.addEventListener('click', (e) => {
+      if (e.target === this.#card || e.target.closest('.arm-card-close')) this.#closeCard();
+      else if (e.target.closest('.arm-card-select')) { this.#confirm(this.#card.dataset.id); this.#closeCard(); }
+    });
 
     TABS.forEach((t, i) => {
       const b = document.createElement('button');
@@ -126,23 +159,84 @@ export class ArmoryMenu {
   }
 
   #character() {
-    const hs = this.#headshot();
-    const slot = (n, name, sel, locked) => `
-      <div class="arm-char${sel ? ' sel' : ''}${locked ? ' locked' : ''}">
-        <div class="arm-char-port">${sel && hs ? `<img src="${hs}" alt="">` : '<span class="arm-q">?</span>'}</div>
-        <div class="arm-char-name">${name}</div>
-        <div class="arm-char-tag">${sel ? 'Selected' : locked ? 'Locked' : 'Available'}</div>
-      </div>`;
+    const slots = CHARACTERS.map((c) => {
+      const port = this.#portraitFor(c);
+      const hl = c.id === this.#hl, chosen = c.id === this.#chosen;
+      const pill = c.locked ? 'Locked' : chosen ? 'Selected' : hl ? 'Highlighted' : 'Available';
+      return `
+        <div class="arm-char${hl ? ' hl' : ''}${chosen ? ' sel' : ''}${c.locked ? ' locked' : ''}" data-id="${c.id}">
+          <div class="arm-char-port">${port ? `<img src="${port}" alt="">` : '<span class="arm-q">?</span>'}</div>
+          <div class="arm-char-name">${c.locked ? 'Locked' : c.name}</div>
+          <div class="arm-char-tag">${c.locked ? '—' : c.role}</div>
+          <div class="arm-char-pill">${pill}</div>
+        </div>`;
+    }).join('');
+    const hlChar = characterById(this.#hl);
+    const canSelect = hlChar && !hlChar.locked;
+    const isChosen = this.#hl === this.#chosen && canSelect;
     return `
-      ${this.#head('Character', 'Choose your survivor from the crew.')}
-      <div class="arm-char-row">
-        ${slot(1, 'Survivor One', true, false)}
-        ${slot(2, 'Survivor Two', false, true)}
-        ${slot(3, 'Survivor Three', false, true)}
-        ${slot(4, 'Survivor Four', false, true)}
+      <div class="arm-p-head">
+        <div><h2>Character</h2><p>Choose your survivor — click to highlight, double-click for the dossier.</p></div>
+        <button class="arm-select${canSelect ? '' : ' off'}${isChosen ? ' done' : ''}">${isChosen ? 'Selected' : 'Select Character'}</button>
       </div>
-      <div class="arm-note">A full four-survivor crew is on the way — for now you play the lone survivor.</div>`;
+      <div class="arm-char-row">${slots}</div>
+      <div class="arm-note">More survivors join the crew soon — Edward Richtofen leads the way.</div>`;
   }
+
+  /** Render (and cache) a character's bust portrait; null for locked entries. */
+  #portraitFor(char) {
+    if (char.locked || !char.build) return null;
+    if (this.#portraits[char.id] === undefined) {
+      this.#portraits[char.id] = characterPortraitDataURL({ build: char.build, frame: 'bust', w: 300, h: 360 }) || '';
+    }
+    return this.#portraits[char.id];
+  }
+
+  #highlight(id) {
+    if (!characterById(id)) return;
+    this.#hl = id;
+    if (this.#active === 'character') this.#render();
+  }
+
+  #confirm(id) {
+    const c = characterById(id);
+    if (!c || c.locked) return;
+    this.#chosen = id; this.#hl = id;
+    if (this.#active === 'character') this.#render();
+  }
+
+  #openCard(id) {
+    const c = characterById(id);
+    if (!c) return;
+    this.#hl = id;
+    this.#card.dataset.id = id;
+    const chosen = id === this.#chosen;
+    const inner = this.#card.querySelector('.arm-card');
+    if (c.locked) {
+      inner.innerHTML = `
+        <button class="arm-card-close" aria-label="Close">✕</button>
+        <div class="arm-card-locked"><span class="arm-q">?</span><h3>Classified</h3><p>This survivor hasn't been declassified yet.</p></div>`;
+    } else {
+      const port = this.#portraitFor(c);
+      inner.innerHTML = `
+        <button class="arm-card-close" aria-label="Close">✕</button>
+        <div class="arm-card-body">
+          <div class="arm-card-port">${port ? `<img src="${port}" alt="">` : ''}</div>
+          <div class="arm-card-info">
+            <div class="arm-card-era">${c.era || ''}</div>
+            <h3>${c.name}</h3>
+            <div class="arm-card-role">${c.role}</div>
+            <div class="arm-card-tags">${(c.tags || []).map((t) => `<span>${t}</span>`).join('')}</div>
+            <p class="arm-card-syn">${c.synopsis}</p>
+            <button class="arm-card-select${chosen ? ' done' : ''}">${chosen ? 'Selected' : 'Select Character'}</button>
+          </div>
+        </div>`;
+    }
+    this.#card.classList.add('show');
+    if (this.#active === 'character') this.#render();
+  }
+
+  #closeCard() { this.#card?.classList.remove('show'); }
 
   #skins() {
     let tiles = '';

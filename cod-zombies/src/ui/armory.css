@@ -101,25 +101,101 @@
   box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
 }
 
+/* Select Character button (replaces the "Coming Soon" chip on this tab) */
+#armory-screen .arm-select {
+  flex: none; appearance: none; cursor: pointer; padding: 9px 24px; transform: skewX(-9deg);
+  font-family: var(--font-ui, 'Oswald', sans-serif); font-weight: 700; font-size: 0.86rem;
+  letter-spacing: 0.14em; text-transform: uppercase; color: #10110a;
+  background: linear-gradient(180deg, #4fdccb, var(--teal, #2fb8b0)); border: 0;
+  box-shadow: 0 4px 14px rgba(47,184,176,0.35); transition: filter 0.14s ease, transform 0.12s ease;
+}
+#armory-screen .arm-select:hover { filter: brightness(1.1); transform: skewX(-9deg) translateY(-1px); }
+#armory-screen .arm-select.off { background: rgba(60,66,72,0.6); color: rgba(200,210,214,0.5); box-shadow: none; cursor: default; }
+#armory-screen .arm-select.done { background: linear-gradient(180deg, #ffce7a, #e0922a); }
+
 /* ------------------------------ Character ------------------------------ */
 #armory-screen .arm-char-row { display: flex; gap: clamp(14px, 1.6vw, 26px); flex-wrap: wrap; }
 #armory-screen .arm-char {
-  width: clamp(150px, 15vw, 200px); border-radius: 6px; overflow: hidden; isolation: isolate;
+  position: relative; width: clamp(150px, 15vw, 200px); border-radius: 6px; overflow: hidden; isolation: isolate;
+  cursor: pointer; user-select: none;
   background: linear-gradient(180deg, rgba(24,30,36,0.6), rgba(10,14,17,0.72));
   border: 1px solid rgba(120,150,160,0.22);
   box-shadow: inset 0 0 30px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.4);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
 }
-#armory-screen .arm-char.sel { border-color: var(--teal, #2fb8b0); box-shadow: inset 0 0 30px rgba(0,0,0,0.5), 0 0 0 1px var(--teal, #2fb8b0), 0 8px 22px rgba(0,0,0,0.5); }
+#armory-screen .arm-char:not(.locked):hover { transform: translateY(-3px); }
+#armory-screen .arm-char.hl { border-color: rgba(120,210,225,0.7); box-shadow: inset 0 0 30px rgba(0,0,0,0.4), 0 0 0 2px rgba(120,210,225,0.7), 0 10px 24px rgba(0,0,0,0.5); }
+#armory-screen .arm-char.sel { border-color: var(--teal, #2fb8b0); box-shadow: inset 0 0 30px rgba(0,0,0,0.5), 0 0 0 2px var(--teal, #2fb8b0), 0 8px 22px rgba(0,0,0,0.5); }
 #armory-screen .arm-char-port {
   position: relative; aspect-ratio: 3 / 3.4; display: grid; place-items: center;
   background: radial-gradient(120% 100% at 50% 20%, #1a2630, #070b0e 82%);
 }
 #armory-screen .arm-char-port img { width: 100%; height: 100%; object-fit: cover; }
+#armory-screen .arm-char.locked { cursor: default; }
 #armory-screen .arm-char.locked .arm-char-port { filter: grayscale(1) brightness(0.5); }
 #armory-screen .arm-q { font-family: 'Anton', Impact, sans-serif; font-size: 3rem; color: rgba(150,170,185,0.4); }
-#armory-screen .arm-char-name { padding: 8px 12px 2px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+#armory-screen .arm-char-name { padding: 8px 12px 2px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #armory-screen .arm-char-tag { padding: 0 12px 10px; font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bone-dim, #7c7668); }
 #armory-screen .arm-char.sel .arm-char-tag { color: var(--teal, #2fb8b0); }
+/* status pill top-right of a slot */
+#armory-screen .arm-char-pill {
+  position: absolute; top: 8px; right: 8px; padding: 3px 9px; transform: skewX(-9deg);
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #cdd7de; background: rgba(8,11,14,0.82); border: 1px solid rgba(120,150,160,0.3);
+}
+#armory-screen .arm-char.hl .arm-char-pill { color: #10110a; background: linear-gradient(180deg, #9fe8ec, #34c6e0); border-color: transparent; }
+#armory-screen .arm-char.sel .arm-char-pill { color: #10110a; background: linear-gradient(180deg, #4fdccb, var(--teal, #2fb8b0)); border-color: transparent; }
+#armory-screen .arm-char.locked .arm-char-pill { color: var(--bone-dim, #7c7668); }
+
+/* ------------------------ character dossier modal ---------------------- */
+#armory-screen .arm-modal {
+  position: absolute; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center;
+  background: rgba(4,5,7,0.72); backdrop-filter: blur(4px);
+}
+#armory-screen .arm-modal.show { display: flex; animation: armFade 0.18s ease; }
+@keyframes armFade { from { opacity: 0; } to { opacity: 1; } }
+#armory-screen .arm-card {
+  position: relative; width: min(820px, 92vw); max-height: 86vh; overflow: hidden;
+  padding: 0; border-radius: 8px;
+  background: linear-gradient(165deg, rgba(18,22,27,0.98), rgba(9,7,7,0.98));
+  border: 1px solid rgba(120,150,160,0.28);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.7), inset 0 0 60px rgba(0,0,0,0.5);
+  animation: armCardIn 0.22s cubic-bezier(.2,.9,.2,1);
+}
+@keyframes armCardIn { from { transform: translateY(14px) scale(0.98); opacity: 0; } to { transform: none; opacity: 1; } }
+#armory-screen .arm-card-close {
+  position: absolute; top: 12px; right: 12px; z-index: 3; appearance: none; cursor: pointer;
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(120,150,160,0.3);
+  background: rgba(8,11,14,0.7); color: #cdd7de; font-size: 1rem; transition: all 0.14s ease;
+}
+#armory-screen .arm-card-close:hover { color: var(--blood-bright, #e23a2e); border-color: rgba(226,58,46,0.6); }
+#armory-screen .arm-card-body { display: grid; grid-template-columns: minmax(220px, 38%) 1fr; min-height: 0; }
+#armory-screen .arm-card-port {
+  position: relative; background: radial-gradient(120% 100% at 50% 15%, #1b2732, #05080b 85%);
+  border-right: 1px solid rgba(120,150,160,0.2);
+}
+#armory-screen .arm-card-port img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+#armory-screen .arm-card-info { padding: 26px 28px 24px; overflow-y: auto; }
+#armory-screen .arm-card-era { font-size: 0.72rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--teal, #2fb8b0); }
+#armory-screen .arm-card-info h3 { font-family: 'Anton', Impact, sans-serif; font-size: 2.1rem; letter-spacing: 0.02em; text-transform: uppercase; color: #eef2f4; margin: 4px 0 2px; }
+#armory-screen .arm-card-role { font-size: 0.95rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bone-dim, #7c7668); }
+#armory-screen .arm-card-tags { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+#armory-screen .arm-card-tags span {
+  padding: 4px 12px; transform: skewX(-9deg); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #cdd7de; background: rgba(47,184,176,0.12); border: 1px solid rgba(47,184,176,0.4);
+}
+#armory-screen .arm-card-syn { font-size: 0.98rem; line-height: 1.6; color: #c3ccd2; margin-bottom: 20px; }
+#armory-screen .arm-card-select {
+  appearance: none; cursor: pointer; padding: 11px 30px; transform: skewX(-9deg);
+  font-family: var(--font-ui, 'Oswald', sans-serif); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #10110a;
+  background: linear-gradient(180deg, #4fdccb, var(--teal, #2fb8b0)); border: 0; box-shadow: 0 5px 16px rgba(47,184,176,0.35);
+}
+#armory-screen .arm-card-select:hover { filter: brightness(1.1); }
+#armory-screen .arm-card-select.done { background: linear-gradient(180deg, #ffce7a, #e0922a); }
+#armory-screen .arm-card-locked { padding: 60px 40px; text-align: center; }
+#armory-screen .arm-card-locked .arm-q { font-size: 4rem; }
+#armory-screen .arm-card-locked h3 { font-family: 'Anton', Impact, sans-serif; font-size: 1.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: #cdd7de; margin: 10px 0 6px; }
+#armory-screen .arm-card-locked p { color: var(--bone-dim, #7c7668); }
 
 /* -------------------------------- Skins -------------------------------- */
 #armory-screen .arm-skin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
