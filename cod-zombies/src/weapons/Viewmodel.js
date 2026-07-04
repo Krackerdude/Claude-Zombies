@@ -5,6 +5,7 @@ import { buildPerkBottle } from '../perks/perks.js';
 import { buildHomunculus } from '../gadgets/tacticalModels.js';
 import { gunMetal, gunGrip, gunDark } from './gunMaterials.js';
 import { paintedMetal } from '../rendering/materials/surfaces.js';
+import { selectedBuild } from '../characters/selection.js';
 
 const HIP = new THREE.Vector3(0.22, -0.18, -0.4);
 const HIP_DUAL = new THREE.Vector3(0.0, -0.2, -0.44); // centred: twin pistols straddle it at ±DX
@@ -36,6 +37,62 @@ const _qk = new THREE.Quaternion();
 const _ke = new THREE.Euler(0, 0, 0, 'YXZ');
 const lerp = (a, b, t) => a + (b - a) * t;
 const damp = (c, target, rate, dt) => c + (target - c) * (1 - Math.exp(-rate * dt));
+
+// --- FP-arm two-bone IK (roll-locked, world/overlay space) -----------------
+const _iT = new THREE.Vector3();
+const _iS = new THREE.Vector3();
+const _iToT = new THREE.Vector3();
+const _iDir = new THREE.Vector3();
+const _iPole = new THREE.Vector3();
+const _iBend = new THREE.Vector3();
+const _iElbow = new THREE.Vector3();
+const _iUp = new THREE.Vector3();
+const _iFore = new THREE.Vector3();
+const _iHinge = new THREE.Vector3();
+const _iAx = new THREE.Vector3();
+const _iAy = new THREE.Vector3();
+const _iAz = new THREE.Vector3();
+const _iQW = new THREE.Quaternion();
+const _iQWE = new THREE.Quaternion();
+const _iQP = new THREE.Quaternion();
+const _iM = new THREE.Matrix4();
+const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+const ARM_L1 = 0.33, ARM_L2 = 0.32;
+
+function aimBasis(out, dir, ref) {
+  _iAy.copy(dir).multiplyScalar(-1);
+  _iAx.copy(ref).addScaledVector(_iAy, -ref.dot(_iAy));
+  if (_iAx.lengthSq() < 1e-6) _iAx.set(1, 0, 0).addScaledVector(_iAy, -_iAy.x);
+  _iAx.normalize();
+  _iAz.crossVectors(_iAx, _iAy).normalize();
+  _iAx.crossVectors(_iAy, _iAz).normalize();
+  _iM.makeBasis(_iAx, _iAy, _iAz);
+  out.setFromRotationMatrix(_iM);
+}
+
+/** Drive shoulder + elbow so the hand reaches `anchor` (both bones rest along -Y).
+ *  `side` (+1 R / -1 L) picks the elbow pole so it hangs down-and-out. */
+function solveArmToAnchor(sh, el, anchor, side) {
+  anchor.getWorldPosition(_iT);
+  sh.getWorldPosition(_iS);
+  _iToT.copy(_iT).sub(_iS);
+  let d = clampN(_iToT.length(), Math.abs(ARM_L1 - ARM_L2) + 0.02, (ARM_L1 + ARM_L2) * 0.999);
+  _iDir.copy(_iToT).normalize();
+  const a = (ARM_L1 * ARM_L1 - ARM_L2 * ARM_L2 + d * d) / (2 * d);
+  const h = Math.sqrt(Math.max(0, ARM_L1 * ARM_L1 - a * a));
+  _iPole.set(side * 0.35, -0.85, 0.4);
+  _iBend.copy(_iPole).addScaledVector(_iDir, -_iPole.dot(_iDir));
+  if (_iBend.lengthSq() < 1e-6) _iBend.set(0, -1, 0); else _iBend.normalize();
+  _iElbow.copy(_iS).addScaledVector(_iDir, a).addScaledVector(_iBend, h);
+  _iHinge.crossVectors(_iDir, _iBend).normalize();
+  _iUp.copy(_iElbow).sub(_iS).normalize();
+  _iFore.copy(_iT).sub(_iElbow).normalize();
+  aimBasis(_iQW, _iUp, _iHinge);
+  sh.parent.getWorldQuaternion(_iQP);
+  sh.quaternion.copy(_iQP.invert().multiply(_iQW));
+  aimBasis(_iQWE, _iFore, _iHinge);
+  el.quaternion.copy(_iQW.invert().multiply(_iQWE));
+}
 
 /**
  * First-person weapon model. Each weapon gets a distinct primitive model from
@@ -98,10 +155,20 @@ export class Viewmodel {
   #bottleColor = -1;
   #key;
   #ambient;
+  // --- first-person arms (Option A): the character's arms live in THIS overlay
+  // pass (camera-locked, drawn over the world) so they never clip the body,
+  // camera or walls. Reparented from the selected character's rig; IK'd each
+  // frame to the gun's gripR/gripL sockets. Shoulders anchored in overlay space.
+  #anchors = null;
+  #arms = new THREE.Group();
+  #armR = null; #armL = null;
+  #armsBuilt = false;
 
   constructor(renderManager) {
     renderManager.setOverlayScene(this.#vmScene);
     this.#vmScene.add(this.#group);
+    this.#vmScene.add(this.#arms);
+    this.#arms.visible = false;
 
     // first-person lighting; the key (sun) + ambient track the world's shade
     this.#ambient = new THREE.AmbientLight(0xffffff, 0.9);
@@ -254,9 +321,11 @@ export class Viewmodel {
     }
     if (!weapon) { this.#group.visible = false; this.#dual = false; return; } // empty-handed (PaP)
     this.#group.visible = true;
-    const { group, muzzle, sightY } = buildWeaponModel(weapon);
+    const built = buildWeaponModel(weapon);
+    const { group, muzzle, sightY } = built;
     this.#muzzleZ = muzzle;
     this.#sightY = sightY ?? null; // per-gun ADS height (null → per-class offset)
+    this.#anchors = built.anchors || null; // gripR/gripL sockets for the FP-body hands
 
     // dual-wield: two holders (right normal, left mirrored via scale.x = -1)
     this.#dual = !!weapon.data.dualWield;
@@ -345,6 +414,33 @@ export class Viewmodel {
     this.#dualL.rotation.set(this.#dualKickL * 0.22, lean * 0.15, leanRoll);
   }
 
+  /** Reparent the selected character's arms into the overlay, anchored in camera
+   *  space (below/behind the view). Built lazily the first time the body shows. */
+  #buildArms() {
+    const build = selectedBuild(); if (!build) return;
+    let rig; try { rig = build(); } catch { return; }
+    const J = rig.userData?.joints; if (!J?.shoulderR || !J?.shoulderL) return;
+    this.#arms.add(J.shoulderR, J.shoulderL); // detaches the arm chains from the rig
+    J.shoulderR.position.set(0.19, -0.42, 0.12);
+    J.shoulderL.position.set(-0.19, -0.42, 0.12);
+    this.#armR = { sh: J.shoulderR, el: J.elbowR };
+    this.#armL = { sh: J.shoulderL, el: J.elbowL };
+    this.#armsBuilt = true;
+  }
+
+  /** IK the FP arms onto the current gun's grip sockets (after the gun is placed). */
+  #updateArms(show) {
+    const on = show && !!this.#anchors;
+    this.#arms.visible = on;
+    if (!on) return;
+    if (!this.#armsBuilt) this.#buildArms();
+    if (!this.#armR) return;
+    this.#group.updateWorldMatrix(true, true);
+    this.#arms.updateWorldMatrix(true, true);
+    if (this.#anchors.gripR) solveArmToAnchor(this.#armR.sh, this.#armR.el, this.#anchors.gripR, 1);
+    if (this.#anchors.gripL) solveArmToAnchor(this.#armL.sh, this.#armL.el, this.#anchors.gripL, -1);
+  }
+
   /** Place + animate the model relative to the camera. */
   update(camera, weapon, dt, opts) {
     const { mouseDX = 0, mouseDY = 0, moveSpeed = 0, visible = true, bodyMode = false } = opts;
@@ -356,11 +452,8 @@ export class Viewmodel {
       this.#key.intensity = 0.12 + 0.6 * s;
       this.#ambient.intensity = 0.5 + 0.4 * s;
     }
-    // bodyMode hides the overlay gun + its flash/light/shock (all children of
-    // #group); the world FP body renders the gun instead. The rest of update
-    // still runs so knife / grenade / drink visuals keep working in #vmScene.
-    this.#group.visible = visible && !bodyMode;
-    if (!visible || !weapon) return;
+    this.#group.visible = visible;
+    if (!visible || !weapon) { this.#arms.visible = false; return; }
 
     // look-sway: low-pass the mouse delta, then ease the offset toward it so a
     // quick flick glides instead of snapping straight to the clamp. ADS cuts it hard.
@@ -453,6 +546,9 @@ export class Viewmodel {
     this.#group.position.copy(_off);
     _e.set(kickVis * 0.14 + this.#reload * 0.55 + swap * 0.25, swap * 0.4 + this.#tuck * 0.18, this.#reload * 0.22 + this.#tuck * 0.22 + dmgRoll);
     this.#group.quaternion.setFromEuler(_e);
+
+    // FP body arms: reach the hands onto the gun's grip sockets (gun now placed)
+    this.#updateArms(bodyMode && !this.#dual);
 
     // dual-wield twin-pistol animation (alternating fire + mirrored reload lean)
     if (this.#dual) this.#updateDual(weapon, dt);
