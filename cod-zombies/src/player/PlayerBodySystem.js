@@ -10,6 +10,9 @@ import { fpBody } from './fpBodyState.js';
 const _pos = new THREE.Vector3();
 const _gun = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
+const _adsLocal = new THREE.Vector3();
+const _gunOff = new THREE.Vector3();
+const lerp = (a, b, t) => a + (b - a) * t;
 // two-bone IK scratch (world-space, converted to local at the end)
 const _tgt = new THREE.Vector3();
 const _S = new THREE.Vector3();
@@ -70,7 +73,7 @@ export class PlayerBodySystem extends System {
   #scene; #time; #gameState; #weapons; #camera;
   #body = null; #built = false; #enabled = false;
   #gunHolder = new THREE.Group();
-  #gunAnchors = null; #gunKey = null;
+  #gunAnchors = null; #gunKey = null; #gunSightY = 0.08;
 
   init() {
     this.#scene = this.world.services.get(Service.Scene).scene;
@@ -145,7 +148,11 @@ export class PlayerBodySystem extends System {
     this.#gunAnchors = null;
     if (!w) return;
     const built = buildWeaponModel(w);
-    if (built?.group) { this.#gunHolder.add(built.group); this.#gunAnchors = built.anchors || null; }
+    if (built?.group) {
+      this.#gunHolder.add(built.group);
+      this.#gunAnchors = built.anchors || null;
+      this.#gunSightY = built.sightY ?? 0.08; // sight height → ADS raise target
+    }
   }
 
   lateUpdate() {
@@ -171,7 +178,11 @@ export class PlayerBodySystem extends System {
     // place the gun in front of the eyes, aimed along the camera, then reach the
     // hands to its grip sockets
     this.#syncGun();
-    _gun.copy(GUN_LOCAL).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    // hip → ADS: raise the gun so its sight line (sightY) centres on the eye axis
+    const ads = this.#weapons?.current?.adsProgress || 0;
+    _adsLocal.set(0, -this.#gunSightY, -0.34);
+    _gunOff.set(lerp(GUN_LOCAL.x, _adsLocal.x, ads), lerp(GUN_LOCAL.y, _adsLocal.y, ads), lerp(GUN_LOCAL.z, _adsLocal.z, ads));
+    _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
     this.#gunHolder.position.copy(_gun);
     this.#gunHolder.quaternion.copy(this.#camera.quaternion);
     this.#gunHolder.updateWorldMatrix(true, true);
