@@ -333,9 +333,10 @@ export class WeaponSystem extends System {
       swapDown: this.#swapDown(),
       damage: this.#dmgT > 0 ? { t: 1 - this.#dmgT / 0.25, side: this.#dmgSide } : null,
       shade: this.#sampleShade(dt),
-      // hidden when empty-handed (PaP), behind the scope, or when the FP body is
-      // holding a world-space gun instead of this overlay one
-      visible: playing && !!w && !w.scoped && !fpBody.enabled,
+      visible: playing && !!w && !w.scoped,
+      // FP-body mode: hide the overlay GUN (the body holds a world gun) but keep
+      // the overlay rendering transient action visuals (knife / nade / drink)
+      bodyMode: fpBody.enabled,
     });
     if (this.#fx) this.#fx.update(dt);
   }

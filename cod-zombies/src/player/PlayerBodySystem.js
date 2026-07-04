@@ -12,7 +12,23 @@ const _gun = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
 const _adsLocal = new THREE.Vector3();
 const _gunOff = new THREE.Vector3();
+const _mz = new THREE.Vector3();
 const lerp = (a, b, t) => a + (b - a) * t;
+
+/** Radial muzzle-flash sprite texture (white core → amber → transparent + spikes). */
+function makeFlashTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.3, 'rgba(255,232,150,0.9)');
+  g.addColorStop(0.6, 'rgba(255,150,40,0.45)');
+  g.addColorStop(1, 'rgba(255,120,20,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  x.strokeStyle = 'rgba(255,240,180,0.8)'; x.lineWidth = 3;
+  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; x.beginPath(); x.moveTo(32, 32); x.lineTo(32 + Math.cos(a) * 30, 32 + Math.sin(a) * 30); x.stroke(); }
+  return new THREE.CanvasTexture(c);
+}
 // two-bone IK scratch (world-space, converted to local at the end)
 const _tgt = new THREE.Vector3();
 const _S = new THREE.Vector3();
@@ -74,6 +90,7 @@ export class PlayerBodySystem extends System {
   #body = null; #built = false; #enabled = false;
   #gunHolder = new THREE.Group();
   #gunAnchors = null; #gunKey = null; #gunSightY = 0.08;
+  #flash = null; #flashLight = null;
 
   init() {
     this.#scene = this.world.services.get(Service.Scene).scene;
@@ -82,6 +99,16 @@ export class PlayerBodySystem extends System {
     this.#weapons = null; // resolved lazily in #syncGun (registers with the scene)
     this.#camera = this.world.services.get(Service.Render).camera;
     this.#scene.add(this.#gunHolder);
+    // world-space muzzle flash for the held gun (the overlay flash is hidden in
+    // body mode); billboarded to the camera + a brief point light
+    this.#flash = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.5, 0.5),
+      new THREE.MeshBasicMaterial({ map: makeFlashTex(), color: 0xfff0c0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    this.#flash.renderOrder = 999; this.#flash.visible = false;
+    this.#scene.add(this.#flash);
+    this.#flashLight = new THREE.PointLight(0xffd9a0, 0, 6, 2);
+    this.#scene.add(this.#flashLight);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F6') { e.preventDefault(); e.stopPropagation(); this.#toggle(); }
     }, true);
@@ -98,6 +125,9 @@ export class PlayerBodySystem extends System {
       handR: J?.handR && wp(J.handR), gripR: this.#gunAnchors?.gripR && wp(this.#gunAnchors.gripR),
       handL: J?.handL && wp(J.handL), gripL: this.#gunAnchors?.gripL && wp(this.#gunAnchors.gripL),
       shR: J?.shoulderR && wp(J.shoulderR),
+      jf: this.#weapons?.current?.justFired, flashVis: this.#flash?.visible, flashOp: this.#flash?.material?.opacity,
+      flashPos: this.#flash && this.#flash.visible ? this.#flash.position.toArray().map((n) => +n.toFixed(2)) : null,
+      muzzle: this.#gunAnchors?.muzzle && (() => { const v = new THREE.Vector3(); this.#gunAnchors.muzzle.getWorldPosition(v); return v.toArray().map((n) => +n.toFixed(2)); })(),
     };
   }
 
@@ -107,6 +137,7 @@ export class PlayerBodySystem extends System {
     if (this.#enabled && !this.#built) this.#build();
     if (this.#body) this.#body.visible = this.#enabled;
     this.#gunHolder.visible = this.#enabled;
+    if (!this.#enabled && this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; }
   }
 
   #build() {
@@ -157,9 +188,12 @@ export class PlayerBodySystem extends System {
 
   lateUpdate() {
     if (!this.#enabled || !this.#body) return;
-    if (!this.#gameState.isPlaying) { this.#body.visible = false; this.#gunHolder.visible = false; return; }
+    if (!this.#gameState.isPlaying || this.world.first(PlayerTag, Transform) === undefined) {
+      this.#body.visible = false; this.#gunHolder.visible = false;
+      if (this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; }
+      return;
+    }
     const id = this.world.first(PlayerTag, Transform);
-    if (id === undefined) { this.#body.visible = false; this.#gunHolder.visible = false; return; }
     const tag = this.world.get(id, PlayerTag);
     const t = this.world.get(id, Transform);
     this.#body.visible = true;
@@ -190,6 +224,29 @@ export class PlayerBodySystem extends System {
     if (J && this.#gunAnchors) {
       if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
       if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+    }
+    this.#updateFlash();
+  }
+
+  /** Pop a world-space muzzle flash at the gun's muzzle socket while firing. */
+  #updateFlash() {
+    const w = this.#weapons?.current;
+    const lit = w ? Math.max(0, (w.justFired || 0) / 0.05) : 0;
+    const muzzle = this.#gunAnchors?.muzzle;
+    if (lit > 0 && muzzle) {
+      muzzle.getWorldPosition(_mz);
+      this.#flash.position.copy(_mz);
+      this.#flash.lookAt(this.#camera.position);
+      this.#flash.rotateZ(Math.random() * Math.PI); // flicker spin in the view plane
+      this.#flash.scale.setScalar(1.0 + Math.random() * 0.7);
+      this.#flash.material.opacity = Math.min(1, lit);
+      this.#flash.visible = true;
+      this.#flashLight.position.copy(_mz);
+      this.#flashLight.intensity = lit * 5;
+    } else {
+      this.#flash.visible = false;
+      this.#flash.material.opacity = 0;
+      this.#flashLight.intensity = 0;
     }
   }
 
