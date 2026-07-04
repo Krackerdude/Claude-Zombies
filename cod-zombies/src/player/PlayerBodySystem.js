@@ -63,7 +63,11 @@ const ARM = { L1: 0.33, L2: 0.32 };
 // forward view, and it leans back FURTHER the more you look down so the chest
 // clears the sightline to the legs (dynamic — keeps the hip reach to the gun).
 const TORSO_LEAN = -0.42; // static recline so the chest stays out of the forward view
-const THIGH_BASE = 0.0;   // legs near-vertical (standing); knees get a slight bend in poseStance
+// NOTE sign: after the 180° body facing, NEGATIVE thigh.x swings the legs
+// FORWARD (world -z); positive kicks them backward (reads as "backwards legs").
+// Give the thighs a static forward angle so the knees + feet sit forward/under
+// the hip and come into view naturally when looking down.
+const THIGH_BASE = -0.28;
 // pull the whole body back off the camera so the chest isn't "inside the head"
 // (bounded — too much shoves the shoulders past the arms' reach to the gun)
 const PULLBACK = 0.06;
@@ -152,9 +156,9 @@ export class PlayerBodySystem extends System {
     if (!J) return;
     const set = (j, x = 0, y = 0, z = 0) => { if (j) j.rotation.set(x, y, z); };
     set(J.torso, TORSO_LEAN); // recline the upper body back, out of the forward view
-    set(J.thighL, THIGH_BASE, 0, 0.04); set(J.thighR, THIGH_BASE, 0, -0.04); // (dynamic in lateUpdate)
-    set(J.kneeL, 0.3); set(J.kneeR, 0.3);
-    set(J.footL, -0.13); set(J.footR, -0.13);
+    set(J.thighL, THIGH_BASE, 0, 0.04); set(J.thighR, THIGH_BASE, 0, -0.04);
+    set(J.kneeL, 0.5); set(J.kneeR, 0.5);   // knee bend brings the shin back down under the body
+    set(J.footL, -0.2); set(J.footR, -0.2); // level the feet with the ground
   }
 
   /** (Re)build the held gun model when the weapon changes. */
