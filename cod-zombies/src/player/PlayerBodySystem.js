@@ -62,15 +62,20 @@ const ARM = { L1: 0.33, L2: 0.32 };
 // lean the TORSO back (away from aim): a base recline keeps the chest out of the
 // forward view, and it leans back FURTHER the more you look down so the chest
 // clears the sightline to the legs (dynamic — keeps the hip reach to the gun).
-const TORSO_LEAN = -0.42; // static recline so the chest stays out of the forward view
+const TORSO_LEAN = -0.30;      // base recline; kept modest so the shoulders stay
+                               // in reach of the gun even with the bigger pullback
+const TORSO_LEAN_DOWN = 0.55;  // extra recline per rad of downward pitch: opens the
+                               // sightline past the chest to the legs when you look down
 // NOTE sign: after the 180° body facing, NEGATIVE thigh.x swings the legs
 // FORWARD (world -z); positive kicks them backward (reads as "backwards legs").
 // Give the thighs a static forward angle so the knees + feet sit forward/under
-// the hip and come into view naturally when looking down.
+// the hip; swing them further forward as you look down so they fill the view.
 const THIGH_BASE = -0.28;
-// pull the whole body back off the camera so the chest isn't "inside the head"
-// (bounded — too much shoves the shoulders past the arms' reach to the gun)
-const PULLBACK = 0.06;
+const THIGH_FLEX_DOWN = 0.45;  // extra forward hip flex per rad of downward pitch
+// pull the whole body back off the camera so the chest isn't "inside the head".
+// This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
+// looking down brings the gun close to the body so the dynamic lean is free.
+const PULLBACK = 0.16;
 
 /**
  * First-person BODY — the player's own rig, in the WORLD scene, holding a
@@ -206,9 +211,15 @@ export class PlayerBodySystem extends System {
     this.#body.rotation.y = tag.yaw + Math.PI; // rig faces +z; player forward is -z
     const J = this.#body.userData?.joints;
     if (J?.head) J.head.visible = false;
-    // static recline (dynamic lean removed) — the gun-placement pitch clamp below
-    // is what keeps the arms out of extreme fold/flip poses now
-    if (J?.torso) J.torso.rotation.x = TORSO_LEAN;
+    // as you look DOWN, recline the chest further back and swing the thighs forward
+    // so the sightline opens past the chest and the legs fill the lower view (this
+    // is what makes the legs visible "like before"). Free on arm reach because the
+    // gun sits close to the body when aimed down.
+    const down = Math.max(0, -tag.pitch);
+    if (J?.torso) J.torso.rotation.x = TORSO_LEAN - down * TORSO_LEAN_DOWN;
+    const thighFlex = THIGH_BASE - down * THIGH_FLEX_DOWN; // negative = forward
+    if (J?.thighL) J.thighL.rotation.x = thighFlex;
+    if (J?.thighR) J.thighR.rotation.x = thighFlex;
 
     // place the gun in front of the eyes, aimed along the camera, then reach the
     // hands to its grip sockets
