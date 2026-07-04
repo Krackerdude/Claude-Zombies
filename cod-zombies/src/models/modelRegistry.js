@@ -34,7 +34,7 @@ export function buildModelCategories() {
     id: k,
     name: `${weaponName(k)}  ·  ${CLASS_LABEL[weaponCategory(k)] || ''}`.trim(),
     // weapon builders return { group, muzzle, ... } — the showcase wants the group
-    build: () => { const m = buildWeaponModel(makeWeapon(k)); return m?.group || m; },
+    build: () => { const m = buildWeaponModel(makeWeapon(k), { sockets: true }); return m?.group || m; },
   }));
 
   const characters = [
