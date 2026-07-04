@@ -62,9 +62,9 @@ const ARM = { L1: 0.33, L2: 0.32 };
 // lean the TORSO back (away from aim): a base recline keeps the chest out of the
 // forward view, and it leans back FURTHER the more you look down so the chest
 // clears the sightline to the legs (dynamic — keeps the hip reach to the gun).
-const TORSO_LEAN = -0.30;      // base recline; kept modest so the shoulders stay
+const TORSO_LEAN = -0.24;      // base recline; kept modest so the shoulders stay
                                // in reach of the gun even with the bigger pullback
-const TORSO_LEAN_DOWN = 0.55;  // extra recline per rad of downward pitch: opens the
+const TORSO_LEAN_DOWN = 0.28;  // extra recline per rad of downward pitch: opens the
                                // sightline past the chest to the legs when you look down
 // NOTE sign: after the 180° body facing, NEGATIVE thigh.x swings the legs
 // FORWARD (world -z); positive kicks them backward (reads as "backwards legs").
