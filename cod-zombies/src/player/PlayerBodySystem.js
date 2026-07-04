@@ -59,9 +59,11 @@ function aimBasis(out, dir, ref) {
 // gun aims along the camera's -z, so it tracks pitch/yaw exactly.
 const GUN_LOCAL = new THREE.Vector3(0.06, -0.1, -0.34);
 const ARM = { L1: 0.33, L2: 0.32 };
-// lean the TORSO back (away from aim) so the chest drops out of the forward view
-// AND clears the look-down sightline to the legs; legs stay vertical (standing)
-const TORSO_LEAN = -0.5;
+// lean the TORSO back (away from aim): a base recline keeps the chest out of the
+// forward view, and it leans back FURTHER the more you look down so the chest
+// clears the sightline to the legs (dynamic — keeps the hip reach to the gun).
+const TORSO_LEAN = -0.42;
+const TORSO_LEAN_DOWN = 0.7; // extra lean-back per radian of downward pitch
 // pull the whole body back off the camera so the chest isn't "inside the head"
 // (bounded — too much shoves the shoulders past the arms' reach to the gun)
 const PULLBACK = 0.06;
@@ -200,6 +202,9 @@ export class PlayerBodySystem extends System {
     this.#body.rotation.y = tag.yaw + Math.PI; // rig faces +z; player forward is -z
     const J = this.#body.userData?.joints;
     if (J?.head) J.head.visible = false;
+    // dynamic torso lean: recline further the more you look down, opening the
+    // sightline past the chest to the legs (set before the IK reads the shoulders)
+    if (J?.torso) J.torso.rotation.x = TORSO_LEAN - Math.max(0, -tag.pitch) * TORSO_LEAN_DOWN;
 
     // place the gun in front of the eyes, aimed along the camera, then reach the
     // hands to its grip sockets
