@@ -78,6 +78,29 @@ const THIGH_FLEX_DOWN = 0.45;  // extra forward hip flex per rad of downward pit
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
 const PULLBACK = 0.16;
+// Soft ease on the gun-HOLD pitch near the vertical extremes so the arms don't
+// spear up past the face at steep up-aim. Bullets/aim are UNAFFECTED (WeaponSystem
+// fires along the camera). The hold pitch stays linear (full) through the normal
+// range and only eases as it approaches the caps — asymmetric because down-aim
+// needs the range to reveal the legs and reads fine there.
+const HOLD_UP_LIN = 0.55;  // up: full 1:1 pitch until here (~31°)
+const HOLD_UP_MAX = 0.9;   // up: hold pitch asymptote (~52°) — never fully vertical
+const HOLD_DN_LIN = 1.15;  // down: essentially full range (legs reveal)
+const HOLD_DN_MAX = 1.5;
+function easeHoldPitch(p) {
+  if (p >= 0) {
+    if (p <= HOLD_UP_LIN) return p;
+    const r = HOLD_UP_MAX - HOLD_UP_LIN;
+    return HOLD_UP_LIN + r * (1 - Math.exp(-(p - HOLD_UP_LIN) / r));
+  }
+  const a = -p;
+  if (a <= HOLD_DN_LIN) return p;
+  const r = HOLD_DN_MAX - HOLD_DN_LIN;
+  return -(HOLD_DN_LIN + r * (1 - Math.exp(-(a - HOLD_DN_LIN) / r)));
+}
+const _UNIT_X = new THREE.Vector3(1, 0, 0);
+const _qHold = new THREE.Quaternion();
+const _qPitchCorr = new THREE.Quaternion();
 
 /**
  * First-person BODY — the player's own rig, in the WORLD scene, holding a
@@ -254,10 +277,16 @@ export class PlayerBodySystem extends System {
     _gunOff.z += kickVis * 0.05;   // kick back toward the shoulder
     _gunOff.y += kickVis * 0.012;  // and a touch up
 
-    // gun tracks the FULL camera aim (no pitch clamp) so it follows pitch fully
-    _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    // gun HOLD orientation = camera aim with the pitch softly eased near vertical
+    // (corr <= 0 only near the up/down extremes) so the arms don't spear the face.
+    // Bullets still track the full camera aim — WeaponSystem is untouched.
+    const corr = easeHoldPitch(this.#aimPitch) - this.#aimPitch;
+    _qHold.copy(this.#camera.quaternion);
+    _qPitchCorr.setFromAxisAngle(_UNIT_X, corr); // local-X pitch of the hold
+    _qHold.multiply(_qPitchCorr);
+    _gun.copy(_gunOff).applyQuaternion(_qHold).add(this.#camera.position);
     this.#gunHolder.position.copy(_gun);
-    this.#gunHolder.quaternion.copy(this.#camera.quaternion);
+    this.#gunHolder.quaternion.copy(_qHold);
     this.#gunHolder.rotateX(kickVis * 0.16); // muzzle climb
     this.#gunHolder.updateWorldMatrix(true, true);
     this.#body.updateWorldMatrix(true, true);
