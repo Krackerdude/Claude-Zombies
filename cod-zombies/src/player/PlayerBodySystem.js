@@ -63,7 +63,12 @@ const ARM = { L1: 0.33, L2: 0.32 };
 // forward view, and it leans back FURTHER the more you look down so the chest
 // clears the sightline to the legs (dynamic — keeps the hip reach to the gun).
 const TORSO_LEAN = -0.42;
-const TORSO_LEAN_DOWN = 0.7; // extra lean-back per radian of downward pitch
+const TORSO_LEAN_DOWN = 0.3;   // extra torso lean-back per radian of downward pitch
+// as you look down, swing the thighs UP/FORWARD (hip flex) so the knees + feet
+// come into view. NOTE sign: after the 180° facing, NEGATIVE thigh.x angles the
+// legs FORWARD (world -z); positive kicks them backward (that read as "backwards").
+const THIGH_BASE = 0.0;
+const THIGH_FLEX_DOWN = 0.5;   // forward hip flex per radian of downward pitch
 // pull the whole body back off the camera so the chest isn't "inside the head"
 // (bounded — too much shoves the shoulders past the arms' reach to the gun)
 const PULLBACK = 0.06;
@@ -152,8 +157,8 @@ export class PlayerBodySystem extends System {
     if (!J) return;
     const set = (j, x = 0, y = 0, z = 0) => { if (j) j.rotation.set(x, y, z); };
     set(J.torso, TORSO_LEAN); // recline the upper body back, out of the forward view
-    set(J.thighL, 0.12, 0, 0.04); set(J.thighR, 0.12, 0, -0.04);
-    set(J.kneeL, 0.25); set(J.kneeR, 0.25);
+    set(J.thighL, THIGH_BASE, 0, 0.04); set(J.thighR, THIGH_BASE, 0, -0.04); // (dynamic in lateUpdate)
+    set(J.kneeL, 0.3); set(J.kneeR, 0.3);
     set(J.footL, -0.13); set(J.footR, -0.13);
   }
 
@@ -202,9 +207,14 @@ export class PlayerBodySystem extends System {
     this.#body.rotation.y = tag.yaw + Math.PI; // rig faces +z; player forward is -z
     const J = this.#body.userData?.joints;
     if (J?.head) J.head.visible = false;
-    // dynamic torso lean: recline further the more you look down, opening the
-    // sightline past the chest to the legs (set before the IK reads the shoulders)
-    if (J?.torso) J.torso.rotation.x = TORSO_LEAN - Math.max(0, -tag.pitch) * TORSO_LEAN_DOWN;
+    // dynamic pose: recline the torso + swing the thighs up as you look down, so
+    // the chest clears the sightline AND the knees/feet come into view (set before
+    // the IK reads the shoulders)
+    const down = Math.max(0, -tag.pitch);
+    if (J?.torso) J.torso.rotation.x = TORSO_LEAN - down * TORSO_LEAN_DOWN;
+    const thighFlex = THIGH_BASE - down * THIGH_FLEX_DOWN; // negative = forward
+    if (J?.thighL) J.thighL.rotation.x = thighFlex;
+    if (J?.thighR) J.thighR.rotation.x = thighFlex;
 
     // place the gun in front of the eyes, aimed along the camera, then reach the
     // hands to its grip sockets
