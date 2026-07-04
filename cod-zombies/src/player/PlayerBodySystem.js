@@ -9,6 +9,7 @@ import { fpBody } from './fpBodyState.js';
 
 const _pos = new THREE.Vector3();
 const _gun = new THREE.Vector3();
+const _fwd = new THREE.Vector3();
 // two-bone IK scratch (world-space, converted to local at the end)
 const _tgt = new THREE.Vector3();
 const _S = new THREE.Vector3();
@@ -27,11 +28,14 @@ const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // gun held in front of the eyes, in CAMERA space (right, down, forward). The
 // gun aims along the camera's -z, so it tracks pitch/yaw exactly.
-const GUN_LOCAL = new THREE.Vector3(0.12, -0.1, -0.52);
+const GUN_LOCAL = new THREE.Vector3(0.09, -0.1, -0.44);
 const ARM = { L1: 0.33, L2: 0.32 };
-// a gentle base recline so the bent legs read when looking down, without lifting
-// the chest up to occlude the forward-held gun
-const RECLINE = 0.12;
+// lean the TORSO back (away from aim) so the chest drops out of the forward
+// view — you only see it when you look down; legs stay vertical (standing)
+const TORSO_LEAN = -0.32;
+// pull the whole body back off the camera so the chest isn't "inside the head"
+// (kept tiny — too much shoves the shoulders past the arms' reach to the gun)
+const PULLBACK = 0.0;
 
 /**
  * First-person BODY — the player's own rig, in the WORLD scene, holding a
@@ -98,6 +102,7 @@ export class PlayerBodySystem extends System {
   #poseStance(J) {
     if (!J) return;
     const set = (j, x = 0, y = 0, z = 0) => { if (j) j.rotation.set(x, y, z); };
+    set(J.torso, TORSO_LEAN); // recline the upper body back, out of the forward view
     set(J.thighL, 0.12, 0, 0.04); set(J.thighR, 0.12, 0, -0.04);
     set(J.kneeL, 0.25); set(J.kneeR, 0.25);
     set(J.footL, -0.13); set(J.footR, -0.13);
@@ -135,9 +140,10 @@ export class PlayerBodySystem extends System {
     // stand the rig on the ground under the interpolated capsule; face the aim
     _pos.lerpVectors(t.previousPosition, t.position, this.#time.alpha);
     const feetY = _pos.y - (tag.halfHeight + PlayerConfig.capsuleRadius);
-    this.#body.position.set(_pos.x, feetY, _pos.z);
-    // face the aim (rig faces +z; player forward is -z) + recline back
-    this.#body.rotation.set(RECLINE, tag.yaw + Math.PI, 0, 'YXZ');
+    // pull the body back along the (horizontal) aim so the chest isn't at the eye
+    _fwd.set(0, 0, -1).applyQuaternion(this.#camera.quaternion); _fwd.y = 0; _fwd.normalize();
+    this.#body.position.set(_pos.x - _fwd.x * PULLBACK, feetY, _pos.z - _fwd.z * PULLBACK);
+    this.#body.rotation.y = tag.yaw + Math.PI; // rig faces +z; player forward is -z
     const J = this.#body.userData?.joints;
     if (J?.head) J.head.visible = false;
 
