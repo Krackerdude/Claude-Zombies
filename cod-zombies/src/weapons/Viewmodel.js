@@ -701,7 +701,7 @@ function makeShockRing() {
 
 // Spiky cartoon muzzle star: distinct white -> yellow -> orange bands (a faked
 // 3-step gradient) so it reads sharp and high-contrast like TF2.
-function makeFlashStar() {
+export function makeFlashStar() {
   const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
   const x = c.getContext('2d'); const cx = s / 2, cy = s / 2;
   const spikes = 9, outer = s * 0.48, inner = s * 0.2;
@@ -742,7 +742,7 @@ function makeEnergyFlash() {
   return new THREE.CanvasTexture(c);
 }
 
-function makeFlashCore() {
+export function makeFlashCore() {
   const s = 64, c = document.createElement('canvas'); c.width = c.height = s;
   const x = c.getContext('2d');
   const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
