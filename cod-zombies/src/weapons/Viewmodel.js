@@ -347,7 +347,7 @@ export class Viewmodel {
 
   /** Place + animate the model relative to the camera. */
   update(camera, weapon, dt, opts) {
-    const { mouseDX = 0, mouseDY = 0, moveSpeed = 0, visible = true } = opts;
+    const { mouseDX = 0, mouseDY = 0, moveSpeed = 0, visible = true, bodyMode = false } = opts;
     papCamoTick(dt); // advance the animated Pack-a-Punch camo
     // track the world's light at the player: dim the sun (key) in shade, with
     // ambient/hemisphere keeping the gun readable rather than going black
@@ -356,7 +356,10 @@ export class Viewmodel {
       this.#key.intensity = 0.12 + 0.6 * s;
       this.#ambient.intensity = 0.5 + 0.4 * s;
     }
-    this.#group.visible = visible;
+    // bodyMode hides the overlay gun + its flash/light/shock (all children of
+    // #group); the world FP body renders the gun instead. The rest of update
+    // still runs so knife / grenade / drink visuals keep working in #vmScene.
+    this.#group.visible = visible && !bodyMode;
     if (!visible || !weapon) return;
 
     // look-sway: low-pass the mouse delta, then ease the offset toward it so a
