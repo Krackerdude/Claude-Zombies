@@ -78,6 +78,32 @@ const THIGH_FLEX_DOWN = 0.45;  // extra forward hip flex per rad of downward pit
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
 const PULLBACK = 0.16;
+// The gun's BARREL tracks the full camera pitch (points all the way up/down), but
+// the gun PIVOTS AROUND THE GRIP: the hands are placed using an EASED pitch so they
+// stay in a comfortable, reachable spot near the ready position instead of rising
+// up past the face when you look up. Only the barrel swings up out of frame.
+// Asymmetric: down keeps ~full range so the legs still read.
+const GRIP_UP_LIN = 0.35;  // up: hands track 1:1 until here (~20°)
+const GRIP_UP_MAX = 0.65;  // up: hand-target pitch asymptote (~37°)
+const GRIP_DN_LIN = 1.1;   // down: near-full range
+const GRIP_DN_MAX = 1.5;
+function easeGripPitch(p) {
+  if (p >= 0) {
+    if (p <= GRIP_UP_LIN) return p;
+    const r = GRIP_UP_MAX - GRIP_UP_LIN;
+    return GRIP_UP_LIN + r * (1 - Math.exp(-(p - GRIP_UP_LIN) / r));
+  }
+  const a = -p;
+  if (a <= GRIP_DN_LIN) return p;
+  const r = GRIP_DN_MAX - GRIP_DN_LIN;
+  return -(GRIP_DN_LIN + r * (1 - Math.exp(-(a - GRIP_DN_LIN) / r)));
+}
+const _UNIT_X = new THREE.Vector3(1, 0, 0);
+const _qFull = new THREE.Quaternion();
+const _qEased = new THREE.Quaternion();
+const _qCorr = new THREE.Quaternion();
+const _gripTgt = new THREE.Vector3();
+const _rotGripLocal = new THREE.Vector3();
 
 /**
  * First-person BODY — the player's own rig, in the WORLD scene, holding a
@@ -92,6 +118,7 @@ export class PlayerBodySystem extends System {
   #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
   #gunHolder = new THREE.Group();
   #gunAnchors = null; #gunKey = null; #gunSightY = 0.08; #aimPitch = 0;
+  #gripLocalR = new THREE.Vector3(); #hasGripLocal = false;
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -188,6 +215,19 @@ export class PlayerBodySystem extends System {
       this.#gunHolder.add(built.group);
       this.#gunAnchors = built.anchors || null;
       this.#gunSightY = built.sightY ?? 0.08; // sight height → ADS raise target
+      // cache the primary grip's offset in holder-local space: with the holder at
+      // identity, the grip's world position IS its holder-local position. Used to
+      // pivot the gun's pitch around the grip so the hands stay put while the barrel
+      // swings up (see lateUpdate).
+      this.#hasGripLocal = false;
+      if (this.#gunAnchors?.gripR) {
+        const pp = this.#gunHolder.position.clone(), pq = this.#gunHolder.quaternion.clone();
+        this.#gunHolder.position.set(0, 0, 0); this.#gunHolder.quaternion.identity();
+        this.#gunHolder.updateWorldMatrix(true, true);
+        this.#gunAnchors.gripR.getWorldPosition(this.#gripLocalR);
+        this.#gunHolder.position.copy(pp); this.#gunHolder.quaternion.copy(pq);
+        this.#hasGripLocal = true;
+      }
     }
   }
 
@@ -254,11 +294,25 @@ export class PlayerBodySystem extends System {
     _gunOff.z += kickVis * 0.05;   // kick back toward the shoulder
     _gunOff.y += kickVis * 0.012;  // and a touch up
 
-    // gun tracks the FULL camera aim (no pitch clamp) so it follows pitch fully
-    _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
-    this.#gunHolder.position.copy(_gun);
-    this.#gunHolder.quaternion.copy(this.#camera.quaternion);
-    this.#gunHolder.rotateX(kickVis * 0.16); // muzzle climb
+    // Pivot the gun around the GRIP: the barrel points along the FULL camera pitch,
+    // but the HANDS are placed with an EASED pitch so they stay near the ready
+    // position and don't rise up past the face when looking up. Only the barrel
+    // swings out of frame. (Bullets/aim track the camera in WeaponSystem — untouched.)
+    _qFull.copy(this.#camera.quaternion);
+    _qFull.multiply(_qCorr.setFromAxisAngle(_UNIT_X, kickVis * 0.16)); // muzzle climb baked in
+    const corr = easeGripPitch(this.#aimPitch) - this.#aimPitch;
+    _qEased.copy(this.#camera.quaternion).multiply(_qCorr.setFromAxisAngle(_UNIT_X, corr));
+    if (this.#hasGripLocal) {
+      // grip target = where the grip sits under the EASED pitch (stays reachable/low)
+      _gripTgt.copy(_gunOff).add(this.#gripLocalR).applyQuaternion(_qEased).add(this.#camera.position);
+      // place the holder so gripR lands on that target while the gun uses the FULL orient
+      _rotGripLocal.copy(this.#gripLocalR).applyQuaternion(_qFull);
+      this.#gunHolder.position.copy(_gripTgt).sub(_rotGripLocal);
+    } else {
+      _gun.copy(_gunOff).applyQuaternion(_qFull).add(this.#camera.position);
+      this.#gunHolder.position.copy(_gun);
+    }
+    this.#gunHolder.quaternion.copy(_qFull);
     this.#gunHolder.updateWorldMatrix(true, true);
     this.#body.updateWorldMatrix(true, true);
     if (J && this.#gunAnchors) {
