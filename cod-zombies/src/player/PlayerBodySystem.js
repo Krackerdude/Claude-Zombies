@@ -24,6 +24,8 @@ const _S = new THREE.Vector3();
 const _toT = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _pole = new THREE.Vector3();
+const _poleBase = new THREE.Vector3();
+const _camRight = new THREE.Vector3();
 const _bendAxis = new THREE.Vector3();
 const _elbow = new THREE.Vector3();
 const _upperDir = new THREE.Vector3();
@@ -89,7 +91,7 @@ export class PlayerBodySystem extends System {
   #scene; #time; #gameState; #weapons; #camera; #physics;
   #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
   #gunHolder = new THREE.Group();
-  #gunAnchors = null; #gunKey = null; #gunSightY = 0.08;
+  #gunAnchors = null; #gunKey = null; #gunSightY = 0.08; #aimPitch = 0;
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -215,6 +217,7 @@ export class PlayerBodySystem extends System {
     // so the sightline opens past the chest and the legs fill the lower view (this
     // is what makes the legs visible "like before"). Free on arm reach because the
     // gun sits close to the body when aimed down.
+    this.#aimPitch = tag.pitch;              // drives the adaptive elbow pole in #solveArm
     const down = Math.max(0, -tag.pitch);
     if (J?.torso) J.torso.rotation.x = TORSO_LEAN - down * TORSO_LEAN_DOWN;
     const thighFlex = THIGH_BASE - down * THIGH_FLEX_DOWN; // negative = forward
@@ -303,7 +306,13 @@ export class PlayerBodySystem extends System {
     // hint (down + toward the camera) so the elbow hangs naturally.
     const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d);
     const h = Math.sqrt(Math.max(0, L1 * L1 - a * a));
-    _pole.set(side * 0.35, -0.85, 0.4);                       // down / slight out / toward camera
+    // ADAPTIVE elbow pole: the base hint is "down / slight out / toward camera",
+    // but a fixed WORLD hint flips the elbow when you aim far up or down. Rotate it
+    // by the camera pitch around the camera's right axis so it tracks the AIM line —
+    // the elbow then stays consistently below/behind the arm at every pitch.
+    _poleBase.set(side * 0.35, -0.85, 0.4);
+    _camRight.set(1, 0, 0).applyQuaternion(this.#camera.quaternion);
+    _pole.copy(_poleBase).applyAxisAngle(_camRight, this.#aimPitch);
     _bendAxis.copy(_pole).addScaledVector(_dir, -_pole.dot(_dir)); // perpendicular to dir
     if (_bendAxis.lengthSq() < 1e-6) _bendAxis.set(0, -1, 0); else _bendAxis.normalize();
     _elbow.copy(_S).addScaledVector(_dir, a).addScaledVector(_bendAxis, h);
