@@ -23,8 +23,29 @@ const _foreDir = new THREE.Vector3();
 const _qWorld = new THREE.Quaternion();
 const _qWorldE = new THREE.Quaternion();
 const _qParent = new THREE.Quaternion();
-const NEG_Y = new THREE.Vector3(0, -1, 0); // bones rest along -Y
+const _hinge = new THREE.Vector3();
+const _ax = new THREE.Vector3();
+const _ay = new THREE.Vector3();
+const _az = new THREE.Vector3();
+const _mBasis = new THREE.Matrix4();
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/**
+ * World quaternion that points a bone's rest axis (-Y) along `dir`, with the
+ * roll LOCKED so the bone's local +X aligns with `ref` (projected perpendicular).
+ * Using a shared reference for both arm bones kills the wrist twist/spin that
+ * setFromUnitVectors produces (it leaves the roll arbitrary).
+ */
+function aimBasis(out, dir, ref) {
+  _ay.copy(dir).multiplyScalar(-1);                 // object +Y = -dir → -Y = dir
+  _ax.copy(ref).addScaledVector(_ay, -ref.dot(_ay)); // ref ⟂ to y
+  if (_ax.lengthSq() < 1e-6) { _ax.set(1, 0, 0).addScaledVector(_ay, -_ay.x); }
+  _ax.normalize();
+  _az.crossVectors(_ax, _ay).normalize();
+  _ax.crossVectors(_ay, _az).normalize();
+  _mBasis.makeBasis(_ax, _ay, _az);
+  out.setFromRotationMatrix(_mBasis);
+}
 
 // gun held in front of the eyes, in CAMERA space (right, down, forward). The
 // gun aims along the camera's -z, so it tracks pitch/yaw exactly.
@@ -179,14 +200,16 @@ export class PlayerBodySystem extends System {
     _bendAxis.copy(_pole).addScaledVector(_dir, -_pole.dot(_dir)); // perpendicular to dir
     if (_bendAxis.lengthSq() < 1e-6) _bendAxis.set(0, -1, 0); else _bendAxis.normalize();
     _elbow.copy(_S).addScaledVector(_dir, a).addScaledVector(_bendAxis, h);
-    // orient the upper arm (local -Y) at the elbow, in the shoulder's parent frame
+    // hinge axis = normal of the arm plane; shared by both bones to lock the roll
+    _hinge.crossVectors(_dir, _bendAxis).normalize();
     _upperDir.copy(_elbow).sub(_S).normalize();
-    _qWorld.setFromUnitVectors(NEG_Y, _upperDir);
+    _foreDir.copy(_tgt).sub(_elbow).normalize();
+    // orient the upper arm (local -Y at the elbow) with roll fixed to the hinge
+    aimBasis(_qWorld, _upperDir, _hinge);
     sh.parent.getWorldQuaternion(_qParent);
     sh.quaternion.copy(_qParent.invert().multiply(_qWorld)); // _qWorld = sh's new world quat
-    // orient the forearm (local -Y) from the elbow at the target
-    _foreDir.copy(_tgt).sub(_elbow).normalize();
-    _qWorldE.setFromUnitVectors(NEG_Y, _foreDir);
+    // orient the forearm (local -Y at the target), same hinge → no wrist spin
+    aimBasis(_qWorldE, _foreDir, _hinge);
     el.quaternion.copy(_qWorld.invert().multiply(_qWorldE)); // parent(el) world quat = sh world quat
   }
 }
