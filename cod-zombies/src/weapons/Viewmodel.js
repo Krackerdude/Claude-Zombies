@@ -5,9 +5,7 @@ import { buildPerkBottle } from '../perks/perks.js';
 import { buildHomunculus } from '../gadgets/tacticalModels.js';
 import { gunMetal, gunGrip, gunDark } from './gunMaterials.js';
 import { paintedMetal } from '../rendering/materials/surfaces.js';
-import { selectedBuild } from '../characters/selection.js';
 
-const PlayerEye = 1.62; // eyeHeight — body drops by this so the eyes sit at the camera
 const HIP = new THREE.Vector3(0.22, -0.18, -0.4);
 const HIP_DUAL = new THREE.Vector3(0.0, -0.2, -0.44); // centred: twin pistols straddle it at ±DX
 const ADS = new THREE.Vector3(0.0, -0.0715, -0.32);
@@ -36,7 +34,6 @@ const _koff = new THREE.Vector3();
 const _kworld = new THREE.Vector3();
 const _qk = new THREE.Quaternion();
 const _ke = new THREE.Euler(0, 0, 0, 'YXZ');
-const _be = new THREE.Euler(0, 0, 0, 'YXZ'); // extract gameplay-camera pitch for the FP body
 const lerp = (a, b, t) => a + (b - a) * t;
 const damp = (c, target, rate, dt) => c + (target - c) * (1 - Math.exp(-rate * dt));
 
@@ -101,25 +98,10 @@ export class Viewmodel {
   #bottleColor = -1;
   #key;
   #ambient;
-  // --- first-person body (Phase 1b, behind F6) ---------------------------
-  // The player's own character rig, rendered in THIS overlay scene so it never
-  // clips into the world. It hangs from a pivot at the eye and counter-pitches
-  // with the gameplay camera, so looking down swings the torso + legs into view
-  // like a world-anchored body while the gun stays camera-locked. Same rig the
-  // world scene will instantiate for remote players / theater (shared asset).
-  #body = null;
-  #bodyPivot = new THREE.Group();
-  #bodyEnabled = false;
-  #bodyBuilt = false;
 
   constructor(renderManager) {
     renderManager.setOverlayScene(this.#vmScene);
     this.#vmScene.add(this.#group);
-    this.#vmScene.add(this.#bodyPivot);
-    if (typeof window !== 'undefined') window.__vm = this;
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'F6') { e.preventDefault(); e.stopPropagation(); this.#toggleBody(); }
-    }, true);
 
     // first-person lighting; the key (sun) + ambient track the world's shade
     this.#ambient = new THREE.AmbientLight(0xffffff, 0.9);
@@ -363,76 +345,6 @@ export class Viewmodel {
     this.#dualL.rotation.set(this.#dualKickL * 0.22, lean * 0.15, leanRoll);
   }
 
-  get _bodyDbg() {
-    const J = this.#body?.userData?.joints;
-    const wp = (j) => { const v = new THREE.Vector3(); j?.getWorldPosition(v); return v.toArray().map((n) => +n.toFixed(2)); };
-    return { en: this.#bodyEnabled, has: !!this.#body, vis: this.#body?.visible, pivRotX: +this.#bodyPivot.rotation.x.toFixed(2),
-      torso: J?.torso && wp(J.torso), hips: J?.hips && wp(J.hips), foot: J?.footR && wp(J.footR) };
-  }
-
-  #toggleBody() {
-    this.#bodyEnabled = !this.#bodyEnabled;
-    if (this.#bodyEnabled && !this.#bodyBuilt) this.#buildBody();
-    if (this.#body) this.#body.visible = this.#bodyEnabled;
-  }
-
-  #buildBody() {
-    const build = selectedBuild();
-    if (!build) return;
-    let rig; try { rig = build(); } catch { return; }
-    const J = rig.userData?.joints;
-    if (J?.head) J.head.visible = false;          // camera lives inside the head — hide it
-    rig.userData.noBulletFx = false;              // (cosmetic-only in the overlay anyway)
-    // Drop the body a touch below eye level (camera sits ABOVE the torso, at the
-    // eyes) and push it BACK off the camera plane, so the view reads as looking
-    // OUT from the eyes rather than from inside the head.
-    rig.position.set(0, -PlayerEye - 0.04, 0.05);
-    // face FORWARD (-z, the aim/gun direction): the rig models its face on +z, so
-    // spin it 180° — otherwise you see the character's back (no chest/vest) when
-    // looking down. Slight base lean-back toward the camera on top.
-    rig.rotation.set(0.15, Math.PI, 0);
-    this.#poseStance(J);
-    this.#bodyPivot.add(rig);
-    this.#body = rig;
-    this.#bodyBuilt = true;
-  }
-
-  /** Static relaxed combat stance — a slight knee bend so the legs look natural
-   *  (braced under the weight of the gun) rather than ramrod-straight. */
-  #poseStance(J) {
-    if (!J) return;
-    const set = (j, x = 0, y = 0, z = 0) => { if (j) j.rotation.set(x, y, z); };
-    set(J.thighL, 0.16, 0, 0.05);
-    set(J.thighR, 0.16, 0, -0.05);
-    set(J.kneeL, 0.3);
-    set(J.kneeR, 0.3);
-    set(J.footL, -0.16);
-    set(J.footR, -0.16);
-    // rough "holding" pose so the arms don't splay like wings (real gun-socket
-    // IK arrives in the next increment): upper arms down + in, forearms forward.
-    set(J.shoulderL, -0.5, 0, 0.2);
-    set(J.shoulderR, -0.5, 0, -0.2);
-    set(J.elbowL, 0.9);
-    set(J.elbowR, 0.9);
-  }
-
-  /** Counter-pitch the FP body so looking down reveals torso + legs. */
-  #updateBody(camera, visible) {
-    if (!this.#bodyEnabled || !this.#body) return;
-    this.#body.visible = visible;
-    if (!visible) return;
-    // your OWN body stays readable even in deep shade — lift the overlay lights
-    // to a floor when the body is shown (the shade block dimmed them just above)
-    if (this.#ambient) this.#ambient.intensity = Math.max(this.#ambient.intensity, 0.85);
-    if (this.#key) this.#key.intensity = Math.max(this.#key.intensity, 0.4);
-    _be.setFromQuaternion(camera.quaternion); // YXZ → _be.x is pitch
-    // Swing the hanging body up-and-forward into the downward view as you look
-    // down. Gain > 1 over-reveals (the narrow overlay FOV only reaches ~35° down,
-    // but the body hangs ~90° down) so the legs come into view at natural angles;
-    // clamped to 0 so looking UP never rotates the body forward into the screen.
-    this.#bodyPivot.rotation.x = Math.max(0, -_be.x) * 1.3;
-  }
-
   /** Place + animate the model relative to the camera. */
   update(camera, weapon, dt, opts) {
     const { mouseDX = 0, mouseDY = 0, moveSpeed = 0, visible = true } = opts;
@@ -445,7 +357,6 @@ export class Viewmodel {
       this.#ambient.intensity = 0.5 + 0.4 * s;
     }
     this.#group.visible = visible;
-    this.#updateBody(camera, visible && !!weapon);
     if (!visible || !weapon) return;
 
     // look-sway: low-pass the mouse delta, then ease the offset toward it so a
