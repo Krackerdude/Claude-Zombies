@@ -15,9 +15,15 @@ const _adsLocal = new THREE.Vector3();
 const _gunOff = new THREE.Vector3();
 const _mz = new THREE.Vector3();
 const _rayDir = new THREE.Vector3();
+const _camEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+const _holdQuat = new THREE.Quaternion();
 const lerp = (a, b, t) => a + (b - a) * t;
 const damp = (c, target, rate, dt) => c + (target - c) * (1 - Math.exp(-rate * dt));
 const GUN_REACH = 0.85; // camera→muzzle distance; wall nearer than this pulls the gun back
+// clamp the pitch used to PLACE the gun (position + orientation) to a natural
+// cone, so the arms never reach the extreme fold-in/flip poses when you look
+// far up or down. Bullets still track the full aim (WeaponSystem uses the camera).
+const GUN_PITCH_CLAMP = 0.7;
 // two-bone IK scratch (world-space, converted to local at the end)
 const _tgt = new THREE.Vector3();
 const _S = new THREE.Vector3();
@@ -62,13 +68,8 @@ const ARM = { L1: 0.33, L2: 0.32 };
 // lean the TORSO back (away from aim): a base recline keeps the chest out of the
 // forward view, and it leans back FURTHER the more you look down so the chest
 // clears the sightline to the legs (dynamic — keeps the hip reach to the gun).
-const TORSO_LEAN = -0.42;
-const TORSO_LEAN_DOWN = 0.3;   // extra torso lean-back per radian of downward pitch
-// as you look down, swing the thighs UP/FORWARD (hip flex) so the knees + feet
-// come into view. NOTE sign: after the 180° facing, NEGATIVE thigh.x angles the
-// legs FORWARD (world -z); positive kicks them backward (that read as "backwards").
-const THIGH_BASE = 0.0;
-const THIGH_FLEX_DOWN = 0.5;   // forward hip flex per radian of downward pitch
+const TORSO_LEAN = -0.42; // static recline so the chest stays out of the forward view
+const THIGH_BASE = 0.0;   // legs near-vertical (standing); knees get a slight bend in poseStance
 // pull the whole body back off the camera so the chest isn't "inside the head"
 // (bounded — too much shoves the shoulders past the arms' reach to the gun)
 const PULLBACK = 0.06;
@@ -207,14 +208,9 @@ export class PlayerBodySystem extends System {
     this.#body.rotation.y = tag.yaw + Math.PI; // rig faces +z; player forward is -z
     const J = this.#body.userData?.joints;
     if (J?.head) J.head.visible = false;
-    // dynamic pose: recline the torso + swing the thighs up as you look down, so
-    // the chest clears the sightline AND the knees/feet come into view (set before
-    // the IK reads the shoulders)
-    const down = Math.max(0, -tag.pitch);
-    if (J?.torso) J.torso.rotation.x = TORSO_LEAN - down * TORSO_LEAN_DOWN;
-    const thighFlex = THIGH_BASE - down * THIGH_FLEX_DOWN; // negative = forward
-    if (J?.thighL) J.thighL.rotation.x = thighFlex;
-    if (J?.thighR) J.thighR.rotation.x = thighFlex;
+    // static recline (dynamic lean removed) — the gun-placement pitch clamp below
+    // is what keeps the arms out of extreme fold/flip poses now
+    if (J?.torso) J.torso.rotation.x = TORSO_LEAN;
 
     // place the gun in front of the eyes, aimed along the camera, then reach the
     // hands to its grip sockets
@@ -246,9 +242,15 @@ export class PlayerBodySystem extends System {
     _gunOff.z += kickVis * 0.05;   // kick back toward the shoulder
     _gunOff.y += kickVis * 0.012;  // and a touch up
 
-    _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    // clamp the PITCH used to place + orient the gun to a natural cone, so the
+    // arms never reach the fold-in/flip poses when you look far up or down
+    _camEuler.setFromQuaternion(this.#camera.quaternion); // YXZ → .x pitch, .y yaw
+    _camEuler.x = clampN(_camEuler.x, -GUN_PITCH_CLAMP, GUN_PITCH_CLAMP);
+    _camEuler.z = 0;
+    _holdQuat.setFromEuler(_camEuler);
+    _gun.copy(_gunOff).applyQuaternion(_holdQuat).add(this.#camera.position);
     this.#gunHolder.position.copy(_gun);
-    this.#gunHolder.quaternion.copy(this.#camera.quaternion);
+    this.#gunHolder.quaternion.copy(_holdQuat);
     this.#gunHolder.rotateX(kickVis * 0.16); // muzzle climb
     this.#gunHolder.updateWorldMatrix(true, true);
     this.#body.updateWorldMatrix(true, true);
