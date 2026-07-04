@@ -33,9 +33,13 @@ export class ModelShowcase {
     this.#input = input;
     this.#cats = buildModelCategories();
     this.#bindKey();
+    if (typeof window !== 'undefined') window.__ms = this;
   }
 
   get isOpen() { return this.#open; }
+
+  // scripting hook for headless capture (set orbit angle deterministically)
+  setView(yaw, pitch, dist) { if (yaw != null) this.#yaw = yaw; if (pitch != null) this.#pitch = pitch; if (dist != null) this.#dist = dist; }
 
   #bindKey() {
     window.addEventListener('keydown', (e) => {

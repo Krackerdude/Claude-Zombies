@@ -56,11 +56,11 @@ function pistol(vm) {
   g.add(at(box(0.046, 0.034, 0.21, frameMat), 0, 0.0, -0.1));          // frame
   g.add(at(box(0.04, 0.022, 0.12, frameMat), 0, -0.018, -0.18));       // dust cover
 
-  // --- grip (angled back), stippled side panels, mag base ---
-  g.add(at(box(0.044, 0.135, 0.058, backMat), 0, -0.085, 0.0, 0.3));   // backstrap (ridged)
-  for (const sx of [-1, 1]) g.add(at(box(0.007, 0.115, 0.05, gripMat), sx * 0.026, -0.085, 0.0, 0.3));
-  g.add(at(box(0.044, 0.018, 0.05, blackMat), 0, -0.156, -0.012, 0.3)); // magazine base
-  g.add(at(box(0.03, 0.02, 0.05, frameMat), 0, 0.012, 0.045, 0.5));     // beavertail grip safety
+  // --- grip (near-vertical, seated up into the frame), stippled panels, mag ---
+  g.add(at(box(0.046, 0.15, 0.058, backMat), 0, -0.062, 0.006, 0.14));  // backstrap (ridged), top buried in frame
+  for (const sx of [-1, 1]) g.add(at(box(0.007, 0.13, 0.05, gripMat), sx * 0.027, -0.062, 0.006, 0.14)); // side panels
+  g.add(at(box(0.046, 0.02, 0.052, blackMat), 0, -0.138, -0.005, 0.14)); // magazine floorplate (flush at grip base)
+  g.add(at(box(0.028, 0.022, 0.05, frameMat), 0, 0.006, 0.02, 0.3));     // beavertail grip safety
 
   // --- hammer + trigger guard + trigger ---
   g.add(at(box(0.012, 0.028, 0.014, blackMat), 0, 0.058, 0.035, -0.5)); // skeletonized hammer
@@ -305,8 +305,8 @@ function galil() {
   g.add(at(tube(0.009, 0.009, 0.026, dark, 8), -0.046, 0.05, -0.075, 0, Math.PI / 2)); // cocking knob
 
   // === AK-style pistol grip (raked back), stippled ===
-  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.1, 0.04, 0.3));
-  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.158, 0.058, 0.3));    // grip base cap
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.094, 0.04, 0.14));
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.161, 0.032, 0.14));    // grip base cap
 
   // === trigger guard + trigger ===
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 8, 16), receiverDk);
@@ -315,10 +315,10 @@ function galil() {
 
   // === straight steel magazine (one body, slight forward rake — the segmented
   //     banana version read badly) ===
-  g.add(at(box(0.05, 0.032, 0.062, receiver), 0, -0.05, -0.105));      // mag well lip
-  g.add(at(box(0.046, 0.2, 0.056, magMat), 0, -0.155, -0.142, -0.16)); // straight mag body
-  g.add(at(box(0.048, 0.018, 0.058, dark), 0, -0.252, -0.158, -0.16)); // floorplate
-  for (let i = 0; i < 4; i++) g.add(at(box(0.048, 0.006, 0.05, receiverDk), 0, -0.1 - i * 0.034, -0.122 - i * 0.006, -0.16)); // pressed ribs
+  g.add(at(box(0.05, 0.032, 0.062, receiver), 0, -0.05, -0.1));        // mag well lip
+  g.add(at(box(0.046, 0.2, 0.056, magMat), 0, -0.15, -0.097, -0.08));  // mag body (seated up into the well)
+  g.add(at(box(0.048, 0.018, 0.058, dark), 0, -0.25, -0.089, -0.08));  // floorplate
+  for (let i = 0; i < 4; i++) g.add(at(box(0.048, 0.006, 0.05, receiverDk), 0, -0.1 - i * 0.03, -0.126 + i * 0.002, -0.08)); // pressed ribs
 
   // === barrel + parallel gas tube above it, joined by a gas block ===
   g.add(at(box(0.05, 0.06, 0.11, ribbed), 0, 0.03, -0.31));            // short ribbed handguard
@@ -497,8 +497,8 @@ function dsr() {
   g.add(at(cyl(0.016, 0.016, 0.028, scopeMetal), 0.04, 0.108, -0.14, 0, 0, Math.PI / 2)); // windage turret (right)
 
   // === pistol grip + trigger ===
-  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.1, 0.0, 0.25));
-  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.158, 0.012, 0.25));  // grip base
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.094, 0.0, 0.14));
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.161, -0.008, 0.14));  // grip base
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 8, 16), body);
   g.add(at(guard, 0, -0.05, -0.06, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.045, -0.06));         // trigger
@@ -575,8 +575,8 @@ function hk21() {
   g.add(at(box(0.007, 0.007, 0.007, green), 0, 0.098, 0.0));          // rear green dot
 
   // === G3 pistol grip + trigger ===
-  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.1, 0.02, 0.28));
-  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.158, 0.04, 0.28));   // grip base
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.094, 0.02, 0.14));
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.161, 0.012, 0.14));   // grip base
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 8, 16), receiverDk);
   g.add(at(guard, 0, -0.05, -0.02, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.026, 0.009, dark), 0, -0.045, -0.02));         // trigger
@@ -1060,9 +1060,9 @@ function fiveSeven() {
   g.add(at(box(0.04, 0.014, 0.1, frame), 0, -0.014, -0.18));
   for (let i = 0; i < 3; i++) g.add(at(box(0.042, 0.004, 0.012, black), 0, -0.024, -0.16 + i * 0.02));
 
-  // stippled polymer grip (angled) + mag base
-  g.add(at(box(0.046, 0.15, 0.062, grip), 0, -0.09, 0.0, 0.26));
-  g.add(at(box(0.048, 0.02, 0.055, black), 0, -0.165, -0.018, 0.26));
+  // stippled polymer grip (seated up into the frame) + mag base
+  g.add(at(box(0.046, 0.15, 0.062, grip), 0, -0.072, 0.006, 0.14));
+  g.add(at(box(0.048, 0.02, 0.055, black), 0, -0.153, -0.005, 0.14));
 
   // trigger guard + trigger
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.027, 0.006, 8, 16), frame);
@@ -1203,9 +1203,9 @@ function coda9() {
   for (let i = 0; i < 4; i++) g.add(at(box(0.026, 0.008, 0.006, slideDk), 0, -0.026, -0.26 + i * 0.02));
 
   // === ribbed grip + extended DeltaCell magazine ===
-  g.add(at(box(0.046, 0.16, 0.06, grip), 0, -0.085, 0.04, 0.22));
-  g.add(at(box(0.05, 0.1, 0.052, fdeDk), 0, -0.205, 0.012, 0.22));  // extended mag body
-  g.add(at(box(0.052, 0.016, 0.054, black), 0, -0.258, 0.0, 0.22)); // floorplate
+  g.add(at(box(0.046, 0.16, 0.06, grip), 0, -0.079, 0.04, 0.14));
+  g.add(at(box(0.05, 0.1, 0.052, fdeDk), 0, -0.203, 0.023, 0.14));  // extended mag body
+  g.add(at(box(0.052, 0.016, 0.054, black), 0, -0.252, 0.016, 0.14)); // floorplate
 
   // === trigger guard + trigger + controls ===
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 8, 16), fde);
@@ -1259,8 +1259,8 @@ function mp5() {
   g.add(at(box(0.042, 0.018, 0.052, dark), 0, -0.236, -0.01, 0.13)); // floorplate
 
   // === grip + trigger guard + SEF selector ===
-  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.072, 0.06, 0.3));
-  g.add(at(box(0.046, 0.018, 0.05, dark), 0, -0.126, 0.078, 0.3));  // grip cap
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.066, 0.06, 0.14));
+  g.add(at(box(0.046, 0.018, 0.05, dark), 0, -0.133, 0.052, 0.14));  // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
   g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.026, 0.0));         // trigger
@@ -1377,7 +1377,7 @@ function kuda() {
 
   // === grip + skeletonised guard + controls (grip raised to meet the body —
   //     it floated below) ===
-  g.add(at(box(0.04, 0.13, 0.05, grip), 0, -0.048, 0.1, 0.28));
+  g.add(at(box(0.04, 0.13, 0.05, grip), 0, -0.042, 0.1, 0.14));
   g.add(at(box(0.01, 0.006, 0.06, tan), 0, -0.05, 0.04));           // guard bottom bar
   g.add(at(box(0.01, 0.04, 0.006, tan), 0, -0.033, 0.07));          // guard front bar
   g.add(at(box(0.01, 0.026, 0.009, black), 0, -0.028, 0.04));       // trigger
@@ -1491,7 +1491,7 @@ function mp40() {
   g.add(at(box(0.038, 0.016, 0.046, dark), 0, -0.245, -0.118, 0.08)); // floorplate
 
   // === bakelite pistol grip + trigger guard ===
-  g.add(at(box(0.04, 0.12, 0.048, grip), 0, -0.06, 0.06, 0.34));
+  g.add(at(box(0.04, 0.12, 0.048, grip), 0, -0.054, 0.06, 0.14));
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), steelDk);
   g.add(at(guard, 0, -0.03, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.009, 0.022, 0.008, dark), 0, -0.025, 0.02));
@@ -1606,12 +1606,12 @@ function an94() {
   g.add(at(box(0.014, 0.04, 0.03, blackDk), 0.03, 0.0, -0.02));     // selector (right)
 
   // === curved banana magazine ===
-  g.add(at(box(0.04, 0.1, 0.05, mag), 0, -0.08, -0.06, 0.18));
-  g.add(at(box(0.04, 0.1, 0.05, mag), 0, -0.18, -0.005, 0.4));      // lower (more curve)
-  g.add(at(box(0.042, 0.016, 0.052, dark), 0, -0.23, 0.03, 0.4));   // floorplate
+  g.add(at(box(0.04, 0.1, 0.05, mag), 0, -0.075, -0.05, 0.12));
+  g.add(at(box(0.04, 0.1, 0.05, mag), 0, -0.165, -0.02, 0.24));     // lower (more curve)
+  g.add(at(box(0.042, 0.016, 0.052, dark), 0, -0.212, 0.0, 0.24));  // floorplate
 
   // === tan grip + trigger guard ===
-  g.add(at(box(0.04, 0.11, 0.046, grip), 0, -0.055, 0.06, 0.36));
+  g.add(at(box(0.04, 0.12, 0.046, grip), 0, -0.05, 0.045, 0.14));
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), blackDk);
   g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.025, 0.0));
@@ -1662,13 +1662,13 @@ function stg44() {
   g.add(at(box(0.02, 0.024, 0.012, steelDk), 0, 0.086, 0.0));       // leaf
   g.add(at(box(0.008, 0.008, 0.006, dark), 0, 0.092, 0.0));         // notch
 
-  // === curved magazine ===
-  g.add(at(box(0.038, 0.12, 0.05, mag), 0, -0.08, -0.08, 0.16));
-  g.add(at(box(0.038, 0.1, 0.05, mag), 0, -0.19, -0.02, 0.34));     // lower curve
-  g.add(at(box(0.04, 0.016, 0.052, dark), 0, -0.24, 0.015, 0.34));  // floorplate
+  // === curved magazine (seated up into the well) ===
+  g.add(at(box(0.038, 0.1, 0.05, mag), 0, -0.075, -0.05, 0.12));
+  g.add(at(box(0.038, 0.1, 0.05, mag), 0, -0.165, -0.02, 0.24));    // lower curve
+  g.add(at(box(0.04, 0.016, 0.052, dark), 0, -0.212, 0.0, 0.24));   // floorplate
 
   // === brown bakelite grip + trigger guard ===
-  g.add(at(box(0.038, 0.1, 0.044, bakeGrip), 0, -0.05, 0.04, 0.32));
+  g.add(at(box(0.038, 0.1, 0.044, bakeGrip), 0, -0.044, 0.04, 0.14));
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), steelDk);
   g.add(at(guard, 0, -0.028, 0.0, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.022, 0.008, dark), 0, -0.024, 0.0));
@@ -1736,8 +1736,8 @@ function icr1() {
   g.add(at(box(0.042, 0.016, 0.054, dark), 0, -0.2, -0.032, 0.06));   // floorplate
 
   // === stippled pistol grip + trigger guard ===
-  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.055, 0.06, 0.34));
-  g.add(at(box(0.042, 0.016, 0.048, dark), 0, -0.108, 0.078, 0.34));  // grip base cap
+  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.049, 0.06, 0.14));
+  g.add(at(box(0.042, 0.016, 0.048, dark), 0, -0.105, 0.053, 0.14));  // grip base cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), bodyDk);
   g.add(at(guard, 0, -0.028, 0.0, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.022, 0.008, dark), 0, -0.024, 0.0));
@@ -1804,8 +1804,8 @@ function fal() {
   g.add(at(box(0.042, 0.016, 0.052, dark), 0, -0.21, 0.0, 0.24));     // floorplate
 
   // === wood pistol grip + trigger guard ===
-  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.055, 0.06, 0.32));
-  g.add(at(box(0.042, 0.016, 0.048, woodDk), 0, -0.108, 0.078, 0.32)); // grip cap
+  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.049, 0.06, 0.14));
+  g.add(at(box(0.042, 0.016, 0.048, woodDk), 0, -0.105, 0.053, 0.14)); // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.005, 8, 16), bluedDk);
   g.add(at(guard, 0, -0.028, 0.0, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.022, 0.008, dark), 0, -0.024, 0.0));
@@ -1882,8 +1882,8 @@ function dingo() {
   for (const sx of [-1, 1]) g.add(at(box(0.007, 0.007, 0.007, green), sx * 0.012, 0.094, 0.016)); // twin green rear dots
 
   // === pistol grip + trigger guard (Dingo-marked) ===
-  g.add(at(box(0.046, 0.11, 0.05, grip), 0, -0.06, 0.04, 0.3));
-  g.add(at(box(0.048, 0.018, 0.052, dark), 0, -0.118, 0.058, 0.3));   // grip cap
+  g.add(at(box(0.046, 0.11, 0.05, grip), 0, -0.054, 0.04, 0.14));
+  g.add(at(box(0.048, 0.018, 0.052, dark), 0, -0.116, 0.032, 0.14));   // grip cap
   g.add(at(box(0.004, 0.04, 0.03, tan), 0.024, -0.05, 0.05, 0, 0, 0.5)); // tan grip stripe
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 8, 16), bodyDk);
   g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
@@ -1970,8 +1970,8 @@ function rpd() {
   g.add(at(box(0.05, 0.018, 0.04, bluedHi), 0, -0.072, -0.07));       // latch band (light catch)
 
   // === wood pistol grip + trigger guard ===
-  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.26));
-  g.add(at(box(0.042, 0.016, 0.048, woodDk), 0, -0.106, 0.084, 0.26)); // grip cap
+  g.add(at(box(0.04, 0.1, 0.046, grip), 0, -0.049, 0.07, 0.14));
+  g.add(at(box(0.042, 0.016, 0.048, woodDk), 0, -0.105, 0.063, 0.14)); // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bluedDk);
   g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));          // trigger
@@ -2051,8 +2051,8 @@ function hamr() {
   g.add(at(box(0.06, 0.024, 0.05, drumMat), 0, -0.055, -0.06));       // drum top latch
 
   // === pistol grip + trigger guard ===
-  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.28));
-  g.add(at(box(0.044, 0.016, 0.048, blackDk), 0, -0.106, 0.086, 0.28)); // grip cap
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.049, 0.07, 0.14));
+  g.add(at(box(0.044, 0.016, 0.048, blackDk), 0, -0.105, 0.063, 0.14)); // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
   g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));
@@ -2132,8 +2132,8 @@ function stoner63() {
   g.add(at(box(0.048, 0.018, 0.062, dark), 0, -0.214, -0.04, 0.06));  // floorplate
 
   // === pistol grip + trigger guard ===
-  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.28));
-  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.106, 0.086, 0.28));  // grip cap
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.049, 0.07, 0.14));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.105, 0.063, 0.14));  // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), blackDk);
   g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));
@@ -2222,8 +2222,8 @@ function lsat() {
   g.add(at(box(0.05, 0.018, 0.014, gold), 0, -0.1, -0.001));          // small gold latch tab
 
   // === pistol grip + trigger guard ===
-  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.28));
-  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.106, 0.086, 0.28));  // grip cap
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.049, 0.07, 0.14));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.105, 0.063, 0.14));  // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bodyDk);
   g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));
@@ -2296,8 +2296,8 @@ function ballista() {
   g.add(at(box(0.046, 0.016, 0.054, dark), 0, -0.172, -0.05, 0.04));  // floorplate
 
   // === pistol grip + trigger guard ===
-  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.07, 0.28));
-  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.106, 0.086, 0.28));  // grip cap
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.049, 0.07, 0.14));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.105, 0.063, 0.14));  // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), tanDk);
   g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));
@@ -2475,9 +2475,9 @@ function svg300() {
   g.add(at(box(0.05, 0.01, 0.04, red), 0, -0.09, -0.07));             // red mag accent
 
   // === holed pistol grip + red trigger ===
-  g.add(at(box(0.044, 0.11, 0.05, grip), 0, -0.055, 0.06, 0.26));
+  g.add(at(box(0.044, 0.11, 0.05, grip), 0, -0.049, 0.06, 0.14));
   for (let i = 0; i < 3; i++) g.add(at(tube(0.007, 0.007, 0.052, dark, 8), 0, -0.05 - i * 0.025, 0.066 + i * 0.006, 0, 0, Math.PI / 2)); // grip holes
-  g.add(at(box(0.046, 0.016, 0.052, dark), 0, -0.112, 0.078, 0.26)); // grip cap
+  g.add(at(box(0.046, 0.016, 0.052, dark), 0, -0.110, 0.052, 0.14)); // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.005, 8, 16), body);
   g.add(at(guard, 0, -0.03, 0.0, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.026, 0.009, red), 0, -0.026, 0.0));            // red trigger
@@ -2620,8 +2620,8 @@ function svu() {
   g.add(at(box(0.042, 0.016, 0.05, dark), 0, -0.19, 0.005, 0.4));     // floorplate
 
   // === pistol grip + trigger guard ===
-  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.05, 0.06, 0.28));
-  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.1, 0.078, 0.28));    // grip cap
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.044, 0.06, 0.14));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.100, 0.053, 0.14));    // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), black);
   g.add(at(guard, 0, -0.026, 0.0, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.022, 0.0));
@@ -2824,8 +2824,8 @@ function krm() {
   g.add(at(box(0.018, 0.012, 0.008, dark), 0, 0.099, -0.02));        // rear notch
 
   // === pistol grip + trigger guard ===
-  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.055, 0.06, 0.3));
-  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.106, 0.078, 0.3));  // grip cap
+  g.add(at(box(0.042, 0.1, 0.046, grip), 0, -0.049, 0.06, 0.14));
+  g.add(at(box(0.044, 0.016, 0.048, dark), 0, -0.105, 0.053, 0.14));  // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bodyDk);
   g.add(at(guard, 0, -0.028, 0.0, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, copper), 0, -0.024, 0.0));        // copper trigger
@@ -2889,8 +2889,8 @@ function mog12() {
   // === pistol grip + trigger guard (rear, no stock) ===
   g.add(at(box(0.046, 0.072, 0.06, blackHi), 0, 0.006, 0.06));       // grip housing / rear cap
   g.add(at(box(0.014, 0.026, 0.03, red), 0.024, 0.012, 0.04));       // red selector switch (right)
-  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.07, 0.08, 0.32));     // pistol grip
-  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.128, 0.1, 0.32));   // grip cap
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.064, 0.08, 0.14));     // pistol grip
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.131, 0.072, 0.14));   // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bodyDk);
   g.add(at(guard, 0, -0.03, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.026, 0.009, red), 0, -0.026, 0.02));          // red trigger
@@ -2953,8 +2953,8 @@ function haymaker() {
   g.add(at(box(0.03, 0.018, 0.01, bodyHi), 0, -0.07, -0.128));        // release latch
 
   // === textured pistol grip + red ammo counter + trigger ===
-  g.add(at(box(0.044, 0.1, 0.048, grip), 0, -0.055, 0.06, 0.3));
-  g.add(at(box(0.046, 0.016, 0.05, dark), 0, -0.106, 0.078, 0.3));    // grip cap
+  g.add(at(box(0.044, 0.1, 0.048, grip), 0, -0.049, 0.06, 0.14));
+  g.add(at(box(0.046, 0.016, 0.05, dark), 0, -0.105, 0.053, 0.14));    // grip cap
   g.add(at(box(0.018, 0.016, 0.01, dark), 0, -0.012, 0.02));          // counter housing
   g.add(at(box(0.013, 0.011, 0.005, red), 0, -0.012, 0.015));         // red ammo counter
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bodyDk);
@@ -3021,8 +3021,8 @@ function stakeout() {
   g.add(at(box(0.05, 0.014, 0.04, leatherDk), 0, -0.02, 0.04, 0, 0, 0.5)); // strap tail
 
   // === checkered pistol grip + trigger guard (no stock) ===
-  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.06, 0.08, 0.36));
-  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.118, 0.105, 0.36)); // grip cap
+  g.add(at(box(0.044, 0.12, 0.05, grip), 0, -0.054, 0.08, 0.14));
+  g.add(at(box(0.046, 0.018, 0.052, dark), 0, -0.121, 0.072, 0.14)); // grip cap
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.005, 8, 16), bluedDk);
   g.add(at(guard, 0, -0.028, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.01, 0.024, 0.008, dark), 0, -0.024, 0.02));         // trigger
