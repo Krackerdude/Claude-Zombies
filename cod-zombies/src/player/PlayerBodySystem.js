@@ -5,6 +5,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { PlayerConfig } from '../config/index.js';
 import { selectedBuild } from '../characters/selection.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
+import { makeFlashStar, makeFlashCore } from '../weapons/Viewmodel.js';
 import { fpBody } from './fpBodyState.js';
 
 const _pos = new THREE.Vector3();
@@ -13,22 +14,10 @@ const _fwd = new THREE.Vector3();
 const _adsLocal = new THREE.Vector3();
 const _gunOff = new THREE.Vector3();
 const _mz = new THREE.Vector3();
+const _rayDir = new THREE.Vector3();
 const lerp = (a, b, t) => a + (b - a) * t;
-
-/** Radial muzzle-flash sprite texture (white core → amber → transparent + spikes). */
-function makeFlashTex() {
-  const c = document.createElement('canvas'); c.width = c.height = 64;
-  const x = c.getContext('2d');
-  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-  g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(0.3, 'rgba(255,232,150,0.9)');
-  g.addColorStop(0.6, 'rgba(255,150,40,0.45)');
-  g.addColorStop(1, 'rgba(255,120,20,0)');
-  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
-  x.strokeStyle = 'rgba(255,240,180,0.8)'; x.lineWidth = 3;
-  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; x.beginPath(); x.moveTo(32, 32); x.lineTo(32 + Math.cos(a) * 30, 32 + Math.sin(a) * 30); x.stroke(); }
-  return new THREE.CanvasTexture(c);
-}
+const damp = (c, target, rate, dt) => c + (target - c) * (1 - Math.exp(-rate * dt));
+const GUN_REACH = 0.85; // camera→muzzle distance; wall nearer than this pulls the gun back
 // two-bone IK scratch (world-space, converted to local at the end)
 const _tgt = new THREE.Vector3();
 const _S = new THREE.Vector3();
@@ -86,11 +75,11 @@ const PULLBACK = 0.0;
  * remote players / theater will use. F6 toggles it; off by default.
  */
 export class PlayerBodySystem extends System {
-  #scene; #time; #gameState; #weapons; #camera;
-  #body = null; #built = false; #enabled = false;
+  #scene; #time; #gameState; #weapons; #camera; #physics;
+  #body = null; #built = false; #enabled = false; #wallPush = 0;
   #gunHolder = new THREE.Group();
   #gunAnchors = null; #gunKey = null; #gunSightY = 0.08;
-  #flash = null; #flashLight = null;
+  #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
     this.#scene = this.world.services.get(Service.Scene).scene;
@@ -98,13 +87,16 @@ export class PlayerBodySystem extends System {
     this.#gameState = this.world.services.get(Service.GameState);
     this.#weapons = null; // resolved lazily in #syncGun (registers with the scene)
     this.#camera = this.world.services.get(Service.Render).camera;
+    this.#physics = this.world.services.has(Service.Physics) ? this.world.services.get(Service.Physics) : null;
     this.#scene.add(this.#gunHolder);
-    // world-space muzzle flash for the held gun (the overlay flash is hidden in
-    // body mode); billboarded to the camera + a brief point light
-    this.#flash = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.5, 0.5),
-      new THREE.MeshBasicMaterial({ map: makeFlashTex(), color: 0xfff0c0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }),
-    );
+    // world-space muzzle flash for the held gun — REUSES the overlay viewmodel's
+    // flash textures (star + white-hot core) so it looks identical; just lives in
+    // the world scene (the overlay's is camera-locked) + a brief point light.
+    const flashMat = (tex) => new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.#flash = new THREE.Group();
+    this.#flashStar = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), flashMat(makeFlashStar()));
+    this.#flashCore = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.14), flashMat(makeFlashCore()));
+    this.#flash.add(this.#flashStar, this.#flashCore);
     this.#flash.renderOrder = 999; this.#flash.visible = false;
     this.#scene.add(this.#flash);
     this.#flashLight = new THREE.PointLight(0xffd9a0, 0, 6, 2);
@@ -125,8 +117,8 @@ export class PlayerBodySystem extends System {
       handR: J?.handR && wp(J.handR), gripR: this.#gunAnchors?.gripR && wp(this.#gunAnchors.gripR),
       handL: J?.handL && wp(J.handL), gripL: this.#gunAnchors?.gripL && wp(this.#gunAnchors.gripL),
       shR: J?.shoulderR && wp(J.shoulderR),
-      jf: this.#weapons?.current?.justFired, flashVis: this.#flash?.visible, flashOp: this.#flash?.material?.opacity,
-      flashPos: this.#flash && this.#flash.visible ? this.#flash.position.toArray().map((n) => +n.toFixed(2)) : null,
+      jf: this.#weapons?.current?.justFired, flashVis: this.#flash?.visible, flashOp: this.#flashStar?.material?.opacity,
+      wallPush: +this.#wallPush.toFixed(2),
       muzzle: this.#gunAnchors?.muzzle && (() => { const v = new THREE.Vector3(); this.#gunAnchors.muzzle.getWorldPosition(v); return v.toArray().map((n) => +n.toFixed(2)); })(),
     };
   }
@@ -186,7 +178,7 @@ export class PlayerBodySystem extends System {
     }
   }
 
-  lateUpdate() {
+  lateUpdate(dt) {
     if (!this.#enabled || !this.#body) return;
     if (!this.#gameState.isPlaying || this.world.first(PlayerTag, Transform) === undefined) {
       this.#body.visible = false; this.#gunHolder.visible = false;
@@ -216,6 +208,16 @@ export class PlayerBodySystem extends System {
     const ads = this.#weapons?.current?.adsProgress || 0;
     _adsLocal.set(0, -this.#gunSightY, -0.34);
     _gunOff.set(lerp(GUN_LOCAL.x, _adsLocal.x, ads), lerp(GUN_LOCAL.y, _adsLocal.y, ads), lerp(GUN_LOCAL.z, _adsLocal.z, ads));
+    // near-wall pushback: if a solid wall is closer than the muzzle reach, pull
+    // the gun back toward the camera so it doesn't poke through geometry
+    let targetPush = 0;
+    if (this.#physics?.raycastWall) {
+      _rayDir.set(0, 0, -1).applyQuaternion(this.#camera.quaternion); // unit aim dir
+      const hitDist = this.#physics.raycastWall(this.#camera.position, _rayDir, GUN_REACH);
+      if (hitDist != null) targetPush = Math.min(0.55, Math.max(0, GUN_REACH - hitDist));
+    }
+    this.#wallPush = damp(this.#wallPush, targetPush, 20, dt || 0.016);
+    _gunOff.z += this.#wallPush; // z is forward-negative → += pulls the gun in
     _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
     this.#gunHolder.position.copy(_gun);
     this.#gunHolder.quaternion.copy(this.#camera.quaternion);
@@ -237,15 +239,17 @@ export class PlayerBodySystem extends System {
       muzzle.getWorldPosition(_mz);
       this.#flash.position.copy(_mz);
       this.#flash.lookAt(this.#camera.position);
-      this.#flash.rotateZ(Math.random() * Math.PI); // flicker spin in the view plane
-      this.#flash.scale.setScalar(1.0 + Math.random() * 0.7);
-      this.#flash.material.opacity = Math.min(1, lit);
       this.#flash.visible = true;
+      this.#flashStar.material.opacity = Math.min(1, lit);
+      this.#flashStar.rotation.z = Math.random() * Math.PI;         // cartoon flicker spin
+      this.#flashStar.scale.setScalar(0.85 + Math.random() * 0.6);
+      this.#flashCore.material.opacity = Math.min(1, lit * 1.3);
+      this.#flashCore.scale.setScalar(0.9 + Math.random() * 0.25);
       this.#flashLight.position.copy(_mz);
-      this.#flashLight.intensity = lit * 5;
+      this.#flashLight.intensity = lit * 4.5;
     } else {
       this.#flash.visible = false;
-      this.#flash.material.opacity = 0;
+      this.#flashStar.material.opacity = 0; this.#flashCore.material.opacity = 0;
       this.#flashLight.intensity = 0;
     }
   }

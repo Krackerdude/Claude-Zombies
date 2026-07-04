@@ -299,6 +299,15 @@ export class PhysicsManager {
     return hit === null;
   }
 
+  /** Distance to the nearest solid ENV wall along a (normalized) ray direction,
+   *  or null if nothing solid within maxDist. Filters to ENV only (not actors /
+   *  ragdolls). Used by the FP body to pull the gun back off walls. */
+  raycastWall(origin, dir, maxDist) {
+    const ray = new RAPIER.Ray(origin, dir);
+    const hit = this.world.castRay(ray, maxDist, true, undefined, (0xFFFF << 16) | ENV);
+    return hit ? (hit.timeOfImpact ?? hit.toi) : null; // Rapier 0.14 renamed toi→timeOfImpact
+  }
+
   removeBody(handle) {
     if (handle?.body) this.world.removeRigidBody(handle.body);
   }
