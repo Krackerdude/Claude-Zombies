@@ -54,7 +54,7 @@ function pistol(vm) {
 
   // --- frame + dust cover under the slide ---
   g.add(at(box(0.046, 0.034, 0.21, frameMat), 0, 0.0, -0.1));          // frame
-  g.add(at(box(0.04, 0.022, 0.12, frameMat), 0, -0.018, -0.18));       // dust cover
+  g.add(at(box(0.04, 0.022, 0.12, frameMat), 0, -0.018, -0.155));      // dust cover
 
   // --- grip (near-vertical, seated up into the frame), stippled panels, mag ---
   g.add(at(box(0.046, 0.15, 0.058, backMat), 0, -0.062, 0.006, 0.14));  // backstrap (ridged), top buried in frame
@@ -63,10 +63,10 @@ function pistol(vm) {
   g.add(at(box(0.028, 0.022, 0.05, frameMat), 0, 0.006, 0.02, 0.3));     // beavertail grip safety
 
   // --- hammer + trigger guard + trigger ---
-  g.add(at(box(0.012, 0.028, 0.014, blackMat), 0, 0.058, 0.035, -0.5)); // skeletonized hammer
+  g.add(at(box(0.012, 0.028, 0.014, blackMat), 0, 0.058, 0.05, -0.394)); // skeletonized hammer
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.027, 0.006, 8, 16), frameMat);
-  g.add(at(guard, 0, -0.045, -0.05, 0, Math.PI / 2));                    // trigger guard loop
-  g.add(at(box(0.01, 0.028, 0.009, blackMat), 0, -0.04, -0.05));         // trigger
+  g.add(at(guard, 0, -0.035, -0.03, 0, Math.PI / 2));                    // trigger guard loop
+  g.add(at(box(0.01, 0.028, 0.009, blackMat), 0, -0.025, -0.03));        // trigger
 
   // --- green fiber-optic iron sights (raised slightly, brighter neon) ---
   g.add(at(box(0.01, 0.022, 0.012, blackMat), 0, 0.069, -0.23));        // front sight post
