@@ -57,14 +57,14 @@ function aimBasis(out, dir, ref) {
 
 // gun held in front of the eyes, in CAMERA space (right, down, forward). The
 // gun aims along the camera's -z, so it tracks pitch/yaw exactly.
-const GUN_LOCAL = new THREE.Vector3(0.09, -0.1, -0.44);
+const GUN_LOCAL = new THREE.Vector3(0.06, -0.1, -0.34);
 const ARM = { L1: 0.33, L2: 0.32 };
-// lean the TORSO back (away from aim) so the chest drops out of the forward
-// view — you only see it when you look down; legs stay vertical (standing)
-const TORSO_LEAN = -0.32;
+// lean the TORSO back (away from aim) so the chest drops out of the forward view
+// AND clears the look-down sightline to the legs; legs stay vertical (standing)
+const TORSO_LEAN = -0.5;
 // pull the whole body back off the camera so the chest isn't "inside the head"
-// (kept tiny — too much shoves the shoulders past the arms' reach to the gun)
-const PULLBACK = 0.0;
+// (bounded — too much shoves the shoulders past the arms' reach to the gun)
+const PULLBACK = 0.06;
 
 /**
  * First-person BODY — the player's own rig, in the WORLD scene, holding a
@@ -76,7 +76,7 @@ const PULLBACK = 0.0;
  */
 export class PlayerBodySystem extends System {
   #scene; #time; #gameState; #weapons; #camera; #physics;
-  #body = null; #built = false; #enabled = false; #wallPush = 0;
+  #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
   #gunHolder = new THREE.Group();
   #gunAnchors = null; #gunKey = null; #gunSightY = 0.08;
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
@@ -218,9 +218,23 @@ export class PlayerBodySystem extends System {
     }
     this.#wallPush = damp(this.#wallPush, targetPush, 20, dt || 0.016);
     _gunOff.z += this.#wallPush; // z is forward-negative → += pulls the gun in
+
+    // visual recoil: the gun kicks back + up on each shot and recovers, scaled by
+    // the weapon's hip/ADS recoil. The hands follow because the arm IK solves
+    // AFTER the gun is placed. (View/camera kick still lives in WeaponSystem.)
+    const w = this.#weapons?.current;
+    if (w && w.justFired > 0) this.#kick = Math.min(1, this.#kick + (dt || 0.016) * 18);
+    else this.#kick += (0 - this.#kick) * Math.min(1, (dt || 0.016) * 9);
+    const vrHip = w?.data.visualRecoilHip ?? 1.0;
+    const vrAds = w?.data.visualRecoilAds ?? 0.4;
+    const kickVis = this.#kick * (vrHip + (vrAds - vrHip) * ads);
+    _gunOff.z += kickVis * 0.05;   // kick back toward the shoulder
+    _gunOff.y += kickVis * 0.012;  // and a touch up
+
     _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
     this.#gunHolder.position.copy(_gun);
     this.#gunHolder.quaternion.copy(this.#camera.quaternion);
+    this.#gunHolder.rotateX(kickVis * 0.16); // muzzle climb
     this.#gunHolder.updateWorldMatrix(true, true);
     this.#body.updateWorldMatrix(true, true);
     if (J && this.#gunAnchors) {
