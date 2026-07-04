@@ -9,6 +9,7 @@ import { makeWeapon, PAP_SPECIAL, PAP_NAMES } from './catalog.js';
 import { randomAat } from './aat.js';
 import { Viewmodel } from './Viewmodel.js';
 import { WeaponFx } from './WeaponFx.js';
+import { fpBody } from '../player/fpBodyState.js';
 import { damageZombie } from './damage.js';
 
 /** Automatic + burst weapons flinch the target far less, so sustained fire
@@ -332,7 +333,9 @@ export class WeaponSystem extends System {
       swapDown: this.#swapDown(),
       damage: this.#dmgT > 0 ? { t: 1 - this.#dmgT / 0.25, side: this.#dmgSide } : null,
       shade: this.#sampleShade(dt),
-      visible: playing && !!w && !w.scoped, // hidden when empty-handed (PaP) or behind the scope
+      // hidden when empty-handed (PaP), behind the scope, or when the FP body is
+      // holding a world-space gun instead of this overlay one
+      visible: playing && !!w && !w.scoped && !fpBody.enabled,
     });
     if (this.#fx) this.#fx.update(dt);
   }

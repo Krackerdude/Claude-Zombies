@@ -14,6 +14,7 @@ import { InputActions } from '../input/InputActions.js';
 import { AssetManager } from '../assets/AssetManager.js';
 import { CameraController } from '../camera/CameraController.js';
 import { PlayerSystem } from '../player/PlayerSystem.js';
+import { PlayerBodySystem } from '../player/PlayerBodySystem.js';
 import { GameState } from './GameState.js';
 import { SettingsStore } from '../settings/SettingsStore.js';
 import { createProfileService } from '../profile/index.js';
@@ -94,6 +95,7 @@ export class Engine {
     this.world.registerSystem(new PhysicsSystem());
     // Variable/late phase.
     this.world.registerSystem(new CameraController());
+    this.world.registerSystem(new PlayerBodySystem());
     this.#renderSystem = this.world.registerSystem(new RenderSystem());
 
     // --- loop ---

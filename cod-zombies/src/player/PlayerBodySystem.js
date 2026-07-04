@@ -1,0 +1,186 @@
+import * as THREE from 'three';
+import { System } from '../ecs/System.js';
+import { Transform, PlayerTag } from '../ecs/components/index.js';
+import { Service } from '../core/ServiceLocator.js';
+import { PlayerConfig } from '../config/index.js';
+import { selectedBuild } from '../characters/selection.js';
+import { buildWeaponModel } from '../weapons/weaponModels.js';
+import { fpBody } from './fpBodyState.js';
+
+const _pos = new THREE.Vector3();
+const _gun = new THREE.Vector3();
+// two-bone IK scratch (world-space, converted to local at the end)
+const _tgt = new THREE.Vector3();
+const _S = new THREE.Vector3();
+const _toT = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _pole = new THREE.Vector3();
+const _bendAxis = new THREE.Vector3();
+const _elbow = new THREE.Vector3();
+const _upperDir = new THREE.Vector3();
+const _foreDir = new THREE.Vector3();
+const _qWorld = new THREE.Quaternion();
+const _qWorldE = new THREE.Quaternion();
+const _qParent = new THREE.Quaternion();
+const NEG_Y = new THREE.Vector3(0, -1, 0); // bones rest along -Y
+const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// gun held in front of the eyes, in CAMERA space (right, down, forward). The
+// gun aims along the camera's -z, so it tracks pitch/yaw exactly.
+const GUN_LOCAL = new THREE.Vector3(0.12, -0.1, -0.52);
+const ARM = { L1: 0.33, L2: 0.32 };
+// a gentle base recline so the bent legs read when looking down, without lifting
+// the chest up to occlude the forward-held gun
+const RECLINE = 0.12;
+
+/**
+ * First-person BODY — the player's own rig, in the WORLD scene, holding a
+ * world-space gun. Because it lives in the world it is naturally anchored: legs
+ * are there when you look down, and the gun (placed relative to the camera, so
+ * it aims where you look) is held with both hands via two-bone arm IK to the
+ * weapon's gripR/gripL sockets. Head hidden (camera lives there). Same rig
+ * remote players / theater will use. F6 toggles it; off by default.
+ */
+export class PlayerBodySystem extends System {
+  #scene; #time; #gameState; #weapons; #camera;
+  #body = null; #built = false; #enabled = false;
+  #gunHolder = new THREE.Group();
+  #gunAnchors = null; #gunKey = null;
+
+  init() {
+    this.#scene = this.world.services.get(Service.Scene).scene;
+    this.#time = this.world.services.get(Service.Time);
+    this.#gameState = this.world.services.get(Service.GameState);
+    this.#weapons = null; // resolved lazily in #syncGun (registers with the scene)
+    this.#camera = this.world.services.get(Service.Render).camera;
+    this.#scene.add(this.#gunHolder);
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'F6') { e.preventDefault(); e.stopPropagation(); this.#toggle(); }
+    }, true);
+    if (typeof window !== 'undefined') window.__pbody = this;
+  }
+
+  get isEnabled() { return this.#enabled; }
+
+  get _dbg() {
+    const J = this.#body?.userData?.joints;
+    const wp = (o) => { const v = new THREE.Vector3(); o?.getWorldPosition(v); return v.toArray().map((n) => +n.toFixed(2)); };
+    return {
+      cam: this.#camera && wp(this.#camera), gun: wp(this.#gunHolder),
+      handR: J?.handR && wp(J.handR), gripR: this.#gunAnchors?.gripR && wp(this.#gunAnchors.gripR),
+      handL: J?.handL && wp(J.handL), gripL: this.#gunAnchors?.gripL && wp(this.#gunAnchors.gripL),
+      shR: J?.shoulderR && wp(J.shoulderR),
+    };
+  }
+
+  #toggle() {
+    this.#enabled = !this.#enabled;
+    fpBody.enabled = this.#enabled;                 // WeaponSystem hides its overlay gun
+    if (this.#enabled && !this.#built) this.#build();
+    if (this.#body) this.#body.visible = this.#enabled;
+    this.#gunHolder.visible = this.#enabled;
+  }
+
+  #build() {
+    const build = selectedBuild();
+    if (!build) return;
+    let rig; try { rig = build(); } catch { return; }
+    const J = rig.userData?.joints;
+    if (J?.head) J.head.visible = false; // the camera lives inside the head
+    this.#poseStance(J);
+    rig.visible = this.#enabled;
+    this.#scene.add(rig);
+    this.#body = rig;
+    this.#built = true;
+  }
+
+  /** Bent-knee stance for natural-looking legs; arms are driven by IK. */
+  #poseStance(J) {
+    if (!J) return;
+    const set = (j, x = 0, y = 0, z = 0) => { if (j) j.rotation.set(x, y, z); };
+    set(J.thighL, 0.12, 0, 0.04); set(J.thighR, 0.12, 0, -0.04);
+    set(J.kneeL, 0.25); set(J.kneeR, 0.25);
+    set(J.footL, -0.13); set(J.footR, -0.13);
+  }
+
+  /** (Re)build the held gun model when the weapon changes. */
+  #syncGun() {
+    // Service.Weapons registers with the scene, after this system's init(), so
+    // resolve it lazily the first time it exists.
+    if (!this.#weapons) {
+      if (!this.world.services.has(Service.Weapons)) return;
+      this.#weapons = this.world.services.get(Service.Weapons);
+    }
+    const w = this.#weapons.current;
+    const key = w ? (w.data.modelName || w.data.name) : null;
+    if (key === this.#gunKey) return;
+    this.#gunKey = key;
+    while (this.#gunHolder.children.length) this.#gunHolder.remove(this.#gunHolder.children[0]);
+    this.#gunAnchors = null;
+    if (!w) return;
+    const built = buildWeaponModel(w);
+    if (built?.group) { this.#gunHolder.add(built.group); this.#gunAnchors = built.anchors || null; }
+  }
+
+  lateUpdate() {
+    if (!this.#enabled || !this.#body) return;
+    if (!this.#gameState.isPlaying) { this.#body.visible = false; this.#gunHolder.visible = false; return; }
+    const id = this.world.first(PlayerTag, Transform);
+    if (id === undefined) { this.#body.visible = false; this.#gunHolder.visible = false; return; }
+    const tag = this.world.get(id, PlayerTag);
+    const t = this.world.get(id, Transform);
+    this.#body.visible = true;
+    this.#gunHolder.visible = true;
+
+    // stand the rig on the ground under the interpolated capsule; face the aim
+    _pos.lerpVectors(t.previousPosition, t.position, this.#time.alpha);
+    const feetY = _pos.y - (tag.halfHeight + PlayerConfig.capsuleRadius);
+    this.#body.position.set(_pos.x, feetY, _pos.z);
+    // face the aim (rig faces +z; player forward is -z) + recline back
+    this.#body.rotation.set(RECLINE, tag.yaw + Math.PI, 0, 'YXZ');
+    const J = this.#body.userData?.joints;
+    if (J?.head) J.head.visible = false;
+
+    // place the gun in front of the eyes, aimed along the camera, then reach the
+    // hands to its grip sockets
+    this.#syncGun();
+    _gun.copy(GUN_LOCAL).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    this.#gunHolder.position.copy(_gun);
+    this.#gunHolder.quaternion.copy(this.#camera.quaternion);
+    this.#gunHolder.updateWorldMatrix(true, true);
+    this.#body.updateWorldMatrix(true, true);
+    if (J && this.#gunAnchors) {
+      if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
+      if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+    }
+  }
+
+  /** Analytic two-bone IK: shoulder aims the upper arm, elbow bends by the law
+   *  of cosines, a pole hint keeps the elbow down-and-out. Bones rest along -Y. */
+  #solveArm(sh, el, anchor, side) {
+    const { L1, L2 } = ARM;
+    anchor.getWorldPosition(_tgt);   // target (world)
+    sh.getWorldPosition(_S);         // shoulder (world)
+    _toT.copy(_tgt).sub(_S);
+    let d = _toT.length();
+    d = clampN(d, Math.abs(L1 - L2) + 0.02, (L1 + L2) * 0.999);
+    _dir.copy(_toT).normalize();
+    // elbow sits on the circle where the two bones meet; place it toward a pole
+    // hint (down + toward the camera) so the elbow hangs naturally.
+    const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d);
+    const h = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+    _pole.set(side * 0.35, -0.85, 0.4);                       // down / slight out / toward camera
+    _bendAxis.copy(_pole).addScaledVector(_dir, -_pole.dot(_dir)); // perpendicular to dir
+    if (_bendAxis.lengthSq() < 1e-6) _bendAxis.set(0, -1, 0); else _bendAxis.normalize();
+    _elbow.copy(_S).addScaledVector(_dir, a).addScaledVector(_bendAxis, h);
+    // orient the upper arm (local -Y) at the elbow, in the shoulder's parent frame
+    _upperDir.copy(_elbow).sub(_S).normalize();
+    _qWorld.setFromUnitVectors(NEG_Y, _upperDir);
+    sh.parent.getWorldQuaternion(_qParent);
+    sh.quaternion.copy(_qParent.invert().multiply(_qWorld)); // _qWorld = sh's new world quat
+    // orient the forearm (local -Y) from the elbow at the target
+    _foreDir.copy(_tgt).sub(_elbow).normalize();
+    _qWorldE.setFromUnitVectors(NEG_Y, _foreDir);
+    el.quaternion.copy(_qWorld.invert().multiply(_qWorldE)); // parent(el) world quat = sh world quat
+  }
+}
