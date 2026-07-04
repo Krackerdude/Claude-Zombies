@@ -442,6 +442,7 @@ async function main() {
     // Expose for console poking during development.
     window.__engine = engine;
     window.__ui = ui;
+    window.__player = () => { const w = engine.world; const id = w.first(PlayerTag, Transform); return id !== undefined ? w.get(id, PlayerTag) : null; };
   } catch (err) {
     console.error(err);
     setStatus(`error: ${err.message}`, 0);

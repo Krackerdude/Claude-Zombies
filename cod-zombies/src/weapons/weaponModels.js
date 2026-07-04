@@ -54,7 +54,7 @@ function pistol(vm) {
 
   // --- frame + dust cover under the slide ---
   g.add(at(box(0.046, 0.034, 0.21, frameMat), 0, 0.0, -0.1));          // frame
-  g.add(at(box(0.04, 0.022, 0.12, frameMat), 0, -0.018, -0.18));       // dust cover
+  g.add(at(box(0.04, 0.022, 0.12, frameMat), 0, -0.018, -0.155));      // dust cover
 
   // --- grip (near-vertical, seated up into the frame), stippled panels, mag ---
   g.add(at(box(0.046, 0.15, 0.058, backMat), 0, -0.062, 0.006, 0.14));  // backstrap (ridged), top buried in frame
@@ -63,10 +63,10 @@ function pistol(vm) {
   g.add(at(box(0.028, 0.022, 0.05, frameMat), 0, 0.006, 0.02, 0.3));     // beavertail grip safety
 
   // --- hammer + trigger guard + trigger ---
-  g.add(at(box(0.012, 0.028, 0.014, blackMat), 0, 0.058, 0.035, -0.5)); // skeletonized hammer
+  g.add(at(box(0.012, 0.028, 0.014, blackMat), 0, 0.058, 0.05, -0.394)); // skeletonized hammer
   const guard = new THREE.Mesh(new THREE.TorusGeometry(0.027, 0.006, 8, 16), frameMat);
-  g.add(at(guard, 0, -0.045, -0.05, 0, Math.PI / 2));                    // trigger guard loop
-  g.add(at(box(0.01, 0.028, 0.009, blackMat), 0, -0.04, -0.05));         // trigger
+  g.add(at(guard, 0, -0.035, -0.03, 0, Math.PI / 2));                    // trigger guard loop
+  g.add(at(box(0.01, 0.028, 0.009, blackMat), 0, -0.025, -0.03));        // trigger
 
   // --- green fiber-optic iron sights (raised slightly, brighter neon) ---
   g.add(at(box(0.01, 0.022, 0.012, blackMat), 0, 0.069, -0.23));        // front sight post
@@ -3107,10 +3107,76 @@ const SIGHT_Y = {
   'KRM-262': 0.1,
 };
 
-export function buildWeaponModel(weapon) {
+// ---- Attachment sockets ---------------------------------------------------
+// Named reference transforms every weapon exposes so the hands/arms, muzzle
+// flash, mag-drop and shell-eject all read from ONE authored place instead of
+// per-gun offsets scattered through the code. gripR = the character's firing
+// hand (pistol grip + trigger); gripL = the support hand (handguard/foregrip) —
+// these are the CHARACTER's anatomy, not screen sides. Positions are gun-local
+// (forward = -z). Class defaults cover every gun; per-gun entries override only
+// where a default reads wrong. muzzle + ads derive from data we already hold.
+// Values are authored in the F5 Model Showcase (they render as movable markers)
+// and pasted back here — nothing downstream hardcodes a weapon offset again.
+const SOCKET_ORDER = ['gripR', 'gripL', 'muzzle', 'ads', 'mag', 'shell'];
+
+const CLASS_SOCKETS = {
+  pistol:       { gripR: [0, -0.085, 0.01], gripL: [-0.02, -0.11, -0.06], mag: [0, -0.13, -0.005], shell: [0.03, 0.04, -0.03] },
+  smg:          { gripR: [0, -0.075, 0.05], gripL: [0, -0.02, -0.28],     mag: [0, -0.12, -0.1],   shell: [0.035, 0.03, -0.05] },
+  assaultRifle: { gripR: [0, -0.085, 0.06], gripL: [0, -0.03, -0.4],      mag: [0, -0.11, -0.14],  shell: [0.035, 0.02, -0.06] },
+  hmg:          { gripR: [0, -0.085, 0.07], gripL: [0, -0.03, -0.42],     mag: [0, -0.12, -0.05],  shell: [0.04, 0.02, -0.06] },
+  shotgun:      { gripR: [0, -0.065, 0.08], gripL: [0, -0.03, -0.3],      mag: [0, -0.05, -0.2],   shell: [0.035, 0.03, -0.04] },
+  sniper:       { gripR: [0, -0.085, 0.06], gripL: [0, -0.03, -0.36],     mag: [0, -0.11, -0.05],  shell: [0.035, 0.03, -0.05] },
+  launcher:     { gripR: [0, -0.2, 0.0],    gripL: [0, -0.03, -0.3],      mag: null,               shell: null },
+  special:      { gripR: [0, -0.09, 0.05],  gripL: [0, -0.03, -0.2],      mag: null,               shell: null },
+  wonder:       { gripR: [0, -0.09, 0.05],  gripL: [0, -0.03, -0.2],      mag: null,               shell: null },
+};
+
+// Per-gun overrides — only where the class default is off. Any omitted key
+// falls back to the class default. Seed lightly; spot-fix in F5 and paste.
+const WEAPON_SOCKETS = {
+  // 'AN-94': { gripL: [0, -0.03, -0.42] },
+};
+
+function socketMarker(name) {
+  const col = name === 'gripR' ? 0x39ff88 : name === 'gripL' ? 0x39c6ff : name === 'muzzle' ? 0xff5a3c
+    : name === 'ads' ? 0xffd23c : name === 'mag' ? 0xb27bff : 0xff7bd0;
+  const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.014, 0),
+    new THREE.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.92 }));
+  m.renderOrder = 999;
+  m.name = name;
+  m.userData.socket = true;
+  return m;
+}
+
+function attachSockets(model, weapon, showMarkers) {
+  const cat = weapon.data.category;
+  const nm = weapon.data.modelName || weapon.data.name;
+  const base = CLASS_SOCKETS[cat] || CLASS_SOCKETS.assaultRifle;
+  const over = WEAPON_SOCKETS[nm] || {};
+  const derived = {
+    muzzle: [0, 0.01, model.muzzle ?? -0.5],
+    ads: [0, model.sightY ?? 0.085, -0.12],
+  };
+  const src = { ...base, ...derived, ...over };
+  const anchors = {};
+  for (const name of SOCKET_ORDER) {
+    const p = src[name];
+    if (!p) continue;
+    const marker = socketMarker(name);
+    marker.position.set(p[0], p[1], p[2]);
+    marker.visible = !!showMarkers;
+    model.group.add(marker);
+    anchors[name] = marker;
+  }
+  model.anchors = anchors;
+  return model;
+}
+
+export function buildWeaponModel(weapon, opts = {}) {
   const model = buildWeaponModelInner(weapon);
   const nm = weapon.data.modelName || weapon.data.name;
   if (model && SIGHT_Y[nm] != null && model.sightY == null) model.sightY = SIGHT_Y[nm];
+  if (model && model.group) attachSockets(model, weapon, opts.sockets);
   return model;
 }
 
