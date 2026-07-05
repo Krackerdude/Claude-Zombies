@@ -78,32 +78,15 @@ const THIGH_FLEX_DOWN = 0.45;  // extra forward hip flex per rad of downward pit
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
 const PULLBACK = 0.16;
-// The gun's BARREL tracks the full camera pitch (points all the way up/down), but
-// the gun PIVOTS AROUND THE GRIP: the hands are placed using an EASED pitch so they
-// stay in a comfortable, reachable spot near the ready position instead of rising
-// up past the face when you look up. Only the barrel swings up out of frame.
-// Asymmetric: down keeps ~full range so the legs still read.
-const GRIP_UP_LIN = 0.35;  // up: hands track 1:1 until here (~20°)
-const GRIP_UP_MAX = 0.65;  // up: hand-target pitch asymptote (~37°)
-const GRIP_DN_LIN = 1.1;   // down: near-full range
-const GRIP_DN_MAX = 1.5;
-function easeGripPitch(p) {
-  if (p >= 0) {
-    if (p <= GRIP_UP_LIN) return p;
-    const r = GRIP_UP_MAX - GRIP_UP_LIN;
-    return GRIP_UP_LIN + r * (1 - Math.exp(-(p - GRIP_UP_LIN) / r));
-  }
-  const a = -p;
-  if (a <= GRIP_DN_LIN) return p;
-  const r = GRIP_DN_MAX - GRIP_DN_LIN;
-  return -(GRIP_DN_LIN + r * (1 - Math.exp(-(a - GRIP_DN_LIN) / r)));
-}
-const _UNIT_X = new THREE.Vector3(1, 0, 0);
-const _qFull = new THREE.Quaternion();
-const _qEased = new THREE.Quaternion();
-const _qCorr = new THREE.Quaternion();
-const _gripTgt = new THREE.Vector3();
-const _rotGripLocal = new THREE.Vector3();
+// When looking up, pull the elbows DOWN so the forearms hang below the grips and
+// the arms don't splay across the gun. Ramps in with up-pitch. (Applied in the
+// adaptive elbow pole in #solveArm.)
+const ARMS_TUCK_START = 0.35; // begin tucking past ~20° up
+const ARMS_TUCK_RANGE = 0.7;  // fully tucked ~1.05 rad (~60°) up
+const ARMS_TUCK_MAX = 0.9;    // how far the pole blends toward straight-down (0..1)
+const TORSO_LEAN_UP = 0.7;    // forward chest lean at full up-aim: raises the shoulders
+                              // toward the raised gun so the arms reach + bend
+const _WORLD_DOWN = new THREE.Vector3(0, -1, 0);
 
 /**
  * First-person BODY — the player's own rig, in the WORLD scene, holding a
@@ -118,7 +101,6 @@ export class PlayerBodySystem extends System {
   #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
   #gunHolder = new THREE.Group();
   #gunAnchors = null; #gunKey = null; #gunSightY = 0.08; #aimPitch = 0;
-  #gripLocalR = new THREE.Vector3(); #hasGripLocal = false;
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -215,19 +197,6 @@ export class PlayerBodySystem extends System {
       this.#gunHolder.add(built.group);
       this.#gunAnchors = built.anchors || null;
       this.#gunSightY = built.sightY ?? 0.08; // sight height → ADS raise target
-      // cache the primary grip's offset in holder-local space: with the holder at
-      // identity, the grip's world position IS its holder-local position. Used to
-      // pivot the gun's pitch around the grip so the hands stay put while the barrel
-      // swings up (see lateUpdate).
-      this.#hasGripLocal = false;
-      if (this.#gunAnchors?.gripR) {
-        const pp = this.#gunHolder.position.clone(), pq = this.#gunHolder.quaternion.clone();
-        this.#gunHolder.position.set(0, 0, 0); this.#gunHolder.quaternion.identity();
-        this.#gunHolder.updateWorldMatrix(true, true);
-        this.#gunAnchors.gripR.getWorldPosition(this.#gripLocalR);
-        this.#gunHolder.position.copy(pp); this.#gunHolder.quaternion.copy(pq);
-        this.#hasGripLocal = true;
-      }
     }
   }
 
@@ -259,7 +228,13 @@ export class PlayerBodySystem extends System {
     // gun sits close to the body when aimed down.
     this.#aimPitch = tag.pitch;              // drives the adaptive elbow pole in #solveArm
     const down = Math.max(0, -tag.pitch);
-    if (J?.torso) J.torso.rotation.x = TORSO_LEAN - down * TORSO_LEAN_DOWN;
+    // as you look UP, lean the chest FORWARD toward the aim so the shoulders rise up
+    // to the raised gun — this brings the grip back within arm reach so the arms can
+    // BEND, letting the elbow-tuck route the forearms below the gun instead of a
+    // fully-extended arm spearing across the view. Ramps in with up-pitch.
+    const up = clampN((tag.pitch - ARMS_TUCK_START) / ARMS_TUCK_RANGE, 0, 1);
+    const upLean = up * up * (3 - 2 * up); // smoothstep
+    if (J?.torso) J.torso.rotation.x = TORSO_LEAN - down * TORSO_LEAN_DOWN + upLean * TORSO_LEAN_UP;
     const thighFlex = THIGH_BASE - down * THIGH_FLEX_DOWN; // negative = forward
     if (J?.thighL) J.thighL.rotation.x = thighFlex;
     if (J?.thighR) J.thighR.rotation.x = thighFlex;
@@ -294,25 +269,12 @@ export class PlayerBodySystem extends System {
     _gunOff.z += kickVis * 0.05;   // kick back toward the shoulder
     _gunOff.y += kickVis * 0.012;  // and a touch up
 
-    // Pivot the gun around the GRIP: the barrel points along the FULL camera pitch,
-    // but the HANDS are placed with an EASED pitch so they stay near the ready
-    // position and don't rise up past the face when looking up. Only the barrel
-    // swings out of frame. (Bullets/aim track the camera in WeaponSystem — untouched.)
-    _qFull.copy(this.#camera.quaternion);
-    _qFull.multiply(_qCorr.setFromAxisAngle(_UNIT_X, kickVis * 0.16)); // muzzle climb baked in
-    const corr = easeGripPitch(this.#aimPitch) - this.#aimPitch;
-    _qEased.copy(this.#camera.quaternion).multiply(_qCorr.setFromAxisAngle(_UNIT_X, corr));
-    if (this.#hasGripLocal) {
-      // grip target = where the grip sits under the EASED pitch (stays reachable/low)
-      _gripTgt.copy(_gunOff).add(this.#gripLocalR).applyQuaternion(_qEased).add(this.#camera.position);
-      // place the holder so gripR lands on that target while the gun uses the FULL orient
-      _rotGripLocal.copy(this.#gripLocalR).applyQuaternion(_qFull);
-      this.#gunHolder.position.copy(_gripTgt).sub(_rotGripLocal);
-    } else {
-      _gun.copy(_gunOff).applyQuaternion(_qFull).add(this.#camera.position);
-      this.#gunHolder.position.copy(_gun);
-    }
-    this.#gunHolder.quaternion.copy(_qFull);
+    // gun tracks the FULL camera aim (position + orientation) — it stays exactly
+    // where it was. The ARMS are what move out of the way at up-aim (see #solveArm).
+    _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    this.#gunHolder.position.copy(_gun);
+    this.#gunHolder.quaternion.copy(this.#camera.quaternion);
+    this.#gunHolder.rotateX(kickVis * 0.16); // muzzle climb
     this.#gunHolder.updateWorldMatrix(true, true);
     this.#body.updateWorldMatrix(true, true);
     if (J && this.#gunAnchors) {
@@ -367,6 +329,12 @@ export class PlayerBodySystem extends System {
     _poleBase.set(side * 0.35, -0.85, 0.4);
     _camRight.set(1, 0, 0).applyQuaternion(this.#camera.quaternion);
     _pole.copy(_poleBase).applyAxisAngle(_camRight, this.#aimPitch);
+    // when looking UP, blend the pole toward straight world-down so the elbows drop
+    // BELOW the grips and the forearms hang down out of the gun's line instead of
+    // splaying across it. (The gun itself doesn't move — only the arm routing.)
+    const up = clampN((this.#aimPitch - ARMS_TUCK_START) / ARMS_TUCK_RANGE, 0, 1);
+    const tuck = up * up * (3 - 2 * up) * ARMS_TUCK_MAX; // smoothstep
+    if (tuck > 0) _pole.lerp(_WORLD_DOWN, tuck).normalize();
     _bendAxis.copy(_pole).addScaledVector(_dir, -_pole.dot(_dir)); // perpendicular to dir
     if (_bendAxis.lengthSq() < 1e-6) _bendAxis.set(0, -1, 0); else _bendAxis.normalize();
     _elbow.copy(_S).addScaledVector(_dir, a).addScaledVector(_bendAxis, h);
