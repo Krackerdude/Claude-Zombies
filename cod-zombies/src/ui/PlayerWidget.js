@@ -28,17 +28,21 @@ export class PlayerWidget {
     el.className = 'mm-player';
     el.innerHTML = `
       <div class="pw-plate">
-        <div class="pw-name"><span class="mm-name">Survivor One</span></div>
         <div class="pw-card">
           <div class="pw-emblem" title="Emblem"></div>
           <div class="pw-cc">
             <div class="pw-cc-art"></div>
-            <div class="pw-lvl"><span class="mm-lvl">0</span></div>
+            <div class="pw-cc-head">
+              <div class="pw-lvl"><span class="mm-lvl">0</span></div>
+              <div class="pw-name"><span class="mm-name">Survivor One</span></div>
+            </div>
+            <div class="pw-xp" title="XP"><i class="pw-xp-fill"></i></div>
           </div>
-          <div class="pw-xp" title="XP"><i class="pw-xp-fill"></i></div>
         </div>
       </div>
-      <div class="pw-gums"><span class="pw-gum-tag">GUM</span><div class="mm-gums"></div></div>
+      <div class="pw-gums-row">
+        <div class="pw-gums"><span class="pw-gum-tag">GUM</span><div class="mm-gums"></div></div>
+      </div>
       <div class="pw-quest" hidden>
         <div class="pw-quest-plate">
           <div class="pw-quest-txt"><span class="pw-quest-tag">Current Quest</span><span class="pw-quest-name">—</span></div>
