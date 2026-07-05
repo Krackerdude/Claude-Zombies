@@ -46,6 +46,18 @@
 #quest-screen .qm-grid::-webkit-scrollbar { width: 9px; }
 #quest-screen .qm-grid::-webkit-scrollbar-thumb { background: rgba(255,150,40,0.3); border-radius: 5px; }
 
+/* Persona form-fitting shadow: each card's un-clipped wrapper casts a hard,
+   zero-blur black shard sharing the card's EXACT sheared clip-path, offset
+   down-right — the same system as the GobbleGum pack rows and the player widget.
+   (The shard must live on the wrapper: an element's clip-path also clips its own
+   pseudo-elements, so a ::before on the card itself would be cut away.) */
+#quest-screen .qm-card-wrap { position: relative; }
+#quest-screen .qm-card-wrap::before {
+  content: ''; position: absolute; z-index: -1;
+  left: 6px; top: 7px; right: -6px; bottom: -7px; background: #000;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+
 /* quest card — reward colour drives the left edge, dot and reward text */
 #quest-screen .qm-card {
   position: relative; cursor: pointer; padding: 14px 16px 13px;
@@ -57,8 +69,9 @@
   box-shadow: inset 0 0 18px rgba(0,0,0,0.45);
   transition: transform 0.13s ease, box-shadow 0.13s ease;
 }
-#quest-screen .qm-card:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,0.5), 0 0 18px color-mix(in srgb, var(--rc) 30%, transparent); }
-#quest-screen .qm-card.sel { box-shadow: 0 0 0 1px color-mix(in srgb, var(--rc) 70%, transparent), 0 10px 28px rgba(0,0,0,0.55), 0 0 22px color-mix(in srgb, var(--rc) 32%, transparent); }
+/* hover lifts the plate off its shard (the wrapper shard stays put → depth) */
+#quest-screen .qm-card:hover { transform: translateY(-3px); box-shadow: inset 0 0 18px rgba(0,0,0,0.45), 0 0 18px color-mix(in srgb, var(--rc) 30%, transparent); }
+#quest-screen .qm-card.sel { box-shadow: inset 0 0 18px rgba(0,0,0,0.45), 0 0 22px color-mix(in srgb, var(--rc) 34%, transparent); }
 #quest-screen .qm-card.tracked { background: var(--hud-grunge), linear-gradient(180deg, rgba(46,38,16,0.95), rgba(18,14,8,0.97)); border-left-width: 4px; }
 #quest-screen .qm-card-h { display: flex; align-items: center; gap: 10px; }
 #quest-screen .qm-card-name { font-weight: 700; font-size: 1.08rem; letter-spacing: 0.04em; text-transform: uppercase; color: #f2f6f8; }
