@@ -356,14 +356,16 @@ export class UIManager {
   #buildQuests(listEl) {
     const el = document.createElement('div');
     el.className = 'mm-quests';
+    // each bar sits in an un-clipped .bmq-row so it can cast its own form-fitting
+    // drop-shadow shard (see .bmq-row::before in mainmenu.css)
     el.innerHTML = `
-      <div class="bmq-head"><span>Black Market Quests</span></div>
-      <div class="bmq-body">
+      <div class="bmq-row"><div class="bmq-head"><span>Black Market Quests</span></div></div>
+      <div class="bmq-row"><div class="bmq-body">
         <button class="bmq-nav bmq-prev" aria-label="Previous quest">‹</button>
         <button class="bmq-quest" aria-label="Open quest board"><div class="bmq-txt"><div class="bmq-name"></div><div class="bmq-obj"></div></div><span class="pw-ring bmq-ring" style="--qp:0"></span></button>
         <button class="bmq-nav bmq-next" aria-label="Next quest">›</button>
-      </div>
-      <div class="bmq-reward"><span class="bmq-rlabel">Reward</span><span class="bmq-rval"></span></div>`;
+      </div></div>
+      <div class="bmq-row"><div class="bmq-reward"><span class="bmq-rlabel">Reward</span><span class="bmq-rval"></span></div></div>`;
 
     const render = () => {
       const q = this.#quests.tracked();
