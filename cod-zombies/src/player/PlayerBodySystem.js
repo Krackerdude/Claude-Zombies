@@ -618,8 +618,9 @@ export class PlayerBodySystem extends System {
 
     // gun tracks the FULL camera aim (position + orientation) — it stays exactly
     // where it was. The ARMS are what move out of the way at up-aim (see #solveArm).
-    // For dual-wield the twins straddle this base position by ±DUAL_DX.
-    const baseX = _gunOff.x;
+    // For dual-wield the twins straddle the SCREEN CENTRE (remove the single-gun's
+    // rightward bias) by ±DUAL_DX, so the two arms read as a clean mirror.
+    const baseX = _gunOff.x - (this.#dual ? GUN_LOCAL.x : 0);
     _gunOff.x = baseX + (this.#dual ? DUAL_DX : 0);
     _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
     this.#placeHolder(this.#gunHolder, _gun, kickVis);
