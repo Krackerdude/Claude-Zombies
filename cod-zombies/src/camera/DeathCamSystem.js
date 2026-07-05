@@ -9,7 +9,6 @@ import { selectedBuild } from '../characters/selection.js';
 
 const _orbitPos = new THREE.Vector3();
 const _orbitQuat = new THREE.Quaternion();
-const _lookQuat = new THREE.Quaternion();
 const _hand = new THREE.Vector3();
 const _head = new THREE.Vector3();
 const _hq = new THREE.Quaternion();
@@ -122,10 +121,16 @@ export class DeathCamSystem extends System {
     // the forehead below/out of frame — so the camera gazes up-and-out at the
     // reaching hand. Each frame it looks from here at the (moving) hand, so you
     // watch your own arm strain, grasp and fall, the frame rolling with the head.
+    // eye just above and a touch behind the head, so it looks up-and-out over the
+    // chest at the reaching hand (arm framed cleanly, not jammed against the lens)
+    this.#poseArm(1);
     this.#joints.head.getWorldPosition(_head);
-    this.#eye.copy(_head).addScaledVector(_worldUp, 0.14);
+    this.#joints.handR.getWorldPosition(_hand);
+    _dir.copy(_head).sub(_hand); _dir.y = 0; _dir.normalize(); // horizontal: hand → behind head
+    this.#eye.copy(_head).addScaledVector(_worldUp, 0.15).addScaledVector(_dir, 0.16);
+    this.#poseArm(0);
 
-    if (Math.abs(this.#camera.fov - 56) > 0.01) { this.#camera.fov = 56; this.#camera.updateProjectionMatrix(); }
+    if (Math.abs(this.#camera.fov - 60) > 0.01) { this.#camera.fov = 60; this.#camera.updateProjectionMatrix(); }
   }
 
   /** Build the survivor rig, lay it on its back at the death spot, one arm up. */
@@ -135,24 +140,26 @@ export class DeathCamSystem extends System {
     const J = rig.userData.joints;
     this.#joints = J;
 
-    rig.rotation.x = -Math.PI / 2; // lie flat on the back, face to the sky
-
-    // right arm reaches straight up (local "forward" = world up while supine)
+    // Slumped bleedout: fallen onto the back but the torso + head PROP UP off the
+    // ground (not flat), so the first-person eye rides high enough to see the arm
+    // reaching out against the scene instead of being buried in the floor.
+    rig.rotation.x = -0.72;           // reclined back, head raised
+    // legs fold forward and rest on the ground in front of the propped torso
+    J.thighL.rotation.set(1.15, 0, 0.12);
+    J.thighR.rotation.set(1.15, 0, -0.12);
+    J.kneeL.rotation.x = 0.95;
+    J.kneeR.rotation.x = 1.05;
+    // right arm reaches up-and-out toward the sky
     J.shoulderR.rotation.set(-0.85, -0.12, -0.10);
     J.elbowR.rotation.x = 0.4;
-    // left arm rests along the ground beside the body
-    J.shoulderL.rotation.set(-0.12, 0.22, 0.16);
-    J.elbowL.rotation.x = 0.25;
-    // legs splay a touch
-    J.thighL.rotation.set(0.02, 0, 0.10);
-    J.thighR.rotation.set(0.02, 0, -0.10);
-    J.kneeL.rotation.x = 0.16;
-    J.kneeR.rotation.x = 0.10;
-    // head lolls to one side
-    J.head.rotation.set(0, 0.32, 0.05);
+    // left arm hangs slack across the body
+    J.shoulderL.rotation.set(0.30, 0.22, 0.20);
+    J.elbowL.rotation.x = 0.55;
+    // head tips back and lolls slightly
+    J.head.rotation.set(-0.10, 0.28, 0.06);
 
     const body = new THREE.Group();
-    body.position.set(this.#ground.x, 0.22, this.#ground.z);
+    body.position.set(this.#ground.x, 0.66, this.#ground.z);
     body.rotation.y = this.#yaw;
     body.add(rig);
     body.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
