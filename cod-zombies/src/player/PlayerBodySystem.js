@@ -634,24 +634,28 @@ export class PlayerBodySystem extends System {
         // THROWABLE: two-handed — left holds the device, right pulls the pin / arms it
         this.#poseThrowable(J, A);
       } else if (this.#dual && this.#gunAnchorsL) {
-        // DUAL-WIELD: one hand per gun (each holds its own gun's primary grip)
+        // DUAL-WIELD: each hand holds its NEAR gun (no reaching across). The dominant
+        // hand (screen-right = anatomic-left joints after the 180° flip) takes the
+        // right gun; the off hand takes the left gun.
         this.#hideProps();
+        if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);   // right gun (+DX)
+        if (this.#gunAnchorsL.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchorsL.gripR, 1);  // left gun (-DX)
+      } else if (w && w.reloading && J.shoulderL) {
+        // reload: the anchor hand keeps the gun up, the other works the mag (unchanged)
         if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
-        if (this.#gunAnchorsL.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchorsL.gripR, -1);
+        this.#hideProps();
+        this.#poseReload(J, w.reloadProgress || 0);
       } else {
-        // RIGHT hand holds the gun (follows it off-screen when holstered)
-        if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
-        // LEFT hand: reload works the mag (gun stays up); a one-handed action (melee /
-        // drink / inspect) holsters the gun and takes the hand; else the support grip.
-        if (w && w.reloading && J.shoulderL) {
-          this.#hideProps();
-          this.#poseReload(J, w.reloadProgress || 0);
+        const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
+        if (tookLeft) {
+          // one-handed action: the anchor hand keeps the (holstered, off-screen) gun
+          if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
         } else {
-          const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
-          if (!tookLeft) {
-            this.#hideProps();
-            if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
-          }
+          // DEFAULT hold: dominant hand (screen-right = shoulderL) on the TRIGGER grip,
+          // support hand (screen-left = shoulderR) on the FOREGRIP — no reaching across.
+          this.#hideProps();
+          if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);
+          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1);
         }
       }
     }
