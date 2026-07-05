@@ -5,6 +5,7 @@ import { Service } from '../core/ServiceLocator.js';
 import { PlayerConfig } from '../config/index.js';
 import { selectedBuild } from '../characters/selection.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
+import { papCamo } from '../weapons/gunMaterials.js';
 import { makeFlashStar, makeFlashCore, buildVmFrag, buildVmWraith, buildVmSemtex, buildVmAcid } from '../weapons/Viewmodel.js';
 import { fpBody, weaponAction } from './fpBodyState.js';
 import { buildPerkBottle } from '../perks/perks.js';
@@ -62,6 +63,7 @@ function aimBasis(out, dir, ref) {
 // gun held in front of the eyes, in CAMERA space (right, down, forward). The
 // gun aims along the camera's -z, so it tracks pitch/yaw exactly.
 const GUN_LOCAL = new THREE.Vector3(0.06, -0.1, -0.34);
+const DUAL_DX = 0.16; // dual-wield: each twin sits this far to its side of centre
 const ARM = { L1: 0.33, L2: 0.32 };
 // lean the TORSO back (away from aim): a base recline keeps the chest out of the
 // forward view, and it leans back FURTHER the more you look down so the chest
@@ -123,12 +125,12 @@ const NADE_COOK = new THREE.Vector3(-0.02, -0.02, -0.46); // held up cocked, in 
 const NADE_THROW = new THREE.Vector3(-0.10, -0.02, -0.52); // flung forward on release
 const THROW_TIME = 0.4;
 // the OTHER (right) hand reaches in to pull the pin / arm the device, then pulls away
-const PULL_REST = new THREE.Vector3(0.24, -0.34, -0.34);  // resting low-right (off the gun)
-const PULL_GRAB = new THREE.Vector3(0.10, -0.04, -0.44);  // at the throwable's pin/button
-const PULL_AWAY = new THREE.Vector3(0.40, -0.06, -0.34);  // pin yanked out to the right
+const PULL_REST = new THREE.Vector3(0.26, -0.40, -0.32);  // resting low-right (off the gun)
+const PULL_GRAB = new THREE.Vector3(0.06, -0.04, -0.44);  // at the throwable's pin
+const PULL_AWAY = new THREE.Vector3(0.46, -0.48, -0.30);  // pin yanked back DOWN-RIGHT, off-screen the way it came
 const _rt = new THREE.Vector3();
 // perk drink: bring the bottle up to the mouth, chug, then toss it away
-const DRINK_MOUTH = new THREE.Vector3(0.04, -0.04, -0.20); // at the lips, just in front
+const DRINK_MOUTH = new THREE.Vector3(0.0, -0.13, -0.22); // at the lips (lower + centred)
 const DRINK_TOSS = new THREE.Vector3(0.34, -0.30, -0.34);  // flung down-right
 // reload (TWO-handed — gun stays up): left hand works the mag well
 const RLD_GRIP = new THREE.Vector3(0.02, -0.14, -0.34);   // resting on the support grip
@@ -170,8 +172,9 @@ const _WORLD_DOWN = new THREE.Vector3(0, -1, 0);
 export class PlayerBodySystem extends System {
   #scene; #time; #gameState; #weapons; #camera; #physics;
   #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
-  #gunHolder = new THREE.Group();
-  #gunAnchors = null; #gunKey = null; #gunSightY = 0.08; #aimPitch = 0;
+  #gunHolder = new THREE.Group(); #gunHolderL = new THREE.Group(); // R gun; L gun (dual-wield)
+  #gunAnchors = null; #gunAnchorsL = null; #dual = false;
+  #gunKey = null; #gunSightY = 0.08; #aimPitch = 0;
   #walkAmt = 0; #walkPhase = 0; #idle = 0; #restHipY = 0.94; // locomotion state
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
@@ -187,7 +190,7 @@ export class PlayerBodySystem extends System {
     this.#weapons = null; // resolved lazily in #syncGun (registers with the scene)
     this.#camera = this.world.services.get(Service.Render).camera;
     this.#physics = this.world.services.has(Service.Physics) ? this.world.services.get(Service.Physics) : null;
-    this.#scene.add(this.#gunHolder);
+    this.#scene.add(this.#gunHolder); this.#scene.add(this.#gunHolderL); this.#gunHolderL.visible = false;
     // world-space muzzle flash for the held gun — REUSES the overlay viewmodel's
     // flash textures (star + white-hot core) so it looks identical; just lives in
     // the world scene (the overlay's is camera-locked) + a brief point light.
@@ -230,6 +233,7 @@ export class PlayerBodySystem extends System {
     if (this.#enabled && !this.#built) this.#build();
     if (this.#body) this.#body.visible = this.#enabled;
     this.#gunHolder.visible = this.#enabled;
+    this.#gunHolderL.visible = this.#enabled && this.#dual;
     if (!this.#enabled && this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; }
   }
 
@@ -260,7 +264,7 @@ export class PlayerBodySystem extends System {
       fragPin.position.set(0.06, 0.085, 0); this.#throwables.frag.add(fragPin); this.#throwables.frag.userData = { pin: fragPin };
       for (const k in this.#throwables) {
         const p = this.#throwables[k]; p.visible = false;
-        p.scale.setScalar(1.7); p.rotation.set(-0.5, 0, 0); p.position.set(0, -0.06, 0);
+        p.scale.setScalar(1.7); p.rotation.set(2.5, 0, 0); p.position.set(0, -0.04, 0);
         const pin = p.userData?.pin; if (pin) pin.userData = { x: pin.position.x, y: pin.position.y, z: pin.position.z };
         J.handL.add(p);
       }
@@ -409,24 +413,54 @@ export class PlayerBodySystem extends System {
       this.#weapons = this.world.services.get(Service.Weapons);
     }
     const w = this.#weapons.current;
-    const key = w ? (w.data.modelName || w.data.name) : null;
+    // rebuild when the model, its Pack-a-Punch state, or dual-wield changes
+    const key = w ? `${w.data.modelName || w.data.name}|${w.data.pap ? 1 : 0}|${w.data.dualWield ? 1 : 0}` : null;
     if (key === this.#gunKey) return;
     this.#gunKey = key;
     while (this.#gunHolder.children.length) this.#gunHolder.remove(this.#gunHolder.children[0]);
-    this.#gunAnchors = null;
+    while (this.#gunHolderL.children.length) this.#gunHolderL.remove(this.#gunHolderL.children[0]);
+    this.#gunAnchors = this.#gunAnchorsL = null; this.#dual = false; this.#gunHolderL.visible = false;
     if (!w) return;
     const built = buildWeaponModel(w);
-    if (built?.group) {
-      this.#gunHolder.add(built.group);
-      this.#gunAnchors = built.anchors || null;
-      this.#gunSightY = built.sightY ?? 0.08; // sight height → ADS raise target
+    if (!built?.group) return;
+    if (w.data.pap) this.#applyPap(built.group);
+    this.#gunHolder.add(built.group);
+    this.#gunAnchors = built.anchors || null;
+    this.#gunSightY = built.sightY ?? 0.08; // sight height → ADS raise target
+    // dual-wield: build a second, mirrored gun for the left hand
+    if (w.data.dualWield) {
+      const left = buildWeaponModel(w);
+      if (left?.group) {
+        if (w.data.pap) this.#applyPap(left.group);
+        this.#gunHolderL.add(left.group);
+        this.#gunHolderL.scale.set(-1, 1, 1); // mirror
+        this.#gunAnchorsL = left.anchors || null;
+        this.#dual = true; this.#gunHolderL.visible = this.#enabled;
+      }
     }
+  }
+
+  /** Swap the gun-metal materials for the animated Pack-a-Punch holo camo (leaving
+   *  sights / wood / grips / energy cores). The camo animates via the shared tick. */
+  #applyPap(group) {
+    const camo = papCamo();
+    group.traverse((o) => { if (o.isMesh && o.material?.userData?.papSwap) o.material = camo; });
+  }
+
+  /** Place a gun holder at a world position, oriented to the camera aim with the
+   *  shared muzzle-climb + look-sway + strafe-lean rotations. */
+  #placeHolder(holder, pos, kickVis) {
+    holder.position.copy(pos);
+    holder.quaternion.copy(this.#camera.quaternion);
+    holder.rotateX(kickVis * 0.16); // muzzle climb
+    holder.rotateY(this.#swayYaw); holder.rotateX(this.#swayPitch); holder.rotateZ(this.#leanRoll);
+    holder.updateWorldMatrix(true, true);
   }
 
   lateUpdate(dt) {
     if (!this.#enabled || !this.#body) return;
     if (!this.#gameState.isPlaying || this.world.first(PlayerTag, Transform) === undefined) {
-      this.#body.visible = false; this.#gunHolder.visible = false;
+      this.#body.visible = false; this.#gunHolder.visible = false; this.#gunHolderL.visible = false;
       if (this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; }
       return;
     }
@@ -435,6 +469,7 @@ export class PlayerBodySystem extends System {
     const t = this.world.get(id, Transform);
     this.#body.visible = true;
     this.#gunHolder.visible = true;
+    this.#gunHolderL.visible = this.#dual;
 
     // eased stance blends (crouch / slide / prone), derived from the stance machine
     const dtc = dt || 0.016;
@@ -583,21 +618,26 @@ export class PlayerBodySystem extends System {
 
     // gun tracks the FULL camera aim (position + orientation) — it stays exactly
     // where it was. The ARMS are what move out of the way at up-aim (see #solveArm).
+    // For dual-wield the twins straddle this base position by ±DUAL_DX.
+    const baseX = _gunOff.x;
+    _gunOff.x = baseX + (this.#dual ? DUAL_DX : 0);
     _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
-    this.#gunHolder.position.copy(_gun);
-    this.#gunHolder.quaternion.copy(this.#camera.quaternion);
-    this.#gunHolder.rotateX(kickVis * 0.16); // muzzle climb
-    // look-sway (gun trails the turn) + strafe lean (gun rolls toward the move) —
-    // small local rotations on the holder; the hands follow via the IK below.
-    this.#gunHolder.rotateY(this.#swayYaw);
-    this.#gunHolder.rotateX(this.#swayPitch);
-    this.#gunHolder.rotateZ(this.#leanRoll);
-    this.#gunHolder.updateWorldMatrix(true, true);
+    this.#placeHolder(this.#gunHolder, _gun, kickVis);
+    if (this.#dual) {
+      _gunOff.x = baseX - DUAL_DX;
+      _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+      this.#placeHolder(this.#gunHolderL, _gun, kickVis);
+    }
     this.#body.updateWorldMatrix(true, true);
     if (J && this.#gunAnchors) {
       if (A.cook || this.#throwT > 0) {
         // THROWABLE: two-handed — left holds the device, right pulls the pin / arms it
         this.#poseThrowable(J, A);
+      } else if (this.#dual && this.#gunAnchorsL) {
+        // DUAL-WIELD: one hand per gun (each holds its own gun's primary grip)
+        this.#hideProps();
+        if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
+        if (this.#gunAnchorsL.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchorsL.gripR, -1);
       } else {
         // RIGHT hand holds the gun (follows it off-screen when holstered)
         if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
