@@ -12,17 +12,26 @@ const _orbitQuat = new THREE.Quaternion();
 const _lookQuat = new THREE.Quaternion();
 const _hand = new THREE.Vector3();
 const _head = new THREE.Vector3();
+const _hq = new THREE.Quaternion();
+const _worldUp = new THREE.Vector3(0, 1, 0);
+const _camPos = new THREE.Vector3();
+const _camQuat = new THREE.Quaternion();
+const _dir = new THREE.Vector3();
+const _up = new THREE.Vector3();
+const _headUp = new THREE.Vector3();
 
-// Timeline (seconds). Reach + fall → linger on the body → slow orbit → fade.
-const FALL = 1.6;
-const LINGER = 2.0;
+// Timeline (seconds). First-person reach → desperate shaking struggle that
+// weakens and gives up → slow orbit of the body → fade.
+const FALL = 1.5;
+const DESPERATE = 2.8;
 const PAN = 10.0;
 const FADE = 1.4;
-const T_LINGER = FALL;            // 1.6
-const T_PAN = FALL + LINGER;      // 3.6
-const T_FADE = T_PAN + PAN;       // 13.6
-const T_END = T_FADE + FADE;      // 15.0
-const PAN_BLEND = 1.2;            // ease from the collapsed pose into the orbit
+const T_DESP = FALL;             // 1.5  — struggle begins
+const T_PAN = FALL + DESPERATE;  // 4.3  — arm has dropped, pull out to orbit
+const T_FADE = T_PAN + PAN;      // 14.3
+const T_END = T_FADE + FADE;     // 15.7
+const DESP_GRASP = 1.5;          // how long the desperate grasping lasts before the give-up
+const PAN_BLEND = 1.3;           // ease from the collapsed pose into the orbit
 
 const lerp = THREE.MathUtils.lerp;
 const clamp01 = (t) => THREE.MathUtils.clamp(t, 0, 1);
@@ -35,12 +44,12 @@ const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) 
  * gameplay camera AND spawns the actual survivor — the same rigged character
  * from the menu — as a body collapsing on the arena floor:
  *
- *   FALL   – the survivor's own arm reaches up toward the sky as the first-
- *            person view drops and tips back to gaze along that reaching hand.
- *   LINGER – it holds on the outstretched hand for a beat (~2s) as the arm
- *            begins to weaken.
- *   PAN    – the arm falls and the camera pulls out into a slow, wide orbit of
- *            the arena, revealing the fallen body below (~10s).
+ *   FALL      – the first-person view drops into the survivor's eye and gazes
+ *               UP the arm reaching toward the sky (rolling with the head).
+ *   DESPERATE – the hand strains and shakes in fading grasping lunges, then the
+ *               arm weakens and drops as the survivor gives up and lets go.
+ *   PAN       – the camera pulls out into a slow, wide orbit of the arena,
+ *               revealing the fallen body below (~10s).
  *   FADE   – it emits `death:fade` so the UI blacks out, then `death:finish` —
  *            RoundSystem resets the field and returns to the main menu.
  *
@@ -64,6 +73,8 @@ export class DeathCamSystem extends System {
   #yaw = 0;
   #dir = 1;
   #dummy = new THREE.Object3D();
+  #headBase = new THREE.Euler();           // the head bone's resting rotation
+  #eye = new THREE.Vector3();              // the fixed first-person eye by the head
 
   #body = null;   // the fallen survivor (outer group)
   #joints = null; // its rig joints
@@ -103,14 +114,18 @@ export class DeathCamSystem extends System {
     // survivor stays framed while the arena reveals around them
     this.#center.set(this.#ground.x, 0.5, this.#ground.z);
 
-    // collapse the camera to just beyond the crown of the head, gazing back
-    // over the face + up the reaching arm (first-person, looking at your hand)
-    this.#joints.head.getWorldPosition(_head);
-    const dx = _head.x - this.#body.position.x, dz = _head.z - this.#body.position.z;
-    const inv = 1 / (Math.hypot(dx, dz) || 1);
-    this.#collapsePos.set(_head.x + dx * inv * 0.28, _head.y + 0.26, _head.z + dz * inv * 0.28);
+    // remember the head's resting pose so the desperate struggle can add tremor
+    // deltas on top of it (the camera is locked to the head, so this shakes the view)
+    this.#headBase.copy(this.#joints.head.rotation);
 
-    if (Math.abs(this.#camera.fov - 60) > 0.01) { this.#camera.fov = 60; this.#camera.updateProjectionMatrix(); }
+    // Fix the first-person eye just above the crown — clear of the skull, with
+    // the forehead below/out of frame — so the camera gazes up-and-out at the
+    // reaching hand. Each frame it looks from here at the (moving) hand, so you
+    // watch your own arm strain, grasp and fall, the frame rolling with the head.
+    this.#joints.head.getWorldPosition(_head);
+    this.#eye.copy(_head).addScaledVector(_worldUp, 0.14);
+
+    if (Math.abs(this.#camera.fov - 56) > 0.01) { this.#camera.fov = 56; this.#camera.updateProjectionMatrix(); }
   }
 
   /** Build the survivor rig, lay it on its back at the death spot, one arm up. */
@@ -154,12 +169,55 @@ export class DeathCamSystem extends System {
     this.#body = body;
   }
 
-  /** Drive the reaching right arm. reach: 0 (slack) → 1 (fully outstretched). */
-  #poseArm(reach) {
+  /**
+   * Drive the reaching right arm. reach: 0 (slack) → 1 (fully outstretched).
+   * tremor (0..1) adds a desperate, high-frequency shake to the shoulder/elbow
+   * so a straining reach visibly trembles.
+   */
+  #poseArm(reach, tremor = 0) {
     const J = this.#joints; if (!J) return;
-    J.shoulderR.rotation.x = lerp(-0.85, -1.62, reach);
-    J.elbowR.rotation.x = lerp(0.42, 0.06, reach);
+    let jx = 0, jz = 0, je = 0;
+    if (tremor > 0) {
+      const t = this.#t;
+      jx = (Math.sin(t * 41) * 0.045 + Math.sin(t * 67 + 1.1) * 0.028) * tremor;
+      jz = Math.sin(t * 53 + 0.6) * 0.05 * tremor;
+      je = Math.sin(t * 59 + 2.2) * 0.06 * tremor;
+    }
+    J.shoulderR.rotation.x = lerp(-0.85, -1.62, reach) + jx;
+    J.shoulderR.rotation.z = -0.10 + jz;
+    J.elbowR.rotation.x = lerp(0.42, 0.06, reach) + je;
     this.#body.updateMatrixWorld(true);
+  }
+
+  /** Drive the head bone: base pose + a trembling strain and a final loll. */
+  #poseHead(tremor, loll) {
+    const J = this.#joints; if (!J) return;
+    const t = this.#t;
+    const tx = tremor ? Math.sin(t * 34) * 0.03 * tremor : 0;
+    const tz = tremor ? Math.sin(t * 45 + 0.9) * 0.035 * tremor : 0;
+    J.head.rotation.set(
+      this.#headBase.x + tx - loll * 0.10,
+      this.#headBase.y,
+      this.#headBase.z + tz + loll * 0.45,
+    );
+  }
+
+  /** First-person eye pose: sit at the fixed eye and gaze at the (moving) hand,
+   *  taking the roll from the head bone so the frame tilts/rolls with the head. */
+  #headCamPose(outPos, outQuat) {
+    const J = this.#joints; if (!J) return;
+    J.head.updateWorldMatrix(true, false);
+    J.head.getWorldQuaternion(_hq);
+    J.handR.getWorldPosition(_hand);
+    outPos.copy(this.#eye);
+    // up = world-up rolled toward the head's own up (kept world-dominant so a
+    // near-vertical gaze up the arm never gimbals)
+    _headUp.set(0, 1, 0).applyQuaternion(_hq);
+    _up.set(0, 1, 0).addScaledVector(_headUp, 0.6).normalize();
+    this.#dummy.position.copy(outPos);
+    this.#dummy.up.copy(_up);
+    this.#dummy.lookAt(_hand);
+    outQuat.copy(this.#dummy.quaternion);
   }
 
   #teardown() {
@@ -176,42 +234,47 @@ export class DeathCamSystem extends System {
     this.#joints = null;
   }
 
-  /** Point the camera at a world target without disturbing anything else. */
-  #lookAt(target) {
-    this.#dummy.position.copy(this.#camera.position);
-    this.#dummy.up.set(0, 1, 0);
-    this.#dummy.lookAt(target);
-    return this.#dummy.quaternion;
-  }
-
   lateUpdate(dt) {
     if (this.#gameState.current !== AppState.DEATHCAM) { this.#teardown(); return; }
     this.#t += dt;
     const t = this.#t;
 
-    if (t < T_LINGER) {
-      // FALL — the arm reaches up; the view drops + tips to look along it
+    if (t < T_DESP) {
+      // FALL — the live gameplay view drops/tips into the head bone as the body
+      // collapses onto its back; the arm shoots up into view, already trembling
       const u = easeOut(clamp01(t / FALL));
-      this.#poseArm(u);
-      this.#joints.handR.getWorldPosition(_hand);
-      this.#camera.position.lerpVectors(this.#from, this.#collapsePos, u);
-      _lookQuat.copy(this.#lookAt(_hand));
-      this.#camera.quaternion.slerpQuaternions(this.#fromQuat, _lookQuat, u);
+      this.#poseHead(u * 0.6, 0);
+      this.#poseArm(u, u * 0.7);
+      this.#headCamPose(_camPos, _camQuat);
+      this.#camera.position.lerpVectors(this.#from, _camPos, u);
+      this.#camera.quaternion.slerpQuaternions(this.#fromQuat, _camQuat, u);
+      this.#collapsePos.copy(this.#camera.position);
       this.#collapseQuat.copy(this.#camera.quaternion);
     } else if (t < T_PAN) {
-      // LINGER — hold on the outstretched hand as the arm slowly weakens
-      const b = t - T_LINGER;
-      this.#poseArm(1 - easeInOut(clamp01(b / LINGER)) * 0.18);
-      this.#joints.handR.getWorldPosition(_hand);
-      this.#camera.position.copy(this.#collapsePos);
-      this.#camera.position.y += Math.sin(b * 1.5) * 0.01;
-      this.#camera.quaternion.copy(this.#lookAt(_hand));
-      this.#collapseQuat.copy(this.#camera.quaternion);
+      const b = t - T_DESP;
+      if (b < DESP_GRASP) {
+        // STRUGGLE — a desperate, shaking, grasping reach: the hand strains in
+        // fading lunges. The camera is LOCKED to the head, so the view trembles
+        // with the strain and you watch your own hand grasp at the air.
+        const lunge = Math.pow(Math.max(0, Math.sin(b * 4.4)), 1.5);
+        this.#poseHead(1, 0);
+        this.#poseArm(0.84 + 0.16 * lunge, 1);
+      } else {
+        // GIVE UP — the arm weakens and drops out of view; the head lolls to the
+        // side as the survivor lets go (the first-person view rolls with it)
+        const g = easeInOut(clamp01((b - DESP_GRASP) / (DESPERATE - DESP_GRASP)));
+        this.#poseHead((1 - g) * 0.5, g);
+        this.#poseArm(0.84 * (1 - g), (1 - g) * 0.6);
+      }
+      this.#headCamPose(_camPos, _camQuat);
+      this.#camera.position.copy(_camPos);
+      this.#camera.quaternion.copy(_camQuat);
+      this.#collapsePos.copy(_camPos);
+      this.#collapseQuat.copy(_camQuat);
     } else {
-      // PAN — the arm falls; the camera pulls out into a slow orbit
+      // PAN — the arm lies still; the camera pulls out into a slow orbit
       const panT = t - T_PAN;
-      const armFall = clamp01(panT / 2.2);
-      this.#poseArm(0.82 - easeInOut(armFall) * 0.72);
+      this.#poseArm(0);
 
       const u = easeInOut(clamp01(panT / PAN));
       const ang = this.#yaw + this.#dir * (0.4 + u * Math.PI * 1.35);
