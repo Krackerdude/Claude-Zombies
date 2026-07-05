@@ -6,7 +6,7 @@ import { PlayerConfig } from '../config/index.js';
 import { selectedBuild } from '../characters/selection.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
 import { makeFlashStar, makeFlashCore } from '../weapons/Viewmodel.js';
-import { fpBody } from './fpBodyState.js';
+import { fpBody, weaponAction } from './fpBodyState.js';
 
 const _pos = new THREE.Vector3();
 const _gun = new THREE.Vector3();
@@ -109,6 +109,22 @@ const STANCE = {
   prone:  { hipY: 0.22, pitch: 1.32,  knee: 0.30, thigh: 0.10,  torso: 0.05 },
 };
 const PRONE_PUSHBACK = 0.62;   // shove the rig back when prone so the body trails the head
+// --- ONE-HANDED ACTIONS: melee / grenade / drink / inspect lower the gun off-screen
+// (held in the RIGHT hand) while the LEFT hand performs the gesture. The gun is
+// dropped by a holster offset; the left hand reaches keyframed CAMERA-LOCAL targets.
+const HOLSTER = new THREE.Vector3(0.10, -0.55, 0.14); // gun drop: right + down + back, off-screen
+// melee left-hand knife-swing keyframes (camera-local: +x right, +y up, -z forward)
+const MEL_REST = new THREE.Vector3(-0.10, -0.44, -0.30); // off the bottom-left
+const MEL_WIND = new THREE.Vector3(0.26, 0.12, -0.42);   // wound up, upper-right
+const MEL_SLASH = new THREE.Vector3(-0.30, -0.16, -0.32); // slashed through, lower-left
+const _lt = new THREE.Vector3();
+// lerp v = a→b→c→a across t in [0,1] with the given segment splits
+function segLerp(out, t, a, b, c, s1, s2) {
+  if (t <= s1) out.copy(a).lerp(b, t / s1);
+  else if (t <= s2) out.copy(b).lerp(c, (t - s1) / (s2 - s1));
+  else out.copy(c).lerp(a, (t - s2) / (1 - s2));
+  return out;
+}
 // pull the whole body back off the camera so the chest isn't "inside the head".
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
@@ -139,6 +155,7 @@ export class PlayerBodySystem extends System {
   #walkAmt = 0; #walkPhase = 0; #idle = 0; #restHipY = 0.94; // locomotion state
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
+  #holsterAmt = 0; #knife = null; #leftTarget = new THREE.Group(); // one-handed action state
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -204,6 +221,25 @@ export class PlayerBodySystem extends System {
     this.#scene.add(rig);
     this.#body = rig;
     this.#built = true;
+    // one-handed action rig: a world-space IK target the left hand reaches for during
+    // gestures, and a knife prop held in the left hand (shown only mid-swing).
+    this.#scene.add(this.#leftTarget);
+    if (J?.handL) { this.#knife = this.#buildKnife(); this.#knife.visible = false; J.handL.add(this.#knife); }
+  }
+
+  /** A simple combat knife held in the off hand during a melee swing. */
+  #buildKnife() {
+    const g = new THREE.Group();
+    const steel = new THREE.MeshStandardMaterial({ color: 0xc7ccd4, metalness: 0.9, roughness: 0.35 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1a1c22, metalness: 0.5, roughness: 0.7 });
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.22, 0.04), steel); blade.position.y = -0.20;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.06, 4), steel); tip.position.y = -0.33; tip.rotation.z = Math.PI; tip.scale.set(0.7, 1, 1.4);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.05), dark); guard.position.y = -0.08;
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.11, 0.045), dark); handle.position.y = -0.015;
+    g.add(blade, tip, guard, handle);
+    g.rotation.set(-1.3, 0, 0); // pitch the blade forward out of the fist
+    g.position.set(0, -0.04, 0);
+    return g;
   }
 
   /** Bent-knee stance for natural-looking legs; arms are driven by IK. */
@@ -374,6 +410,14 @@ export class PlayerBodySystem extends System {
     const kickVis = this.#kick * (vrHip + (vrAds - vrHip) * ads);
     _gunOff.z += kickVis * 0.05;   // kick back toward the shoulder
     _gunOff.y += kickVis * 0.012;  // and a touch up
+    // one-handed action: drop the gun off-screen (right hand keeps it) while the
+    // left hand does the gesture. Eased so it dips out and comes back smoothly.
+    const A = weaponAction;
+    const offAction = A.melee > 0;
+    this.#holsterAmt = damp(this.#holsterAmt, offAction ? 1 : 0, 14, dtc);
+    _gunOff.x += HOLSTER.x * this.#holsterAmt;
+    _gunOff.y += HOLSTER.y * this.#holsterAmt;
+    _gunOff.z += HOLSTER.z * this.#holsterAmt;
 
     // walk-bob the GUN in sync with the footfall cadence so the weapon rides with
     // the body's bob (the hands IK to it, so gun + hands move together). Vertical
@@ -397,8 +441,21 @@ export class PlayerBodySystem extends System {
     this.#gunHolder.updateWorldMatrix(true, true);
     this.#body.updateWorldMatrix(true, true);
     if (J && this.#gunAnchors) {
+      // RIGHT hand always holds the gun (follows it off-screen when holstered)
       if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
-      if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+      // LEFT hand: normal support grip, UNLESS a one-handed action has taken it
+      const leftBusy = this.#holsterAmt > 0.4 && A.melee > 0;
+      if (leftBusy && J.shoulderL) {
+        // MELEE: swing the knife from off-screen up-and-across, then recover
+        segLerp(_lt, A.melee, MEL_REST, MEL_WIND, MEL_SLASH, 0.25, 0.45);
+        this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+        this.#leftTarget.updateWorldMatrix(true, false);
+        if (this.#knife) this.#knife.visible = true;
+        this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
+      } else {
+        if (this.#knife) this.#knife.visible = false;
+        if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+      }
     }
     this.#updateFlash();
   }

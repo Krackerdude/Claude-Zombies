@@ -9,7 +9,7 @@ import { makeWeapon, PAP_SPECIAL, PAP_NAMES } from './catalog.js';
 import { randomAat } from './aat.js';
 import { Viewmodel } from './Viewmodel.js';
 import { WeaponFx } from './WeaponFx.js';
-import { fpBody } from '../player/fpBodyState.js';
+import { fpBody, weaponAction } from '../player/fpBodyState.js';
 import { damageZombie } from './damage.js';
 
 /** Automatic + burst weapons flinch the target far less, so sustained fire
@@ -318,6 +318,11 @@ export class WeaponSystem extends System {
     if (this.#dmgT > 0) this.#dmgT = Math.max(0, this.#dmgT - dt);
     const pk = this.#perks;
     const slidingNow = player && (player.state === MoveState.SLIDE || player.state === MoveState.DIVE);
+    // publish action state for the world body (PlayerBodySystem) to animate the hands
+    weaponAction.melee = this.#meleeTimer > 0 ? 1 - this.#meleeTimer / MELEE_TIME : 0;
+    weaponAction.cook = this.#cooking ? { t: this.#cookT, kind: this.#cookKind } : null;
+    weaponAction.tacticalCook = this.#tacticalCooking ? { t: this.#tacticalCookT, kind: this.#tacticalKind } : null;
+    weaponAction.drink = this.#drinkActive ? { t: this.#drinkT, color: this.#drinkColor } : null;
     this.#viewmodel.update(this.#camera, w, dt, {
       mouseDX: this.#input.mouseDX,
       mouseDY: this.#input.mouseDY,
