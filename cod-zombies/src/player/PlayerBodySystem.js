@@ -106,6 +106,7 @@ const STANCE = {
   slide:  { hipY: 0.46, pitch: -0.35, knee: 0.55, thigh: -0.90, torso: -0.30 },
   prone:  { hipY: 0.22, pitch: 1.32,  knee: 0.30, thigh: 0.10,  torso: 0.05 },
 };
+const PRONE_PUSHBACK = 0.62;   // shove the rig back when prone so the body trails the head
 // pull the whole body back off the camera so the chest isn't "inside the head".
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
@@ -262,10 +263,11 @@ export class PlayerBodySystem extends System {
     _pos.lerpVectors(t.previousPosition, t.position, this.#time.alpha);
     const feetY = _pos.y - (tag.halfHeight + PlayerConfig.capsuleRadius);
     // pull the body back along the (horizontal) aim so the chest isn't at the eye;
-    // push it back FURTHER as you look down. Prone lays out forward, so ease the
-    // pullback off there.
+    // push it back FURTHER as you look down. Prone pitches the body forward at the
+    // hips, so push the whole rig BACK there — the head comes forward to the camera
+    // and the torso + legs trail BEHIND it (as they should when lying down).
     const down = Math.max(0, -tag.pitch);
-    const pull = (PULLBACK + down * DOWN_PULLBACK) * (1 - 0.7 * pr);
+    const pull = PULLBACK + down * DOWN_PULLBACK + pr * PRONE_PUSHBACK;
     _fwd.set(0, 0, -1).applyQuaternion(this.#camera.quaternion); _fwd.y = 0; _fwd.normalize();
     this.#body.position.set(_pos.x - _fwd.x * pull, feetY, _pos.z - _fwd.z * pull);
     this.#body.rotation.y = tag.yaw + Math.PI; // rig faces +z; player forward is -z
@@ -334,10 +336,12 @@ export class PlayerBodySystem extends System {
     // --- GUN LOOK-SWAY + STRAFE LEAN (applied to the holder below in the placement) ---
     const yawVel = shortAngle(tag.yaw - this.#lastYaw) / dtc; this.#lastYaw = tag.yaw;
     const pitchVel = (tag.pitch - this.#lastPitch) / dtc; this.#lastPitch = tag.pitch;
-    this.#swayYaw = damp(this.#swayYaw, clampN(-yawVel * SWAY_YAW_K, -SWAY_MAX, SWAY_MAX), 9, dtc);
-    this.#swayPitch = damp(this.#swayPitch, clampN(-pitchVel * SWAY_PITCH_K, -SWAY_MAX, SWAY_MAX), 9, dtc);
+    // ADS steadies the weapon: fade the look-sway + strafe lean out as you aim in
+    const swayGate = 1 - (this.#weapons?.current?.adsProgress || 0);
+    this.#swayYaw = damp(this.#swayYaw, clampN(-yawVel * SWAY_YAW_K, -SWAY_MAX, SWAY_MAX) * swayGate, 9, dtc);
+    this.#swayPitch = damp(this.#swayPitch, clampN(-pitchVel * SWAY_PITCH_K, -SWAY_MAX, SWAY_MAX) * swayGate, 9, dtc);
     // gun leans (rolls) toward the strafe direction, ever so slightly, while moving
-    this.#leanRoll = damp(this.#leanRoll, (spd > 0.6 ? -lc : 0) * STRAFE_LEAN, 8, dtc);
+    this.#leanRoll = damp(this.#leanRoll, (spd > 0.6 ? -lc : 0) * STRAFE_LEAN * swayGate, 8, dtc);
 
     // place the gun in front of the eyes, aimed along the camera, then reach the
     // hands to its grip sockets
