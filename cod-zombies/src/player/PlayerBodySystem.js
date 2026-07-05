@@ -125,6 +125,13 @@ const THROW_TIME = 0.4;
 // perk drink: bring the bottle up to the mouth, chug, then toss it away
 const DRINK_MOUTH = new THREE.Vector3(0.04, -0.04, -0.20); // at the lips, just in front
 const DRINK_TOSS = new THREE.Vector3(0.34, -0.30, -0.34);  // flung down-right
+// reload (TWO-handed — gun stays up): left hand works the mag well
+const RLD_GRIP = new THREE.Vector3(0.02, -0.14, -0.34);   // resting on the support grip
+const RLD_MAGOUT = new THREE.Vector3(0.05, -0.44, -0.27); // pulled the mag down/out
+const RLD_MAGIN = new THREE.Vector3(0.04, -0.24, -0.34);  // seating the fresh mag
+// inspect (one-handed): raise the empty hand into view, turn it, lower
+const INSPECT_TIME = 1.6;
+const INS_UP = new THREE.Vector3(0.05, -0.06, -0.26);
 const _lt = new THREE.Vector3();
 // lerp v = a→b→c→a across t in [0,1] with the given segment splits
 function segLerp(out, t, a, b, c, s1, s2) {
@@ -164,7 +171,7 @@ export class PlayerBodySystem extends System {
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
   #holsterAmt = 0; #knife = null; #grenade = null; #bottle = null; #bottleColor = -1;
-  #wasCooking = false; #throwT = 0; #leftTarget = new THREE.Group(); // one-handed action state
+  #wasCooking = false; #throwT = 0; #inspectT = 0; #leftTarget = new THREE.Group(); // action state
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -189,6 +196,8 @@ export class PlayerBodySystem extends System {
     this.#scene.add(this.#flashLight);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F6') { e.preventDefault(); e.stopPropagation(); this.#toggle(); }
+      // inspect (KeyH): a quick one-handed look at the hand while the gun holsters
+      if (e.code === 'KeyH' && this.#enabled && !e.repeat && this.#inspectT <= 0) this.#inspectT = INSPECT_TIME;
     }, true);
     if (typeof window !== 'undefined') window.__pbody = this;
   }
@@ -287,6 +296,11 @@ export class PlayerBodySystem extends System {
       else if (t < 1.4) _lt.copy(DRINK_MOUTH);
       else _lt.copy(DRINK_MOUTH).lerp(DRINK_TOSS, clampN((t - 1.4) / 0.4, 0, 1));
       if (this.#bottle) { this.#bottle.visible = t < 1.6; this.#tintBottle(A.drink.color); }
+    } else if (this.#inspectT > 0) {
+      const p = 1 - this.#inspectT / INSPECT_TIME; // raise → hold/turn → lower
+      if (p < 0.28) _lt.copy(MEL_REST).lerp(INS_UP, p / 0.28);
+      else if (p < 0.72) { _lt.copy(INS_UP); _lt.x += Math.sin((p - 0.28) * 10) * 0.03; } // small turn
+      else _lt.copy(INS_UP).lerp(MEL_REST, (p - 0.72) / 0.28);
     } else {
       took = false;
     }
@@ -295,6 +309,17 @@ export class PlayerBodySystem extends System {
     this.#leftTarget.updateWorldMatrix(true, false);
     this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
     return true;
+  }
+
+  /** Two-handed reload: the gun stays up (right hand on it) while the LEFT hand
+   *  drops to the mag well, pulls the mag, seats a fresh one, and returns. */
+  #poseReload(J, p) {
+    if (p < 0.35) _lt.copy(RLD_GRIP).lerp(RLD_MAGOUT, p / 0.35);          // grab + pull
+    else if (p < 0.7) _lt.copy(RLD_MAGOUT).lerp(RLD_MAGIN, (p - 0.35) / 0.35); // swap + insert
+    else _lt.copy(RLD_MAGIN).lerp(RLD_GRIP, (p - 0.7) / 0.3);             // seat + return
+    this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    this.#leftTarget.updateWorldMatrix(true, false);
+    this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
   }
 
   /** A simple combat knife held in the off hand during a melee swing. */
@@ -488,7 +513,8 @@ export class PlayerBodySystem extends System {
     if (this.#wasCooking && !cookActive) this.#throwT = THROW_TIME;
     this.#wasCooking = cookActive;
     if (this.#throwT > 0) this.#throwT = Math.max(0, this.#throwT - dtc);
-    const offAction = A.melee > 0 || cookActive || !!A.drink || this.#throwT > 0;
+    if (this.#inspectT > 0) this.#inspectT = Math.max(0, this.#inspectT - dtc);
+    const offAction = A.melee > 0 || cookActive || !!A.drink || this.#throwT > 0 || this.#inspectT > 0;
     this.#holsterAmt = damp(this.#holsterAmt, offAction ? 1 : 0, 14, dtc);
     _gunOff.x += HOLSTER.x * this.#holsterAmt;
     _gunOff.y += HOLSTER.y * this.#holsterAmt;
@@ -518,14 +544,22 @@ export class PlayerBodySystem extends System {
     if (J && this.#gunAnchors) {
       // RIGHT hand always holds the gun (follows it off-screen when holstered)
       if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
-      // LEFT hand: a one-handed action (melee / grenade / drink) takes it, else the
-      // normal support grip on the gun.
-      const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
-      if (!tookLeft) {
+      // LEFT hand: reload works the mag (gun stays up); a one-handed action (melee /
+      // grenade / drink / inspect) holsters the gun and takes the hand; otherwise it
+      // rests on the support grip.
+      if (w && w.reloading && J.shoulderL) {
         if (this.#knife) this.#knife.visible = false;
         if (this.#grenade) this.#grenade.visible = false;
         if (this.#bottle) this.#bottle.visible = false;
-        if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+        this.#poseReload(J, w.reloadProgress || 0);
+      } else {
+        const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
+        if (!tookLeft) {
+          if (this.#knife) this.#knife.visible = false;
+          if (this.#grenade) this.#grenade.visible = false;
+          if (this.#bottle) this.#bottle.visible = false;
+          if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+        }
       }
     }
     this.#updateFlash();
