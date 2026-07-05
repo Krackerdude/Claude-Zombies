@@ -154,46 +154,13 @@ export class Viewmodel {
     // melee knife (its own object, shown only during a swipe) — a proper combat
     // knife built from the shared gun materials: bright gunmetal blade with a
     // fuller groove + clip-point tip, dark crossguard, stippled grip, pommel.
-    this.#knife = new THREE.Group();
-    {
-      const steel = gunMetal(0xc9cfd8);
-      const dark = gunDark(0x16181d);
-      const grip = gunGrip(0x2a2d33);
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.24), steel);
-      blade.position.z = -0.18;
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.085, 4), steel);
-      tip.rotation.x = -Math.PI / 2; tip.scale.set(0.2, 1, 1); // flatten to blade thickness
-      tip.position.set(0, 0, -0.34);
-      const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.014, 0.2), dark);
-      fuller.position.set(0, 0.008, -0.18);
-      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.02, 0.028), dark);
-      guard.position.z = -0.05;
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.12), grip);
-      handle.position.z = 0.03;
-      const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.046, 0.022), steel);
-      pommel.position.z = 0.095;
-      this.#knife.add(blade, tip, fuller, guard, handle, pommel);
-      this.#knife.scale.setScalar(0.95); // modest on-screen size
-    }
+    this.#knife = buildVmKnife();
     this.#knife.visible = false;
     this.#vmScene.add(this.#knife);
 
     // cooked grenade held in hand — proper green frag body (shared painted-metal
     // + gunDark fuze) with a safety lever and a pull-pin that flicks off on cook
-    this.#grenade = new THREE.Group();
-    {
-      const gbody = paintedMetal(0x40592a); gbody.roughness = 0.5; gbody.metalness = 0.55;
-      const gsteel = gunDark(0x1d201a);
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), gbody);
-      body.scale.set(1, 1.28, 1); // ovoid frag body
-      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.043, 0.018, 10), gsteel);
-      collar.position.y = 0.066;
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.033, 0.026, 10), gsteel);
-      cap.position.y = 0.087;
-      const lever = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.078, 0.02), gsteel);
-      lever.position.set(0.04, 0.05, 0); lever.rotation.z = 0.12;
-      this.#grenade.add(body, collar, cap, lever);
-    }
+    this.#grenade = buildVmFrag();
     this.#pin = new THREE.Group();
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(0.02, 0.005, 6, 12),
@@ -459,7 +426,7 @@ export class Viewmodel {
 
     // knife slash: a fast diagonal cut from upper-right down to lower-left
     const sweep = Math.min(1, melee / 0.4);
-    this.#knife.visible = melee > 0 && sweep < 1;
+    this.#knife.visible = melee > 0 && sweep < 1 && !bodyMode;
     if (this.#knife.visible) {
       // fast-start, slow-middle, fast-end so the cut has weight (timing unchanged)
       const p = sweep + 0.9 * Math.sin(2 * Math.PI * sweep) / (2 * Math.PI);
@@ -472,10 +439,11 @@ export class Viewmodel {
     // lethal: only after the gun has lowered off-screen. Frag pulls its pin;
     // WraithFire destabilises and bursts into blue flame in the hand.
     const cookKind = cook?.kind;
-    this.#grenade.visible = !!cook && (cookKind === 'frag' || !cookKind) && this.#holster > 0.85;
-    this.#wraith.visible = !!cook && cookKind === 'wraithfire' && this.#holster > 0.85;
+    const heldOK = this.#holster > 0.85 && !bodyMode; // bodyMode: the world hand shows it
+    this.#grenade.visible = !!cook && (cookKind === 'frag' || !cookKind) && heldOK;
+    this.#wraith.visible = !!cook && cookKind === 'wraithfire' && heldOK;
     this.#wraithFlame.visible = this.#wraith.visible;
-    this.#acidBomb.visible = !!cook && cookKind === 'acid' && this.#holster > 0.85;
+    this.#acidBomb.visible = !!cook && cookKind === 'acid' && heldOK;
     if (this.#acidBomb.visible) {
       const gt = Math.max(0, cook.t - 0.16);
       const draw = Math.min(1, gt / 0.35);
@@ -487,7 +455,7 @@ export class Viewmodel {
       const pin = this.#acidBomb.userData.pin;
       if (pin) { pin.visible = pinPop < 1; if (pin.visible) { pin.position.set(0.09 + pinPop * 0.2, 0.04 + pinPop * 0.16, -pinPop * 0.06); pin.rotation.z = pinPop * 14; } }
     }
-    this.#semtex.visible = !!cook && cookKind === 'semtex' && this.#holster > 0.85;
+    this.#semtex.visible = !!cook && cookKind === 'semtex' && heldOK;
     if (this.#semtex.visible) {
       const gt = Math.max(0, cook.t - 0.16);
       const draw = Math.min(1, gt / 0.35);
@@ -533,7 +501,7 @@ export class Viewmodel {
     // "pin"-gate animation, then it vanishes as the gun returns — the real one
     // has been thrown. Monkey winds its key; Arnie's jar gets shaken.
     const tcKind = tacticalCook?.kind;
-    const shown = !!tacticalCook && this.#holster > 0.85;
+    const shown = !!tacticalCook && this.#holster > 0.85 && !bodyMode;
     this.#monkey.visible = shown && tcKind === 'monkey';
     this.#arnie.visible = shown && tcKind === 'arnie';
     this.#homunc.visible = shown && tcKind === 'homunculus';
@@ -597,7 +565,7 @@ export class Viewmodel {
     }
 
     // perk drink: pop the cap, raise the bottle to the mouth, bubbles, then toss
-    if (drink) {
+    if (drink && !bodyMode) {
       if (!this.#bottle || this.#bottleColor !== drink.color) {
         if (this.#bottle) this.#vmScene.remove(this.#bottle);
         this.#bottle = buildPerkBottle(drink.color);
@@ -851,9 +819,39 @@ function buildVmSyringe() {
   return g;
 }
 
+// Combat knife (blade along -Z, handle at +Z) — shared by the overlay and the
+// world first-person hand.
+export function buildVmKnife() {
+  const g = new THREE.Group();
+  const steel = gunMetal(0xc9cfd8), dark = gunDark(0x16181d), grip = gunGrip(0x2a2d33);
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.24), steel); blade.position.z = -0.18;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.085, 4), steel); tip.rotation.x = -Math.PI / 2; tip.scale.set(0.2, 1, 1); tip.position.set(0, 0, -0.34);
+  const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.014, 0.2), dark); fuller.position.set(0, 0.008, -0.18);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.02, 0.028), dark); guard.position.z = -0.05;
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.12), grip); handle.position.z = 0.03;
+  const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.046, 0.022), steel); pommel.position.z = 0.095;
+  g.add(blade, tip, fuller, guard, handle, pommel);
+  g.scale.setScalar(0.95);
+  return g;
+}
+
+// Frag grenade body (ovoid, safety lever) — no pull-pin (the overlay adds its own
+// animated pin). Shared by the overlay and the world hand.
+export function buildVmFrag() {
+  const g = new THREE.Group();
+  const gbody = paintedMetal(0x40592a); gbody.roughness = 0.5; gbody.metalness = 0.55;
+  const gsteel = gunDark(0x1d201a);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), gbody); body.scale.set(1, 1.28, 1);
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.043, 0.018, 10), gsteel); collar.position.y = 0.066;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.033, 0.026, 10), gsteel); cap.position.y = 0.087;
+  const lever = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.078, 0.02), gsteel); lever.position.set(0.04, 0.05, 0); lever.rotation.z = 0.12;
+  g.add(body, collar, cap, lever);
+  return g;
+}
+
 // Held WraithFire canister — a lantern: a bright cyan glow-core caged in brass
 // bars so the glow SHOWS (don't bury it in an opaque shell -> reads as black).
-function buildVmWraith() {
+export function buildVmWraith() {
   const brass = new THREE.MeshStandardMaterial({ color: 0x9a7b34, metalness: 0.7, roughness: 0.4 });
   const glow = new THREE.MeshBasicMaterial({ color: 0x6fe0ff });
   const halo = new THREE.MeshBasicMaterial({ color: 0x49c6ff, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -869,7 +867,7 @@ function buildVmWraith() {
 
 // Held Semtex brick — an olive plastic-explosive slab with a detonator button
 // (pressed to arm) and a red LED. userData exposes the button + LED.
-function buildVmSemtex() {
+export function buildVmSemtex() {
   const putty = new THREE.MeshStandardMaterial({ color: 0x6b7a32, roughness: 0.85 });
   const band = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.6 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x20241a, roughness: 0.6, metalness: 0.3 });
@@ -886,7 +884,7 @@ function buildVmSemtex() {
 
 // Held Acid bomb — a brass acid-mine sphere with glowing green ports, a visible
 // green acid core, and a pull pin. userData exposes the pin.
-function buildVmAcid() {
+export function buildVmAcid() {
   const brass = new THREE.MeshStandardMaterial({ color: 0x8a7a45, metalness: 0.65, roughness: 0.45 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x3a3526, metalness: 0.5, roughness: 0.55 });
   const glow = new THREE.MeshBasicMaterial({ color: 0x9bff3a });
