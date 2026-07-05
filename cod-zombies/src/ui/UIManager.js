@@ -333,8 +333,13 @@ export class UIManager {
           <div class="mm-ld-num"><span class="ld-track-count">0</span></div>
           <div class="mm-ld-cap">Divinium</div>`;
         badge.addEventListener('click', it.action); // clicking the badge also opens the factory
+        // un-clipped wrapper so the badge can cast a form-fitting shard (not a
+        // rectangular box-shadow poking past its sheared edges)
+        const badgeWrap = document.createElement('div');
+        badgeWrap.className = 'mm-ld-badge-wrap';
+        badgeWrap.appendChild(badge);
         wrap.appendChild(e);
-        wrap.appendChild(badge);
+        wrap.appendChild(badgeWrap);
         list.appendChild(wrap);
       } else {
         list.appendChild(e);

@@ -123,27 +123,31 @@
 
 /* the factory row pairs its option with a square Divinium balance widget */
 .mm-opt-row { display: flex; align-items: center; gap: 16px; }
+/* the badge's form-fitting shard rides its un-clipped wrapper (a box-shadow here
+   would be rectangular and poke past the sheared parallelogram — the old bug) */
+.mm-ld-badge-wrap { flex: none; position: relative; }
+.mm-ld-badge-wrap::before {
+  content: ''; position: absolute; z-index: -1; left: 4px; top: 5px; right: -4px; bottom: -5px;
+  background: #000; transform: skewX(-9deg);
+  clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+}
 .mm-ld-badge {
-  flex: none; position: relative; width: 74px; height: 74px; cursor: pointer;
-  appearance: none; padding: 6px 4px 5px; color: #cdeeff;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 74px; height: 74px; cursor: pointer;
+  appearance: none; padding: 6px 4px 5px; color: #cdeeff;
   transform: skewX(-9deg);
   background: var(--hud-grunge), linear-gradient(180deg, rgba(14,34,52,0.96), rgba(6,16,28,0.97));
   background-size: 70px 70px, auto; background-blend-mode: overlay, normal;
   border: 0; border-top: 1px solid rgba(90,190,235,0.5); border-bottom: 1px solid rgba(0,0,0,0.75);
   border-left: 3px solid #37a6ff;
   clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
-  box-shadow: inset 0 0 16px rgba(0,0,0,0.55), 0 8px 18px rgba(0,0,0,0.5);
-  transition: transform 0.16s cubic-bezier(.2,.9,.3,1), box-shadow 0.16s;
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.55);
+  transition: transform 0.16s cubic-bezier(.2,.9,.3,1), filter 0.16s;
 }
 .mm-ld-badge > * { transform: skewX(9deg); } /* un-skew contents */
-.mm-ld-badge::before { /* hard black shard, Persona style */
-  content: ''; position: absolute; z-index: -1; left: 4px; top: 5px; right: -4px; bottom: -5px;
-  background: #000; clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
-}
 .mm-ld-badge:hover, .mm-opt-row:hover .mm-ld-badge {
   transform: skewX(-9deg) translateY(-2px);
-  box-shadow: inset 0 0 16px rgba(0,0,0,0.4), 0 10px 22px rgba(0,0,0,0.55), 0 0 18px rgba(55,166,255,0.5);
+  filter: drop-shadow(0 0 14px rgba(55,166,255,0.55)); /* glow follows the clip shape */
 }
 .mm-ld-vial { height: 30px; display: flex; align-items: center; }
 .mm-ld-vial .ld-vial { height: 30px; width: auto; }
