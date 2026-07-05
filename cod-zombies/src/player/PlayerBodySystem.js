@@ -86,6 +86,8 @@ const THIGH_FLEX_DOWN = 0.20;  // extra forward hip flex per rad of downward pit
 const KNEE_BASE = 0.5;         // resting knee bend (matches poseStance)
 const FOOT_BASE = -0.2;        // resting ankle (matches poseStance)
 const STEP_K = 1.5;            // phase advance per (m/s): sets footstep cadence vs. speed
+const GUN_BOB_V = 0.03;        // gun vertical walk-bob amplitude (footfall dip)
+const GUN_BOB_H = 0.018;       // gun horizontal walk-bob amplitude (side-to-side)
 const LOCO = {
   walk:   { stride: 0.55, knee: 0.60, bob: 0.035, sway: 0.05, lift: 0.12, cadence: 1.0,  twist: 0.06 },
   sprint: { stride: 0.85, knee: 1.00, bob: 0.06,  sway: 0.09, lift: 0.20, cadence: 1.15, twist: 0.10 },
@@ -372,6 +374,14 @@ export class PlayerBodySystem extends System {
     const kickVis = this.#kick * (vrHip + (vrAds - vrHip) * ads);
     _gunOff.z += kickVis * 0.05;   // kick back toward the shoulder
     _gunOff.y += kickVis * 0.012;  // and a touch up
+
+    // walk-bob the GUN in sync with the footfall cadence so the weapon rides with
+    // the body's bob (the hands IK to it, so gun + hands move together). Vertical
+    // dips twice per stride (footfalls); a gentle horizontal figure-8 side to side.
+    // Faded out by ADS/stance-upright so aiming and prone stay steady.
+    const bobAmt = wa * upW * swayGate;
+    _gunOff.y += -(0.5 - 0.5 * Math.cos(2 * this.#walkPhase)) * GUN_BOB_V * g.bob / 0.035 * bobAmt;
+    _gunOff.x += Math.sin(this.#walkPhase) * GUN_BOB_H * bobAmt;
 
     // gun tracks the FULL camera aim (position + orientation) — it stays exactly
     // where it was. The ARMS are what move out of the way at up-aim (see #solveArm).
