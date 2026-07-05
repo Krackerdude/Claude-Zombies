@@ -694,7 +694,8 @@ export class PlayerBodySystem extends System {
           // support hand (screen-left = shoulderR) on the FOREGRIP — no reaching across.
           this.#hideProps();
           if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);
-          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1);
+          // support hand stretches onto a far foregrip so it lands on the gun
+          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, 1.28);
         }
       }
     }
@@ -727,12 +728,21 @@ export class PlayerBodySystem extends System {
 
   /** Analytic two-bone IK: shoulder aims the upper arm, elbow bends by the law
    *  of cosines, a pole hint keeps the elbow down-and-out. Bones rest along -Y. */
-  #solveArm(sh, el, anchor, side) {
-    const { L1, L2 } = ARM;
+  #solveArm(sh, el, anchor, side, stretch = 1) {
+    let { L1, L2 } = ARM;
     anchor.getWorldPosition(_tgt);   // target (world)
     sh.getWorldPosition(_S);         // shoulder (world)
     _toT.copy(_tgt).sub(_S);
     let d = _toT.length();
+    // Stretchy IK: when the target sits just past full reach (a far foregrip on a
+    // long gun), lengthen the bones toward it — up to `stretch`× — so the support
+    // hand actually lands ON the handguard instead of floating short and off to
+    // the side. stretch === 1 keeps the arm rigid (normal case).
+    const reach = (L1 + L2) * 0.999;
+    if (stretch > 1 && d > reach) {
+      const s = Math.min(d, (L1 + L2) * stretch) / (L1 + L2);
+      L1 *= s; L2 *= s;
+    }
     d = clampN(d, Math.abs(L1 - L2) + 0.02, (L1 + L2) * 0.999);
     _dir.copy(_toT).normalize();
     // elbow sits on the circle where the two bones meet; place it toward a pole
