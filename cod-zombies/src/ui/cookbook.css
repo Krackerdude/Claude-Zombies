@@ -7,88 +7,115 @@
 #cookbook-screen {
   position: fixed; inset: 0; z-index: 39; display: none;
   font-family: 'Oswald', sans-serif; color: #efe6d0;
-  /* dark stained-wood desk */
+  /* near-black stained study — a lone desk swallowed by candlelit gloom */
   background:
-    radial-gradient(140% 120% at 50% 40%, #3a2414 0%, #241509 55%, #120b05 100%),
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.10) 0 3px, rgba(255,220,160,0.02) 3px 7px);
+    radial-gradient(120% 100% at 50% 42%, #1c110a 0%, #0d0805 58%, #050302 100%),
+    repeating-linear-gradient(92deg, rgba(0,0,0,0.18) 0 3px, rgba(255,210,150,0.015) 3px 7px);
 }
 #cookbook-screen.show { display: block; }
-.cb-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(130% 100% at 50% 46%, transparent 46%, rgba(0,0,0,0.78) 100%); }
+/* heavy vignette closing in on the book */
+.cb-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(115% 90% at 50% 47%, transparent 34%, rgba(0,0,0,0.55) 72%, rgba(0,0,0,0.92) 100%); }
 
-/* ---- desk scene (props framing the book) --------------------------------- */
-.cb-desk { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
-.cb-desk-grain { position: absolute; inset: 0; opacity: 0.5; mix-blend-mode: overlay; background-image: var(--hud-grunge); background-size: 320px 320px; }
-.cb-stain { position: absolute; border-radius: 50%; filter: blur(6px); }
-.cb-stain.s1 { width: 260px; height: 180px; left: 6%; bottom: 8%; background: radial-gradient(circle, rgba(60,36,14,0.5), transparent 70%); }
-.cb-stain.s2 { width: 200px; height: 160px; right: 10%; top: 12%; background: radial-gradient(circle, rgba(50,30,12,0.5), transparent 70%); }
-.cb-stain.blood { width: 150px; height: 120px; right: 22%; bottom: 14%; background: radial-gradient(circle, rgba(90,14,10,0.45), transparent 68%); }
-.cb-prop { position: absolute; z-index: 0; filter: drop-shadow(0 10px 14px rgba(0,0,0,0.55)); }
-.cb-prop svg { display: block; width: 100%; height: 100%; }
-.cb-prop.teapot   { width: 200px; height: 150px; left: 1%;  bottom: 3%; transform: rotate(-6deg); }
-.cb-prop.magnifier{ width: 200px; height: 200px; left: 20%; bottom: -3%; transform: rotate(8deg); }
-.cb-prop.inkwell  { width: 120px; height: 150px; right: 5%; bottom: 5%; transform: rotate(6deg); }
-.cb-prop.candle   { width: 90px;  height: 150px; left: 3%;  top: 8%; }
-.cb-prop.compass  { width: 150px; height: 150px; right: 2%; top: 18%; transform: rotate(-10deg); }
-.cb-prop.scroll   { width: 190px; height: 90px;  left: -2%; top: 44%; transform: rotate(-8deg); }
-.cb-prop.vial     { width: 60px;  height: 120px; right: 15%; top: 6%; transform: rotate(12deg); }
-.cb-flame { transform-origin: center bottom; animation: cbFlame 1.6s ease-in-out infinite; }
-@keyframes cbFlame { 0%,100% { transform: scaleY(1) scaleX(1); opacity: 0.9; } 50% { transform: scaleY(1.12) scaleX(0.92); opacity: 1; } }
-.cb-scrap { position: absolute; z-index: 0; filter: drop-shadow(0 8px 12px rgba(0,0,0,0.5)); }
-.cb-scrap svg { width: 100%; height: 100%; }
-.cb-scrap.sc1 { width: 220px; height: 160px; left: 4%;  top: 30%; transform: rotate(-7deg); }
-.cb-scrap.sc2 { width: 210px; height: 170px; right: 3%; bottom: 6%; transform: rotate(9deg); }
-.cb-scrap.sc3 { width: 200px; height: 150px; right: 6%; top: 40%; transform: rotate(-4deg); }
-.cb-corner { position: absolute; width: 120px; height: 120px; z-index: 0; opacity: 0.7; }
-.cb-corner.tl { top: 8px; left: 8px; }
-.cb-corner.tr { top: 8px; right: 8px; transform: scaleX(-1); }
-.cb-corner.bl { bottom: 8px; left: 8px; transform: scaleY(-1); }
-.cb-corner.br { bottom: 8px; right: 8px; transform: scale(-1); }
+/* ---- dark, blurred backdrop (no props — just mood) ----------------------- */
+.cb-desk { position: absolute; inset: -40px; z-index: 0; overflow: hidden; filter: blur(9px) brightness(0.72) saturate(0.85); }
+.cb-desk-grain { position: absolute; inset: 0; opacity: 0.6; mix-blend-mode: overlay; background-image: var(--hud-grunge); background-size: 300px 300px; }
+/* warm candlelight pools bleeding in from the sides */
+.cb-glow { position: absolute; border-radius: 50%; filter: blur(30px); mix-blend-mode: screen; }
+.cb-glow.g1 { width: 460px; height: 380px; left: -6%; top: 8%; background: radial-gradient(circle, rgba(196,120,44,0.5), transparent 66%); }
+.cb-glow.g2 { width: 400px; height: 340px; right: -4%; bottom: 4%; background: radial-gradient(circle, rgba(150,88,30,0.42), transparent 66%); }
+.cb-stain { position: absolute; border-radius: 50%; filter: blur(8px); }
+.cb-stain.s1 { width: 300px; height: 200px; left: 8%; bottom: 6%; background: radial-gradient(circle, rgba(40,24,10,0.6), transparent 70%); }
+.cb-stain.s2 { width: 240px; height: 190px; right: 12%; top: 10%; background: radial-gradient(circle, rgba(32,20,9,0.6), transparent 70%); }
+.cb-stain.s3 { width: 260px; height: 220px; left: 34%; top: 60%; background: radial-gradient(circle, rgba(24,15,7,0.55), transparent 72%); }
+.cb-stain.blood { width: 170px; height: 130px; right: 26%; bottom: 12%; background: radial-gradient(circle, rgba(74,10,8,0.5), transparent 68%); }
 
-/* ---- header + sort tabs -------------------------------------------------- */
-.cb-topbar { position: absolute; top: 16px; left: 0; right: 0; z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+/* ---- header + paper index tabs ------------------------------------------- */
+.cb-topbar { position: absolute; top: 12px; left: 0; right: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .cb-head { text-align: center; }
-.cb-title { font-family: 'Anton', Impact, sans-serif; font-weight: 400; font-size: 2.7rem; letter-spacing: 0.05em; color: #f4e8c6; text-shadow: 0 2px 12px #000, 0 0 26px rgba(200,150,70,0.25); }
-.cb-sub { margin-top: 2px; font-size: 0.88rem; letter-spacing: 0.05em; color: #cdb98a; text-shadow: 0 1px 4px #000; }
-.cb-refresh { color: #ffcf7a; font-weight: 700; }
+/* embossed-serif diary title */
+.cb-title { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; font-size: 2.5rem; letter-spacing: 0.01em; color: #e7d1a0; text-shadow: 0 2px 2px #000, 0 3px 14px rgba(0,0,0,0.8), 0 0 22px rgba(180,120,50,0.22); }
+.cb-sub { margin-top: 3px; font-size: 0.86rem; letter-spacing: 0.05em; color: #b39c72; text-shadow: 0 1px 4px #000; }
+.cb-refresh { color: #e6a94a; font-weight: 700; }
 
-.cb-tabs { display: flex; justify-content: center; gap: 8px; }
+/* aged-paper index tabs that stick up from behind the tome's top edge */
+.cb-tabs { display: flex; justify-content: center; align-items: flex-end; gap: 6px; margin-bottom: -12px; position: relative; z-index: 1; }
 .cb-tab {
-  appearance: none; cursor: pointer; border: 0; padding: 6px 18px; transform: skewX(-9deg); font: inherit;
-  font-weight: 700; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: #cbb98c;
-  background: linear-gradient(180deg, rgba(62,45,26,0.94), rgba(34,24,14,0.97));
-  border-top: 1px solid rgba(205,165,95,0.4); border-bottom: 1px solid rgba(0,0,0,0.7); box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-  transition: color 0.14s, transform 0.14s;
+  appearance: none; cursor: pointer; font: inherit; padding: 8px 18px 16px;
+  font-weight: 700; font-size: 0.72rem; letter-spacing: 0.13em; text-transform: uppercase; color: #5a4020;
+  background: var(--hud-grunge), linear-gradient(180deg, #e4d5ac, #c6b184 88%);
+  background-size: 90px 90px, auto; background-blend-mode: overlay, normal;
+  border: 1px solid rgba(90,64,32,0.5); border-bottom: 0; border-radius: 9px 9px 0 0;
+  box-shadow: inset 0 2px 3px rgba(255,250,232,0.55), 0 -3px 9px rgba(0,0,0,0.45);
+  text-shadow: 0 1px 0 rgba(255,250,232,0.45);
+  transition: transform 0.14s, color 0.14s, filter 0.14s;
 }
-.cb-tab > span { display: inline-block; transform: skewX(9deg); }
-.cb-tab:hover { transform: skewX(-9deg) translateY(-1px); color: #f0dfae; }
-.cb-tab.active { color: #1a1206; background: linear-gradient(180deg, #ffcf7a, #e0922a); }
+.cb-tab > span { display: inline-block; }
+.cb-tab:hover { transform: translateY(-3px); filter: brightness(1.05); }
+.cb-tab.active { color: #241505; transform: translateY(-4px); background: var(--hud-grunge), linear-gradient(180deg, #f4e8cc, #dcc99a 88%); box-shadow: inset 0 2px 3px rgba(255,255,246,0.7), 0 -4px 13px rgba(0,0,0,0.5); }
 
-/* ---- the open book (bigger, fills the desk) ------------------------------ */
+/* ---- leather-bound tome (frames the two parchment pages) ----------------- */
+.cb-tome {
+  position: absolute; top: 106px; bottom: 50px; left: 50%; transform: translateX(-50%);
+  width: min(1380px, 92vw); z-index: 3; padding: 20px 22px 24px; border-radius: 12px;
+  background: var(--hud-grunge), linear-gradient(150deg, #521f1a, #3a1411 44%, #230d0b 100%);
+  background-size: 200px 200px, auto; background-blend-mode: overlay, normal;
+  box-shadow:
+    0 44px 90px rgba(0,0,0,0.85),
+    inset 0 0 0 1px rgba(255,170,110,0.14),
+    inset 0 2px 5px rgba(255,190,140,0.16),
+    inset 0 -14px 30px rgba(0,0,0,0.6);
+}
+/* stitched seam just inside the leather edge */
+.cb-tome::before { content: ''; position: absolute; inset: 9px; border-radius: 8px; border: 2px dashed rgba(240,205,150,0.30); pointer-events: none; z-index: 4; }
+/* leather scuff / raking-light band */
+.cb-tome::after { content: ''; position: absolute; inset: 0; border-radius: 12px; pointer-events: none; background: linear-gradient(160deg, rgba(255,200,150,0.10), transparent 28%, transparent 72%, rgba(0,0,0,0.4)); }
+
+/* brass corner guards */
+.cb-guard { position: absolute; width: 44px; height: 44px; z-index: 5; pointer-events: none;
+  background: linear-gradient(135deg, #e0aa54, #8a5f22 55%, #4a3312);
+  box-shadow: inset 0 0 0 1px rgba(255,228,175,0.45), 0 2px 6px rgba(0,0,0,0.55); }
+.cb-guard.tl { top: 5px; left: 5px; clip-path: polygon(0 0, 100% 0, 0 100%); border-top-left-radius: 10px; }
+.cb-guard.tr { top: 5px; right: 5px; clip-path: polygon(0 0, 100% 0, 100% 100%); border-top-right-radius: 10px; }
+.cb-guard.bl { bottom: 5px; left: 5px; clip-path: polygon(0 0, 0 100%, 100% 100%); border-bottom-left-radius: 10px; }
+.cb-guard.br { bottom: 5px; right: 5px; clip-path: polygon(100% 0, 100% 100%, 0 100%); border-bottom-right-radius: 10px; }
+
+/* ribbon page-marker trailing out the bottom */
+.cb-ribbon { position: absolute; top: -5px; left: 52.5%; width: 16px; height: calc(100% + 34px); z-index: 2;
+  background: linear-gradient(90deg, #6f1214, #b8262a 45%, #6f1214); box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+.cb-ribbon::after { content: ''; position: absolute; left: 0; right: 0; bottom: -13px; height: 15px;
+  background: linear-gradient(90deg, #6f1214, #b8262a 45%, #6f1214); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 55%, 0 100%); }
+
+/* ---- the open book (fills the tome) -------------------------------------- */
 .cb-book {
-  position: absolute; top: 128px; bottom: 60px; left: 50%; transform: translateX(-50%);
-  width: min(1360px, 90vw); display: flex; perspective: 3000px; transform-style: preserve-3d;
-  z-index: 2; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.7));
+  position: relative; width: 100%; height: 100%;
+  display: flex; perspective: 3000px; transform-style: preserve-3d; z-index: 1;
 }
 .cb-page {
   position: relative; flex: 1; padding: 30px 34px 46px; overflow: hidden;
-  background: var(--hud-grunge), linear-gradient(160deg, #efe3c1 0%, #e3d3a8 55%, #d3bf8f 100%);
-  background-size: 90px 90px, auto; background-blend-mode: overlay, normal;
-  box-shadow: inset 0 0 60px rgba(120,90,50,0.28), inset 0 0 0 1px rgba(150,110,60,0.25);
+  background:
+    radial-gradient(70px 46px at 24% 28%, rgba(86,56,24,0.20), transparent 70%),
+    radial-gradient(90px 56px at 72% 66%, rgba(66,42,18,0.22), transparent 72%),
+    radial-gradient(46px 32px at 58% 18%, rgba(58,36,15,0.16), transparent 70%),
+    var(--hud-grunge),
+    linear-gradient(160deg, #ddcea2 0%, #cbb886 55%, #b6a06f 100%);
+  background-size: auto, auto, auto, 90px 90px, auto;
+  background-blend-mode: multiply, multiply, multiply, overlay, normal;
+  box-shadow: inset 0 0 72px rgba(74,50,24,0.42), inset 0 0 0 1px rgba(120,86,44,0.3);
 }
-.cb-left  { border-radius: 10px 2px 2px 10px; box-shadow: inset -34px 0 46px rgba(90,64,32,0.4), inset 0 0 60px rgba(120,90,50,0.22); }
-.cb-right { border-radius: 2px 10px 10px 2px; box-shadow: inset  34px 0 46px rgba(90,64,32,0.4), inset 0 0 60px rgba(120,90,50,0.22); }
+.cb-left  { border-radius: 7px 0 0 7px; box-shadow: inset -40px 0 56px rgba(66,42,20,0.52), inset 0 0 70px rgba(80,54,26,0.32); }
+.cb-right { border-radius: 0 7px 7px 0; box-shadow: inset  40px 0 56px rgba(66,42,20,0.52), inset 0 0 70px rgba(80,54,26,0.32); }
 /* torn/aged edge tint at the outer edges */
-.cb-page::after { content: ''; position: absolute; top: 0; bottom: 0; width: 26px; pointer-events: none; }
-.cb-left::after  { left: 0;  background: linear-gradient(90deg, rgba(80,55,28,0.35), transparent); }
-.cb-right::after { right: 0; background: linear-gradient(270deg, rgba(80,55,28,0.35), transparent); }
-.cb-spine { width: 26px; flex: none; background: linear-gradient(90deg, #3a2413, #6b4423 45%, #2a1810 55%, #3a2413); box-shadow: 0 0 22px rgba(0,0,0,0.6) inset; border-radius: 3px; }
+.cb-page::after { content: ''; position: absolute; top: 0; bottom: 0; width: 30px; pointer-events: none; }
+.cb-left::after  { left: 0;  background: linear-gradient(90deg, rgba(60,40,20,0.5), transparent); }
+.cb-right::after { right: 0; background: linear-gradient(270deg, rgba(60,40,20,0.5), transparent); }
+.cb-spine { width: 30px; flex: none; background: linear-gradient(90deg, #230d0b, #5a2018 42%, #1c0a08 55%, #3a1411); box-shadow: inset 0 0 26px rgba(0,0,0,0.85); }
 
 .cb-recipes { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 20px; height: 100%; }
 
 /* page-turn leaf */
 .cb-leaf {
   position: absolute; top: 0; bottom: 0; width: calc(50% - 13px); pointer-events: none; opacity: 0; z-index: 5;
-  background: var(--hud-grunge), linear-gradient(160deg, #ecdfbb, #d4c091);
+  background: var(--hud-grunge), linear-gradient(160deg, #d8c896, #c0aa78);
   background-size: 90px 90px, auto; background-blend-mode: overlay, normal;
   backface-visibility: hidden;
 }

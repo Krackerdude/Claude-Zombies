@@ -123,27 +123,31 @@
 
 /* the factory row pairs its option with a square Divinium balance widget */
 .mm-opt-row { display: flex; align-items: center; gap: 16px; }
+/* the badge's form-fitting shard rides its un-clipped wrapper (a box-shadow here
+   would be rectangular and poke past the sheared parallelogram — the old bug) */
+.mm-ld-badge-wrap { flex: none; position: relative; }
+.mm-ld-badge-wrap::before {
+  content: ''; position: absolute; z-index: -1; left: 4px; top: 5px; right: -4px; bottom: -5px;
+  background: #000; transform: skewX(-9deg);
+  clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+}
 .mm-ld-badge {
-  flex: none; position: relative; width: 74px; height: 74px; cursor: pointer;
-  appearance: none; padding: 6px 4px 5px; color: #cdeeff;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 74px; height: 74px; cursor: pointer;
+  appearance: none; padding: 6px 4px 5px; color: #cdeeff;
   transform: skewX(-9deg);
   background: var(--hud-grunge), linear-gradient(180deg, rgba(14,34,52,0.96), rgba(6,16,28,0.97));
   background-size: 70px 70px, auto; background-blend-mode: overlay, normal;
   border: 0; border-top: 1px solid rgba(90,190,235,0.5); border-bottom: 1px solid rgba(0,0,0,0.75);
   border-left: 3px solid #37a6ff;
   clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
-  box-shadow: inset 0 0 16px rgba(0,0,0,0.55), 0 8px 18px rgba(0,0,0,0.5);
-  transition: transform 0.16s cubic-bezier(.2,.9,.3,1), box-shadow 0.16s;
+  box-shadow: inset 0 0 16px rgba(0,0,0,0.55);
+  transition: transform 0.16s cubic-bezier(.2,.9,.3,1), filter 0.16s;
 }
 .mm-ld-badge > * { transform: skewX(9deg); } /* un-skew contents */
-.mm-ld-badge::before { /* hard black shard, Persona style */
-  content: ''; position: absolute; z-index: -1; left: 4px; top: 5px; right: -4px; bottom: -5px;
-  background: #000; clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
-}
 .mm-ld-badge:hover, .mm-opt-row:hover .mm-ld-badge {
   transform: skewX(-9deg) translateY(-2px);
-  box-shadow: inset 0 0 16px rgba(0,0,0,0.4), 0 10px 22px rgba(0,0,0,0.55), 0 0 18px rgba(55,166,255,0.5);
+  filter: drop-shadow(0 0 14px rgba(55,166,255,0.55)); /* glow follows the clip shape */
 }
 .mm-ld-vial { height: 30px; display: flex; align-items: center; }
 .mm-ld-vial .ld-vial { height: 30px; width: auto; }
@@ -160,14 +164,19 @@
 
 /* ---- Black Market Quests widget (under the menu list) -------------------- */
 /* Persona-style, same language as the player widget: three sheared, gritty,
-   colour-blocked plates (orange header · dark quest body · reward-tinted strip)
-   over a hard black drop-shadow shard. Cycle quests with the ‹ › arrows. */
+   colour-blocked plates (orange header · dark quest body · reward-tinted strip),
+   and — like the player widget and quest cards — every plate casts its OWN hard,
+   zero-blur form-fitting shard (no single approximated shape behind the stack).
+   Cycle quests with the ‹ › arrows. */
 .mm-quests {
   position: relative; isolation: isolate; margin-top: 24px; width: 296px;
   font-family: 'Oswald', sans-serif; --rk: #3aa0ff;
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.55));
 }
-.mm-quests::before {
+/* each bar's un-clipped wrapper casts the shard sharing the bar's EXACT sheared
+   /notched clip-path, offset down-right (self-skews to match the bar) */
+.bmq-row { position: relative; }
+.bmq-row + .bmq-row { margin-top: 4px; }
+.bmq-row::before {
   content: ''; position: absolute; z-index: -1; left: 5px; top: 6px; right: -5px; bottom: -6px;
   background: #000; transform: skewX(-9deg);
   clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
@@ -181,7 +190,7 @@
 }
 .bmq-head > span { display: inline-block; transform: skewX(9deg); color: #160f08; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.13em; text-transform: uppercase; }
 .bmq-body {
-  display: flex; align-items: center; gap: 8px; transform: skewX(-9deg); margin-top: 4px; padding: 9px 10px;
+  display: flex; align-items: center; gap: 8px; transform: skewX(-9deg); padding: 9px 10px;
   background: var(--hud-grunge), linear-gradient(180deg, rgba(26,30,37,0.96), rgba(8,10,14,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
   border-top: 1px solid rgba(255,180,90,0.28); border-bottom: 1px solid rgba(0,0,0,0.7);
@@ -203,7 +212,7 @@
 }
 .bmq-nav:hover { background: #ff8a28; color: #160f08; }
 .bmq-reward {
-  display: flex; align-items: center; gap: 8px; transform: skewX(-9deg); margin-top: 4px; padding: 6px 14px;
+  display: flex; align-items: center; gap: 8px; transform: skewX(-9deg); padding: 6px 14px;
   background: var(--hud-grunge), linear-gradient(180deg, rgba(18,28,40,0.96), rgba(8,13,20,0.97));
   background-size: 80px 80px, auto; background-blend-mode: overlay, normal;
   border-top: 1px solid color-mix(in srgb, var(--rk) 45%, transparent); border-bottom: 1px solid rgba(0,0,0,0.7);
