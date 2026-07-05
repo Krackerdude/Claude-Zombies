@@ -174,7 +174,7 @@ export class PlayerBodySystem extends System {
   #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
   #gunHolder = new THREE.Group(); #gunHolderL = new THREE.Group(); // R gun; L gun (dual-wield)
   #gunAnchors = null; #gunAnchorsL = null; #dual = false;
-  #gunKey = null; #gunSightY = 0.08; #aimPitch = 0;
+  #gunKey = null; #gunSightY = 0.08; #gunDrop = 0; #aimPitch = 0;
   #walkAmt = 0; #walkPhase = 0; #idle = 0; #restHipY = 0.94; // locomotion state
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
@@ -246,6 +246,7 @@ export class PlayerBodySystem extends System {
     this.#poseStance(J);
     rig.visible = this.#enabled;
     this.#restHipY = rig.userData?.rest?.hipY ?? 0.94;
+    this.#killRaycast(this.#flash);
     this.#scene.add(rig);
     this.#body = rig;
     this.#built = true;
@@ -274,6 +275,7 @@ export class PlayerBodySystem extends System {
       this.#bottle.scale.setScalar(1.5); this.#bottle.rotation.set(1.9, 0, 0); this.#bottle.position.set(0, -0.05, 0);
       J.handL.add(this.#bottle);
     }
+    this.#killRaycast(this.#body); // body + hand-held props ignore bullet/shade rays
   }
 
   /** Our own hand-scale combat knife (blade along -Y, pitched forward out of the fist). */
@@ -424,14 +426,19 @@ export class PlayerBodySystem extends System {
     const built = buildWeaponModel(w);
     if (!built?.group) return;
     if (w.data.pap) this.#applyPap(built.group);
+    this.#killRaycast(built.group);
     this.#gunHolder.add(built.group);
     this.#gunAnchors = built.anchors || null;
     this.#gunSightY = built.sightY ?? 0.08; // sight height → ADS raise target
+    // taller guns (scopes/tall sights) sit LOWER on screen at the hip for visibility
+    // (ADS is unaffected — it centres on the sight line regardless)
+    this.#gunDrop = clampN(((built.height ?? 0.08) - 0.08) * 0.6, 0, 0.14);
     // dual-wield: build a second, mirrored gun for the left hand
     if (w.data.dualWield) {
       const left = buildWeaponModel(w);
       if (left?.group) {
         if (w.data.pap) this.#applyPap(left.group);
+        this.#killRaycast(left.group);
         this.#gunHolderL.add(left.group);
         this.#gunHolderL.scale.set(-1, 1, 1); // mirror
         this.#gunAnchorsL = left.anchors || null;
@@ -439,6 +446,11 @@ export class PlayerBodySystem extends System {
       }
     }
   }
+
+  /** Make every mesh in `obj` invisible to raycasts — the first-person body, gun and
+   *  props live in the world scene, but bullet-impact / shade rays must ignore them
+   *  (otherwise shots register hits on the gun/arms right in front of the camera). */
+  #killRaycast(obj) { obj.traverse((o) => { o.raycast = () => {}; }); }
 
   /** Swap the gun-metal materials for the animated Pack-a-Punch holo camo (leaving
    *  sights / wood / grips / energy cores). The camo animates via the shared tick. */
@@ -571,6 +583,7 @@ export class PlayerBodySystem extends System {
     const ads = this.#weapons?.current?.adsProgress || 0;
     _adsLocal.set(0, -this.#gunSightY, -0.34);
     _gunOff.set(lerp(GUN_LOCAL.x, _adsLocal.x, ads), lerp(GUN_LOCAL.y, _adsLocal.y, ads), lerp(GUN_LOCAL.z, _adsLocal.z, ads));
+    _gunOff.y -= this.#gunDrop * (1 - ads); // taller guns ride lower at the hip (not in ADS)
     // near-wall pushback: if a solid wall is closer than the muzzle reach, pull
     // the gun back toward the camera so it doesn't poke through geometry
     let targetPush = 0;
