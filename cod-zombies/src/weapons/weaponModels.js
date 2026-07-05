@@ -3148,7 +3148,7 @@ function socketMarker(name) {
   return m;
 }
 
-function attachSockets(model, weapon, showMarkers) {
+function attachSockets(model, weapon, showMarkers, box) {
   const cat = weapon.data.category;
   const nm = weapon.data.modelName || weapon.data.name;
   const base = CLASS_SOCKETS[cat] || CLASS_SOCKETS.assaultRifle;
@@ -3158,6 +3158,13 @@ function attachSockets(model, weapon, showMarkers) {
     ads: [0, model.sightY ?? 0.085, -0.12],
   };
   const src = { ...base, ...derived, ...over };
+  // Two-handed guns: place the SUPPORT-hand grip on the actual handguard, scaled by
+  // the gun's length, so the hand reaches a logical hold (longer gun → farther out,
+  // within reach) instead of floating at a fixed class z. Pistols keep the close hold.
+  if (box && cat !== 'pistol' && !over.gripL && src.gripL) {
+    const z = Math.max(-0.44, Math.min(-0.16, box.min.z * 0.6)); // 60% toward the muzzle, capped to arm reach
+    src.gripL = [src.gripL[0], src.gripL[1], z];
+  }
   const anchors = {};
   for (const name of SOCKET_ORDER) {
     const p = src[name];
@@ -3176,7 +3183,15 @@ export function buildWeaponModel(weapon, opts = {}) {
   const model = buildWeaponModelInner(weapon);
   const nm = weapon.data.modelName || weapon.data.name;
   if (model && SIGHT_Y[nm] != null && model.sightY == null) model.sightY = SIGHT_Y[nm];
-  if (model && model.group) attachSockets(model, weapon, opts.sockets);
+  if (model && model.group) {
+    // measure the built gun so the first-person body can react to its size:
+    //   height → how tall (sights/scope) → sit lower on screen for visibility
+    //   fwd    → how long → push the support-hand grip forward onto the handguard
+    const box = new THREE.Box3().setFromObject(model.group);
+    model.height = box.max.y;   // top extent above the gun origin
+    model.fwd = -box.min.z;     // forward extent (muzzle end)
+    attachSockets(model, weapon, opts.sockets, box);
+  }
   return model;
 }
 
