@@ -132,10 +132,12 @@ const _rt = new THREE.Vector3();
 // perk drink: bring the bottle up to the mouth, chug, then toss it away
 const DRINK_MOUTH = new THREE.Vector3(0.0, -0.13, -0.22); // at the lips (lower + centred)
 const DRINK_TOSS = new THREE.Vector3(0.34, -0.30, -0.34);  // flung down-right
-// reload (TWO-handed — gun stays up): left hand works the mag well
-const RLD_GRIP = new THREE.Vector3(0.02, -0.14, -0.34);   // resting on the support grip
-const RLD_MAGOUT = new THREE.Vector3(0.05, -0.44, -0.27); // pulled the mag down/out
-const RLD_MAGIN = new THREE.Vector3(0.04, -0.24, -0.34);  // seating the fresh mag
+// reload: a WEIGHTY generic motion (no per-gun keyframes) — lower + tilt the whole
+// weapon, with a two-beat mag-swap punch. The hands ride the gun; the support hand
+// dips a touch toward the mag on the swap.
+const RELOAD_DROP = 0.14;   // how far the gun eases down at the hip
+const RELOAD_ROLL = 0.34;   // tilt left (roll) so the mag side rocks toward the player
+const RELOAD_PITCH = 0.42;  // muzzle rises as the gun rocks back
 // inspect (one-handed): raise the empty hand into view, turn it, lower
 const INSPECT_TIME = 1.6;
 const INS_UP = new THREE.Vector3(0.05, -0.06, -0.26);
@@ -178,6 +180,7 @@ export class PlayerBodySystem extends System {
   #walkAmt = 0; #walkPhase = 0; #idle = 0; #restHipY = 0.94; // locomotion state
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
+  #reloadAmt = 0; // eased reload blend (weighty lower + tilt, no per-gun keyframes)
   #holsterAmt = 0; #knife = null; #throwables = {}; #activeThrow = null; #bottle = null; #bottleColor = -1;
   #wasCooking = false; #throwT = 0; #inspectT = 0; #lastThrowKind = 'frag';
   #leftTarget = new THREE.Group(); #rightTarget = new THREE.Group(); // action IK targets
@@ -335,15 +338,16 @@ export class PlayerBodySystem extends System {
     return true;
   }
 
-  /** Two-handed reload: the gun stays up (right hand on it) while the LEFT hand
-   *  drops to the mag well, pulls the mag, seats a fresh one, and returns. */
-  #poseReload(J, p) {
-    if (p < 0.35) _lt.copy(RLD_GRIP).lerp(RLD_MAGOUT, p / 0.35);          // grab + pull
-    else if (p < 0.7) _lt.copy(RLD_MAGOUT).lerp(RLD_MAGIN, (p - 0.35) / 0.35); // swap + insert
-    else _lt.copy(RLD_MAGIN).lerp(RLD_GRIP, (p - 0.7) / 0.3);             // seat + return
-    this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+  /** Reload support hand: grab the foregrip, but dip a touch down/back toward the
+   *  mag well on the swap surge (generic — the mag sits below every gun). */
+  #poseReloadHand(J, surge) {
+    if (!this.#gunAnchors?.gripL || !J.shoulderR) return;
+    this.#gunAnchors.gripL.getWorldPosition(_lt);
+    _camRight.set(0, -1, 0).applyQuaternion(this.#camera.quaternion); // camera-down
+    _lt.addScaledVector(_camRight, surge * 0.11);                     // dip toward the mag
+    this.#leftTarget.position.copy(_lt);
     this.#leftTarget.updateWorldMatrix(true, false);
-    this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
+    this.#solveArm(J.shoulderR, J.elbowR, this.#leftTarget, 1);
   }
 
   /** TWO-handed throwable cook: the LEFT hand holds the device up while the RIGHT
@@ -584,6 +588,21 @@ export class PlayerBodySystem extends System {
     _adsLocal.set(0, -this.#gunSightY, -0.34);
     _gunOff.set(lerp(GUN_LOCAL.x, _adsLocal.x, ads), lerp(GUN_LOCAL.y, _adsLocal.y, ads), lerp(GUN_LOCAL.z, _adsLocal.z, ads));
     _gunOff.y -= this.#gunDrop * (1 - ads); // taller guns ride lower at the hip (not in ADS)
+    // WEIGHTY RELOAD: ease the whole gun down + tilt it left, with a two-beat mag-swap
+    // punch (a down-tug when the mag drops, an up-snap when it seats). Generic — no
+    // per-gun content. The lean/pitch are applied to the holder just below.
+    const reloadingNow = !!(this.#weapons?.current?.reloading);
+    const rp = clampN(this.#weapons?.current?.reloadProgress || 0, 0, 1);
+    this.#reloadAmt = damp(this.#reloadAmt, reloadingNow ? 1 : 0, 9, dtc);
+    const ra = this.#reloadAmt;
+    const surge = Math.sin(rp * Math.PI) * ra;                        // 0→1→0 across the reload
+    const magOut = Math.max(0, 1 - Math.abs(rp - 0.30) / 0.10) * ra;  // beat: the mag drops out
+    const magIn = Math.max(0, 1 - Math.abs(rp - 0.62) / 0.10) * ra;   // beat: the fresh mag seats
+    _gunOff.y -= RELOAD_DROP * ra + surge * 0.03 + magOut * 0.05 - magIn * 0.045;
+    _gunOff.x -= surge * 0.035;
+    _gunOff.z += ra * 0.04; // pull toward the body
+    const reloadRoll = RELOAD_ROLL * ra + surge * 0.12;   // tilt left, deepening on the swap
+    const reloadPitch = RELOAD_PITCH * ra + magIn * 0.18; // muzzle rises + snaps on seat
     // near-wall pushback: if a solid wall is closer than the muzzle reach, pull
     // the gun back toward the camera so it doesn't poke through geometry
     let targetPush = 0;
@@ -637,6 +656,10 @@ export class PlayerBodySystem extends System {
     _gunOff.x = baseX + (this.#dual ? DUAL_DX : 0);
     _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
     this.#placeHolder(this.#gunHolder, _gun, kickVis);
+    if (ra > 0.002 && !this.#dual) { // reload rock: tilt left + pitch up on top of the aim
+      this.#gunHolder.rotateZ(reloadRoll); this.#gunHolder.rotateX(reloadPitch);
+      this.#gunHolder.updateWorldMatrix(true, true);
+    }
     if (this.#dual) {
       _gunOff.x = baseX - DUAL_DX;
       _gun.copy(_gunOff).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
@@ -655,10 +678,12 @@ export class PlayerBodySystem extends System {
         if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);   // right gun (+DX)
         if (this.#gunAnchorsL.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchorsL.gripR, 1);  // left gun (-DX)
       } else if (w && w.reloading && J.shoulderL) {
-        // reload: the anchor hand keeps the gun up, the other works the mag (unchanged)
-        if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
+        // RELOAD: both hands ride the gun (which lowers + tilts, handled above). The
+        // dominant hand stays on the trigger grip; the support hand grabs the foregrip
+        // but dips toward the mag well on the swap surge — a single generic motion.
         this.#hideProps();
-        this.#poseReload(J, w.reloadProgress || 0);
+        if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);
+        this.#poseReloadHand(J, surge);
       } else {
         const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
         if (tookLeft) {
