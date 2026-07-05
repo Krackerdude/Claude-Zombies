@@ -119,9 +119,14 @@ const MEL_REST = new THREE.Vector3(-0.10, -0.44, -0.30); // off the bottom-left
 const MEL_WIND = new THREE.Vector3(0.26, 0.12, -0.42);   // wound up, upper-right
 const MEL_SLASH = new THREE.Vector3(-0.30, -0.16, -0.32); // slashed through, lower-left
 // grenade cook (pin pulled, cocked) then throw follow-through
-const NADE_COOK = new THREE.Vector3(0.08, -0.03, -0.46); // held up cocked, in view (further out)
-const NADE_THROW = new THREE.Vector3(-0.06, -0.02, -0.5); // flung forward on release
+const NADE_COOK = new THREE.Vector3(-0.02, -0.02, -0.46); // held up cocked, in view (left hand)
+const NADE_THROW = new THREE.Vector3(-0.10, -0.02, -0.52); // flung forward on release
 const THROW_TIME = 0.4;
+// the OTHER (right) hand reaches in to pull the pin / arm the device, then pulls away
+const PULL_REST = new THREE.Vector3(0.24, -0.34, -0.34);  // resting low-right (off the gun)
+const PULL_GRAB = new THREE.Vector3(0.10, -0.04, -0.44);  // at the throwable's pin/button
+const PULL_AWAY = new THREE.Vector3(0.40, -0.06, -0.34);  // pin yanked out to the right
+const _rt = new THREE.Vector3();
 // perk drink: bring the bottle up to the mouth, chug, then toss it away
 const DRINK_MOUTH = new THREE.Vector3(0.04, -0.04, -0.20); // at the lips, just in front
 const DRINK_TOSS = new THREE.Vector3(0.34, -0.30, -0.34);  // flung down-right
@@ -171,7 +176,8 @@ export class PlayerBodySystem extends System {
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
   #holsterAmt = 0; #knife = null; #throwables = {}; #activeThrow = null; #bottle = null; #bottleColor = -1;
-  #wasCooking = false; #throwT = 0; #inspectT = 0; #leftTarget = new THREE.Group(); // action state
+  #wasCooking = false; #throwT = 0; #inspectT = 0; #lastThrowKind = 'frag';
+  #leftTarget = new THREE.Group(); #rightTarget = new THREE.Group(); // action IK targets
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -242,19 +248,26 @@ export class PlayerBodySystem extends System {
     // one-handed action rig: a world-space IK target the left hand reaches for during
     // gestures, plus the props it holds (knife / grenade / perk bottle), each shown
     // only during its own action.
-    this.#scene.add(this.#leftTarget);
+    this.#scene.add(this.#leftTarget); this.#scene.add(this.#rightTarget);
     if (J?.handL) {
       // knife is our own hand-scale combat knife (kept — it reads better than the
       // overlay's). Throwables REUSE the real viewmodel models, sized up for the hand.
       this.#knife = this.#buildKnife(); this.#knife.visible = false; J.handL.add(this.#knife);
       this.#throwables = { frag: buildVmFrag(), wraithfire: buildVmWraith(), semtex: buildVmSemtex(), acid: buildVmAcid() };
+      // frag needs a pull-pin like the overlay's (the shared builder omits it)
+      const fragPin = new THREE.Group();
+      fragPin.add(new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.005, 6, 12), new THREE.MeshStandardMaterial({ color: 0xcfc8a0, metalness: 0.85, roughness: 0.3 })));
+      fragPin.position.set(0.06, 0.085, 0); this.#throwables.frag.add(fragPin); this.#throwables.frag.userData = { pin: fragPin };
       for (const k in this.#throwables) {
         const p = this.#throwables[k]; p.visible = false;
         p.scale.setScalar(1.7); p.rotation.set(-0.5, 0, 0); p.position.set(0, -0.06, 0);
+        const pin = p.userData?.pin; if (pin) pin.userData = { x: pin.position.x, y: pin.position.y, z: pin.position.z };
         J.handL.add(p);
       }
       this.#bottle = buildPerkBottle(0x66ccff); this.#bottle.visible = false;
-      this.#bottle.scale.setScalar(2.1); this.#bottle.rotation.set(-1.2, 0, 0); this.#bottle.position.set(0, -0.07, 0);
+      // cap/neck points UP-and-OUT of the fist toward the mouth (not the base); modest
+      // scale so it doesn't fill the view and clip into the face when raised.
+      this.#bottle.scale.setScalar(1.5); this.#bottle.rotation.set(1.9, 0, 0); this.#bottle.position.set(0, -0.05, 0);
       J.handL.add(this.#bottle);
     }
   }
@@ -295,15 +308,6 @@ export class PlayerBodySystem extends System {
     if (A.melee > 0) {
       segLerp(_lt, A.melee, MEL_REST, MEL_WIND, MEL_SLASH, 0.25, 0.45);
       if (this.#knife) this.#knife.visible = true;
-    } else if (A.cook) {
-      const ct = clampN(A.cook.t / 0.35, 0, 1);         // raise + cock, pin pulled
-      _lt.copy(MEL_REST).lerp(NADE_COOK, ct);
-      this.#activeThrow = this.#throwables[A.cook.kind] || this.#throwables.frag;
-      if (this.#activeThrow) this.#activeThrow.visible = true;
-    } else if (this.#throwT > 0) {
-      const tp = 1 - this.#throwT / THROW_TIME;          // 0..1 fling forward
-      _lt.copy(NADE_COOK).lerp(NADE_THROW, clampN(tp * 1.4, 0, 1));
-      if (this.#activeThrow) this.#activeThrow.visible = tp < 0.4; // leaves the hand mid-throw
     } else if (A.drink) {
       const t = A.drink.t;
       if (t < 0.45) _lt.copy(MEL_REST).lerp(DRINK_MOUTH, t / 0.45);
@@ -334,6 +338,56 @@ export class PlayerBodySystem extends System {
     this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
     this.#leftTarget.updateWorldMatrix(true, false);
     this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
+  }
+
+  /** TWO-handed throwable cook: the LEFT hand holds the device up while the RIGHT
+   *  hand reaches in and pulls the pin / arms it (matched to each throwable's own
+   *  prop animation), then the left hand flings it forward on release. */
+  #poseThrowable(J, A) {
+    this.#hideProps();
+    const kind = A.cook ? (A.cook.kind || 'frag') : this.#lastThrowKind;
+    if (A.cook) this.#lastThrowKind = kind;
+    const prop = this.#throwables[kind] || this.#throwables.frag;
+    this.#activeThrow = prop;
+
+    // LEFT hand: hold the device up (cook) → fling forward (release)
+    if (A.cook) { _lt.copy(MEL_REST).lerp(NADE_COOK, clampN(A.cook.t / 0.35, 0, 1)); prop.visible = true; }
+    else { const tp = 1 - this.#throwT / THROW_TIME; _lt.copy(NADE_COOK).lerp(NADE_THROW, clampN(tp * 1.4, 0, 1)); prop.visible = tp < 0.4; }
+    this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    this.#leftTarget.updateWorldMatrix(true, false);
+    if (J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
+
+    // RIGHT hand: while cooking, reach in and prep the device; on release, snap back
+    // toward the (holstered) gun. Prop's own part (pin / button) animates to match.
+    if (A.cook) {
+      const t = A.cook.t, isBtn = kind === 'semtex';
+      if (t < 0.22) _rt.copy(PULL_REST).lerp(PULL_GRAB, t / 0.22);            // reach in
+      else if (isBtn) _rt.copy(PULL_GRAB);                                    // hold on the detonator
+      else if (t < 0.5) _rt.copy(PULL_GRAB).lerp(PULL_AWAY, (t - 0.22) / 0.28); // yank the pin out
+      else _rt.copy(PULL_AWAY);
+      this.#rightTarget.position.copy(_rt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+      this.#rightTarget.updateWorldMatrix(true, false);
+      if (J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#rightTarget, 1);
+      this.#animThrowPart(prop, kind, t);
+    } else if (this.#gunAnchors?.gripR && J.shoulderR) {
+      this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1); // recover to the gun
+    }
+  }
+
+  /** Animate a throwable's own moving part to match its overlay animation. */
+  #animThrowPart(prop, kind, t) {
+    if (kind === 'semtex') {
+      const btn = prop.userData?.button, led = prop.userData?.led;
+      const press = clampN((t - 0.2) / 0.22, 0, 1);
+      if (btn) btn.position.y = (btn.userData?.y ?? btn.position.y) - press * 0.014;
+      if (led) led.visible = press >= 1 ? Math.sin(t * 30) > -0.2 : true;
+    } else { // frag / acid: flick the pull-pin off
+      const pin = prop.userData?.pin;
+      if (!pin) return;
+      const pop = clampN((t - 0.22) / 0.28, 0, 1);
+      pin.visible = pop < 1;
+      if (pin.visible && pin.userData) { pin.position.set(pin.userData.x + pop * 0.06, pin.userData.y + pop * 0.05, pin.userData.z - pop * 0.03); pin.rotation.z = pop * 14; }
+    }
   }
 
   /** Bent-knee stance for natural-looking legs; arms are driven by IK. */
@@ -541,19 +595,23 @@ export class PlayerBodySystem extends System {
     this.#gunHolder.updateWorldMatrix(true, true);
     this.#body.updateWorldMatrix(true, true);
     if (J && this.#gunAnchors) {
-      // RIGHT hand always holds the gun (follows it off-screen when holstered)
-      if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
-      // LEFT hand: reload works the mag (gun stays up); a one-handed action (melee /
-      // grenade / drink / inspect) holsters the gun and takes the hand; otherwise it
-      // rests on the support grip.
-      if (w && w.reloading && J.shoulderL) {
-        this.#hideProps();
-        this.#poseReload(J, w.reloadProgress || 0);
+      if (A.cook || this.#throwT > 0) {
+        // THROWABLE: two-handed — left holds the device, right pulls the pin / arms it
+        this.#poseThrowable(J, A);
       } else {
-        const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
-        if (!tookLeft) {
+        // RIGHT hand holds the gun (follows it off-screen when holstered)
+        if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
+        // LEFT hand: reload works the mag (gun stays up); a one-handed action (melee /
+        // drink / inspect) holsters the gun and takes the hand; else the support grip.
+        if (w && w.reloading && J.shoulderL) {
           this.#hideProps();
-          if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+          this.#poseReload(J, w.reloadProgress || 0);
+        } else {
+          const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
+          if (!tookLeft) {
+            this.#hideProps();
+            if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+          }
         }
       }
     }
