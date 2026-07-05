@@ -66,8 +66,10 @@ const ARM = { L1: 0.33, L2: 0.32 };
 // clears the sightline to the legs (dynamic — keeps the hip reach to the gun).
 const TORSO_LEAN = -0.24;      // base recline; kept modest so the shoulders stay
                                // in reach of the gun even with the bigger pullback
-const TORSO_LEAN_DOWN = 0.28;  // extra recline per rad of downward pitch: opens the
-                               // sightline past the chest to the legs when you look down
+const TORSO_LEAN_DOWN = 0.0;   // no extra recline on down-aim — keep the torso natural
+                               // and visible with the legs (body is pushed back instead)
+const DOWN_PULLBACK = 0.30;    // extra pushback per rad of downward pitch: opens a clear
+                               // sightline to the floor while keeping the torso in view
 // NOTE sign: after the 180° body facing, NEGATIVE thigh.x swings the legs
 // FORWARD (world -z); positive kicks them backward (reads as "backwards legs").
 // Give the thighs a static forward angle so the knees + feet sit forward/under
@@ -216,9 +218,12 @@ export class PlayerBodySystem extends System {
     // stand the rig on the ground under the interpolated capsule; face the aim
     _pos.lerpVectors(t.previousPosition, t.position, this.#time.alpha);
     const feetY = _pos.y - (tag.halfHeight + PlayerConfig.capsuleRadius);
-    // pull the body back along the (horizontal) aim so the chest isn't at the eye
+    // pull the body back along the (horizontal) aim so the chest isn't at the eye;
+    // push it back FURTHER as you look down for a clear sightline to the floor.
+    const down = Math.max(0, -tag.pitch);
+    const pull = PULLBACK + down * DOWN_PULLBACK;
     _fwd.set(0, 0, -1).applyQuaternion(this.#camera.quaternion); _fwd.y = 0; _fwd.normalize();
-    this.#body.position.set(_pos.x - _fwd.x * PULLBACK, feetY, _pos.z - _fwd.z * PULLBACK);
+    this.#body.position.set(_pos.x - _fwd.x * pull, feetY, _pos.z - _fwd.z * pull);
     this.#body.rotation.y = tag.yaw + Math.PI; // rig faces +z; player forward is -z
     const J = this.#body.userData?.joints;
     if (J?.head) J.head.visible = false;
@@ -227,7 +232,6 @@ export class PlayerBodySystem extends System {
     // is what makes the legs visible "like before"). Free on arm reach because the
     // gun sits close to the body when aimed down.
     this.#aimPitch = tag.pitch;              // drives the adaptive elbow pole in #solveArm
-    const down = Math.max(0, -tag.pitch);
     // as you look UP, lean the chest FORWARD toward the aim so the shoulders rise up
     // to the raised gun — this brings the grip back within arm reach so the arms can
     // BEND, letting the elbow-tuck route the forearms below the gun instead of a
@@ -235,6 +239,8 @@ export class PlayerBodySystem extends System {
     const up = clampN((tag.pitch - ARMS_TUCK_START) / ARMS_TUCK_RANGE, 0, 1);
     const upLean = up * up * (3 - 2 * up); // smoothstep
     if (J?.torso) J.torso.rotation.x = TORSO_LEAN - down * TORSO_LEAN_DOWN + upLean * TORSO_LEAN_UP;
+    // keep a natural forward hip flex + bent knee as you look down (knees stay bent
+    // from poseStance — no stretching the legs straight).
     const thighFlex = THIGH_BASE - down * THIGH_FLEX_DOWN; // negative = forward
     if (J?.thighL) J.thighL.rotation.x = thighFlex;
     if (J?.thighR) J.thighR.rotation.x = thighFlex;
