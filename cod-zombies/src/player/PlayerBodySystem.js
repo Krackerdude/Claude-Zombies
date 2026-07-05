@@ -123,12 +123,12 @@ const NADE_COOK = new THREE.Vector3(-0.02, -0.02, -0.46); // held up cocked, in 
 const NADE_THROW = new THREE.Vector3(-0.10, -0.02, -0.52); // flung forward on release
 const THROW_TIME = 0.4;
 // the OTHER (right) hand reaches in to pull the pin / arm the device, then pulls away
-const PULL_REST = new THREE.Vector3(0.24, -0.34, -0.34);  // resting low-right (off the gun)
-const PULL_GRAB = new THREE.Vector3(0.10, -0.04, -0.44);  // at the throwable's pin/button
-const PULL_AWAY = new THREE.Vector3(0.40, -0.06, -0.34);  // pin yanked out to the right
+const PULL_REST = new THREE.Vector3(0.26, -0.40, -0.32);  // resting low-right (off the gun)
+const PULL_GRAB = new THREE.Vector3(0.06, -0.04, -0.44);  // at the throwable's pin
+const PULL_AWAY = new THREE.Vector3(0.46, -0.48, -0.30);  // pin yanked back DOWN-RIGHT, off-screen the way it came
 const _rt = new THREE.Vector3();
 // perk drink: bring the bottle up to the mouth, chug, then toss it away
-const DRINK_MOUTH = new THREE.Vector3(0.04, -0.04, -0.20); // at the lips, just in front
+const DRINK_MOUTH = new THREE.Vector3(0.0, -0.13, -0.22); // at the lips (lower + centred)
 const DRINK_TOSS = new THREE.Vector3(0.34, -0.30, -0.34);  // flung down-right
 // reload (TWO-handed — gun stays up): left hand works the mag well
 const RLD_GRIP = new THREE.Vector3(0.02, -0.14, -0.34);   // resting on the support grip
@@ -260,7 +260,7 @@ export class PlayerBodySystem extends System {
       fragPin.position.set(0.06, 0.085, 0); this.#throwables.frag.add(fragPin); this.#throwables.frag.userData = { pin: fragPin };
       for (const k in this.#throwables) {
         const p = this.#throwables[k]; p.visible = false;
-        p.scale.setScalar(1.7); p.rotation.set(-0.5, 0, 0); p.position.set(0, -0.06, 0);
+        p.scale.setScalar(1.7); p.rotation.set(2.5, 0, 0); p.position.set(0, -0.04, 0);
         const pin = p.userData?.pin; if (pin) pin.userData = { x: pin.position.x, y: pin.position.y, z: pin.position.z };
         J.handL.add(p);
       }
