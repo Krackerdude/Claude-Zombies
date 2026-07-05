@@ -6,7 +6,8 @@ import { PlayerConfig } from '../config/index.js';
 import { selectedBuild } from '../characters/selection.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
 import { makeFlashStar, makeFlashCore } from '../weapons/Viewmodel.js';
-import { fpBody } from './fpBodyState.js';
+import { fpBody, weaponAction } from './fpBodyState.js';
+import { buildPerkBottle } from '../perks/perks.js';
 
 const _pos = new THREE.Vector3();
 const _gun = new THREE.Vector3();
@@ -86,6 +87,8 @@ const THIGH_FLEX_DOWN = 0.20;  // extra forward hip flex per rad of downward pit
 const KNEE_BASE = 0.5;         // resting knee bend (matches poseStance)
 const FOOT_BASE = -0.2;        // resting ankle (matches poseStance)
 const STEP_K = 1.5;            // phase advance per (m/s): sets footstep cadence vs. speed
+const GUN_BOB_V = 0.03;        // gun vertical walk-bob amplitude (footfall dip)
+const GUN_BOB_H = 0.018;       // gun horizontal walk-bob amplitude (side-to-side)
 const LOCO = {
   walk:   { stride: 0.55, knee: 0.60, bob: 0.035, sway: 0.05, lift: 0.12, cadence: 1.0,  twist: 0.06 },
   sprint: { stride: 0.85, knee: 1.00, bob: 0.06,  sway: 0.09, lift: 0.20, cadence: 1.15, twist: 0.10 },
@@ -107,6 +110,36 @@ const STANCE = {
   prone:  { hipY: 0.22, pitch: 1.32,  knee: 0.30, thigh: 0.10,  torso: 0.05 },
 };
 const PRONE_PUSHBACK = 0.62;   // shove the rig back when prone so the body trails the head
+// --- ONE-HANDED ACTIONS: melee / grenade / drink / inspect lower the gun off-screen
+// (held in the RIGHT hand) while the LEFT hand performs the gesture. The gun is
+// dropped by a holster offset; the left hand reaches keyframed CAMERA-LOCAL targets.
+const HOLSTER = new THREE.Vector3(0.10, -0.55, 0.14); // gun drop: right + down + back, off-screen
+// melee left-hand knife-swing keyframes (camera-local: +x right, +y up, -z forward)
+const MEL_REST = new THREE.Vector3(-0.10, -0.44, -0.30); // off the bottom-left
+const MEL_WIND = new THREE.Vector3(0.26, 0.12, -0.42);   // wound up, upper-right
+const MEL_SLASH = new THREE.Vector3(-0.30, -0.16, -0.32); // slashed through, lower-left
+// grenade cook (pin pulled, cocked) then throw follow-through
+const NADE_COOK = new THREE.Vector3(0.09, 0.03, -0.40);  // held up cocked, in view
+const NADE_THROW = new THREE.Vector3(-0.06, -0.02, -0.5); // flung forward on release
+const THROW_TIME = 0.4;
+// perk drink: bring the bottle up to the mouth, chug, then toss it away
+const DRINK_MOUTH = new THREE.Vector3(0.04, -0.04, -0.20); // at the lips, just in front
+const DRINK_TOSS = new THREE.Vector3(0.34, -0.30, -0.34);  // flung down-right
+// reload (TWO-handed — gun stays up): left hand works the mag well
+const RLD_GRIP = new THREE.Vector3(0.02, -0.14, -0.34);   // resting on the support grip
+const RLD_MAGOUT = new THREE.Vector3(0.05, -0.44, -0.27); // pulled the mag down/out
+const RLD_MAGIN = new THREE.Vector3(0.04, -0.24, -0.34);  // seating the fresh mag
+// inspect (one-handed): raise the empty hand into view, turn it, lower
+const INSPECT_TIME = 1.6;
+const INS_UP = new THREE.Vector3(0.05, -0.06, -0.26);
+const _lt = new THREE.Vector3();
+// lerp v = a→b→c→a across t in [0,1] with the given segment splits
+function segLerp(out, t, a, b, c, s1, s2) {
+  if (t <= s1) out.copy(a).lerp(b, t / s1);
+  else if (t <= s2) out.copy(b).lerp(c, (t - s1) / (s2 - s1));
+  else out.copy(c).lerp(a, (t - s2) / (1 - s2));
+  return out;
+}
 // pull the whole body back off the camera so the chest isn't "inside the head".
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
@@ -137,6 +170,8 @@ export class PlayerBodySystem extends System {
   #walkAmt = 0; #walkPhase = 0; #idle = 0; #restHipY = 0.94; // locomotion state
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
+  #holsterAmt = 0; #knife = null; #grenade = null; #bottle = null; #bottleColor = -1;
+  #wasCooking = false; #throwT = 0; #inspectT = 0; #leftTarget = new THREE.Group(); // action state
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -161,6 +196,8 @@ export class PlayerBodySystem extends System {
     this.#scene.add(this.#flashLight);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F6') { e.preventDefault(); e.stopPropagation(); this.#toggle(); }
+      // inspect (KeyH): a quick one-handed look at the hand while the gun holsters
+      if (e.code === 'KeyH' && this.#enabled && !e.repeat && this.#inspectT <= 0) this.#inspectT = INSPECT_TIME;
     }, true);
     if (typeof window !== 'undefined') window.__pbody = this;
   }
@@ -202,6 +239,102 @@ export class PlayerBodySystem extends System {
     this.#scene.add(rig);
     this.#body = rig;
     this.#built = true;
+    // one-handed action rig: a world-space IK target the left hand reaches for during
+    // gestures, plus the props it holds (knife / grenade / perk bottle), each shown
+    // only during its own action.
+    this.#scene.add(this.#leftTarget);
+    if (J?.handL) {
+      this.#knife = this.#buildKnife(); this.#knife.visible = false; J.handL.add(this.#knife);
+      this.#grenade = this.#buildGrenade(); this.#grenade.visible = false; J.handL.add(this.#grenade);
+      this.#bottle = buildPerkBottle(0x66ccff); this.#bottle.visible = false;
+      this.#bottle.scale.setScalar(0.9); this.#bottle.rotation.set(-1.15, 0, 0); this.#bottle.position.set(0, -0.05, 0);
+      J.handL.add(this.#bottle);
+    }
+  }
+
+  /** A green frag grenade held in the off hand while cooking / throwing. */
+  #buildGrenade() {
+    const g = new THREE.Group();
+    const olive = new THREE.MeshStandardMaterial({ color: 0x3a4a2a, metalness: 0.4, roughness: 0.7 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x2a2c30, metalness: 0.6, roughness: 0.6 });
+    const brass = new THREE.MeshStandardMaterial({ color: 0x9a9a55, metalness: 0.5, roughness: 0.5 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), olive); body.scale.y = 1.25; body.position.y = -0.06;
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 6), dark); cap.position.y = 0.0;
+    const lever = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.07, 0.02), brass); lever.position.set(0.03, -0.03, 0);
+    g.add(body, cap, lever);
+    return g;
+  }
+
+  #tintBottle(color) {
+    if (!this.#bottle || this.#bottleColor === color) return;
+    this.#bottleColor = color;
+    this.#bottle.traverse((o) => { if (o.material && o.material.emissive) { o.material.color.setHex(color); o.material.emissive.setHex(color); } });
+  }
+
+  /** Drive the LEFT hand through the active one-handed action (melee / grenade /
+   *  drink), placing the IK target in camera space and showing the right prop.
+   *  Returns true if an action took the hand. */
+  #poseLeftAction(J, A) {
+    if (this.#knife) this.#knife.visible = false;
+    if (this.#grenade) this.#grenade.visible = false;
+    if (this.#bottle) this.#bottle.visible = false;
+    let took = true;
+    if (A.melee > 0) {
+      segLerp(_lt, A.melee, MEL_REST, MEL_WIND, MEL_SLASH, 0.25, 0.45);
+      if (this.#knife) this.#knife.visible = true;
+    } else if (A.cook) {
+      const ct = clampN(A.cook.t / 0.35, 0, 1);         // raise + cock, pin pulled
+      _lt.copy(MEL_REST).lerp(NADE_COOK, ct);
+      if (this.#grenade) this.#grenade.visible = true;
+    } else if (this.#throwT > 0) {
+      const tp = 1 - this.#throwT / THROW_TIME;          // 0..1 fling forward
+      _lt.copy(NADE_COOK).lerp(NADE_THROW, clampN(tp * 1.4, 0, 1));
+      if (this.#grenade) this.#grenade.visible = tp < 0.4; // leaves the hand mid-throw
+    } else if (A.drink) {
+      const t = A.drink.t;
+      if (t < 0.45) _lt.copy(MEL_REST).lerp(DRINK_MOUTH, t / 0.45);
+      else if (t < 1.4) _lt.copy(DRINK_MOUTH);
+      else _lt.copy(DRINK_MOUTH).lerp(DRINK_TOSS, clampN((t - 1.4) / 0.4, 0, 1));
+      if (this.#bottle) { this.#bottle.visible = t < 1.6; this.#tintBottle(A.drink.color); }
+    } else if (this.#inspectT > 0) {
+      const p = 1 - this.#inspectT / INSPECT_TIME; // raise → hold/turn → lower
+      if (p < 0.28) _lt.copy(MEL_REST).lerp(INS_UP, p / 0.28);
+      else if (p < 0.72) { _lt.copy(INS_UP); _lt.x += Math.sin((p - 0.28) * 10) * 0.03; } // small turn
+      else _lt.copy(INS_UP).lerp(MEL_REST, (p - 0.72) / 0.28);
+    } else {
+      took = false;
+    }
+    if (!took) return false;
+    this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    this.#leftTarget.updateWorldMatrix(true, false);
+    this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
+    return true;
+  }
+
+  /** Two-handed reload: the gun stays up (right hand on it) while the LEFT hand
+   *  drops to the mag well, pulls the mag, seats a fresh one, and returns. */
+  #poseReload(J, p) {
+    if (p < 0.35) _lt.copy(RLD_GRIP).lerp(RLD_MAGOUT, p / 0.35);          // grab + pull
+    else if (p < 0.7) _lt.copy(RLD_MAGOUT).lerp(RLD_MAGIN, (p - 0.35) / 0.35); // swap + insert
+    else _lt.copy(RLD_MAGIN).lerp(RLD_GRIP, (p - 0.7) / 0.3);             // seat + return
+    this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+    this.#leftTarget.updateWorldMatrix(true, false);
+    this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
+  }
+
+  /** A simple combat knife held in the off hand during a melee swing. */
+  #buildKnife() {
+    const g = new THREE.Group();
+    const steel = new THREE.MeshStandardMaterial({ color: 0xc7ccd4, metalness: 0.9, roughness: 0.35 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1a1c22, metalness: 0.5, roughness: 0.7 });
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.22, 0.04), steel); blade.position.y = -0.20;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.06, 4), steel); tip.position.y = -0.33; tip.rotation.z = Math.PI; tip.scale.set(0.7, 1, 1.4);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.05), dark); guard.position.y = -0.08;
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.11, 0.045), dark); handle.position.y = -0.015;
+    g.add(blade, tip, guard, handle);
+    g.rotation.set(-1.3, 0, 0); // pitch the blade forward out of the fist
+    g.position.set(0, -0.04, 0);
+    return g;
   }
 
   /** Bent-knee stance for natural-looking legs; arms are driven by IK. */
@@ -372,6 +505,28 @@ export class PlayerBodySystem extends System {
     const kickVis = this.#kick * (vrHip + (vrAds - vrHip) * ads);
     _gunOff.z += kickVis * 0.05;   // kick back toward the shoulder
     _gunOff.y += kickVis * 0.012;  // and a touch up
+    // one-handed action: drop the gun off-screen (right hand keeps it) while the
+    // left hand does the gesture. Eased so it dips out and comes back smoothly.
+    const A = weaponAction;
+    // grenade throw follow-through: fires briefly when a cook is released
+    const cookActive = !!A.cook;
+    if (this.#wasCooking && !cookActive) this.#throwT = THROW_TIME;
+    this.#wasCooking = cookActive;
+    if (this.#throwT > 0) this.#throwT = Math.max(0, this.#throwT - dtc);
+    if (this.#inspectT > 0) this.#inspectT = Math.max(0, this.#inspectT - dtc);
+    const offAction = A.melee > 0 || cookActive || !!A.drink || this.#throwT > 0 || this.#inspectT > 0;
+    this.#holsterAmt = damp(this.#holsterAmt, offAction ? 1 : 0, 14, dtc);
+    _gunOff.x += HOLSTER.x * this.#holsterAmt;
+    _gunOff.y += HOLSTER.y * this.#holsterAmt;
+    _gunOff.z += HOLSTER.z * this.#holsterAmt;
+
+    // walk-bob the GUN in sync with the footfall cadence so the weapon rides with
+    // the body's bob (the hands IK to it, so gun + hands move together). Vertical
+    // dips twice per stride (footfalls); a gentle horizontal figure-8 side to side.
+    // Faded out by ADS/stance-upright so aiming and prone stay steady.
+    const bobAmt = wa * upW * swayGate;
+    _gunOff.y += -(0.5 - 0.5 * Math.cos(2 * this.#walkPhase)) * GUN_BOB_V * g.bob / 0.035 * bobAmt;
+    _gunOff.x += Math.sin(this.#walkPhase) * GUN_BOB_H * bobAmt;
 
     // gun tracks the FULL camera aim (position + orientation) — it stays exactly
     // where it was. The ARMS are what move out of the way at up-aim (see #solveArm).
@@ -387,8 +542,25 @@ export class PlayerBodySystem extends System {
     this.#gunHolder.updateWorldMatrix(true, true);
     this.#body.updateWorldMatrix(true, true);
     if (J && this.#gunAnchors) {
+      // RIGHT hand always holds the gun (follows it off-screen when holstered)
       if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
-      if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+      // LEFT hand: reload works the mag (gun stays up); a one-handed action (melee /
+      // grenade / drink / inspect) holsters the gun and takes the hand; otherwise it
+      // rests on the support grip.
+      if (w && w.reloading && J.shoulderL) {
+        if (this.#knife) this.#knife.visible = false;
+        if (this.#grenade) this.#grenade.visible = false;
+        if (this.#bottle) this.#bottle.visible = false;
+        this.#poseReload(J, w.reloadProgress || 0);
+      } else {
+        const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
+        if (!tookLeft) {
+          if (this.#knife) this.#knife.visible = false;
+          if (this.#grenade) this.#grenade.visible = false;
+          if (this.#bottle) this.#bottle.visible = false;
+          if (this.#gunAnchors.gripL && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripL, -1);
+        }
+      }
     }
     this.#updateFlash();
   }
