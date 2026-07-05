@@ -65,19 +65,24 @@ export class CookbookMenu {
         </div>
         <div class="cb-tabs">${tabs.map(([id, label]) => `<button class="cb-tab${id === 'all' ? ' active' : ''}" data-sort="${id}"><span>${label}</span></button>`).join('')}</div>
       </div>
-      <div class="cb-book">
-        <div class="cb-page cb-left">
-          <div class="cb-recipes"></div>
-          <button class="cb-arrow cb-prev" aria-label="Previous page">‹</button>
-          <div class="cb-folio cb-folio-l"></div>
+      <div class="cb-tome">
+        <span class="cb-guard tl"></span><span class="cb-guard tr"></span>
+        <span class="cb-guard bl"></span><span class="cb-guard br"></span>
+        <span class="cb-ribbon"></span>
+        <div class="cb-book">
+          <div class="cb-page cb-left">
+            <div class="cb-recipes"></div>
+            <button class="cb-arrow cb-prev" aria-label="Previous page">‹</button>
+            <div class="cb-folio cb-folio-l"></div>
+          </div>
+          <div class="cb-spine"></div>
+          <div class="cb-page cb-right">
+            <div class="cb-recipes"></div>
+            <button class="cb-arrow cb-next" aria-label="Next page">›</button>
+            <div class="cb-folio cb-folio-r"></div>
+          </div>
+          <div class="cb-leaf"></div>
         </div>
-        <div class="cb-spine"></div>
-        <div class="cb-page cb-right">
-          <div class="cb-recipes"></div>
-          <button class="cb-arrow cb-next" aria-label="Next page">›</button>
-          <div class="cb-folio cb-folio-r"></div>
-        </div>
-        <div class="cb-leaf"></div>
       </div>
       <div class="cb-foot"><span>[← →] Flip · Click a recipe's Trade to convert · [Esc] Close</span><div class="cb-back">Close</div></div>`;
     document.body.appendChild(el);
