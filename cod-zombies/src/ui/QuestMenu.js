@@ -96,11 +96,14 @@ export class QuestMenu {
     this.#grid.innerHTML = list.map((q) => {
       const rc = rewardColor(q.reward);
       const tracked = this.#quests.isTracked(q.id);
+      // wrapper carries the form-fitting drop-shadow shard (see questmenu.css)
       return `
-      <div class="qm-card${tracked ? ' tracked' : ''}${q.id === this.#selId ? ' sel' : ''}" data-id="${q.id}" style="--rc:${rc}">
-        <div class="qm-card-h"><span class="qm-card-name">${q.name}</span>${tracked ? '<span class="qm-card-flag">Tracked</span>' : ''}</div>
-        <div class="qm-card-obj">${q.obj}</div>
-        <div class="qm-card-rw"><i></i><span>${rewardLabel(q.reward)}</span></div>
+      <div class="qm-card-wrap">
+        <div class="qm-card${tracked ? ' tracked' : ''}${q.id === this.#selId ? ' sel' : ''}" data-id="${q.id}" style="--rc:${rc}">
+          <div class="qm-card-h"><span class="qm-card-name">${q.name}</span>${tracked ? '<span class="qm-card-flag">Tracked</span>' : ''}</div>
+          <div class="qm-card-obj">${q.obj}</div>
+          <div class="qm-card-rw"><i></i><span>${rewardLabel(q.reward)}</span></div>
+        </div>
       </div>`;
     }).join('');
 
@@ -111,7 +114,7 @@ export class QuestMenu {
     const q = this.#quests.flat().find((x) => x.id === id);
     if (!q) return;
     this.#selId = id;
-    for (const c of this.#grid.children) c.classList.toggle('sel', c.dataset.id === id);
+    for (const c of this.#grid.querySelectorAll('.qm-card')) c.classList.toggle('sel', c.dataset.id === id);
 
     const rc = rewardColor(q.reward);
     const diff = DIFFICULTIES.find((d) => d.id === q.difficulty);
