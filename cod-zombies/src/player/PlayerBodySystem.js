@@ -68,14 +68,16 @@ const TORSO_LEAN = -0.24;      // base recline; kept modest so the shoulders sta
                                // in reach of the gun even with the bigger pullback
 const TORSO_LEAN_DOWN = 0.0;   // no extra recline on down-aim — keep the torso natural
                                // and visible with the legs (body is pushed back instead)
-const DOWN_PULLBACK = 0.30;    // extra pushback per rad of downward pitch: opens a clear
+const DOWN_PULLBACK = 0.22;    // extra pushback per rad of downward pitch: opens a clear
                                // sightline to the floor while keeping the torso in view
+                               // (torso nudged forward vs. before for better balance)
 // NOTE sign: after the 180° body facing, NEGATIVE thigh.x swings the legs
 // FORWARD (world -z); positive kicks them backward (reads as "backwards legs").
 // Give the thighs a static forward angle so the knees + feet sit forward/under
 // the hip; swing them further forward as you look down so they fill the view.
 const THIGH_BASE = -0.28;
-const THIGH_FLEX_DOWN = 0.45;  // extra forward hip flex per rad of downward pitch
+const THIGH_FLEX_DOWN = 0.20;  // extra forward hip flex per rad of downward pitch (kept
+                               // small so the legs hang more naturally, not leaned forward)
 // pull the whole body back off the camera so the chest isn't "inside the head".
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
