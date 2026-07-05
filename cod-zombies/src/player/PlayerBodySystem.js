@@ -78,6 +78,18 @@ const DOWN_PULLBACK = 0.22;    // extra pushback per rad of downward pitch: open
 const THIGH_BASE = -0.28;
 const THIGH_FLEX_DOWN = 0.20;  // extra forward hip flex per rad of downward pitch (kept
                                // small so the legs hang more naturally, not leaned forward)
+// --- locomotion: a sin-phase walk/run cycle for the legs + a footfall body bob.
+// Per-gait amplitudes; the phase advances with horizontal speed so cadence tracks
+// how fast you actually move. Everything scales by #walkAmt (eases in/out of motion)
+// so a standing player is byte-identical to the static pose.
+const KNEE_BASE = 0.5;         // resting knee bend (matches poseStance)
+const FOOT_BASE = -0.2;        // resting ankle (matches poseStance)
+const STEP_K = 1.5;            // phase advance per (m/s): sets footstep cadence vs. speed
+const LOCO = {
+  walk:   { stride: 0.55, knee: 0.60, bob: 0.035, sway: 0.05, lift: 0.12, cadence: 1.0,  twist: 0.06 },
+  sprint: { stride: 0.85, knee: 1.00, bob: 0.06,  sway: 0.09, lift: 0.20, cadence: 1.15, twist: 0.10 },
+  crouch: { stride: 0.35, knee: 0.45, bob: 0.02,  sway: 0.03, lift: 0.08, cadence: 1.0,  twist: 0.04 },
+};
 // pull the whole body back off the camera so the chest isn't "inside the head".
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
@@ -105,6 +117,7 @@ export class PlayerBodySystem extends System {
   #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
   #gunHolder = new THREE.Group();
   #gunAnchors = null; #gunKey = null; #gunSightY = 0.08; #aimPitch = 0;
+  #walkAmt = 0; #walkPhase = 0; #idle = 0; #restHipY = 0.94; // locomotion state
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -166,6 +179,7 @@ export class PlayerBodySystem extends System {
     if (J?.head) J.head.visible = false; // the camera lives inside the head
     this.#poseStance(J);
     rig.visible = this.#enabled;
+    this.#restHipY = rig.userData?.rest?.hipY ?? 0.94;
     this.#scene.add(rig);
     this.#body = rig;
     this.#built = true;
@@ -240,12 +254,39 @@ export class PlayerBodySystem extends System {
     // fully-extended arm spearing across the view. Ramps in with up-pitch.
     const up = clampN((tag.pitch - ARMS_TUCK_START) / ARMS_TUCK_RANGE, 0, 1);
     const upLean = up * up * (3 - 2 * up); // smoothstep
-    if (J?.torso) J.torso.rotation.x = TORSO_LEAN - down * TORSO_LEAN_DOWN + upLean * TORSO_LEAN_UP;
+    const torsoLean = TORSO_LEAN - down * TORSO_LEAN_DOWN + upLean * TORSO_LEAN_UP;
     // keep a natural forward hip flex + bent knee as you look down (knees stay bent
     // from poseStance — no stretching the legs straight).
     const thighFlex = THIGH_BASE - down * THIGH_FLEX_DOWN; // negative = forward
-    if (J?.thighL) J.thighL.rotation.x = thighFlex;
-    if (J?.thighR) J.thighR.rotation.x = thighFlex;
+
+    // --- LOCOMOTION: blend a walk/run cycle over the base pose, scaled by #walkAmt
+    // (0 when standing → identical to the static pose). Cadence tracks real speed.
+    const dtc = dt || 0.016;
+    this.#idle += dtc;
+    const spd = Math.hypot(tag.velocity.x, tag.velocity.z);
+    const st = tag.state;
+    const moving = tag.grounded && spd > 0.6 && (st === 'walk' || st === 'sprint' || st === 'crouch');
+    this.#walkAmt = damp(this.#walkAmt, moving ? 1 : 0, 8, dtc);
+    const g = LOCO[st === 'sprint' ? 'sprint' : st === 'crouch' ? 'crouch' : 'walk'];
+    this.#walkPhase += dtc * spd * STEP_K * g.cadence;
+    const wa = this.#walkAmt;
+    const swL = Math.sin(this.#walkPhase), swR = Math.sin(this.#walkPhase + Math.PI);
+    const breathe = Math.sin(this.#idle * 1.6) * 0.012 * (1 - wa); // gentle idle sway
+
+    // legs: anti-phase fore/aft thigh swing; knees flex on the rear/lift half; ankles roll
+    if (J?.thighL) J.thighL.rotation.x = thighFlex - swL * g.stride * wa;
+    if (J?.thighR) J.thighR.rotation.x = thighFlex - swR * g.stride * wa;
+    if (J?.kneeL) J.kneeL.rotation.x = KNEE_BASE + g.knee * Math.max(0, -swL) * wa;
+    if (J?.kneeR) J.kneeR.rotation.x = KNEE_BASE + g.knee * Math.max(0, -swR) * wa;
+    if (J?.footL) J.footL.rotation.x = FOOT_BASE + swL * g.lift * wa;
+    if (J?.footR) J.footR.rotation.x = FOOT_BASE + swR * g.lift * wa;
+    // body: footfall dip (twice per cycle), side-sway + forward breathe on the torso,
+    // and a little pelvic counter-twist so the walk reads as weight shifting
+    if (J?.hips) {
+      J.hips.position.y = this.#restHipY - g.bob * (0.5 - 0.5 * Math.cos(2 * this.#walkPhase)) * wa;
+      J.hips.rotation.y = swL * g.twist * wa;
+    }
+    if (J?.torso) { J.torso.rotation.x = torsoLean + breathe; J.torso.rotation.z = swL * g.sway * wa; }
 
     // place the gun in front of the eyes, aimed along the camera, then reach the
     // hands to its grip sockets
