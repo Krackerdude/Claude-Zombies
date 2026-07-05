@@ -98,6 +98,14 @@ const SWAY_YAW_K = 0.035;      // gun yaw-sway per rad/s of look turn
 const SWAY_PITCH_K = 0.028;    // gun pitch-sway per rad/s of look tilt
 const SWAY_MAX = 0.14;         // clamp on the sway offset (rad)
 const STRAFE_LEAN = 0.11;      // gun roll (lean) when moving left/right
+// --- STANCE: crouch / slide / prone reshape the whole body (blended from standing).
+// hipY = hip-joint height (world, above the feet); pitch = whole-body forward tilt at
+// the hips; knee/thigh/torso = extra joint bends layered on the aim pose.
+const STANCE = {
+  crouch: { hipY: 0.56, pitch: 0.12,  knee: 1.15, thigh: -0.80, torso: 0.12 },
+  slide:  { hipY: 0.46, pitch: -0.35, knee: 0.55, thigh: -0.90, torso: -0.30 },
+  prone:  { hipY: 0.22, pitch: 1.32,  knee: 0.30, thigh: 0.10,  torso: 0.05 },
+};
 // pull the whole body back off the camera so the chest isn't "inside the head".
 // This is bounded by arm reach at LEVEL aim (the gun is furthest forward there);
 // looking down brings the gun close to the body so the dynamic lean is free.
@@ -127,6 +135,7 @@ export class PlayerBodySystem extends System {
   #gunAnchors = null; #gunKey = null; #gunSightY = 0.08; #aimPitch = 0;
   #walkAmt = 0; #walkPhase = 0; #idle = 0; #restHipY = 0.94; // locomotion state
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
+  #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
 
   init() {
@@ -240,13 +249,23 @@ export class PlayerBodySystem extends System {
     this.#body.visible = true;
     this.#gunHolder.visible = true;
 
+    // eased stance blends (crouch / slide / prone), derived from the stance machine
+    const dtc = dt || 0.016;
+    const stance = tag.stance;
+    this.#crouchAmt = damp(this.#crouchAmt, stance === 'crouch' ? 1 : 0, 10, dtc);
+    this.#slideAmt = damp(this.#slideAmt, stance === 'slide' ? 1 : 0, 13, dtc);
+    this.#proneAmt = damp(this.#proneAmt, stance === 'prone' ? 1 : 0, 9, dtc);
+    const cr = this.#crouchAmt, sl = this.#slideAmt, pr = this.#proneAmt;
+    const stand = clampN(1 - cr - sl - pr, 0, 1);
+
     // stand the rig on the ground under the interpolated capsule; face the aim
     _pos.lerpVectors(t.previousPosition, t.position, this.#time.alpha);
     const feetY = _pos.y - (tag.halfHeight + PlayerConfig.capsuleRadius);
     // pull the body back along the (horizontal) aim so the chest isn't at the eye;
-    // push it back FURTHER as you look down for a clear sightline to the floor.
+    // push it back FURTHER as you look down. Prone lays out forward, so ease the
+    // pullback off there.
     const down = Math.max(0, -tag.pitch);
-    const pull = PULLBACK + down * DOWN_PULLBACK;
+    const pull = (PULLBACK + down * DOWN_PULLBACK) * (1 - 0.7 * pr);
     _fwd.set(0, 0, -1).applyQuaternion(this.#camera.quaternion); _fwd.y = 0; _fwd.normalize();
     this.#body.position.set(_pos.x - _fwd.x * pull, feetY, _pos.z - _fwd.z * pull);
     this.#body.rotation.y = tag.yaw + Math.PI; // rig faces +z; player forward is -z
@@ -268,15 +287,16 @@ export class PlayerBodySystem extends System {
     // from poseStance — no stretching the legs straight).
     const thighFlex = THIGH_BASE - down * THIGH_FLEX_DOWN; // negative = forward
 
-    // --- LOCOMOTION: blend a walk/run cycle over the base pose, scaled by #walkAmt
-    // (0 when standing → identical to the static pose). Cadence tracks real speed.
-    const dtc = dt || 0.016;
+    // --- LOCOMOTION + STANCE: a walk/run cycle blended over the base pose, plus a
+    // stance offset that lowers + reshapes the whole body (crouch / slide / prone).
+    // Everything scales by #walkAmt / stance blends, so standing is identical to the
+    // static pose. Cadence tracks real horizontal speed.
     this.#idle += dtc;
     const spd = Math.hypot(tag.velocity.x, tag.velocity.z);
     const st = tag.state;
-    const moving = tag.grounded && spd > 0.6 && (st === 'walk' || st === 'sprint' || st === 'crouch');
+    const moving = tag.grounded && spd > 0.6 && (st === 'walk' || st === 'sprint' || st === 'crouch' || st === 'prone');
     this.#walkAmt = damp(this.#walkAmt, moving ? 1 : 0, 8, dtc);
-    const g = LOCO[st === 'sprint' ? 'sprint' : st === 'crouch' ? 'crouch' : 'walk'];
+    const g = LOCO[st === 'sprint' ? 'sprint' : (cr > 0.5 || st === 'crouch') ? 'crouch' : 'walk'];
     this.#walkPhase += dtc * spd * STEP_K * g.cadence;
     const wa = this.#walkAmt;
     const swL = Math.sin(this.#walkPhase), swR = Math.sin(this.#walkPhase + Math.PI);
@@ -288,21 +308,28 @@ export class PlayerBodySystem extends System {
     const fc = spd > 0.2 ? (tag.velocity.x * -sy + tag.velocity.z * -cy) / spd : 1;
     const lc = spd > 0.2 ? (tag.velocity.x * cy + tag.velocity.z * -sy) / spd : 0;
 
-    // legs: swing along the move direction — fore/aft (x, scaled by fc) + lateral
-    // splay (z, scaled by lc). Knees flex on the lift half; ankles roll fore/aft.
-    if (J?.thighL) { J.thighL.rotation.x = thighFlex - swL * g.stride * fc * wa; J.thighL.rotation.z = 0.04 + swL * g.stride * lc * STRAFE_SPLAY * wa; }
-    if (J?.thighR) { J.thighR.rotation.x = thighFlex - swR * g.stride * fc * wa; J.thighR.rotation.z = -0.04 + swR * g.stride * lc * STRAFE_SPLAY * wa; }
-    if (J?.kneeL) J.kneeL.rotation.x = KNEE_BASE + g.knee * Math.max(0, -swL) * wa;
-    if (J?.kneeR) J.kneeR.rotation.x = KNEE_BASE + g.knee * Math.max(0, -swR) * wa;
-    if (J?.footL) J.footL.rotation.x = FOOT_BASE + swL * g.lift * fc * wa;
-    if (J?.footR) J.footR.rotation.x = FOOT_BASE + swR * g.lift * fc * wa;
-    // body: footfall dip (twice per cycle), side-sway + forward breathe on the torso,
-    // and a little pelvic counter-twist so the walk reads as weight shifting
+    // stance-blended base pose: lerp the standing/aim values toward each stance target
+    const hipYBase = this.#restHipY * stand + STANCE.crouch.hipY * cr + STANCE.slide.hipY * sl + STANCE.prone.hipY * pr;
+    const bodyPitch = STANCE.crouch.pitch * cr + STANCE.slide.pitch * sl + STANCE.prone.pitch * pr;
+    const kneeBase = KNEE_BASE * stand + STANCE.crouch.knee * cr + STANCE.slide.knee * sl + STANCE.prone.knee * pr;
+    const thighBase = thighFlex * stand + STANCE.crouch.thigh * cr + STANCE.slide.thigh * sl + STANCE.prone.thigh * pr;
+    const torsoBase = torsoLean * stand + STANCE.crouch.torso * cr + STANCE.slide.torso * sl + STANCE.prone.torso * pr;
+    const upW = clampN(1 - sl - pr, 0, 1); // upright walk cycle plays for stand + crouch
+    const crawl = pr * wa;                 // army-crawl leg flutter (prone only)
+
+    // legs: directional walk swing (scaled by the upright factor) + prone crawl flutter
+    if (J?.thighL) { J.thighL.rotation.x = thighBase - swL * g.stride * fc * wa * upW + swL * 0.26 * crawl; J.thighL.rotation.z = 0.04 + swL * g.stride * lc * STRAFE_SPLAY * wa * upW; }
+    if (J?.thighR) { J.thighR.rotation.x = thighBase - swR * g.stride * fc * wa * upW + swR * 0.26 * crawl; J.thighR.rotation.z = -0.04 + swR * g.stride * lc * STRAFE_SPLAY * wa * upW; }
+    if (J?.kneeL) J.kneeL.rotation.x = kneeBase + (g.knee * wa * upW + 0.5 * crawl) * Math.max(0, -swL);
+    if (J?.kneeR) J.kneeR.rotation.x = kneeBase + (g.knee * wa * upW + 0.5 * crawl) * Math.max(0, -swR);
+    if (J?.footL) J.footL.rotation.x = FOOT_BASE + swL * g.lift * fc * wa * upW;
+    if (J?.footR) J.footR.rotation.x = FOOT_BASE + swR * g.lift * fc * wa * upW;
+    // body: stance hip height + whole-body pitch, footfall dip, sway/breathe, pelvic twist
     if (J?.hips) {
-      J.hips.position.y = this.#restHipY - g.bob * (0.5 - 0.5 * Math.cos(2 * this.#walkPhase)) * wa;
-      J.hips.rotation.y = swL * g.twist * wa;
+      J.hips.position.y = hipYBase - g.bob * (0.5 - 0.5 * Math.cos(2 * this.#walkPhase)) * wa * upW;
+      J.hips.rotation.set(bodyPitch, swL * g.twist * wa * upW, 0);
     }
-    if (J?.torso) { J.torso.rotation.x = torsoLean + breathe; J.torso.rotation.z = swL * g.sway * wa; }
+    if (J?.torso) { J.torso.rotation.x = torsoBase + breathe; J.torso.rotation.z = swL * g.sway * wa * upW; }
 
     // --- GUN LOOK-SWAY + STRAFE LEAN (applied to the holder below in the placement) ---
     const yawVel = shortAngle(tag.yaw - this.#lastYaw) / dtc; this.#lastYaw = tag.yaw;
