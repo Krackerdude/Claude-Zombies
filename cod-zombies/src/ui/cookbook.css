@@ -37,8 +37,10 @@
 .cb-sub { margin-top: 3px; font-size: 0.86rem; letter-spacing: 0.05em; color: #b39c72; text-shadow: 0 1px 4px #000; }
 .cb-refresh { color: #e6a94a; font-weight: 700; }
 
-/* aged-paper index tabs that stick up from behind the tome's top edge */
-.cb-tabs { display: flex; justify-content: center; align-items: flex-end; gap: 6px; margin-bottom: -12px; position: relative; z-index: 1; }
+/* aged-paper index tabs that stick up from behind the tome's top edge. Anchored
+   at a FIXED offset (not the header's flow) so real-font title metrics can't push
+   the row down into the tome and clip the labels (esp. in fullscreen). */
+.cb-tabs { position: absolute; top: 66px; left: 0; right: 0; display: flex; justify-content: center; align-items: flex-end; gap: 6px; z-index: 1; }
 .cb-tab {
   appearance: none; cursor: pointer; font: inherit; padding: 8px 18px 16px;
   font-weight: 700; font-size: 0.72rem; letter-spacing: 0.13em; text-transform: uppercase; color: #5a4020;
