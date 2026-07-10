@@ -187,7 +187,9 @@ export class PlayerBodySystem extends System {
   #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
   #gunHolder = new THREE.Group(); #gunHolderL = new THREE.Group(); // R gun; L gun (dual-wield)
   #gunAnchors = null; #gunAnchorsL = null; #dual = false;
-  #gunKey = null; #gunSightY = 0.08; #gunDrop = 0; #aimPitch = 0;
+  #gunKey = null; #gunSightY = 0.08; #gunDrop = 0; #gunPull = 0; #aimPitch = 0;
+  #animParts = null; #cylAngle = 0; #cylTarget = 0; #barrelVel = 0; #prevFired = 0; // revolver cylinder / minigun barrels
+  #animPartsL = null; // left twin (dual-wield) animated parts
   #walkAmt = 0; #walkPhase = 0; #idle = 0; #restHipY = 0.94; // locomotion state
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
@@ -459,11 +461,22 @@ export class PlayerBodySystem extends System {
     if (w.data.pap) this.#applyPap(built.group);
     this.#killRaycast(built.group);
     this.#gunHolder.add(built.group);
+    // capture animated sub-groups (revolver cylinder / minigun barrel cluster)
+    // so the FP hand viewmodel spins them exactly like the overlay Viewmodel does
+    const ud = built.group.userData || {};
+    this.#animParts = (ud.cylinder || ud.barrelSpin) ? ud : null;
+    this.#animPartsL = null;
+    this.#cylAngle = this.#cylTarget = this.#barrelVel = this.#prevFired = 0;
+    if (ud.cylinder) ud.cylinder.rotation.z = 0;
+    if (ud.barrelSpin) ud.barrelSpin.rotation.z = 0;
     this.#gunAnchors = built.anchors || null;
     this.#gunSightY = built.sightY ?? 0.08; // sight height → ADS raise target
     // taller guns (scopes/tall sights) sit LOWER on screen at the hip for visibility
     // (ADS is unaffected — it centres on the sight line regardless)
     this.#gunDrop = clampN(((built.height ?? 0.08) - 0.08) * 0.6, 0, 0.14);
+    // per-weapon pull-in: the Death Machine is a bulky two-hand minigun held tight
+    // to the chest — draw it back toward the player so the top-grip hold reads right
+    this.#gunPull = (w.data.modelName || w.data.name) === 'DEATH MACHINE' ? 0.12 : 0;
     // dual-wield: build a second, mirrored gun for the left hand
     if (w.data.dualWield) {
       const left = buildWeaponModel(w);
@@ -472,6 +485,9 @@ export class PlayerBodySystem extends System {
         this.#killRaycast(left.group);
         this.#gunHolderL.add(left.group);
         this.#gunHolderL.scale.set(-1, 1, 1); // mirror
+        const udL = left.group.userData || {};
+        this.#animPartsL = (udL.cylinder || udL.barrelSpin) ? udL : null;
+        if (udL.cylinder) udL.cylinder.rotation.z = 0;
         this.#gunAnchorsL = left.anchors || null;
         this.#dual = true; this.#gunHolderL.visible = this.#enabled;
       }
@@ -488,6 +504,27 @@ export class PlayerBodySystem extends System {
   #applyPap(group) {
     const camo = papCamo();
     group.traverse((o) => { if (o.isMesh && o.material?.userData?.papSwap) o.material = camo; });
+  }
+
+  /** Spin the held gun's animated sub-groups — revolver cylinder advances one
+   *  chamber per shot (eased); the minigun barrel cluster spins up while firing and
+   *  coasts down after. Mirrors the overlay Viewmodel so both look identical. */
+  #driveGunAnim(w, dt) {
+    if (!this.#animParts) { this.#prevFired = w?.justFired || 0; return; }
+    const ud = this.#animParts;
+    const jf = w?.justFired || 0;
+    if (ud.cylinder) {
+      if (jf > this.#prevFired + 1e-4) this.#cylTarget += (Math.PI * 2) / (ud.chambers || 6);
+      this.#cylAngle += (this.#cylTarget - this.#cylAngle) * Math.min(1, dt * 20);
+      ud.cylinder.rotation.z = this.#cylAngle;
+      if (this.#animPartsL?.cylinder) this.#animPartsL.cylinder.rotation.z = this.#cylAngle;
+    }
+    if (ud.barrelSpin) {
+      const firing = jf > 0;
+      this.#barrelVel += ((firing ? 30 : 0) - this.#barrelVel) * Math.min(1, dt * (firing ? 5 : 1.5));
+      ud.barrelSpin.rotation.z += this.#barrelVel * dt;
+    }
+    this.#prevFired = jf;
   }
 
   /** Place a gun holder at a world position, oriented to the camera aim with the
@@ -615,6 +652,7 @@ export class PlayerBodySystem extends System {
     _adsLocal.set(0, -this.#gunSightY, -0.34);
     _gunOff.set(lerp(GUN_LOCAL.x, _adsLocal.x, ads), lerp(GUN_LOCAL.y, _adsLocal.y, ads), lerp(GUN_LOCAL.z, _adsLocal.z, ads));
     _gunOff.y -= this.#gunDrop * (1 - ads); // taller guns ride lower at the hip (not in ADS)
+    _gunOff.z += this.#gunPull * (1 - ads); // per-weapon pull toward the player (Death Machine)
     // WEIGHTY RELOAD: ease the whole gun down + tilt it left, with a two-beat mag-swap
     // punch (a down-tug when the mag drops, an up-snap when it seats). Generic — no
     // per-gun content. The lean/pitch are applied to the holder just below.
@@ -647,6 +685,7 @@ export class PlayerBodySystem extends System {
     const w = this.#weapons?.current;
     if (w && w.justFired > 0) this.#kick = Math.min(1, this.#kick + (dt || 0.016) * 18);
     else this.#kick += (0 - this.#kick) * Math.min(1, (dt || 0.016) * 9);
+    this.#driveGunAnim(w, dtc); // revolver cylinder advance + minigun barrel spin
     const vrHip = w?.data.visualRecoilHip ?? 1.0;
     const vrAds = w?.data.visualRecoilAds ?? 0.4;
     const kickVis = this.#kick * (vrHip + (vrAds - vrHip) * ads);

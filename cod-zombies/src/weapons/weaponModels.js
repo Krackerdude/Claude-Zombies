@@ -3146,6 +3146,10 @@ const WEAPON_SOCKETS = {
   'RAY GUN': { gripR: [0, -0.085, -0.04] },
   // Thundergun — one hand on the BOTTOM grip, one on the SIDE of the forward body.
   'THUNDERGUN': { gripR: [0, -0.085, -0.04], gripL: [0, -0.05, -0.24] },
+  // Death Machine minigun: the dominant (usually-trigger) hand grabs the TOP carry
+  // handle to steady it; the support arm stays BENT on the rear pistol grip, pulled
+  // in tight to the body — a classic hip-fire minigun hold.
+  'DEATH MACHINE': { gripR: [0, 0.085, -0.1], gripL: [0, -0.105, 0.07] },
 };
 
 function socketMarker(name) {
