@@ -3139,9 +3139,9 @@ const WEAPON_SOCKETS = {
   // 'AN-94': { gripL: [0, -0.03, -0.42] },
   // New Army's walnut plow-handle sits well BACK (z≈+0.15), not up by the cylinder
   // like a modern pistol — put both grips on the actual handle.
-  'NEW ARMY': { gripR: [0, -0.085, 0.15], gripL: [0.02, -0.12, 0.15] },
+  'NEW ARMY': { gripR: [0, -0.155, 0.15], gripL: [0.02, -0.185, 0.15] },
   // Executioner (Judge) revolver — same deal, its rubber grip sits back at z≈+0.18.
-  'EXECUTIONER': { gripR: [0, -0.085, 0.18], gripL: [0.02, -0.12, 0.18] },
+  'EXECUTIONER': { gripR: [0, -0.155, 0.18], gripL: [0.02, -0.185, 0.18] },
 };
 
 function socketMarker(name) {
