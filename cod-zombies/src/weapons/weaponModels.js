@@ -3124,7 +3124,7 @@ const SOCKET_ORDER = ['gripR', 'gripL', 'muzzle', 'ads', 'mag', 'shell'];
 const CLASS_SOCKETS = {
   pistol:       { gripR: [0, -0.085, 0.01], gripL: [-0.02, -0.11, -0.06], mag: [0, -0.13, -0.005], shell: [0.03, 0.04, -0.03] },
   smg:          { gripR: [0, -0.075, 0.05], gripL: [0, -0.02, -0.28],     mag: [0, -0.12, -0.1],   shell: [0.035, 0.03, -0.05] },
-  assaultRifle: { gripR: [0, -0.085, 0.06], gripL: [0, -0.03, -0.4],      mag: [0, -0.11, -0.14],  shell: [0.035, 0.02, -0.06] },
+  assaultRifle: { gripR: [0, -0.085, 0.06], gripL: [0, -0.13, -0.4],      mag: [0, -0.11, -0.14],  shell: [0.035, 0.02, -0.06] },
   hmg:          { gripR: [0, -0.085, 0.07], gripL: [0, -0.03, -0.42],     mag: [0, -0.12, -0.05],  shell: [0.04, 0.02, -0.06] },
   shotgun:      { gripR: [0, -0.065, 0.08], gripL: [0, -0.03, -0.3],      mag: [0, -0.05, -0.2],   shell: [0.035, 0.03, -0.04] },
   sniper:       { gripR: [0, -0.085, 0.06], gripL: [0, -0.03, -0.36],     mag: [0, -0.11, -0.05],  shell: [0.035, 0.03, -0.05] },
@@ -3169,7 +3169,7 @@ function attachSockets(model, weapon, showMarkers, box) {
   // the gun's length, so the hand reaches a logical hold (longer gun → farther out,
   // within reach) instead of floating at a fixed class z. Pistols keep the close hold.
   if (box && cat !== 'pistol' && !over.gripL && src.gripL) {
-    const z = Math.max(-0.44, Math.min(-0.16, box.min.z * 0.6)); // 60% toward the muzzle, capped to arm reach
+    const z = Math.max(-0.36, Math.min(-0.16, box.min.z * 0.6)); // toward the muzzle, capped so the support arm can actually reach it
     src.gripL = [src.gripL[0], src.gripL[1], z];
   }
   const anchors = {};
