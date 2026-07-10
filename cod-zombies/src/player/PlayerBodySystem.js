@@ -132,9 +132,9 @@ const PULL_REST = new THREE.Vector3(0.26, -0.40, -0.32);  // resting low-right (
 const PULL_GRAB = new THREE.Vector3(0.06, -0.04, -0.44);  // at the throwable's pin
 const PULL_AWAY = new THREE.Vector3(0.46, -0.48, -0.30);  // pin yanked back DOWN-RIGHT, off-screen the way it came
 const _rt = new THREE.Vector3();
-// perk drink: bring the bottle up to the mouth, chug, then toss it away
-const DRINK_MOUTH = new THREE.Vector3(0.0, -0.13, -0.22); // at the lips (lower + centred)
-const DRINK_TOSS = new THREE.Vector3(0.34, -0.30, -0.34);  // flung down-right
+// perk drink: bring the bottle up to the mouth, chug, then drop the hand off-screen
+const DRINK_MOUTH = new THREE.Vector3(-0.08, -0.11, -0.21); // at the lips, centred on the face
+const DRINK_TOSS = new THREE.Vector3(0.05, -0.66, -0.22);   // hand drops fully off the bottom
 // reload: a WEIGHTY generic motion (no per-gun keyframes) — lower + tilt the whole
 // weapon, with a two-beat mag-swap punch. The hands ride the gun; the support hand
 // dips a touch toward the mag on the swap.
