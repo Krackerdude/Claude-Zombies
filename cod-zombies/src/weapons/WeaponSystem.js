@@ -587,7 +587,8 @@ export class WeaponSystem extends System {
   // --- melee ---------------------------------------------------------------
   #tickMelee(dt) {
     if (this.#meleeCd > 0) this.#meleeCd = Math.max(0, this.#meleeCd - dt);
-    if (this.#meleeTimer <= 0 && this.#meleeCd <= 0 && this.#actions.pressed(Action.MELEE)) {
+    // no meleeing mid-reload — it used to interrupt/desync the reload
+    if (this.#meleeTimer <= 0 && this.#meleeCd <= 0 && !this.current.reloading && this.#actions.pressed(Action.MELEE)) {
       this.#meleeTimer = MELEE_TIME;
       this.#meleeHit = false;
       // lock onto a target up front and make it harmless for the whole swing,
