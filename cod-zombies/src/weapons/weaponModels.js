@@ -3120,7 +3120,7 @@ const SIGHT_Y = {
 const SOCKET_ORDER = ['gripR', 'gripL', 'muzzle', 'ads', 'mag', 'shell'];
 
 const CLASS_SOCKETS = {
-  pistol:       { gripR: [0, -0.085, 0.01], gripL: [-0.02, -0.11, -0.06], mag: [0, -0.13, -0.005], shell: [0.03, 0.04, -0.03] },
+  pistol:       { gripR: [0, -0.085, 0.01], gripL: [0.02, -0.14, 0.02],   mag: [0, -0.13, -0.005], shell: [0.03, 0.04, -0.03] },
   smg:          { gripR: [0, -0.075, 0.05], gripL: [0, -0.02, -0.28],     mag: [0, -0.12, -0.1],   shell: [0.035, 0.03, -0.05] },
   assaultRifle: { gripR: [0, -0.085, 0.06], gripL: [0, -0.03, -0.4],      mag: [0, -0.11, -0.14],  shell: [0.035, 0.02, -0.06] },
   hmg:          { gripR: [0, -0.085, 0.07], gripL: [0, -0.03, -0.42],     mag: [0, -0.12, -0.05],  shell: [0.04, 0.02, -0.06] },

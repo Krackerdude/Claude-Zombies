@@ -116,6 +116,9 @@ const PRONE_PUSHBACK = 0.62;   // shove the rig back when prone so the body trai
 // (held in the RIGHT hand) while the LEFT hand performs the gesture. The gun is
 // dropped by a holster offset; the left hand reaches keyframed CAMERA-LOCAL targets.
 const HOLSTER = new THREE.Vector3(0.10, -0.55, 0.14); // gun drop: right + down + back, off-screen
+// where the off hand holds the holstered gun during a one-handed action — a FIXED
+// camera-space rest so the arm stays put instead of chasing the swaying weapon
+const ANCHOR_REST = new THREE.Vector3(0.16, -0.72, -0.19);
 // melee left-hand knife-swing keyframes (camera-local: +x right, +y up, -z forward)
 const MEL_REST = new THREE.Vector3(-0.10, -0.44, -0.30); // off the bottom-left
 const MEL_WIND = new THREE.Vector3(0.26, 0.12, -0.42);   // wound up, upper-right
@@ -334,7 +337,7 @@ export class PlayerBodySystem extends System {
     if (!took) return false;
     this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
     this.#leftTarget.updateWorldMatrix(true, false);
-    this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1);
+    this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1, 1, true); // locked: no rotate-around
     return true;
   }
 
@@ -687,15 +690,22 @@ export class PlayerBodySystem extends System {
       } else {
         const tookLeft = this.#holsterAmt > 0.4 && J.shoulderL && this.#poseLeftAction(J, A);
         if (tookLeft) {
-          // one-handed action: the anchor hand keeps the (holstered, off-screen) gun
-          if (this.#gunAnchors.gripR && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripR, 1);
+          // one-handed action: the anchor hand keeps the (holstered) gun, but held
+          // at a FIXED, locked rest so it doesn't rotate around with the sway
+          if (J.shoulderR) {
+            this.#rightTarget.position.copy(ANCHOR_REST).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+            this.#rightTarget.updateWorldMatrix(true, false);
+            this.#solveArm(J.shoulderR, J.elbowR, this.#rightTarget, 1, 1, true);
+          }
         } else {
           // DEFAULT hold: dominant hand (screen-right = shoulderL) on the TRIGGER grip,
           // support hand (screen-left = shoulderR) on the FOREGRIP — no reaching across.
           this.#hideProps();
+          const isPistol = w?.data?.category === 'pistol';
           if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);
-          // support hand stretches onto a far foregrip so it lands on the gun
-          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, 1.28);
+          // support hand onto the foregrip (stretch for far handguards); but a PISTOL
+          // is held with BOTH hands cupping the grip — never reach forward to the barrel
+          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, isPistol ? 1 : 1.28);
         }
       }
     }
@@ -728,7 +738,7 @@ export class PlayerBodySystem extends System {
 
   /** Analytic two-bone IK: shoulder aims the upper arm, elbow bends by the law
    *  of cosines, a pole hint keeps the elbow down-and-out. Bones rest along -Y. */
-  #solveArm(sh, el, anchor, side, stretch = 1) {
+  #solveArm(sh, el, anchor, side, stretch = 1, lock = false) {
     let { L1, L2 } = ARM;
     anchor.getWorldPosition(_tgt);   // target (world)
     sh.getWorldPosition(_S);         // shoulder (world)
@@ -754,14 +764,21 @@ export class PlayerBodySystem extends System {
     // by the camera pitch around the camera's right axis so it tracks the AIM line —
     // the elbow then stays consistently below/behind the arm at every pitch.
     _poleBase.set(side * 0.35, -0.85, 0.4);
-    _camRight.set(1, 0, 0).applyQuaternion(this.#camera.quaternion);
-    _pole.copy(_poleBase).applyAxisAngle(_camRight, this.#aimPitch);
-    // when looking UP, blend the pole toward straight world-down so the elbows drop
-    // BELOW the grips and the forearms hang down out of the gun's line instead of
-    // splaying across it. (The gun itself doesn't move — only the arm routing.)
-    const up = clampN((this.#aimPitch - ARMS_TUCK_START) / ARMS_TUCK_RANGE, 0, 1);
-    const tuck = up * up * (3 - 2 * up) * ARMS_TUCK_MAX; // smoothstep
-    if (tuck > 0) _pole.lerp(_WORLD_DOWN, tuck).normalize();
+    if (lock) {
+      // LOCKED: a fixed, purely view-relative pole — no aim-pitch tracking, no
+      // up-aim tuck. The elbow keeps a constant angle so a scripted action arm
+      // stays put and can't rotate/flip around as you look about.
+      _pole.copy(_poleBase).applyQuaternion(this.#camera.quaternion);
+    } else {
+      _camRight.set(1, 0, 0).applyQuaternion(this.#camera.quaternion);
+      _pole.copy(_poleBase).applyAxisAngle(_camRight, this.#aimPitch);
+      // when looking UP, blend the pole toward straight world-down so the elbows drop
+      // BELOW the grips and the forearms hang down out of the gun's line instead of
+      // splaying across it. (The gun itself doesn't move — only the arm routing.)
+      const up = clampN((this.#aimPitch - ARMS_TUCK_START) / ARMS_TUCK_RANGE, 0, 1);
+      const tuck = up * up * (3 - 2 * up) * ARMS_TUCK_MAX; // smoothstep
+      if (tuck > 0) _pole.lerp(_WORLD_DOWN, tuck).normalize();
+    }
     _bendAxis.copy(_pole).addScaledVector(_dir, -_pole.dot(_dir)); // perpendicular to dir
     if (_bendAxis.lengthSq() < 1e-6) _bendAxis.set(0, -1, 0); else _bendAxis.normalize();
     _elbow.copy(_S).addScaledVector(_dir, a).addScaledVector(_bendAxis, h);
