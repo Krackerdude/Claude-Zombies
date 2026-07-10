@@ -136,7 +136,7 @@ const _rt = new THREE.Vector3();
 // lips (bottom-centre of the view), tilted back to pour; the hand follows to hold it.
 const BOTTLE_HOLD = new THREE.Vector3(0.0, -0.05, -0.28);   // bottle centre at the chug
 const BOTTLE_LOW = new THREE.Vector3(0.06, -0.52, -0.26);   // off-screen low (raise from / drop to)
-const BOTTLE_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 2.32); // neck → lips, base up
+const BOTTLE_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 2.15); // neck → lips, base up (a touch less tipped)
 const DRINK_HOLD = new THREE.Vector3(0.0, -0.17, -0.27);    // wrist grips the bottle body
 const DRINK_LOW = new THREE.Vector3(-0.02, -0.55, -0.28);
 const _mDrink = new THREE.Matrix4(); const _m2Drink = new THREE.Matrix4();
@@ -724,11 +724,12 @@ export class PlayerBodySystem extends System {
           // support hand (screen-left = shoulderR) on the FOREGRIP — no reaching across.
           this.#hideProps();
           if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);
-          // support hand onto the foregrip. Only ASSAULT RIFLES stretch the arm out
-          // to a far handguard; every other class (SMGs, pistols, etc.) is left
-          // exactly as it was — no arm-scaling.
-          const arStretch = w?.data?.category === 'assaultRifle' ? 1.6 : 1;
-          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, arStretch);
+          // support hand onto the foregrip. Only the LONG classes — assault rifles
+          // and LMGs — stretch the arm out to a far handguard; SMGs, pistols, etc.
+          // are left exactly as they were (no arm-scaling).
+          const cat = w?.data?.category;
+          const longGun = cat === 'assaultRifle' || cat === 'hmg';
+          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, longGun ? 1.6 : 1);
         }
       }
     }
