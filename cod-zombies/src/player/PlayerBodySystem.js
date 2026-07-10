@@ -723,12 +723,12 @@ export class PlayerBodySystem extends System {
           // DEFAULT hold: dominant hand (screen-right = shoulderL) on the TRIGGER grip,
           // support hand (screen-left = shoulderR) on the FOREGRIP — no reaching across.
           this.#hideProps();
-          const isPistol = w?.data?.category === 'pistol';
           if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);
-          // support hand onto the foregrip (stretch hard for far handguards so it
-          // actually reaches the bulk of a long rifle); but a PISTOL is held with
-          // BOTH hands cupping the grip — never reach forward to the barrel
-          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, isPistol ? 1 : 1.6);
+          // support hand onto the foregrip. Only ASSAULT RIFLES stretch the arm out
+          // to a far handguard; every other class (SMGs, pistols, etc.) is left
+          // exactly as it was — no arm-scaling.
+          const arStretch = w?.data?.category === 'assaultRifle' ? 1.6 : 1;
+          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, arStretch);
         }
       }
     }
