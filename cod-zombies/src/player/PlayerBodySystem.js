@@ -132,9 +132,15 @@ const PULL_REST = new THREE.Vector3(0.26, -0.40, -0.32);  // resting low-right (
 const PULL_GRAB = new THREE.Vector3(0.06, -0.04, -0.44);  // at the throwable's pin
 const PULL_AWAY = new THREE.Vector3(0.46, -0.48, -0.30);  // pin yanked back DOWN-RIGHT, off-screen the way it came
 const _rt = new THREE.Vector3();
-// perk drink: bring the bottle up to the mouth, chug, then drop the hand off-screen
-const DRINK_MOUTH = new THREE.Vector3(-0.08, -0.11, -0.21); // at the lips, centred on the face
-const DRINK_TOSS = new THREE.Vector3(0.05, -0.66, -0.22);   // hand drops fully off the bottom
+// perk drink — the bottle is placed directly in CAMERA space so its NECK meets the
+// lips (bottom-centre of the view), tilted back to pour; the hand follows to hold it.
+const BOTTLE_HOLD = new THREE.Vector3(0.0, -0.05, -0.28);   // bottle centre at the chug
+const BOTTLE_LOW = new THREE.Vector3(0.06, -0.52, -0.26);   // off-screen low (raise from / drop to)
+const BOTTLE_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 2.32); // neck → lips, base up
+const DRINK_HOLD = new THREE.Vector3(0.0, -0.17, -0.27);    // wrist grips the bottle body
+const DRINK_LOW = new THREE.Vector3(-0.02, -0.55, -0.28);
+const _mDrink = new THREE.Matrix4(); const _m2Drink = new THREE.Matrix4();
+const _vDrink = new THREE.Vector3(); const _qDrink = new THREE.Quaternion(); const _sDrink = new THREE.Vector3();
 // reload: a WEIGHTY generic motion (no per-gun keyframes) — lower + tilt the whole
 // weapon, with a two-beat mag-swap punch. The hands ride the gun; the support hand
 // dips a touch toward the mag on the swap.
@@ -184,7 +190,7 @@ export class PlayerBodySystem extends System {
   #lastYaw = 0; #lastPitch = 0; #swayYaw = 0; #swayPitch = 0; #leanRoll = 0; // look-sway + strafe lean
   #crouchAmt = 0; #slideAmt = 0; #proneAmt = 0; // eased stance blends
   #reloadAmt = 0; // eased reload blend (weighty lower + tilt, no per-gun keyframes)
-  #holsterAmt = 0; #knife = null; #throwables = {}; #activeThrow = null; #bottle = null; #bottleColor = -1;
+  #holsterAmt = 0; #knife = null; #throwables = {}; #activeThrow = null; #bottle = null; #bottleColor = -1; #drinkK = 0;
   #wasCooking = false; #throwT = 0; #inspectT = 0; #lastThrowKind = 'frag';
   #leftTarget = new THREE.Group(); #rightTarget = new THREE.Group(); // action IK targets
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
@@ -322,10 +328,14 @@ export class PlayerBodySystem extends System {
       if (this.#knife) this.#knife.visible = true;
     } else if (A.drink) {
       const t = A.drink.t;
-      if (t < 0.45) _lt.copy(MEL_REST).lerp(DRINK_MOUTH, t / 0.45);
-      else if (t < 1.4) _lt.copy(DRINK_MOUTH);
-      else _lt.copy(DRINK_MOUTH).lerp(DRINK_TOSS, clampN((t - 1.4) / 0.4, 0, 1));
-      if (this.#bottle) { this.#bottle.visible = t < 1.6; this.#tintBottle(A.drink.color); }
+      // raise (0..0.45) → chug at the lips (0.45..1.4) → drop off-screen (1.4..1.8)
+      let k;
+      if (t < 0.45) k = t / 0.45;
+      else if (t < 1.4) k = 1;
+      else k = 1 - clampN((t - 1.4) / 0.4, 0, 1);
+      this.#drinkK = k * k * (3 - 2 * k); // smoothstep
+      _lt.lerpVectors(DRINK_LOW, DRINK_HOLD, this.#drinkK);
+      if (this.#bottle) { this.#bottle.visible = t < 1.7; this.#tintBottle(A.drink.color); }
     } else if (this.#inspectT > 0) {
       const p = 1 - this.#inspectT / INSPECT_TIME; // raise → hold/turn → lower
       if (p < 0.28) _lt.copy(MEL_REST).lerp(INS_UP, p / 0.28);
@@ -338,6 +348,18 @@ export class PlayerBodySystem extends System {
     this.#leftTarget.position.copy(_lt).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
     this.#leftTarget.updateWorldMatrix(true, false);
     this.#solveArm(J.shoulderL, J.elbowL, this.#leftTarget, -1, 1, true); // locked: no rotate-around
+    // Drink: drive the bottle DIRECTLY in camera space (independent of the hand
+    // IK) so its neck reliably meets the lips, tilted to pour. The hand is posed
+    // near the body above so it reads as holding it.
+    if (A.drink && this.#bottle) {
+      const cam = this.#camera;
+      _vDrink.lerpVectors(BOTTLE_LOW, BOTTLE_HOLD, this.#drinkK).applyQuaternion(cam.quaternion).add(cam.position);
+      _qDrink.copy(cam.quaternion).multiply(BOTTLE_TILT);
+      this.#bottle.parent.updateWorldMatrix(true, false);
+      _mDrink.compose(_vDrink, _qDrink, _sDrink.set(1.5, 1.5, 1.5));
+      _mDrink.premultiply(_m2Drink.copy(this.#bottle.parent.matrixWorld).invert());
+      _mDrink.decompose(this.#bottle.position, this.#bottle.quaternion, this.#bottle.scale);
+    }
     return true;
   }
 
