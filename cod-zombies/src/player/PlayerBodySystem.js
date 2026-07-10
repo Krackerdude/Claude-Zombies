@@ -725,9 +725,10 @@ export class PlayerBodySystem extends System {
           this.#hideProps();
           const isPistol = w?.data?.category === 'pistol';
           if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);
-          // support hand onto the foregrip (stretch for far handguards); but a PISTOL
-          // is held with BOTH hands cupping the grip — never reach forward to the barrel
-          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, isPistol ? 1 : 1.28);
+          // support hand onto the foregrip (stretch hard for far handguards so it
+          // actually reaches the bulk of a long rifle); but a PISTOL is held with
+          // BOTH hands cupping the grip — never reach forward to the barrel
+          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, isPistol ? 1 : 1.6);
         }
       }
     }

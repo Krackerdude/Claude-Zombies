@@ -3169,7 +3169,7 @@ function attachSockets(model, weapon, showMarkers, box) {
   // the gun's length, so the hand reaches a logical hold (longer gun → farther out,
   // within reach) instead of floating at a fixed class z. Pistols keep the close hold.
   if (box && cat !== 'pistol' && !over.gripL && src.gripL) {
-    const z = Math.max(-0.44, Math.min(-0.16, box.min.z * 0.6)); // 60% toward the muzzle, capped to arm reach
+    const z = Math.max(-0.36, Math.min(-0.16, box.min.z * 0.6)); // toward the muzzle, capped so the support arm can actually reach it
     src.gripL = [src.gripL[0], src.gripL[1], z];
   }
   const anchors = {};
