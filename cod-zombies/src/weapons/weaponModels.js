@@ -1031,6 +1031,7 @@ function newArmy() {
 
   g.userData.cylinder = cyl;
   g.userData.chambers = 6;
+  g.scale.setScalar(0.8); // hand-sized, not a cannon (~20% down in the viewmodel)
   return { group: g, muzzle: -0.49 };
 }
 
@@ -1156,8 +1157,9 @@ function executioner() {
 
   g.userData.cylinder = cyl;
   g.userData.chambers = 5;
-  // it's a pistol — scale the whole thing down to sit just a touch above the M1911
-  const S = 0.7;
+  // it's a pistol — scale the whole thing down so it reads hand-sized, not a
+  // Desert Eagle (0.7 → 0.56, another ~20% off in the viewmodel)
+  const S = 0.56;
   g.scale.setScalar(S);
   return { group: g, muzzle: -0.33 * S };
 }
@@ -3138,6 +3140,8 @@ const WEAPON_SOCKETS = {
   // New Army's walnut plow-handle sits well BACK (z≈+0.15), not up by the cylinder
   // like a modern pistol — put both grips on the actual handle.
   'NEW ARMY': { gripR: [0, -0.085, 0.15], gripL: [0.02, -0.12, 0.15] },
+  // Executioner (Judge) revolver — same deal, its rubber grip sits back at z≈+0.18.
+  'EXECUTIONER': { gripR: [0, -0.085, 0.18], gripL: [0.02, -0.12, 0.18] },
 };
 
 function socketMarker(name) {
