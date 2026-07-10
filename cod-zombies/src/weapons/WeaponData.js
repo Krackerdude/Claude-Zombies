@@ -33,6 +33,7 @@ export class WeaponData {
     this.fireMode = o.fireMode ?? 'auto'; // auto | semi | burst | pump
     this.burstCount = o.burstCount ?? 3;
     this.dualWield = o.dualWield ?? false; // twin mirrored viewmodels, one shared ammo pool
+    this.oneHanded = o.oneHanded ?? false; // held in one hand (Ray Gun) — off hand rests off the gun
     this.range = o.range ?? 120; // m (hitscan)
 
     // ammo

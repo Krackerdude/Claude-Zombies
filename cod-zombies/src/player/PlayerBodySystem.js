@@ -119,6 +119,8 @@ const HOLSTER = new THREE.Vector3(0.10, -0.55, 0.14); // gun drop: right + down 
 // where the off hand holds the holstered gun during a one-handed action — a FIXED
 // camera-space rest so the arm stays put instead of chasing the swaying weapon
 const ANCHOR_REST = new THREE.Vector3(0.16, -0.72, -0.19);
+// off hand relaxed at the side for a one-handed weapon (Ray Gun) — off the gun
+const ONEHAND_REST = new THREE.Vector3(-0.14, -0.5, -0.16);
 // melee left-hand knife-swing keyframes (camera-local: +x right, +y up, -z forward)
 const MEL_REST = new THREE.Vector3(-0.10, -0.44, -0.30); // off the bottom-left
 const MEL_WIND = new THREE.Vector3(0.26, 0.12, -0.42);   // wound up, upper-right
@@ -724,12 +726,21 @@ export class PlayerBodySystem extends System {
           // support hand (screen-left = shoulderR) on the FOREGRIP — no reaching across.
           this.#hideProps();
           if (this.#gunAnchors.gripR && J.shoulderL) this.#solveArm(J.shoulderL, J.elbowL, this.#gunAnchors.gripR, -1);
-          // support hand onto the foregrip. The LONG classes — rifles, LMGs,
-          // shotguns and snipers — stretch the arm out to a far handguard; SMGs
-          // and pistols are left exactly as they were (no arm-scaling).
-          const cat = w?.data?.category;
-          const longGun = cat === 'assaultRifle' || cat === 'hmg' || cat === 'shotgun' || cat === 'sniper';
-          if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, longGun ? 1.6 : 1);
+          if (w?.data?.oneHanded) {
+            // one-handed weapon (Ray Gun): the off hand relaxes at the side, off the gun
+            if (J.shoulderR) {
+              this.#rightTarget.position.copy(ONEHAND_REST).applyQuaternion(this.#camera.quaternion).add(this.#camera.position);
+              this.#rightTarget.updateWorldMatrix(true, false);
+              this.#solveArm(J.shoulderR, J.elbowR, this.#rightTarget, 1, 1, true);
+            }
+          } else {
+            // support hand onto the foregrip. The LONG classes — rifles, LMGs,
+            // shotguns and snipers — stretch the arm out to a far handguard; SMGs
+            // and pistols are left exactly as they were (no arm-scaling).
+            const cat = w?.data?.category;
+            const longGun = cat === 'assaultRifle' || cat === 'hmg' || cat === 'shotgun' || cat === 'sniper' || cat === 'wonder';
+            if (this.#gunAnchors.gripL && J.shoulderR) this.#solveArm(J.shoulderR, J.elbowR, this.#gunAnchors.gripL, 1, longGun ? 1.6 : 1);
+          }
         }
       }
     }

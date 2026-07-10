@@ -3142,6 +3142,10 @@ const WEAPON_SOCKETS = {
   'NEW ARMY': { gripR: [0, -0.155, 0.15], gripL: [0.02, -0.185, 0.15] },
   // Executioner (Judge) revolver — same deal, its rubber grip sits back at z≈+0.18.
   'EXECUTIONER': { gripR: [0, -0.155, 0.18], gripL: [0.02, -0.185, 0.18] },
+  // Ray Gun — one-handed: firing hand on its little grip (z≈-0.04); no support hand.
+  'RAY GUN': { gripR: [0, -0.085, -0.04] },
+  // Thundergun — one hand on the BOTTOM grip, one on the SIDE of the forward body.
+  'THUNDERGUN': { gripR: [0, -0.085, -0.04], gripL: [0, -0.05, -0.24] },
 };
 
 function socketMarker(name) {

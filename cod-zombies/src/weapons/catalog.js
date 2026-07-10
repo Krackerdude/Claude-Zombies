@@ -202,6 +202,7 @@ const defs = {
     damage: 1000, magazineSize: 20, fireRate: 140, projectileSpeed: 45,
     splashRadius: 6.4, splashDamage: 600, adsFov: 58, cost: 0, boxOnly: true,
     energyColor: 0x46f060, ejectsBrass: false, // green plasma, no casings
+    oneHanded: true, // pistol-style, held in one hand
   },
   thundergun: {
     Class: ConeWeapon, category: C.WONDER, name: 'THUNDERGUN',
