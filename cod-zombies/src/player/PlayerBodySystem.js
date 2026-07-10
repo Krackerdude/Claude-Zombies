@@ -767,15 +767,17 @@ export class PlayerBodySystem extends System {
     sh.getWorldPosition(_S);         // shoulder (world)
     _toT.copy(_tgt).sub(_S);
     let d = _toT.length();
-    // Stretchy IK: when the target sits just past full reach (a far foregrip on a
-    // long gun), lengthen the bones toward it — up to `stretch`× — so the support
-    // hand actually lands ON the handguard instead of floating short and off to
-    // the side. stretch === 1 keeps the arm rigid (normal case).
+    // Stretchy IK: when the target sits past full reach (a far foregrip on a long
+    // gun), PHYSICALLY lengthen the arm — the IK only sets bone rotations, so we
+    // must also scale the shoulder subtree by the same factor or the hand stays
+    // short of the target. stretch === 1 keeps the arm rigid (normal case).
     const reach = (L1 + L2) * 0.999;
+    let sUsed = 1;
     if (stretch > 1 && d > reach) {
-      const s = Math.min(d, (L1 + L2) * stretch) / (L1 + L2);
-      L1 *= s; L2 *= s;
+      sUsed = Math.min(d, (L1 + L2) * stretch) / (L1 + L2);
+      L1 *= sUsed; L2 *= sUsed;
     }
+    sh.scale.setScalar(sUsed); // actually grow/reset the arm so the math holds
     d = clampN(d, Math.abs(L1 - L2) + 0.02, (L1 + L2) * 0.999);
     _dir.copy(_toT).normalize();
     // elbow sits on the circle where the two bones meet; place it toward a pole
