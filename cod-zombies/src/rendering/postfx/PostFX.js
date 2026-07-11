@@ -4,6 +4,7 @@ import { NO_AO_LAYER, VIEWMODEL_LAYER } from '../aoMask.js';
 import {
   FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLUR_FRAG, FINAL_FRAG,
   GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, AO_FRAG, AO_BLUR_FRAG, AO_APPLY_FRAG, AO_VM_APPLY_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
+  VOLUMETRIC_MARCH_FRAG, VOLUMETRIC_COMPOSITE_FRAG,
 } from './shaders.js';
 
 /**
@@ -44,8 +45,15 @@ export class PostFX {
   #rtBloomA = null; // half-res bloom ping
   #rtBloomB = null; // half-res bloom pong
   #rtGod = null;    // half-res god-ray accumulation buffer
+  #rtVolA = null;   // half-res HDR volumetric scatter (march output)
+  #rtVolB = null;   // half-res HDR volumetric scratch (denoise, later phases)
   #normalMat = null; // MeshNormalMaterial override for the normal prepass
   #maskMesh = null; #maskSprite = null; // solid-white stand-ins for the AO mask pass
+
+  // volumetric key-light descriptor (world space), pushed each frame by RenderManager
+  #volSunDir = new THREE.Vector3(0, 1, 0);
+  #volSunColor = new THREE.Color(1, 1, 1);
+  #volFrame = 0;
 
   // fullscreen quad
   #quadScene;
@@ -54,7 +62,7 @@ export class PostFX {
   #black; // 1×1 black fallback for the bloom/god slots when disabled
 
   // stage materials
-  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmBlur; #mVmApply; #mOutline; #mMotion;
+  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmBlur; #mVmApply; #mOutline; #mMotion; #mVolMarch; #mVolComposite;
 
   // motion-blur matrices
   #curVP = new THREE.Matrix4();
@@ -163,6 +171,22 @@ export class PostFX {
       uDensity: { value: 0.6 }, uWeight: { value: 0.5 }, uDecay: { value: 0.95 },
     });
 
+    this.#mVolMarch = this.#shader(VOLUMETRIC_MARCH_FRAG, {
+      tDepth: { value: null },
+      uNear: { value: 0.1 }, uFar: { value: 250 }, uP00: { value: 1 }, uP11: { value: 1 },
+      uCamWorld: { value: new THREE.Matrix4() }, uCamPos: { value: new THREE.Vector3() },
+      uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Vector3(1, 1, 1) },
+      uSunScatter: { value: 1.5 }, uHG: { value: 0.72 },
+      uFogDensity: { value: 0.06 }, uFogHeight: { value: 0.12 }, uFogY0: { value: 0 },
+      uAmbient: { value: new THREE.Vector3(0.05, 0.06, 0.09) },
+      uMaxDist: { value: 60 }, uSteps: { value: 40 }, uFrame: { value: 0 },
+    });
+    this.#mVolComposite = this.#shader(VOLUMETRIC_COMPOSITE_FRAG, {
+      tScene: { value: null }, tVol: { value: null }, tDepth: { value: null },
+      uVolTexel: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 250 },
+      uIntensity: { value: 1 },
+    });
+
     this.#mFinal = this.#shader(FINAL_FRAG, {
       tDiffuse: { value: null }, tBloom: { value: this.#black }, uBloom: { value: 0 },
       tGod: { value: this.#black }, uGod: { value: 0 }, uGodColor: { value: new THREE.Vector3(1, 1, 1) },
@@ -225,6 +249,11 @@ export class PostFX {
     this.#rtBloomA = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtBloomB = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtGod = new THREE.WebGLRenderTarget(hw, hh, bcol);
+    // volumetric scatter: HDR half-res so bright shafts survive to bloom
+    const volCol = { ...color(), type: THREE.HalfFloatType, depthBuffer: false };
+    this.#rtVolA = new THREE.WebGLRenderTarget(hw, hh, volCol);
+    this.#rtVolB = new THREE.WebGLRenderTarget(hw, hh, volCol);
+    this.#mVolComposite.uniforms.uVolTexel.value.set(1 / hw, 1 / hh);
 
     const texel = new THREE.Vector2(1 / w, 1 / h);
     const halfTexel = new THREE.Vector2(1 / hw, 1 / hh);
@@ -317,6 +346,25 @@ export class PostFX {
     this.#mGodBlur.uniforms.uDensity.value = god.density ?? 0.6;
     this.#mGodBlur.uniforms.uWeight.value = god.weight ?? 0.5;
     this.#mGodBlur.uniforms.uDecay.value = god.decay ?? 0.95;
+
+    const vol = params.volumetric ?? {}; const vm = this.#mVolMarch.uniforms;
+    vm.uSteps.value = Math.max(4, Math.min(128, vol.steps ?? 40));
+    vm.uMaxDist.value = vol.maxDistance ?? 60;
+    vm.uFogDensity.value = vol.fogDensity ?? 0.06;
+    vm.uFogHeight.value = vol.fogHeight ?? 0.12;
+    vm.uFogY0.value = vol.fogY0 ?? 0;
+    vm.uAmbient.value.fromArray(vol.ambient ?? [0.05, 0.06, 0.09]);
+    vm.uSunScatter.value = vol.sunScatter ?? 1.5;
+    vm.uHG.value = Math.max(0, Math.min(0.95, vol.anisotropy ?? 0.72));
+    this.#mVolComposite.uniforms.uIntensity.value = vol.intensity ?? 1;
+  }
+
+  /** World-space key-light descriptor for the volumetric pass, pushed each frame
+   *  by RenderManager (the screen `sun` descriptor is gated by on-screen-ness; the
+   *  shafts need the sun's world direction + colour regardless of where it is). */
+  setSun(dir, color) {
+    if (dir) this.#volSunDir.copy(dir).normalize();
+    if (color) this.#volSunColor.copy(color);
   }
 
   /** Active heat-haze sources: array of { x, y, strength } in screen uv (≤4). */
@@ -511,9 +559,36 @@ export class PostFX {
       run(this.#mDof);
     }
 
-    // 3) land the processed world in the depth-backed work buffer, composite gun
+    // 3) land the processed world in the depth-backed work buffer
     this.#mCopy.uniforms.tDiffuse.value = srcTex;
     this.#blit(this.#mCopy, this.#rtWork);
+
+    // 3.5) VOLUMETRIC LIGHTING — march in-scattering (half-res, HDR), then fog the
+    //      world by its transmittance and add the shafts. Done BEFORE the gun
+    //      overlay so the first-person weapon stays crisp/clear of fog, and before
+    //      bloom so bright beams bloom softly. rtA/rtB are free here (chain done).
+    if (p.volumetric?.enabled !== false && (p.volumetric?.intensity ?? 0) > 0 && this.#rtVolA) {
+      const vm = this.#mVolMarch.uniforms;
+      vm.tDepth.value = depth;
+      vm.uNear.value = near; vm.uFar.value = far;
+      vm.uP00.value = worldCamera.projectionMatrix.elements[0];
+      vm.uP11.value = worldCamera.projectionMatrix.elements[5];
+      vm.uCamWorld.value.copy(worldCamera.matrixWorld);
+      vm.uCamPos.value.setFromMatrixPosition(worldCamera.matrixWorld);
+      vm.uSunDir.value.copy(this.#volSunDir);
+      vm.uSunColor.value.set(this.#volSunColor.r, this.#volSunColor.g, this.#volSunColor.b);
+      vm.uFrame.value = (this.#volFrame = (this.#volFrame + 1) & 63);
+      this.#blit(this.#mVolMarch, this.#rtVolA);       // → half-res scatter
+
+      const vc = this.#mVolComposite.uniforms;
+      vc.tScene.value = this.#rtWork.texture; vc.tVol.value = this.#rtVolA.texture;
+      vc.tDepth.value = depth; vc.uNear.value = near; vc.uFar.value = far;
+      this.#blit(this.#mVolComposite, this.#rtA);      // fog world + add shafts → rtA
+      this.#mCopy.uniforms.tDiffuse.value = this.#rtA.texture;
+      this.#blit(this.#mCopy, this.#rtWork);           // back into the work buffer
+    }
+
+    // composite the first-person gun on top (clear of fog)
     if (overlayScene) {
       r.autoClear = false;
       r.setRenderTarget(this.#rtWork);
@@ -586,6 +661,8 @@ export class PostFX {
     this.#rtVmNormal?.dispose();
     this.#rtVmAO?.dispose();
     this.#rtVmAOb?.dispose();
+    this.#rtVolA?.dispose();
+    this.#rtVolB?.dispose();
     this.#rtBloomA?.dispose();
     this.#rtBloomB?.dispose();
     this.#rtGod?.dispose();

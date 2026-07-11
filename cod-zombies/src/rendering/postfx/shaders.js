@@ -511,3 +511,110 @@ export const FINAL_FRAG = /* glsl */ `
     gl_FragColor = vec4(linearToSRGB(col), 1.0);
   }
 `;
+
+/**
+ * VOLUMETRIC LIGHTING — ray-marched in-scattering (the march pass).
+ *
+ * Reconstructs each pixel's world-space view ray from the scene depth, then
+ * marches through a height-fog participating medium accumulating the light that
+ * scatters toward the eye. A Henyey–Greenstein phase makes the key light's
+ * beams bloom when you look toward it; Beer–Lambert transmittance (stored in
+ * alpha) turns marched distance into atmospheric haze. Interleaved-gradient
+ * dither on the march start decorrelates banding so the step count can stay low.
+ * Runs at half res into an HDR buffer; the composite pass upsamples + adds it.
+ *
+ * (Phase A: sun in-scatter is unshadowed + fog only. Shadow-map occlusion and
+ * local practical lights are layered on in later passes.)
+ */
+export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
+  #include <packing>
+  uniform sampler2D tDepth;
+  uniform float uNear, uFar, uP00, uP11;
+  uniform mat4 uCamWorld;      // camera.matrixWorld: view dir → world
+  uniform vec3 uCamPos;        // camera world position (march origin)
+  uniform vec3 uSunDir;        // world direction TOWARD the sun/moon
+  uniform vec3 uSunColor;
+  uniform float uSunScatter, uHG;
+  uniform float uFogDensity, uFogHeight, uFogY0;
+  uniform vec3 uAmbient;
+  uniform float uMaxDist;
+  uniform int uSteps;
+  uniform float uFrame;
+  varying vec2 vUv;
+
+  float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+  vec3 viewPos(vec2 uv) {
+    float d = lin(uv);
+    vec2 ndc = uv * 2.0 - 1.0;
+    return vec3(ndc.x * d / uP00, ndc.y * d / uP11, -d);
+  }
+  float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+  // Henyey–Greenstein phase (normalised); c = cos(view, toLight)
+  float hg(float c, float g) {
+    float g2 = g * g;
+    return (1.0 - g2) / (12.566370614 * pow(max(1e-3, 1.0 + g2 - 2.0 * g * c), 1.5));
+  }
+
+  void main() {
+    vec3 Pv = viewPos(vUv);
+    float sceneDist = length(Pv);
+    vec3 rdV = Pv / max(sceneDist, 1e-4);
+    vec3 rd = normalize((uCamWorld * vec4(rdV, 0.0)).xyz);   // world ray dir
+    float march = min(sceneDist, uMaxDist);
+    float stepLen = march / float(uSteps);
+    float jit = ign(gl_FragCoord.xy + uFrame);
+    float phase = hg(dot(rd, uSunDir), uHG);
+
+    vec3 scatter = vec3(0.0);
+    float transmit = 1.0;
+    for (int i = 0; i < 128; i++) {
+      if (i >= uSteps) break;
+      float t = (float(i) + jit) * stepLen;
+      vec3 wp = uCamPos + rd * t;
+      float dens = uFogDensity * exp(-max(0.0, wp.y - uFogY0) * uFogHeight);
+      if (dens > 0.0) {
+        float od = dens * stepLen;                 // optical depth this step
+        vec3 inS = uSunColor * uSunScatter * phase + uAmbient;
+        scatter += transmit * inS * od;            // in-scatter, attenuated to here
+        transmit *= exp(-od);                      // Beer–Lambert
+        if (transmit < 0.02) break;
+      }
+    }
+    gl_FragColor = vec4(scatter, transmit);
+  }
+`;
+
+/**
+ * VOLUMETRIC composite — depth-aware upsample of the half-res scatter buffer,
+ * then fog the scene by its transmittance and add the in-scattered light. The
+ * bilateral weights reject samples across a depth discontinuity so beams don't
+ * bleed over foreground silhouettes.
+ */
+export const VOLUMETRIC_COMPOSITE_FRAG = /* glsl */ `
+  #include <packing>
+  uniform sampler2D tScene;    // full-res world colour
+  uniform sampler2D tVol;      // half-res (scatter.rgb, transmit.a)
+  uniform sampler2D tDepth;    // full-res scene depth
+  uniform vec2 uVolTexel;      // half-res texel size
+  uniform float uNear, uFar, uIntensity;
+  varying vec2 vUv;
+
+  float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+
+  void main() {
+    vec3 scene = texture2D(tScene, vUv).rgb;
+    float dC = lin(vUv);
+    vec4 vsum = vec4(0.0); float wsum = 0.0;
+    for (int x = -1; x <= 1; x++) {
+      for (int y = -1; y <= 1; y++) {
+        vec2 suv = vUv + vec2(float(x), float(y)) * uVolTexel;
+        float dS = lin(suv);
+        float w = exp(-abs(dS - dC) * 0.4);        // depth-similarity weight
+        vsum += texture2D(tVol, suv) * w; wsum += w;
+      }
+    }
+    vec4 v = wsum > 0.0 ? vsum / wsum : texture2D(tVol, vUv);
+    vec3 outc = scene * v.a + v.rgb * uIntensity;  // fog the scene, add the shafts
+    gl_FragColor = vec4(outc, 1.0);
+  }
+`;
