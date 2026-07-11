@@ -91,11 +91,26 @@ export function buildArena(engine) {
   // interior bulbs gutter like bad wiring, the cool fills breathe slowly.
   const flickerLights = [];
   const lightCones = [];
-  const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16, flicker = null, cone = false) => {
-    const l = new THREE.PointLight(color, intensity, dist, 2);
+  const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16, flicker = null, cone = false, shadow = false) => {
+    const l = new THREE.PointLight(color, intensity, dist, 2); // omni fill (room lighting)
     l.position.set(x, 3.2, z);
     if (flicker) { l.userData.flicker = flicker; flickerLights.push(l); }
     scene.add(l);
+    // Tier 3 — a co-located downward SPOTLIGHT that CASTS (single 2D shadow map,
+    // far cheaper than a point-light cube). The point light keeps the room lit;
+    // this only adds a pooled highlight + real shadows of the player/zombies/props
+    // on the floor beneath the bulb.
+    if (shadow) {
+      const sp = new THREE.SpotLight(color, intensity * 0.9, dist, 1.15, 0.5, 2);
+      sp.position.set(x, 3.2, z);
+      const tgt = new THREE.Object3D(); tgt.position.set(x, 0, z); scene.add(tgt); sp.target = tgt;
+      sp.castShadow = true;
+      sp.shadow.mapSize.set(1024, 1024);
+      sp.shadow.camera.near = 0.4; sp.shadow.camera.far = dist;
+      sp.shadow.bias = -0.0006; sp.shadow.normalBias = 0.02;
+      if (flicker) { sp.userData.flicker = flicker; flickerLights.push(sp); }
+      scene.add(sp);
+    }
     // dusty volumetric beam dropping from the bulb to the floor
     if (cone) {
       const h = 3.1;
@@ -108,8 +123,9 @@ export function buildArena(engine) {
   };
   const guttering = { depth: 1.0, speed: 1.0, drop: 0.9 }; // warm bulbs, bad wiring
   const breathing = { depth: 0.5, speed: 0.28, drop: 0 };  // cool fills, slow pulse
-  lamp(-5, -5, 0xffae5c, 6, 16, guttering, true); lamp(5, 5, 0xffae5c, 6, 16, guttering, true);
-  lamp(-5, 5, 0xff8a4c, 6, 16, guttering, true); lamp(5, -5, 0xff8a4c, 6, 16, guttering, true); // interior corners
+  // interior corners — now shadow-casting overhead spots (Tier 3: practicals cast)
+  lamp(-5, -5, 0xffae5c, 6, 16, guttering, true, true); lamp(5, 5, 0xffae5c, 6, 16, guttering, true, true);
+  lamp(-5, 5, 0xff8a4c, 6, 16, guttering, true, true); lamp(5, -5, 0xff8a4c, 6, 16, guttering, true, true);
   lamp(0, 0, 0xc9d6ff, 4, 12, breathing); // cool center fill
   lamp(0, 16, 0x9fb4ff, 5, 20); lamp(0, -16, 0x9fb4ff, 5, 20); // exterior approaches
   lamp(16, 0, 0x9fb4ff, 5, 20); lamp(-16, 0, 0x9fb4ff, 5, 20);
