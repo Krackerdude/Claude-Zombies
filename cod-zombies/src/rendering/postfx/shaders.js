@@ -307,13 +307,42 @@ export const MOTIONBLUR_FRAG = /* glsl */ `
 /** Bright-pass: keep only the energy above the bloom threshold. */
 export const BRIGHT_FRAG = /* glsl */ `
   uniform sampler2D tDiffuse;
-  uniform float uThreshold;
+  uniform float uThreshold, uKnee;
   varying vec2 vUv;
   void main() {
     vec3 c = texture2D(tDiffuse, vUv).rgb;
-    float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    float k = max(0.0, l - uThreshold) / max(l, 1e-4);
-    gl_FragColor = vec4(c * k, 1.0);
+    float l = max(c.r, max(c.g, c.b));
+    // soft-knee threshold (Unreal-style) — no hard pop as a highlight crosses the
+    // line; the knee curve ramps contribution smoothly around uThreshold.
+    float knee = uThreshold * uKnee + 1e-5;
+    float soft = clamp(l - uThreshold + knee, 0.0, 2.0 * knee);
+    soft = soft * soft / (4.0 * knee + 1e-5);
+    float contrib = max(soft, l - uThreshold) / max(l, 1e-4);
+    gl_FragColor = vec4(c * contrib, 1.0);
+  }
+`;
+
+/** Bloom combine (upsample): tent-ish add of a smaller, blurrier mip onto the
+ *  current one — the accumulation that gives a wide, soft, multi-scale glow. */
+export const BLOOM_UP_FRAG = /* glsl */ `
+  uniform sampler2D tSmall;   // lower-res (wider) mip, bilinear-upsampled
+  uniform sampler2D tBig;     // this level's blurred mip
+  uniform vec2 uTexel;        // small mip texel, for a 3x3 tent upsample
+  uniform float uScatter;     // how much of the wider mip bleeds up
+  varying vec2 vUv;
+  void main() {
+    // 3x3 tent filter on the smaller mip (soft, no boxy upscaling)
+    vec3 s = vec3(0.0);
+    s += texture2D(tSmall, vUv + uTexel * vec2(-1.0,-1.0)).rgb * 0.0625;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 0.0,-1.0)).rgb * 0.125;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 1.0,-1.0)).rgb * 0.0625;
+    s += texture2D(tSmall, vUv + uTexel * vec2(-1.0, 0.0)).rgb * 0.125;
+    s += texture2D(tSmall, vUv).rgb * 0.25;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 1.0, 0.0)).rgb * 0.125;
+    s += texture2D(tSmall, vUv + uTexel * vec2(-1.0, 1.0)).rgb * 0.0625;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 0.0, 1.0)).rgb * 0.125;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 1.0, 1.0)).rgb * 0.0625;
+    gl_FragColor = vec4(texture2D(tBig, vUv).rgb + s * uScatter, 1.0);
   }
 `;
 
@@ -546,6 +575,7 @@ export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
   uniform float uLightRange[VOL_MAX_LIGHTS];
   uniform int uLightN;
   uniform float uLightScatter;
+  uniform float uFlash;          // lightning: momentarily floods the whole fog volume cool-white
   uniform float uFogDensity, uFogHeight, uFogY0;
   uniform vec3 uAmbient;
   uniform float uMaxDist;
@@ -611,6 +641,7 @@ export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
           float lp = hg(dot(rd, L * inversesqrt(max(dist2, 1e-4))), 0.35);
           inS += uLightColor[j] * (uLightScatter * att * lp);
         }
+        inS += vec3(0.55, 0.65, 1.0) * uFlash;     // lightning floods the fog cool-white
         scatter += transmit * inS * od;            // in-scatter, attenuated to here
         transmit *= exp(-od);                      // Beer–Lambert
         if (transmit < 0.02) break;
@@ -633,6 +664,8 @@ export const VOLUMETRIC_COMPOSITE_FRAG = /* glsl */ `
   uniform sampler2D tDepth;    // full-res scene depth
   uniform vec2 uVolTexel;      // half-res texel size
   uniform float uNear, uFar, uIntensity;
+  uniform float uFogAmt;       // 1 = apply transmittance fog to the scene, 0 = skip
+  uniform float uScatterAmt;   // in-scatter (shaft) add amount, 0 = skip
   varying vec2 vUv;
 
   float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
@@ -650,7 +683,11 @@ export const VOLUMETRIC_COMPOSITE_FRAG = /* glsl */ `
       }
     }
     vec4 v = wsum > 0.0 ? vsum / wsum : texture2D(tVol, vUv);
-    vec3 outc = scene * v.a + v.rgb * uIntensity;  // fog the scene, add the shafts
+    // fog and scatter are split so the caller can fog the WORLD before the gun
+    // (weapon stays undimmed) but add the shaft light AFTER it — so the god rays
+    // glow in front of the viewmodel too.
+    float tr = mix(1.0, v.a, uFogAmt);
+    vec3 outc = scene * tr + v.rgb * uScatterAmt;
     gl_FragColor = vec4(outc, 1.0);
   }
 `;

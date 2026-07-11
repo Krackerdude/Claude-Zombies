@@ -55,10 +55,12 @@ export const PostFXConfig = {
     // scene, so only the moon + additive muzzle FX ever crossed it. The world's
     // matte surfaces stay far under 0.4, so lowering this blooms the light
     // sources without hazing the dark geometry.
-    threshold: 0.4,      // luminance above which a pixel blooms
-    intensity: 1.05,     // additive strength of the bloom buffer
-    radius: 1.0,         // blur spread multiplier
-    iterations: 3,       // gaussian H/V passes (more = softer/wider)
+    threshold: 0.55,     // luminance above which a pixel blooms (soft-knee, so this is the mid-point)
+    knee: 0.7,           // soft-knee width (0 = hard cut, 1 = very gradual ramp) — no popping
+    intensity: 0.9,      // additive strength of the combined bloom buffer
+    radius: 1.0,         // per-level blur spread multiplier
+    scatter: 0.85,       // how much each wider mip bleeds up the chain (bloom reach)
+    iterations: 3,       // (legacy; multi-scale mip chain now governs width)
   },
 
   // --- god rays: light shafts streaming from the moon past the rooftops ---
@@ -87,13 +89,13 @@ export const PostFXConfig = {
     maxDistance: 60,      // metres — how far the march reaches before it stops accumulating
     resScale: 0.5,        // march at this fraction of screen res (0.5 = half), then upsample
     // participating medium (fog)
-    fogDensity: 0.06,     // base extinction per metre at the fog floor
-    fogHeight: 0.12,      // exponential height falloff (bigger = fog hugs the floor tighter)
+    fogDensity: 0.09,     // base extinction per metre at the fog floor
+    fogHeight: 0.10,      // exponential height falloff (bigger = fog hugs the floor tighter)
     fogY0: 0.0,           // world height where fog is densest
     ambient: [0.05, 0.06, 0.09], // faint sky/bounce scatter so shadowed fog isn't pure black
-    // sun / moon shaft
-    sunScatter: 1.5,      // in-scatter strength of the key light
-    anisotropy: 0.72,     // Henyey–Greenstein g (0 = uniform, →1 = sharp forward beams)
+    // sun / moon shaft — cranked so the occluded beams actually read as god rays
+    sunScatter: 3.4,      // in-scatter strength of the key light
+    anisotropy: 0.82,     // Henyey–Greenstein g (0 = uniform, →1 = sharp forward beams)
     // local practical lights (lamps, fire, muzzle, explosions)
     localScatter: 1.4,    // in-scatter strength of nearby point lights
     localLights: 6,       // max practicals sampled per frame (nearest to camera)
@@ -250,8 +252,22 @@ export const DecalConfig = {
  * light, and a low ground-mist band. All isolated + disable-able.
  */
 export const WeatherConfig = {
-  rain: {
+  // Snow suits the aurora night — moonlit flakes drifting down, catching the
+  // lightning. Rain is kept as an alternative (enable it + disable snow for a
+  // thunderstorm look).
+  snow: {
     enabled: true,
+    count: 1300,         // flake count in the volume around the player
+    area: 18,            // half-extent (metres) of the snow column
+    height: 16,          // column height
+    speed: 2.4,          // slow drift-fall (m/s)
+    sway: 0.9,           // horizontal sway amplitude
+    size: 0.11,          // world-space flake size
+    opacity: 0.9,
+    color: 0xe2ecff,     // moonlit cool white
+  },
+  rain: {
+    enabled: false,
     count: 900,          // streak count in the volume around the player
     area: 16,            // half-extent (metres) of the rain column
     height: 14,          // column height
