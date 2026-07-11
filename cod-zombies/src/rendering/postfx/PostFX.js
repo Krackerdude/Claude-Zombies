@@ -107,7 +107,10 @@ export class PostFX {
       tAO: { value: null }, tDepth: { value: null }, uTexel: { value: new THREE.Vector2() },
       uDir: { value: new THREE.Vector2() }, uNear: { value: 0.3 }, uFar: { value: 250 },
     });
-    this.#mAOApply = this.#shader(AO_APPLY_FRAG, { tDiffuse: { value: null }, tAO: { value: null } });
+    this.#mAOApply = this.#shader(AO_APPLY_FRAG, {
+      tDiffuse: { value: null }, tAO: { value: null }, tDepth: { value: null },
+      uAOTexel: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 250 },
+    });
 
     this.#mOutline = this.#shader(OUTLINE_FRAG, {
       tDiffuse: { value: null }, tDepth: { value: null }, uTexel: { value: new THREE.Vector2() },
@@ -196,6 +199,7 @@ export class PostFX {
     this.#mDof.uniforms.uTexel.value.copy(texel);
     this.#mAO.uniforms.uTexel.value.copy(halfTexel);
     this.#mAOBlur.uniforms.uTexel.value.copy(halfTexel);
+    this.#mAOApply.uniforms.uAOTexel.value.copy(halfTexel);
     this.#mOutline.uniforms.uTexel.value.copy(texel);
     this.#mGodSrc.uniforms.uAspect.value = w / h;
   }
@@ -359,9 +363,10 @@ export class PostFX {
       this.#blit(this.#mAOBlur, this.#rtAOb);
       b.tAO.value = this.#rtAOb.texture; b.uDir.value.set(0, 1);
       this.#blit(this.#mAOBlur, this.#rtAOa);
-      // apply: colour *= AO (this is the chain colour step)
-      this.#mAOApply.uniforms.tDiffuse.value = srcTex;
-      this.#mAOApply.uniforms.tAO.value = this.#rtAOa.texture;
+      // apply: depth-guided upsample + emissive mask, colour *= AO (chain step)
+      const ap = this.#mAOApply.uniforms;
+      ap.uNear.value = near; ap.uFar.value = far; ap.tDepth.value = depth;
+      ap.tDiffuse.value = srcTex; ap.tAO.value = this.#rtAOa.texture;
       this.#blit(this.#mAOApply, ping);
       srcTex = ping.texture;
       const t = ping; ping = pong; pong = t;

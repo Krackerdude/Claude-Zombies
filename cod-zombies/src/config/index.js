@@ -14,12 +14,13 @@ export const RenderConfig = {
   shadows: true,
   fov: 75, // degrees — gameplay camera (tweens with sprint/slide)
   viewmodelFov: 70, // degrees — dedicated viewmodel camera, never tweened
-  // Tight depth range for screen-space precision. The old 0.1–1000 (10000:1)
-  // range starved the depth buffer of precision on large flat floors, which is a
-  // primary cause of SSAO/DoF banding + striping. 0.3–250 (≈830:1) is ~12× more
-  // precise and the arena's fog fully saturates well before 250m, so nothing
-  // visible is lost. (near 0.3 stays clear of the first-person body/gun.)
-  near: 0.3,
+  // Tight far plane for screen-space depth precision. The old far of 1000 (with
+  // near 0.1 = 10000:1) starved the depth buffer on large flat floors — a cause
+  // of banding/striping. far 250 (2500:1) is 4x tighter and the arena fog fully
+  // saturates well before 250m, so nothing visible is lost. near stays at 0.1:
+  // the first-person arms/hands sit within ~0.3m of the eye, so a larger near
+  // clips them (the normals-based AO no longer leans on depth precision anyway).
+  near: 0.1,
   far: 250,
 };
 
