@@ -14,8 +14,13 @@ export const RenderConfig = {
   shadows: true,
   fov: 75, // degrees — gameplay camera (tweens with sprint/slide)
   viewmodelFov: 70, // degrees — dedicated viewmodel camera, never tweened
-  near: 0.1,
-  far: 1000,
+  // Tight depth range for screen-space precision. The old 0.1–1000 (10000:1)
+  // range starved the depth buffer of precision on large flat floors, which is a
+  // primary cause of SSAO/DoF banding + striping. 0.3–250 (≈830:1) is ~12× more
+  // precise and the arena's fog fully saturates well before 250m, so nothing
+  // visible is lost. (near 0.3 stays clear of the first-person body/gun.)
+  near: 0.3,
+  far: 250,
 };
 
 /**

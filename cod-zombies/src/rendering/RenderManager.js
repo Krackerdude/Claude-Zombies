@@ -218,7 +218,9 @@ export class RenderManager {
     if (!light) return null;
     // direction toward the source = from target back to the light
     this.#sunDir.copy(light.position).sub(light.target.position).normalize();
-    this.#sunWorld.copy(camera.position).addScaledVector(this.#sunDir, 500);
+    // place the sample point just inside the far plane — a fixed 500 would sit
+    // beyond a tightened far plane and always project to z>1 (killing god rays)
+    this.#sunWorld.copy(camera.position).addScaledVector(this.#sunDir, camera.far * 0.8);
     this.#sunWorld.project(camera);
     if (this.#sunWorld.z > 1) return null; // behind the camera
 
