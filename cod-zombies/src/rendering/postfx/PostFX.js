@@ -53,7 +53,11 @@ export class PostFX {
   // volumetric key-light descriptor (world space), pushed each frame by RenderManager
   #volSunDir = new THREE.Vector3(0, 1, 0);
   #volSunColor = new THREE.Color(1, 1, 1);
+  #sunLight = null;
   #volFrame = 0;
+  #volLocalN = 6;
+  #lightScratch = [];
+  #lp = new THREE.Vector3();
 
   // fullscreen quad
   #quadScene;
@@ -177,6 +181,12 @@ export class PostFX {
       uCamWorld: { value: new THREE.Matrix4() }, uCamPos: { value: new THREE.Vector3() },
       uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Vector3(1, 1, 1) },
       uSunScatter: { value: 1.5 }, uHG: { value: 0.72 },
+      uSunShadow: { value: null }, uSunMatrix: { value: new THREE.Matrix4() },
+      uSunHasShadow: { value: 0 }, uSunBias: { value: 0.0015 },
+      uLightPos: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) },
+      uLightColor: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) },
+      uLightRange: { value: new Float32Array(8) },
+      uLightN: { value: 0 }, uLightScatter: { value: 1.0 },
       uFogDensity: { value: 0.06 }, uFogHeight: { value: 0.12 }, uFogY0: { value: 0 },
       uAmbient: { value: new THREE.Vector3(0.05, 0.06, 0.09) },
       uMaxDist: { value: 60 }, uSteps: { value: 40 }, uFrame: { value: 0 },
@@ -356,15 +366,42 @@ export class PostFX {
     vm.uAmbient.value.fromArray(vol.ambient ?? [0.05, 0.06, 0.09]);
     vm.uSunScatter.value = vol.sunScatter ?? 1.5;
     vm.uHG.value = Math.max(0, Math.min(0.95, vol.anisotropy ?? 0.72));
+    vm.uLightScatter.value = vol.localScatter ?? 1;
+    this.#volLocalN = Math.max(0, Math.min(8, vol.localLights ?? 6));
     this.#mVolComposite.uniforms.uIntensity.value = vol.intensity ?? 1;
+  }
+
+  /** Fill the march's local-light uniforms with the N nearest live point lights
+   *  (lamps, fire, perks, and the pooled muzzle/tracer/explosion flashes). Sorted
+   *  by distance to the eye so the closest, most visible glows win the budget. */
+  #gatherLights(worldScene, camPos) {
+    const vm = this.#mVolMarch.uniforms;
+    const N = this.#volLocalN;
+    if (N <= 0) { vm.uLightN.value = 0; return; }
+    const found = this.#lightScratch; found.length = 0;
+    worldScene.traverse((o) => {
+      if (!o.isPointLight || !o.visible || o.intensity <= 0.05) return;
+      o.getWorldPosition(this.#lp);
+      found.push({ x: this.#lp.x, y: this.#lp.y, z: this.#lp.z, d2: this.#lp.distanceToSquared(camPos), l: o });
+    });
+    found.sort((a, b) => a.d2 - b.d2);
+    const n = Math.min(N, found.length);
+    for (let i = 0; i < n; i++) {
+      const f = found[i], c = f.l.color;
+      vm.uLightPos.value[i].set(f.x, f.y, f.z);
+      vm.uLightColor.value[i].set(c.r * f.l.intensity, c.g * f.l.intensity, c.b * f.l.intensity);
+      vm.uLightRange.value[i] = f.l.distance > 0 ? f.l.distance : 12;
+    }
+    vm.uLightN.value = n;
   }
 
   /** World-space key-light descriptor for the volumetric pass, pushed each frame
    *  by RenderManager (the screen `sun` descriptor is gated by on-screen-ness; the
    *  shafts need the sun's world direction + colour regardless of where it is). */
-  setSun(dir, color) {
+  setSun(dir, color, light = null) {
     if (dir) this.#volSunDir.copy(dir).normalize();
     if (color) this.#volSunColor.copy(color);
+    this.#sunLight = light; // its shadow map + matrix carve the occluded shafts
   }
 
   /** Active heat-haze sources: array of { x, y, strength } in screen uv (≤4). */
@@ -578,6 +615,13 @@ export class PostFX {
       vm.uSunDir.value.copy(this.#volSunDir);
       vm.uSunColor.value.set(this.#volSunColor.r, this.#volSunColor.g, this.#volSunColor.b);
       vm.uFrame.value = (this.#volFrame = (this.#volFrame + 1) & 63);
+      // reuse the key light's Three.js shadow map to occlude the shafts — real
+      // beams carved by geometry. FX (castShadow=false) never pollute it.
+      const sm = this.#sunLight?.shadow?.map?.texture ?? null;
+      vm.uSunHasShadow.value = sm ? 1 : 0;
+      vm.uSunShadow.value = sm || this.#black;
+      if (sm) vm.uSunMatrix.value.copy(this.#sunLight.shadow.matrix);
+      this.#gatherLights(worldScene, vm.uCamPos.value); // nearest practicals → fog glow
       this.#blit(this.#mVolMarch, this.#rtVolA);       // → half-res scatter
 
       const vc = this.#mVolComposite.uniforms;

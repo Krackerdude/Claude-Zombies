@@ -535,12 +535,33 @@ export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
   uniform vec3 uSunDir;        // world direction TOWARD the sun/moon
   uniform vec3 uSunColor;
   uniform float uSunScatter, uHG;
+  uniform sampler2D uSunShadow; // key light's shadow depth map (Three's directional map)
+  uniform mat4 uSunMatrix;      // world → shadow uv+depth ([0,1]^3)
+  uniform float uSunHasShadow;  // 1 when a shadow map is bound this frame
+  uniform float uSunBias;
+  // local practical lights (lamps, fire, perks, muzzle flashes, explosions)
+  #define VOL_MAX_LIGHTS 8
+  uniform vec3 uLightPos[VOL_MAX_LIGHTS];
+  uniform vec3 uLightColor[VOL_MAX_LIGHTS]; // colour premultiplied by intensity
+  uniform float uLightRange[VOL_MAX_LIGHTS];
+  uniform int uLightN;
+  uniform float uLightScatter;
   uniform float uFogDensity, uFogHeight, uFogY0;
   uniform vec3 uAmbient;
   uniform float uMaxDist;
   uniform int uSteps;
   uniform float uFrame;
   varying vec2 vUv;
+
+  // is a world point lit by the key light? (1 = lit, 0 = shadowed by geometry)
+  float sunVis(vec3 wp) {
+    if (uSunHasShadow < 0.5) return 1.0;
+    vec4 sc = uSunMatrix * vec4(wp, 1.0);
+    vec3 s = sc.xyz / sc.w;
+    if (any(lessThan(s, vec3(0.0))) || any(greaterThan(s, vec3(1.0)))) return 1.0; // outside map = unshadowed
+    float md = texture2D(uSunShadow, s.xy).r;      // nearest occluder depth
+    return step(s.z - uSunBias, md);               // in front of occluder → lit
+  }
 
   float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
   vec3 viewPos(vec2 uv) {
@@ -574,7 +595,22 @@ export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
       float dens = uFogDensity * exp(-max(0.0, wp.y - uFogY0) * uFogHeight);
       if (dens > 0.0) {
         float od = dens * stepLen;                 // optical depth this step
-        vec3 inS = uSunColor * uSunScatter * phase + uAmbient;
+        // sun in-scatter is gated by the shadow map → beams only where light
+        // actually reaches (carved by real geometry); ambient fills the rest.
+        vec3 inS = uSunColor * uSunScatter * phase * sunVis(wp) + uAmbient;
+        // local practicals — each nearby point light adds a dusty glow that falls
+        // off with distance and phase-boosts toward the source (a lamp haloes,
+        // and a muzzle flash / explosion momentarily lights the fog around it).
+        for (int j = 0; j < VOL_MAX_LIGHTS; j++) {
+          if (j >= uLightN) break;
+          vec3 L = uLightPos[j] - wp;
+          float dist2 = dot(L, L);
+          float rng = uLightRange[j];
+          float win = clamp(1.0 - dist2 / (rng * rng), 0.0, 1.0);   // soft range cutoff
+          float att = win * win / (dist2 + 0.6);                    // inverse-square-ish
+          float lp = hg(dot(rd, L * inversesqrt(max(dist2, 1e-4))), 0.35);
+          inS += uLightColor[j] * (uLightScatter * att * lp);
+        }
         scatter += transmit * inS * od;            // in-scatter, attenuated to here
         transmit *= exp(-od);                      // Beer–Lambert
         if (transmit < 0.02) break;

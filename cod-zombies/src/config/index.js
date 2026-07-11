@@ -95,7 +95,7 @@ export const PostFXConfig = {
     sunScatter: 1.5,      // in-scatter strength of the key light
     anisotropy: 0.72,     // Henyey–Greenstein g (0 = uniform, →1 = sharp forward beams)
     // local practical lights (lamps, fire, muzzle, explosions)
-    localScatter: 1.0,    // in-scatter strength of nearby point lights
+    localScatter: 1.4,    // in-scatter strength of nearby point lights
     localLights: 6,       // max practicals sampled per frame (nearest to camera)
     // shadow map for the sun's occluded shafts
     sunShadowSize: 1024,  // resolution of the dedicated sun depth map
