@@ -25,6 +25,8 @@ const GUN_REACH = 0.85; // camera→muzzle distance; wall nearer than this pulls
 const _tgt = new THREE.Vector3();
 const _S = new THREE.Vector3();
 const _toT = new THREE.Vector3();
+const _envV = new THREE.Vector3();   // Tier 4 light-wrap scratch
+const _envBest = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _pole = new THREE.Vector3();
 const _poleBase = new THREE.Vector3();
@@ -200,6 +202,7 @@ export class PlayerBodySystem extends System {
   #leftTarget = new THREE.Group(); #rightTarget = new THREE.Group(); // action IK targets
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
   #muzzleLight = null; #muzzleTarget = null; // dynamic viewmodel-only muzzle shadow spot
+  #envFill = null; // Tier 4: viewmodel-only fill that wraps the nearest practical's colour onto the gun
   #starTex = null; #energyTex = null; // star (bullets) vs plasma (energy weapons)
   #shock = null; #shockRings = []; #shockT = 99; #shockPrev = 0; // thundergun shockwave rings
   #energyFlash = false; #thunder = false; #energyColor = 0xffffff; // per-weapon muzzle mode
@@ -251,6 +254,13 @@ export class PlayerBodySystem extends System {
     this.#muzzleTarget = new THREE.Object3D();
     this.#scene.add(this.#muzzleLight); this.#scene.add(this.#muzzleTarget);
     this.#muzzleLight.target = this.#muzzleTarget;
+    // Tier 4 light-wrap: a viewmodel-only point light that samples the dominant
+    // nearby practical each frame and wraps its colour onto the gun/hands — bright
+    // enough to actually read (the real practicals are too dim at gun distance),
+    // layer-scoped so the world stays exactly as lit.
+    this.#envFill = new THREE.PointLight(0xffffff, 0, 10, 2);
+    this.#envFill.layers.set(VIEWMODEL_LAYER);
+    this.#scene.add(this.#envFill);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F6') { e.preventDefault(); e.stopPropagation(); this.#toggle(); }
       // inspect (KeyH): a quick one-handed look at the hand while the gun holsters
@@ -835,6 +845,38 @@ export class PlayerBodySystem extends System {
       }
     }
     this.#updateFlash(dtc);
+    this.#updateEnvFill();
+  }
+
+  /** Tier 4 light-wrap: find the strongest nearby practical (perk glow, lamp) and
+   *  wrap ITS colour onto the viewmodel via a bright, viewmodel-only fill placed at
+   *  that light — so the gun/hands catch Juggernog's teal, a warm bulb, etc., even
+   *  though the real light is too dim at the gun's distance. World is untouched. */
+  #updateEnvFill() {
+    if (!this.#envFill) return;
+    const cam = this.#camera.position;
+    let bestScore = 0; let found = false;
+    this.#scene.traverse((o) => {
+      if (!(o.isPointLight || o.isSpotLight)) return;
+      if (o === this.#muzzleLight || o === this.#flashLight || o === this.#envFill) return;
+      if (o.intensity < 0.4) return;                 // skip idle FX lights
+      o.getWorldPosition(_envV);
+      const d2 = _envV.distanceToSquared(cam);
+      if (d2 > 100) return;                          // only within ~10 m
+      const score = o.intensity / (d2 * 0.3 + 1);
+      if (score > bestScore) { bestScore = score; found = true; _envBest.copy(_envV); this.#envFill.color.copy(o.color); }
+    });
+    if (found) {
+      // sit the fill ~1.4 m from the eye IN THE DIRECTION of that light, so the wrap
+      // is directional (comes from the light's side) yet close enough to actually
+      // read on the gun (the real light is metres away, decay² kills it there).
+      _envV.copy(_envBest).sub(cam).normalize();
+      this.#envFill.position.copy(cam).addScaledVector(_envV, 1.4);
+      this.#envFill.intensity = Math.min(3.6, bestScore * 8.0);
+      this.#envFill.distance = 4.5;
+    } else {
+      this.#envFill.intensity = 0;
+    }
   }
 
   /** Pop a world-space muzzle flash at the gun's muzzle socket while firing.
