@@ -199,7 +199,7 @@ export class PostFX {
     this.#mVolComposite = this.#shader(VOLUMETRIC_COMPOSITE_FRAG, {
       tScene: { value: null }, tVol: { value: null }, tDepth: { value: null },
       uVolTexel: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 250 },
-      uIntensity: { value: 1 },
+      uIntensity: { value: 1 }, uFogAmt: { value: 1 }, uScatterAmt: { value: 1 },
     });
 
     this.#mFinal = this.#shader(FINAL_FRAG, {
@@ -619,11 +619,14 @@ export class PostFX {
     this.#mCopy.uniforms.tDiffuse.value = srcTex;
     this.#blit(this.#mCopy, this.#rtWork);
 
-    // 3.5) VOLUMETRIC LIGHTING — march in-scattering (half-res, HDR), then fog the
-    //      world by its transmittance and add the shafts. Done BEFORE the gun
-    //      overlay so the first-person weapon stays crisp/clear of fog, and before
-    //      bloom so bright beams bloom softly. rtA/rtB are free here (chain done).
-    if (p.volumetric?.enabled !== false && (p.volumetric?.intensity ?? 0) > 0 && this.#rtVolA) {
+    // 3.5) VOLUMETRIC LIGHTING — march in-scattering (half-res, HDR). The result
+    //      is composited in TWO stages around the gun overlay: the transmittance
+    //      FOG is applied to the world here (so the weapon isn't dimmed), and the
+    //      in-scattered SHAFT light is added AFTER the gun (below) so the god rays
+    //      also glow in front of the viewmodel. Both run before bloom so beams
+    //      bloom softly. rtA/rtB are free here (chain done).
+    const volOn = p.volumetric?.enabled !== false && (p.volumetric?.intensity ?? 0) > 0 && !!this.#rtVolA;
+    if (volOn) {
       const vm = this.#mVolMarch.uniforms;
       vm.tDepth.value = depth;
       vm.uNear.value = near; vm.uFar.value = far;
@@ -643,21 +646,34 @@ export class PostFX {
       this.#gatherLights(worldScene, vm.uCamPos.value); // nearest practicals → fog glow
       this.#blit(this.#mVolMarch, this.#rtVolA);       // → half-res scatter
 
+      // stage 1: fog the WORLD only (transmittance), scatter added post-gun
       const vc = this.#mVolComposite.uniforms;
-      vc.tScene.value = this.#rtWork.texture; vc.tVol.value = this.#rtVolA.texture;
-      vc.tDepth.value = depth; vc.uNear.value = near; vc.uFar.value = far;
-      this.#blit(this.#mVolComposite, this.#rtA);      // fog world + add shafts → rtA
+      vc.tVol.value = this.#rtVolA.texture; vc.tDepth.value = depth;
+      vc.uNear.value = near; vc.uFar.value = far; vc.uIntensity.value = p.volumetric?.intensity ?? 1;
+      vc.tScene.value = this.#rtWork.texture; vc.uFogAmt.value = 1; vc.uScatterAmt.value = 0;
+      this.#blit(this.#mVolComposite, this.#rtA);
       this.#mCopy.uniforms.tDiffuse.value = this.#rtA.texture;
-      this.#blit(this.#mCopy, this.#rtWork);           // back into the work buffer
+      this.#blit(this.#mCopy, this.#rtWork);
     }
 
-    // composite the first-person gun on top (clear of fog)
+    // composite the first-person gun on top (undimmed by fog)
     if (overlayScene) {
       r.autoClear = false;
       r.setRenderTarget(this.#rtWork);
       r.clearDepth();
       r.render(overlayScene, overlayCamera || worldCamera);
       r.autoClear = true;
+    }
+
+    // 3.6) VOLUMETRIC stage 2 — add the in-scattered SHAFT light over EVERYTHING,
+    //      including the gun, so god rays glow in front of the viewmodel. (Fog was
+    //      already applied to the world above; the weapon stays undimmed.)
+    if (volOn) {
+      const vc = this.#mVolComposite.uniforms;
+      vc.tScene.value = this.#rtWork.texture; vc.uFogAmt.value = 0; vc.uScatterAmt.value = p.volumetric?.intensity ?? 1;
+      this.#blit(this.#mVolComposite, this.#rtA);
+      this.#mCopy.uniforms.tDiffuse.value = this.#rtA.texture;
+      this.#blit(this.#mCopy, this.#rtWork);
     }
 
     // 4) bloom — soft-knee bright pass, then a 3-level downsample+blur mip chain

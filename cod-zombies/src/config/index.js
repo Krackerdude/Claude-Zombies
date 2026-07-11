@@ -89,13 +89,13 @@ export const PostFXConfig = {
     maxDistance: 60,      // metres — how far the march reaches before it stops accumulating
     resScale: 0.5,        // march at this fraction of screen res (0.5 = half), then upsample
     // participating medium (fog)
-    fogDensity: 0.06,     // base extinction per metre at the fog floor
-    fogHeight: 0.12,      // exponential height falloff (bigger = fog hugs the floor tighter)
+    fogDensity: 0.09,     // base extinction per metre at the fog floor
+    fogHeight: 0.10,      // exponential height falloff (bigger = fog hugs the floor tighter)
     fogY0: 0.0,           // world height where fog is densest
     ambient: [0.05, 0.06, 0.09], // faint sky/bounce scatter so shadowed fog isn't pure black
-    // sun / moon shaft
-    sunScatter: 1.5,      // in-scatter strength of the key light
-    anisotropy: 0.72,     // Henyey–Greenstein g (0 = uniform, →1 = sharp forward beams)
+    // sun / moon shaft — cranked so the occluded beams actually read as god rays
+    sunScatter: 3.4,      // in-scatter strength of the key light
+    anisotropy: 0.82,     // Henyey–Greenstein g (0 = uniform, →1 = sharp forward beams)
     // local practical lights (lamps, fire, muzzle, explosions)
     localScatter: 1.4,    // in-scatter strength of nearby point lights
     localLights: 6,       // max practicals sampled per frame (nearest to camera)

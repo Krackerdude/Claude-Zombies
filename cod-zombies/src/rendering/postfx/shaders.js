@@ -664,6 +664,8 @@ export const VOLUMETRIC_COMPOSITE_FRAG = /* glsl */ `
   uniform sampler2D tDepth;    // full-res scene depth
   uniform vec2 uVolTexel;      // half-res texel size
   uniform float uNear, uFar, uIntensity;
+  uniform float uFogAmt;       // 1 = apply transmittance fog to the scene, 0 = skip
+  uniform float uScatterAmt;   // in-scatter (shaft) add amount, 0 = skip
   varying vec2 vUv;
 
   float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
@@ -681,7 +683,11 @@ export const VOLUMETRIC_COMPOSITE_FRAG = /* glsl */ `
       }
     }
     vec4 v = wsum > 0.0 ? vsum / wsum : texture2D(tVol, vUv);
-    vec3 outc = scene * v.a + v.rgb * uIntensity;  // fog the scene, add the shafts
+    // fog and scatter are split so the caller can fog the WORLD before the gun
+    // (weapon stays undimmed) but add the shaft light AFTER it — so the god rays
+    // glow in front of the viewmodel too.
+    float tr = mix(1.0, v.a, uFogAmt);
+    vec3 outc = scene * tr + v.rgb * uScatterAmt;
     gl_FragColor = vec4(outc, 1.0);
   }
 `;
