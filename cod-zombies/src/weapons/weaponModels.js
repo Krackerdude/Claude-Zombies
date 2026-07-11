@@ -721,6 +721,12 @@ function deathMachine() {
   g.add(at(guard, 0, -0.055, 0.02, 0, Math.PI / 2));
   g.add(at(box(0.012, 0.028, 0.01, dark), 0, -0.05, 0.02));          // trigger
 
+  // === right-side vertical foregrip — the single firing hand wraps this in the
+  //     first-person hip hold (the support hand stays off the gun) ===
+  g.add(at(box(0.034, 0.13, 0.044, grip), 0.108, -0.06, -0.04, 0, 0, -0.12));      // grip body
+  g.add(at(box(0.038, 0.022, 0.048, dark), 0.116, -0.128, -0.04, 0, 0, -0.12));    // grip cap
+  g.add(at(box(0.03, 0.05, 0.03, housingDk), 0.088, 0.0, -0.04));                   // mount collar to housing
+
   g.userData.barrelSpin = barrels; // the cluster the Viewmodel spins while firing
   return { group: g, muzzle: -0.88 };
 }
@@ -3146,10 +3152,9 @@ const WEAPON_SOCKETS = {
   'RAY GUN': { gripR: [0, -0.085, -0.04] },
   // Thundergun — one hand on the BOTTOM grip, one on the SIDE of the forward body.
   'THUNDERGUN': { gripR: [0, -0.085, -0.04], gripL: [0, -0.05, -0.24] },
-  // Death Machine minigun: the dominant (usually-trigger) hand grabs the TOP carry
-  // handle to steady it; the support arm stays BENT on the rear pistol grip, pulled
-  // in tight to the body — a classic hip-fire minigun hold.
-  'DEATH MACHINE': { gripR: [0, 0.085, -0.1], gripL: [0, -0.105, 0.07] },
+  // Death Machine minigun: one-handed hip hold — the firing hand wraps the
+  // right-side foregrip; the support hand stays off the gun (see oneHanded flag).
+  'DEATH MACHINE': { gripR: [0.108, -0.06, -0.04] },
 };
 
 function socketMarker(name) {

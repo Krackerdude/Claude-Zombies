@@ -6,7 +6,7 @@ import { PlayerConfig } from '../config/index.js';
 import { selectedBuild } from '../characters/selection.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
 import { papCamo } from '../weapons/gunMaterials.js';
-import { makeFlashStar, makeFlashCore, buildVmFrag, buildVmWraith, buildVmSemtex, buildVmAcid } from '../weapons/Viewmodel.js';
+import { makeFlashStar, makeFlashCore, makeEnergyFlash, makeShockRing, buildVmFrag, buildVmWraith, buildVmSemtex, buildVmAcid } from '../weapons/Viewmodel.js';
 import { fpBody, weaponAction } from './fpBodyState.js';
 import { buildPerkBottle } from '../perks/perks.js';
 
@@ -198,6 +198,9 @@ export class PlayerBodySystem extends System {
   #wasCooking = false; #throwT = 0; #inspectT = 0; #lastThrowKind = 'frag';
   #leftTarget = new THREE.Group(); #rightTarget = new THREE.Group(); // action IK targets
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
+  #starTex = null; #energyTex = null; // star (bullets) vs plasma (energy weapons)
+  #shock = null; #shockRings = []; #shockT = 99; #shockPrev = 0; // thundergun shockwave rings
+  #energyFlash = false; #thunder = false; #energyColor = 0xffffff; // per-weapon muzzle mode
 
   init() {
     this.#scene = this.world.services.get(Service.Scene).scene;
@@ -211,12 +214,23 @@ export class PlayerBodySystem extends System {
     // flash textures (star + white-hot core) so it looks identical; just lives in
     // the world scene (the overlay's is camera-locked) + a brief point light.
     const flashMat = (tex) => new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.#starTex = makeFlashStar(); this.#energyTex = makeEnergyFlash();
     this.#flash = new THREE.Group();
-    this.#flashStar = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), flashMat(makeFlashStar()));
+    this.#flashStar = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), flashMat(this.#starTex));
     this.#flashCore = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.14), flashMat(makeFlashCore()));
     this.#flash.add(this.#flashStar, this.#flashCore);
     this.#flash.renderOrder = 999; this.#flash.visible = false;
     this.#scene.add(this.#flash);
+    // Thundergun shockwave: concentric world-space rings that punch outward fast
+    // (mirrors the overlay viewmodel's thunderclap, just anchored at the muzzle)
+    this.#shock = new THREE.Group();
+    const ringTex = makeShockRing();
+    for (let i = 0; i < 4; i++) {
+      const r = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({ map: ringTex, color: 0xcfe6ff, transparent: true, opacity: 0, depthTest: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      r.renderOrder = 999; this.#shock.add(r); this.#shockRings.push(r);
+    }
+    this.#shock.visible = false; this.#scene.add(this.#shock);
     this.#flashLight = new THREE.PointLight(0xffd9a0, 0, 6, 2);
     this.#scene.add(this.#flashLight);
     window.addEventListener('keydown', (e) => {
@@ -250,7 +264,7 @@ export class PlayerBodySystem extends System {
     if (this.#body) this.#body.visible = this.#enabled;
     this.#gunHolder.visible = this.#enabled;
     this.#gunHolderL.visible = this.#enabled && this.#dual;
-    if (!this.#enabled && this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; }
+    if (!this.#enabled && this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; if (this.#shock) this.#shock.visible = false; }
   }
 
   #build() {
@@ -477,6 +491,16 @@ export class PlayerBodySystem extends System {
     // per-weapon pull-in: the Death Machine is a bulky two-hand minigun held tight
     // to the chest — draw it back toward the player so the top-grip hold reads right
     this.#gunPull = (w.data.modelName || w.data.name) === 'DEATH MACHINE' ? 0.12 : 0;
+    // muzzle mode: plasma flash for energy weapons (Ray Gun), shockwave rings for
+    // the Thundergun, otherwise the cartoon star — matches the overlay viewmodel
+    this.#energyFlash = w.data.muzzleEffect === 'energy';
+    this.#thunder = w.data.muzzleEffect === 'shockwave';
+    this.#energyColor = w.data.energyColor ?? 0x46f060;
+    this.#flashStar.material.map = this.#energyFlash ? this.#energyTex : this.#starTex;
+    this.#flashStar.material.color.set(this.#energyFlash ? this.#energyColor : 0xffffff);
+    this.#flashStar.material.needsUpdate = true;
+    this.#flashCore.visible = !this.#thunder; // no bright core behind the shockwave
+    this.#shockT = 99;
     // dual-wield: build a second, mirrored gun for the left hand
     if (w.data.dualWield) {
       const left = buildWeaponModel(w);
@@ -541,7 +565,7 @@ export class PlayerBodySystem extends System {
     if (!this.#enabled || !this.#body) return;
     if (!this.#gameState.isPlaying || this.world.first(PlayerTag, Transform) === undefined) {
       this.#body.visible = false; this.#gunHolder.visible = false; this.#gunHolderL.visible = false;
-      if (this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; }
+      if (this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; if (this.#shock) this.#shock.visible = false; }
       return;
     }
     const id = this.world.first(PlayerTag, Transform);
@@ -783,14 +807,46 @@ export class PlayerBodySystem extends System {
         }
       }
     }
-    this.#updateFlash();
+    this.#updateFlash(dtc);
   }
 
-  /** Pop a world-space muzzle flash at the gun's muzzle socket while firing. */
-  #updateFlash() {
+  /** Pop a world-space muzzle flash at the gun's muzzle socket while firing.
+   *  Energy weapons (Ray Gun) get a coloured plasma burst; the Thundergun swaps the
+   *  flash for expanding shockwave rings — both mirror the overlay viewmodel. */
+  #updateFlash(dt = 0.016) {
     const w = this.#weapons?.current;
-    const lit = w ? Math.max(0, (w.justFired || 0) / 0.05) : 0;
+    const jf = w?.justFired || 0;
+    const lit = w ? Math.max(0, jf / 0.05) : 0;
     const muzzle = this.#gunAnchors?.muzzle;
+
+    // Thundergun: a fresh shot launches concentric rings that blast outward fast
+    if (this.#thunder) {
+      this.#flash.visible = false; this.#flashStar.material.opacity = 0; this.#flashCore.material.opacity = 0;
+      if (muzzle) {
+        muzzle.getWorldPosition(_mz);
+        this.#shock.position.copy(_mz);
+        this.#shock.lookAt(this.#camera.position);
+        this.#shock.visible = true;
+        if (jf > this.#shockPrev + 1e-4) this.#shockT = 0; // rising edge = new shot
+        this.#shockT += dt;
+        for (let i = 0; i < this.#shockRings.length; i++) {
+          const t = this.#shockT - i * 0.045;
+          const r = this.#shockRings[i];
+          if (t < 0 || t > 0.32) { r.material.opacity = 0; continue; }
+          const k = t / 0.32;
+          r.scale.setScalar(0.15 + k * k * 3.4); // accelerating expansion
+          r.material.opacity = (1 - k) * 0.9;
+        }
+        this.#flashLight.position.copy(_mz);
+        this.#flashLight.color.set(0xbcd8ff);
+        this.#flashLight.intensity = this.#shockT < 0.12 ? (1 - this.#shockT / 0.12) * 7 : 0;
+      } else { this.#shock.visible = false; this.#flashLight.intensity = 0; }
+      this.#shockPrev = jf;
+      return;
+    }
+    this.#shockPrev = jf;
+    this.#shock.visible = false;
+
     if (lit > 0 && muzzle) {
       muzzle.getWorldPosition(_mz);
       this.#flash.position.copy(_mz);
@@ -802,7 +858,8 @@ export class PlayerBodySystem extends System {
       this.#flashCore.material.opacity = Math.min(1, lit * 1.3);
       this.#flashCore.scale.setScalar(0.9 + Math.random() * 0.25);
       this.#flashLight.position.copy(_mz);
-      this.#flashLight.intensity = lit * 4.5;
+      this.#flashLight.color.set(this.#energyFlash ? this.#energyColor : 0xffd9a0);
+      this.#flashLight.intensity = lit * (this.#energyFlash ? 5.5 : 4.5);
     } else {
       this.#flash.visible = false;
       this.#flashStar.material.opacity = 0; this.#flashCore.material.opacity = 0;

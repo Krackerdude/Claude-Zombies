@@ -656,7 +656,7 @@ export class Viewmodel {
 
 // A soft bright annulus — scaled up over time it reads as an expanding
 // shockwave/pressure ring for the Thundergun.
-function makeShockRing() {
+export function makeShockRing() {
   const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
   const x = c.getContext('2d'); const cx = s / 2;
   const g = x.createRadialGradient(cx, cx, 0, cx, cx, cx);
@@ -693,7 +693,7 @@ export function makeFlashStar() {
 
 // Soft electric plasma burst: a white core with a few jagged tendrils, kept
 // near-white so it tints cleanly to any energy colour (multiplied by material).
-function makeEnergyFlash() {
+export function makeEnergyFlash() {
   const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
   const x = c.getContext('2d'); const cx = s / 2, cy = s / 2;
   const g = x.createRadialGradient(cx, cy, 0, cx, cy, s * 0.5);
