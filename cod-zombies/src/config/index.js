@@ -50,8 +50,13 @@ export const PostFXConfig = {
   // --- bloom: blooms the practicals, neon, muzzle highlights ---
   bloom: {
     enabled: true,
-    threshold: 0.62,     // luminance above which a pixel blooms
-    intensity: 1.0,      // additive strength of the bloom buffer
+    // low threshold so the practicals actually bloom — campfire, neon, perk
+    // panels and glowing signage sit well below the old 0.62 in this dark night
+    // scene, so only the moon + additive muzzle FX ever crossed it. The world's
+    // matte surfaces stay far under 0.4, so lowering this blooms the light
+    // sources without hazing the dark geometry.
+    threshold: 0.4,      // luminance above which a pixel blooms
+    intensity: 1.05,     // additive strength of the bloom buffer
     radius: 1.0,         // blur spread multiplier
     iterations: 3,       // gaussian H/V passes (more = softer/wider)
   },
