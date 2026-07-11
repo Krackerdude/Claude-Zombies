@@ -199,7 +199,7 @@ export const AO_APPLY_FRAG = /* glsl */ `
       }
     }
     ao = wsum > 0.0 ? ao / wsum : texture2D(tAO, vUv).r;
-    ao = mix(ao, 1.0, step(0.08, texture2D(tMask, vUv).a)); // excluded (alpha coverage) → no occlusion
+    ao = mix(ao, 1.0, step(0.4, texture2D(tMask, vUv).a)); // excluded (solid-white coverage) → no occlusion
     gl_FragColor = vec4(col * ao, 1.0);
   }
 `;
