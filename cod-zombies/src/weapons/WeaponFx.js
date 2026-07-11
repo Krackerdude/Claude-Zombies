@@ -287,6 +287,46 @@ export class WeaponFx {
     }
   }
 
+  /** Arterial geyser from a fresh stump: a tall fountain of blood that erupts
+   *  UP and out (leaning the way the limb was blown off), plus a couple of fat
+   *  gouts, so a severed limb visibly pumps. `power` scales height + volume with
+   *  the weapon's gore profile. */
+  spawnGeyser(point, dir, power = 1) {
+    const dx = dir?.x ?? 0, dz = dir?.z ?? 0;
+    const dl = Math.hypot(dx, dz) || 1;
+    const ndx = dx / dl, ndz = dz / dl;
+    // the jet: many fine droplets fired mostly upward, biased along the wound
+    const n = Math.round((14 + Math.random() * 6) * power);
+    for (let i = 0; i < n; i++) {
+      const s = this.#take('blood'); const m = s.mesh;
+      m.material.color.setHex(0x8a0008); m.material.opacity = 0.95;
+      m.scale.setScalar((0.06 + Math.random() * 0.07) * power);
+      m.position.copy(point);
+      m.visible = true;
+      const up = (4.5 + Math.random() * 3.5) * power;        // strong vertical launch
+      const out = 1.4 + Math.random() * 1.2;
+      this.#rec('blood', s, 0.5 + Math.random() * 0.4, {
+        vx: ndx * out + (Math.random() - 0.5) * 1.8,
+        vy: up,
+        vz: ndz * out + (Math.random() - 0.5) * 1.8,
+        grav: 11, o0: 0.95, fade: 'out', grow: -0.2,
+      });
+    }
+    // a couple of fat gouts riding the jet, for weight
+    const g = Math.round(3 * power);
+    for (let i = 0; i < g; i++) {
+      const s = this.#take('blood'); const m = s.mesh;
+      m.material.color.setHex(0x5c0006); m.material.opacity = 0.9;
+      m.scale.setScalar((0.13 + Math.random() * 0.08) * power);
+      m.position.copy(point).add(_v.set((Math.random() - 0.5) * 0.1, 0.05, (Math.random() - 0.5) * 0.1));
+      m.visible = true;
+      this.#rec('blood', s, 0.55 + Math.random() * 0.35, {
+        vx: ndx * 1.2 + (Math.random() - 0.5) * 1.0, vy: (3.2 + Math.random() * 2) * power, vz: ndz * 1.2 + (Math.random() - 0.5) * 1.0,
+        grav: 12, o0: 0.9, fade: 'late', grow: 0.1,
+      });
+    }
+  }
+
   /** At-the-muzzle effects in world space: light cartoony smoke + a few forward
    *  sparks + the ejected shell. (The bright flash itself is on the viewmodel.) */
   spawnMuzzle(pos, dir, right, up, tint = null) {

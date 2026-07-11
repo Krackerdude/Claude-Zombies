@@ -333,6 +333,21 @@ export class ZombieSystem extends System {
     t.position.x += (mx / ml) * step;
     t.position.z += (mz / ml) * step;
     this.#face(t, dx, dz, dt);
+
+    // BLOOD TRAIL — a legless crawler drags its open torso along the floor,
+    // smearing blood behind it. Drip a small ground splat every ~0.55 m of
+    // travel; the decal pool recycles the oldest so a long chase self-limits.
+    if (z.crawler) {
+      z.trailAcc = (z.trailAcc || 0) + step;
+      if (z.trailAcc >= 0.55) {
+        z.trailAcc = 0;
+        this.#events.emit('fx:decal', {
+          kind: 'blood', x: t.position.x, y: 0.02, z: t.position.z,
+          nx: 0, ny: 1, nz: 0,                       // lies flat on the floor
+          size: 0.3 + Math.random() * 0.25,
+        });
+      }
+    }
   }
 
   // --- player combat ------------------------------------------------------

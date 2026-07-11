@@ -8,6 +8,7 @@ const _z = new THREE.Vector3(0, 0, 1);
 const _n = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _roll = new THREE.Quaternion();
+const _DRY = new THREE.Color(0x2a0805); // congealed near-black brown that fresh blood dries to
 
 /**
  * Persistent ground decals — the world remembering violence. Blood pools spread
@@ -84,6 +85,8 @@ export class DecalSystem extends System {
     const m = slot.mesh; const mat = m.material;
     const hole = kind === 'hole', scorch = kind === 'scorch';
     mat.emissive && mat.emissive.setHex(0x000000);
+    slot.dries = false;
+    mat.metalness = 0; // reset any wet-blood sheen from a prior use of this pooled slot
     if (scorch) {
       mat.map = this.#tex.scorch; mat.color.setHex(0x100d0b); mat.roughness = 0.95;
       slot.life = this.#cfg.scorchLife ?? 55; slot.peak = 0.88;
@@ -91,8 +94,9 @@ export class DecalSystem extends System {
       mat.map = this.#tex.hole; mat.color.setHex(0x15151a); mat.roughness = 0.85;
       slot.life = this.#cfg.holeLife ?? 120; slot.peak = 0.95;
     } else {
-      mat.map = this.#tex.splat; mat.color.setHex(0x780a0e); mat.roughness = 0.42; // fresh blood is wet → catches the lamps
+      mat.map = this.#tex.splat; mat.color.setHex(0x780a0e); mat.roughness = 0.32; mat.metalness = 0.18; // fresh blood is wet → glossy specular off the lamps
       slot.life = this.#cfg.splatLife ?? 70; slot.peak = 0.9;
+      slot.dries = true; slot.c0 = 0x780a0e; slot.r0 = 0.32; slot.m0 = 0.18; // congeals wet→dark, sheen dies over its life
     }
     mat.needsUpdate = true;
     // orient the quad's +Z to the surface normal, with a random roll in-plane
@@ -112,14 +116,17 @@ export class DecalSystem extends System {
     this.#cur = (this.#cur + 1) % this.#slots.length;
     const m = slot.mesh;
     const mat = m.material;
+    slot.dries = false;
 
+    mat.metalness = 0; // reset any wet-blood sheen from a prior use of this pooled slot
     if (kind === 'blood') {
       mat.map = this.#tex.blood;
       mat.color.setHex(0x6e0206);
       mat.emissive.setHex(0x000000);
-      mat.roughness = 0.45;                 // wet sheen catches the lamps
+      mat.roughness = 0.35; mat.metalness = 0.15; // fresh, wet: glossy specular off the lamps
       slot.life = this.#cfg.bloodLife;
       slot.peak = 0.92;
+      slot.dries = true; slot.c0 = 0x6e0206; slot.r0 = 0.35; slot.m0 = 0.15; // congeals wet→dark, sheen dies
       const sc = 1.2 + Math.random() * 1.0;
       m.scale.set(sc, sc, 1);
     } else if (kind === 'plasma') {
@@ -172,6 +179,16 @@ export class DecalSystem extends System {
       const tailStart = slot.life * 0.7;
       const fade = slot.age > tailStart ? 1 - (slot.age - tailStart) / (slot.life - tailStart) : 1;
       mat.opacity = slot.peak * fin * fade;
+
+      // wet → dry: fresh blood glistens and catches the lamps, then congeals to a
+      // dull near-black over the first ~60% of its life. Colour darkens toward
+      // _DRY and roughness climbs so the sheen dies out.
+      if (slot.dries) {
+        const k = Math.min(1, slot.age / (slot.life * 0.6));
+        mat.color.setHex(slot.c0).lerp(_DRY, k);
+        mat.roughness = slot.r0 + (0.92 - slot.r0) * k;
+        mat.metalness = (slot.m0 ?? 0) * (1 - k); // wet gloss fades as it congeals
+      }
     }
   }
 

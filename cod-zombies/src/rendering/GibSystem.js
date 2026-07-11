@@ -22,20 +22,41 @@ const _r = (s) => (Math.random() - 0.5) * s;
 
 export class GibSystem extends System {
   #scene;
+  #events;
   #gibs = [];
   #cur = 0;
   #palette = [];
+  #geo = {};
 
   init() {
     this.#scene = this.world.services.get(Service.Scene).scene;
     const events = this.world.services.get(Service.Events);
+    this.#events = events;
     const M = goreMaterials();
-    // weight the spray toward wet meat, with the odd bone/fat fleck
-    this.#palette = [M.blood, M.muscle, M.muscle, M.gut, M.muscle, M.fat, M.bone];
 
-    const geo = new THREE.BoxGeometry(1, 1, 1);
+    // A little library of gib SHAPES so the spray reads as torn anatomy, not a
+    // cloud of identical cubes: rough meat chunks, long stringy strips, rounded
+    // organ blobs, and jagged bone shards. Unit-sized; per-gib scale sculpts them.
+    this.#geo = {
+      chunk: new THREE.BoxGeometry(1, 1, 1),
+      strip: new THREE.BoxGeometry(1, 0.34, 0.5),        // meat/sinew strip
+      blob: new THREE.IcosahedronGeometry(0.62, 0),      // organ glob (faceted, wet)
+      shard: new THREE.ConeGeometry(0.4, 1.3, 5),        // bone splinter
+    };
+    // each palette entry pairs a wet material with the shape it tends to fly as,
+    // weighted toward muscle. dl = how elongated the scale should be (strips/shards).
+    this.#palette = [
+      { mat: M.blood, geo: this.#geo.chunk, form: 'chunk' },
+      { mat: M.muscle, geo: this.#geo.strip, form: 'strip' },
+      { mat: M.muscle, geo: this.#geo.chunk, form: 'chunk' },
+      { mat: M.gut, geo: this.#geo.blob, form: 'blob' },
+      { mat: M.muscle, geo: this.#geo.strip, form: 'strip' },
+      { mat: M.fat, geo: this.#geo.blob, form: 'blob' },
+      { mat: M.bone, geo: this.#geo.shard, form: 'shard' },
+    ];
+
     for (let i = 0; i < MAX_GIBS; i++) {
-      const mesh = new THREE.Mesh(geo, M.muscle);
+      const mesh = new THREE.Mesh(this.#geo.chunk, M.muscle);
       mesh.visible = false;
       mesh.castShadow = false;
       mesh.raycast = () => {};
@@ -63,12 +84,22 @@ export class GibSystem extends System {
 
       g.active = true; g.rest = false; g.age = 0;
       g.life = 1.5 + Math.random() * 1.3;          // ~1.5–2.8s on the floor
-      m.material = this.#palette[(Math.random() * this.#palette.length) | 0];
+      const pick = this.#palette[(Math.random() * this.#palette.length) | 0];
+      m.material = pick.mat;
+      m.geometry = pick.geo;
+      g.form = pick.form;
+      g.pooled = false; g.landed = false; // hasn't left a resting blood mark / touched floor yet
 
       const base = (0.045 + Math.random() * 0.06) * scale;
-      g.sx = base * (0.7 + Math.random() * 0.8);
-      g.sy = base * (0.7 + Math.random() * 0.8);
-      g.sz = base * (0.7 + Math.random() * 0.8);
+      // sculpt the scale to the shape: strips run long, shards run long+thin,
+      // chunks/blobs stay roughly cubic. Keeps each form recognisable in flight.
+      if (pick.form === 'strip') {
+        g.sx = base * (1.4 + Math.random() * 1.2); g.sy = base * (0.5 + Math.random() * 0.3); g.sz = base * (0.7 + Math.random() * 0.5);
+      } else if (pick.form === 'shard') {
+        g.sx = base * (0.5 + Math.random() * 0.3); g.sy = base * (1.6 + Math.random() * 1.2); g.sz = base * (0.5 + Math.random() * 0.3);
+      } else {
+        g.sx = base * (0.7 + Math.random() * 0.8); g.sy = base * (0.7 + Math.random() * 0.8); g.sz = base * (0.7 + Math.random() * 0.8);
+      }
       g.radius = Math.min(g.sx, g.sy, g.sz) * 0.5;
       m.scale.set(g.sx, g.sy, g.sz);
       m.position.set(x + _r(0.12), y + _r(0.12), z + _r(0.12));
@@ -89,7 +120,19 @@ export class GibSystem extends System {
     for (const g of this.#gibs) {
       if (!g.active) continue;
       g.age += dt;
-      if (g.age >= g.life) { g.active = false; g.mesh.visible = false; continue; }
+      if (g.age >= g.life) {
+        g.active = false; g.mesh.visible = false;
+        // a wet chunk that came to rest on the floor soaks in a little smear of
+        // blood as it decays away — bone stays clean, and only some do it so the
+        // floor doesn't tile red. (Airborne gibs that never landed leave nothing.)
+        if (g.landed && !g.pooled && g.form !== 'shard' && Math.random() < 0.5) {
+          this.#events.emit('fx:decal', {
+            kind: 'blood', x: g.mesh.position.x, y: 0.02, z: g.mesh.position.z,
+            nx: 0, ny: 1, nz: 0, size: 0.18 + Math.random() * 0.16,
+          });
+        }
+        continue;
+      }
       const m = g.mesh;
 
       if (!g.rest) {
@@ -104,6 +147,7 @@ export class GibSystem extends System {
         const floor = FLOOR + g.radius;
         if (m.position.y <= floor) {
           m.position.y = floor;
+          g.landed = true;                   // touched the floor → eligible for a resting smear
           if (g.vy < -0.5) {                 // still moving: bounce + lose energy
             g.vy = -g.vy * 0.3;
             g.vx *= 0.62; g.vz *= 0.62;
@@ -128,6 +172,6 @@ export class GibSystem extends System {
 
   dispose() {
     for (const g of this.#gibs) g.mesh.removeFromParent();
-    this.#gibs[0]?.mesh.geometry.dispose();
+    for (const geo of Object.values(this.#geo)) geo.dispose();
   }
 }
