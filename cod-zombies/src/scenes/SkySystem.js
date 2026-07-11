@@ -119,22 +119,19 @@ export class SkySystem extends System {
           // --- moon (aligned to the key light) ---
           float md = dot(dir, normalize(uMoonDir));
           float ang = acos(clamp(md, -1.0, 1.0));
-          float R = 0.05;                             // angular radius (rad)
-          float disc = smoothstep(R, R*0.92, ang);
-          // maria/crater surface detail across the disc — keep the disc from
-          // clipping so the darker seas actually read against the bright face
-          vec2 muv = dir.xy * 22.0 + dir.z * 7.0;
+          float R = 0.032;                            // angular radius (rad) — a moon, not a sun
+          float disc = smoothstep(R, R*0.9, ang);
+          // maria/crater surface detail across the disc — kept below the bloom
+          // threshold so the disc reads as a lit rock, not a glowing bulb
+          vec2 muv = dir.xy * 30.0 + dir.z * 9.0;
           float surf = fbm(muv)*0.6 + fbm(muv*2.3)*0.4;   // 0..1
-          float shade = 0.45 + 0.85 * surf;               // ~0.45 (maria) .. 1.3 (highlands)
+          float shade = 0.38 + 0.42 * surf;               // ~0.38 (maria) .. 0.8 (highlands)
           vec3 moonSurf = uMoonColor * shade;
           col = mix(col, moonSurf, disc);
-          // only the very centre goes HDR-hot (for a tight bloom kernel), so the
-          // rest of the disc keeps its detail instead of blowing out to white
-          float core = smoothstep(R*0.55, 0.0, ang);
-          col += uMoonColor * core * 0.5;
-          // soft outer halo
-          float halo = smoothstep(R*6.0, R, ang);
-          col += uMoonColor * halo*halo * 0.28;
+          // a small, tight rim glow so the moon still bleeds a little light — but
+          // nothing HDR that would bloom into a giant orb
+          float halo = smoothstep(R*2.6, R, ang);
+          col += uMoonColor * halo*halo * 0.10;
 
           gl_FragColor = vec4(col, 1.0);
         }
