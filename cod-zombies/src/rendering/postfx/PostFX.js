@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PostFXConfig } from '../../config/index.js';
 import { NO_AO_LAYER, VIEWMODEL_LAYER } from '../aoMask.js';
 import {
-  FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLUR_FRAG, FINAL_FRAG,
+  FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLOOM_UP_FRAG, BLUR_FRAG, FINAL_FRAG,
   GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, AO_FRAG, AO_BLUR_FRAG, AO_APPLY_FRAG, AO_VM_APPLY_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
   VOLUMETRIC_MARCH_FRAG, VOLUMETRIC_COMPOSITE_FRAG,
 } from './shaders.js';
@@ -44,6 +44,8 @@ export class PostFX {
   #rtVmAOb = null;  // full-res viewmodel AO scratch (denoise)
   #rtBloomA = null; // half-res bloom ping
   #rtBloomB = null; // half-res bloom pong
+  #rtBloom2a = null; #rtBloom2b = null; // quarter-res bloom mip
+  #rtBloom3a = null; #rtBloom3b = null; // eighth-res bloom mip (wide, soft tail)
   #rtGod = null;    // half-res god-ray accumulation buffer
   #rtVolA = null;   // half-res HDR volumetric scatter (march output)
   #rtVolB = null;   // half-res HDR volumetric scratch (denoise, later phases)
@@ -66,7 +68,7 @@ export class PostFX {
   #black; // 1×1 black fallback for the bloom/god slots when disabled
 
   // stage materials
-  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmBlur; #mVmApply; #mOutline; #mMotion; #mVolMarch; #mVolComposite;
+  #mCopy; #mDof; #mBright; #mBlur; #mBloomUp; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmBlur; #mVmApply; #mOutline; #mMotion; #mVolMarch; #mVolComposite;
 
   // motion-blur matrices
   #curVP = new THREE.Matrix4();
@@ -163,8 +165,11 @@ export class PostFX {
       uStrength: { value: 0.5 }, uMax: { value: 0.04 }, uSamples: { value: 8 },
     });
 
-    this.#mBright = this.#shader(BRIGHT_FRAG, { tDiffuse: { value: null }, uThreshold: { value: 0.62 } });
+    this.#mBright = this.#shader(BRIGHT_FRAG, { tDiffuse: { value: null }, uThreshold: { value: 0.62 }, uKnee: { value: 0.6 } });
     this.#mBlur = this.#shader(BLUR_FRAG, { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() } });
+    this.#mBloomUp = this.#shader(BLOOM_UP_FRAG, {
+      tSmall: { value: null }, tBig: { value: null }, uTexel: { value: new THREE.Vector2() }, uScatter: { value: 1 },
+    });
 
     this.#mGodSrc = this.#shader(GODRAY_SOURCE_FRAG, {
       tDepth: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) },
@@ -258,6 +263,13 @@ export class PostFX {
     this.#rtVmAOb = new THREE.WebGLRenderTarget(w, h, { ...color(), depthBuffer: false });
     this.#rtBloomA = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtBloomB = new THREE.WebGLRenderTarget(hw, hh, bcol);
+    // multi-scale bloom mips (quarter + eighth res) for a wide, soft glow tail
+    const qw = Math.max(1, hw >> 1), qh = Math.max(1, hh >> 1);
+    const ew = Math.max(1, qw >> 1), eh = Math.max(1, qh >> 1);
+    this.#rtBloom2a = new THREE.WebGLRenderTarget(qw, qh, bcol);
+    this.#rtBloom2b = new THREE.WebGLRenderTarget(qw, qh, bcol);
+    this.#rtBloom3a = new THREE.WebGLRenderTarget(ew, eh, bcol);
+    this.#rtBloom3b = new THREE.WebGLRenderTarget(ew, eh, bcol);
     this.#rtGod = new THREE.WebGLRenderTarget(hw, hh, bcol);
     // volumetric scatter: HDR half-res so bright shafts survive to bloom
     const volCol = { ...color(), type: THREE.HalfFloatType, depthBuffer: false };
@@ -350,6 +362,7 @@ export class PostFX {
     m.uSamples.value = Math.max(2, mb.samples ?? 8);
 
     this.#mBright.uniforms.uThreshold.value = params.bloom?.threshold ?? 0.62;
+    this.#mBright.uniforms.uKnee.value = params.bloom?.knee ?? 0.6;
 
     const god = params.godrays ?? {};
     this.#mGodSrc.uniforms.uSize.value = god.size ?? 0.18;
@@ -641,24 +654,32 @@ export class PostFX {
       r.autoClear = true;
     }
 
-    // 4) bloom (half-res bright-pass + ping-pong gaussian)
+    // 4) bloom — soft-knee bright pass, then a 3-level downsample+blur mip chain
+    //    tent-upsampled back together for a wide, soft, cinematic glow (the moon
+    //    halo, aurora, neon, fire and the volumetric shafts all feed it).
     let bloomI = 0;
     if (p.bloom?.enabled !== false && (p.bloom?.intensity ?? 0) > 0) {
-      this.#mBright.uniforms.tDiffuse.value = this.#rtWork.texture;
-      this.#blit(this.#mBright, this.#rtBloomA);
-      const hw = this.#rtBloomA.width, hh = this.#rtBloomA.height;
       const radius = p.bloom?.radius ?? 1;
-      const iters = Math.max(1, p.bloom?.iterations ?? 3);
-      let a = this.#rtBloomA, b = this.#rtBloomB;
-      for (let i = 0; i < iters; i++) {
-        this.#mBlur.uniforms.tDiffuse.value = a.texture;
-        this.#mBlur.uniforms.uDir.value.set(radius / hw, 0);
-        this.#blit(this.#mBlur, b);
-        this.#mBlur.uniforms.tDiffuse.value = b.texture;
-        this.#mBlur.uniforms.uDir.value.set(0, radius / hh);
-        this.#blit(this.#mBlur, a);
-      }
-      this.#mFinal.uniforms.tBloom.value = a.texture;
+      const scatter = p.bloom?.scatter ?? 1.0;
+      const blur = (a, b, r) => {           // separable gaussian a↔b, result in `a`
+        this.#mBlur.uniforms.tDiffuse.value = a.texture; this.#mBlur.uniforms.uDir.value.set(r / a.width, 0); this.#blit(this.#mBlur, b);
+        this.#mBlur.uniforms.tDiffuse.value = b.texture; this.#mBlur.uniforms.uDir.value.set(0, r / a.height); this.#blit(this.#mBlur, a);
+      };
+      const down = (src, dst) => { this.#mCopy.uniforms.tDiffuse.value = src.texture; this.#blit(this.#mCopy, dst); };
+      const up = (small, big, out) => {
+        const u = this.#mBloomUp.uniforms;
+        u.tSmall.value = small.texture; u.tBig.value = big.texture;
+        u.uTexel.value.set(1 / small.width, 1 / small.height); u.uScatter.value = scatter;
+        this.#blit(this.#mBloomUp, out);
+      };
+      this.#mBright.uniforms.tDiffuse.value = this.#rtWork.texture;
+      this.#blit(this.#mBright, this.#rtBloomA);          // bright → half-res
+      blur(this.#rtBloomA, this.#rtBloomB, radius);       // L0 (half)
+      down(this.#rtBloomA, this.#rtBloom2a); blur(this.#rtBloom2a, this.#rtBloom2b, radius); // L1 (quarter)
+      down(this.#rtBloom2a, this.#rtBloom3a); blur(this.#rtBloom3a, this.#rtBloom3b, radius); // L2 (eighth)
+      up(this.#rtBloom3a, this.#rtBloom2a, this.#rtBloom2b); // eighth → quarter
+      up(this.#rtBloom2b, this.#rtBloomA, this.#rtBloomB);   // quarter → half
+      this.#mFinal.uniforms.tBloom.value = this.#rtBloomB.texture;
       bloomI = p.bloom?.intensity ?? 0.85;
     } else {
       this.#mFinal.uniforms.tBloom.value = this.#black;
@@ -707,6 +728,10 @@ export class PostFX {
     this.#rtVmAOb?.dispose();
     this.#rtVolA?.dispose();
     this.#rtVolB?.dispose();
+    this.#rtBloom2a?.dispose();
+    this.#rtBloom2b?.dispose();
+    this.#rtBloom3a?.dispose();
+    this.#rtBloom3b?.dispose();
     this.#rtBloomA?.dispose();
     this.#rtBloomB?.dispose();
     this.#rtGod?.dispose();

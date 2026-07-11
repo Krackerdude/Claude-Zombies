@@ -307,13 +307,42 @@ export const MOTIONBLUR_FRAG = /* glsl */ `
 /** Bright-pass: keep only the energy above the bloom threshold. */
 export const BRIGHT_FRAG = /* glsl */ `
   uniform sampler2D tDiffuse;
-  uniform float uThreshold;
+  uniform float uThreshold, uKnee;
   varying vec2 vUv;
   void main() {
     vec3 c = texture2D(tDiffuse, vUv).rgb;
-    float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    float k = max(0.0, l - uThreshold) / max(l, 1e-4);
-    gl_FragColor = vec4(c * k, 1.0);
+    float l = max(c.r, max(c.g, c.b));
+    // soft-knee threshold (Unreal-style) — no hard pop as a highlight crosses the
+    // line; the knee curve ramps contribution smoothly around uThreshold.
+    float knee = uThreshold * uKnee + 1e-5;
+    float soft = clamp(l - uThreshold + knee, 0.0, 2.0 * knee);
+    soft = soft * soft / (4.0 * knee + 1e-5);
+    float contrib = max(soft, l - uThreshold) / max(l, 1e-4);
+    gl_FragColor = vec4(c * contrib, 1.0);
+  }
+`;
+
+/** Bloom combine (upsample): tent-ish add of a smaller, blurrier mip onto the
+ *  current one — the accumulation that gives a wide, soft, multi-scale glow. */
+export const BLOOM_UP_FRAG = /* glsl */ `
+  uniform sampler2D tSmall;   // lower-res (wider) mip, bilinear-upsampled
+  uniform sampler2D tBig;     // this level's blurred mip
+  uniform vec2 uTexel;        // small mip texel, for a 3x3 tent upsample
+  uniform float uScatter;     // how much of the wider mip bleeds up
+  varying vec2 vUv;
+  void main() {
+    // 3x3 tent filter on the smaller mip (soft, no boxy upscaling)
+    vec3 s = vec3(0.0);
+    s += texture2D(tSmall, vUv + uTexel * vec2(-1.0,-1.0)).rgb * 0.0625;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 0.0,-1.0)).rgb * 0.125;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 1.0,-1.0)).rgb * 0.0625;
+    s += texture2D(tSmall, vUv + uTexel * vec2(-1.0, 0.0)).rgb * 0.125;
+    s += texture2D(tSmall, vUv).rgb * 0.25;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 1.0, 0.0)).rgb * 0.125;
+    s += texture2D(tSmall, vUv + uTexel * vec2(-1.0, 1.0)).rgb * 0.0625;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 0.0, 1.0)).rgb * 0.125;
+    s += texture2D(tSmall, vUv + uTexel * vec2( 1.0, 1.0)).rgb * 0.0625;
+    gl_FragColor = vec4(texture2D(tBig, vUv).rgb + s * uScatter, 1.0);
   }
 `;
 

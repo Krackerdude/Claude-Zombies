@@ -55,10 +55,12 @@ export const PostFXConfig = {
     // scene, so only the moon + additive muzzle FX ever crossed it. The world's
     // matte surfaces stay far under 0.4, so lowering this blooms the light
     // sources without hazing the dark geometry.
-    threshold: 0.4,      // luminance above which a pixel blooms
-    intensity: 1.05,     // additive strength of the bloom buffer
-    radius: 1.0,         // blur spread multiplier
-    iterations: 3,       // gaussian H/V passes (more = softer/wider)
+    threshold: 0.55,     // luminance above which a pixel blooms (soft-knee, so this is the mid-point)
+    knee: 0.7,           // soft-knee width (0 = hard cut, 1 = very gradual ramp) — no popping
+    intensity: 0.9,      // additive strength of the combined bloom buffer
+    radius: 1.0,         // per-level blur spread multiplier
+    scatter: 0.85,       // how much each wider mip bleeds up the chain (bloom reach)
+    iterations: 3,       // (legacy; multi-scale mip chain now governs width)
   },
 
   // --- god rays: light shafts streaming from the moon past the rooftops ---
