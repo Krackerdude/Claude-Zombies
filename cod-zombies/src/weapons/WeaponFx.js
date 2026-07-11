@@ -127,6 +127,7 @@ export class WeaponFx {
       chunk: this.#pool(30, () => this.#mkChunk()),
       flash: this.#pool(2, () => this.#mkLight()),
       tracerLight: this.#pool(4, () => this.#mkLight()), // travelling glow so tracers cast real light
+      emberLight: this.#pool(3, () => this.#mkLight()),  // lingering warm afterglow that lights the room as a fireball billows
     };
     // Keep the explosion/plasma flash lights PERMANENTLY in the scene (visible,
     // intensity 0 when idle). A point light appearing for the first time changes
@@ -136,6 +137,7 @@ export class WeaponFx {
     // recompile, no hitch. Two lights cover overlapping blasts cheaply.
     for (const s of this.#pools.flash.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
     for (const s of this.#pools.tracerLight.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
+    for (const s of this.#pools.emberLight.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
   }
 
   // ---- pool plumbing ----
@@ -435,12 +437,35 @@ export class WeaponFx {
       m.position.copy(point); m.visible = true;
       this.#rec('spark', s, 0.3 + Math.random() * 0.35, { vx: _v.x * spd, vy: _v.y * spd + 1, vz: _v.z * spd, grav: 9, o0: 1, fade: 'out', grow: -0.4 });
     }
-    // 10) light flash
+    // 10) EMISSIVE LIGHTING — two stages so the blast actually lights the room.
+    //   a) a white-hot spike at detonation: brief, very bright, snaps the walls
+    //      into daylight for a couple of frames.
     {
       const s = this.#take('flash'); const L = s.mesh;
-      L.color.setHex(lightC); L.position.copy(point).add(_v.set(0, 0.6 * S, 0));
-      L.distance = 12 * S; L.intensity = 14 * S; L.visible = true;
-      this.#rec('flash', s, 0.38, { o0: 14 * S });
+      L.color.setHex(hot); L.position.copy(point).add(_v.set(0, 0.6 * S, 0));
+      L.distance = 16 * S; L.intensity = 22 * S; L.visible = true;
+      this.#rec('flash', s, 0.14, { o0: 22 * S });
+    }
+    //   b) a warm ember afterglow that RISES with the fireball and decays slowly,
+    //      keeping the room bathed orange while the smoke boils up — the part that
+    //      sells a fireball as a real light source, not a one-frame pop.
+    {
+      const s = this.#take('emberLight'); const L = s.mesh;
+      L.color.setHex(mid); L.position.copy(point).add(_v.set(0, 0.7 * S, 0));
+      L.distance = 13 * S; L.intensity = 0; L.visible = true;
+      this.#rec('emberlight', s, 0.85, { o0: 9 * S, vy: 1.6 * S });
+    }
+    // 11) GROUND SHOCKWAVE — dust kicked out low and fast along the floor, so the
+    //     blast reads as a pressure wave, not just a vertical puff.
+    const nWave = 9 + (Math.random() * 5 | 0);
+    for (let i = 0; i < nWave; i++) {
+      const s = this.#take('puff'); const m = s.mesh;
+      m.material.color.setHex(Math.random() < 0.5 ? ash : smoke); m.material.opacity = 0.7;
+      const a = (i / nWave) * Math.PI * 2 + Math.random() * 0.4;
+      const spd = (7 + Math.random() * 5) * S;
+      m.position.copy(point).add(_v.set(Math.cos(a) * 0.4 * S, 0.1 * S, Math.sin(a) * 0.4 * S));
+      m.scale.setScalar((0.5 + Math.random() * 0.5) * S); m.visible = true;
+      this.#rec('puff', s, 0.5 + Math.random() * 0.35, { vx: Math.cos(a) * spd, vy: 0.4 + Math.random() * 0.3, vz: Math.sin(a) * spd, grow: 2.4 * S, o0: 0.7, fade: 'out' });
     }
   }
 
@@ -486,12 +511,22 @@ export class WeaponFx {
       m.scale.setScalar(0.45 + Math.random() * 0.5); m.visible = true;
       this.#rec('star', s, 0.2 + Math.random() * 0.14, { o0: 1, fade: 'out', grow: 1.4 });
     }
-    // coloured light pop
+    // coloured light pop — a sharp bright hit...
     {
       const s = this.#take('flash'); const L = s.mesh;
       L.color.setHex(lightHex); L.position.copy(point).add(_v.set(0, 0.3, 0));
-      L.distance = 7; L.intensity = 8; L.visible = true;
-      this.#rec('flash', s, 0.26, { o0: 8 });
+      L.distance = 8; L.intensity = 10; L.visible = true;
+      this.#rec('flash', s, 0.12, { o0: 10 });
+    }
+    // ...followed by a lingering coloured glow in the bolt's energy hue, so a
+    // Ray Gun impact bathes the wall in green (or its PaP colour) as it fades —
+    // the same emissive-afterglow treatment the fireball now gets, tuned for
+    // energy: no upward drift, just a slow cooling pulse.
+    {
+      const s = this.#take('emberLight'); const L = s.mesh;
+      L.color.copy(col); L.position.copy(point).add(_v.set(0, 0.3, 0));
+      L.distance = 9; L.intensity = 0; L.visible = true;
+      this.#rec('emberlight', s, 0.5, { o0: 7, vy: 0 });
     }
   }
 
@@ -533,15 +568,24 @@ export class WeaponFx {
     for (let i = this.#parts.length - 1; i >= 0; i--) {
       const r = this.#parts[i]; r.age += dt; const t = r.age / r.life;
       if (t >= 1) {
-        // flash lights stay in the scene (intensity 0) so the light count never
-        // changes; everything else hides on expiry.
-        if (r.kind === 'flash') r.slot.mesh.intensity = 0; else r.slot.mesh.visible = false;
+        // flash/ember lights stay in the scene (intensity 0) so the light count
+        // never changes; everything else hides on expiry.
+        if (r.kind === 'flash' || r.kind === 'emberlight') r.slot.mesh.intensity = 0; else r.slot.mesh.visible = false;
         r.slot.busy = false; this.#parts.splice(i, 1); this.#free.push(r); continue;
       }
       const m = r.slot.mesh;
 
       // light flash: quick quadratic falloff of intensity
       if (r.kind === 'flash') { m.intensity = r.o0 * (1 - t) * (1 - t); continue; }
+
+      // ember afterglow: slow ease-out, drifts upward with the boiling fireball
+      // and flickers slightly so it feels like living flame, not a fading bulb.
+      if (r.kind === 'emberlight') {
+        m.position.y += r.vy * dt; r.vy *= 0.94;
+        const flick = 0.88 + Math.random() * 0.12;
+        m.intensity = r.o0 * (1 - t) * (1 - t * 0.5) * flick; // held then eased out
+        continue;
+      }
 
       // comet streak: integrate, orient the tail along travel, fade head+tail
       if (r.kind === 'comet') {

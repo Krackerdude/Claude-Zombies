@@ -82,13 +82,19 @@ export class DecalSystem extends System {
     const slot = this.#surf[this.#surfCur];
     this.#surfCur = (this.#surfCur + 1) % this.#surf.length;
     const m = slot.mesh; const mat = m.material;
-    const hole = kind === 'hole';
-    mat.map = hole ? this.#tex.hole : this.#tex.splat;
-    mat.color.setHex(hole ? 0x15151a : 0x780a0e);
-    mat.roughness = hole ? 0.85 : 0.42;        // fresh blood is wet → catches the lamps
+    const hole = kind === 'hole', scorch = kind === 'scorch';
+    mat.emissive && mat.emissive.setHex(0x000000);
+    if (scorch) {
+      mat.map = this.#tex.scorch; mat.color.setHex(0x100d0b); mat.roughness = 0.95;
+      slot.life = this.#cfg.scorchLife ?? 55; slot.peak = 0.88;
+    } else if (hole) {
+      mat.map = this.#tex.hole; mat.color.setHex(0x15151a); mat.roughness = 0.85;
+      slot.life = this.#cfg.holeLife ?? 120; slot.peak = 0.95;
+    } else {
+      mat.map = this.#tex.splat; mat.color.setHex(0x780a0e); mat.roughness = 0.42; // fresh blood is wet → catches the lamps
+      slot.life = this.#cfg.splatLife ?? 70; slot.peak = 0.9;
+    }
     mat.needsUpdate = true;
-    slot.life = hole ? (this.#cfg.holeLife ?? 120) : (this.#cfg.splatLife ?? 70);
-    slot.peak = hole ? 0.95 : 0.9;
     // orient the quad's +Z to the surface normal, with a random roll in-plane
     _n.set(nx, ny, nz).normalize();
     _q.setFromUnitVectors(_z, _n);

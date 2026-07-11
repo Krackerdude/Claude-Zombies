@@ -42,6 +42,8 @@ const _muz2 = new THREE.Vector3();
 const _nrm = new THREE.Vector3();
 const _bnrm = new THREE.Vector3(); // blood-spray surface normal (wall behind a hit zombie)
 const _bpt = new THREE.Vector3();  // blood-spray surface point
+const _sdir = new THREE.Vector3(); // scorch-burst probe direction
+const _snrm = new THREE.Vector3(); // scorch-burst surface normal
 const _col = new THREE.Color();
 const _explo = new THREE.Vector3();
 const _ja = new THREE.Vector3(); // bone-hitbox joint A
@@ -189,12 +191,15 @@ export class WeaponSystem extends System {
     // route every explosion through the shared FX (fiery for frag/rocket, purple for PHD)
     this.#events.on('fx:explosion', (e) => {
       if (!this.#fx) return;
-      this.#fx.spawnExplosion(_explo.set(e.x, e.y ?? 0.6, e.z), EXPLO[e.kind] || EXPLO.frag);
+      const pal = EXPLO[e.kind] || EXPLO.frag;
+      this.#fx.spawnExplosion(_explo.set(e.x, e.y ?? 0.6, e.z), pal);
+      if (e.kind !== 'phd') this.#scorchBurst(e.x, e.y ?? 0.6, e.z, pal.scale ?? 1); // PHD burns purple, leaves no soot
       this.#events.emit('fx:shake', {});
     });
     this.#events.on('weapon:explosion', (e) => {
       if (!this.#fx) return;
       this.#fx.spawnExplosion(_explo.set(e.x, e.y ?? 0.6, e.z), EXPLO.rocket);
+      this.#scorchBurst(e.x, e.y ?? 0.6, e.z, EXPLO.rocket.scale);
       this.#events.emit('fx:shake', {});
     });
     // ray-gun / energy hit: a coloured radial plasma burst, no fire or shake
@@ -572,7 +577,7 @@ export class WeaponSystem extends System {
     if (!this.#fx) return;
     _bpt.copy(from).addScaledVector(dir, 0.05); // start just past the body
     this.#fxRay.set(_bpt, dir);
-    this.#fxRay.far = 16; // reach the far wall of a room-sized space
+    this.#fxRay.far = 12; // reach a room's far wall, but blood never flies across the map
     const hits = this.#fxRay.intersectObjects(this.#sceneMgr.scene.children, true);
     for (const h of hits) {
       if (!h.face || h.distance < 0.1) continue;
@@ -588,6 +593,38 @@ export class WeaponSystem extends System {
         nx: _bnrm.x, ny: _bnrm.y, nz: _bnrm.z, size,
       });
       return;
+    }
+  }
+
+  /** Blacken nearby surfaces around a blast: fire a short fan of probes (down +
+   *  around) and stamp a normal-oriented scorch where each lands, so a rocket
+   *  against a wall leaves soot on the wall and a burn on the floor — not just a
+   *  flat ring under the impact. */
+  #scorchBurst(x, y, z, scale) {
+    if (!this.#fx) return;
+    const reach = 2.6 * scale;
+    _explo.set(x, y, z);
+    // 8 around + straight down; keep it cheap and let the decal pool cap dupes
+    for (let i = 0; i < 9; i++) {
+      if (i === 8) _sdir.set(0, -1, 0);
+      else { const a = (i / 8) * Math.PI * 2; _sdir.set(Math.cos(a), -0.35, Math.sin(a)).normalize(); }
+      this.#fxRay.set(_explo, _sdir);
+      this.#fxRay.far = reach;
+      const hits = this.#fxRay.intersectObjects(this.#sceneMgr.scene.children, true);
+      for (const h of hits) {
+        if (!h.face || h.distance < 0.1) continue;
+        if (this.#fxIgnored(h.object)) continue;   // not on zombies/corpses
+        if (this.#hidden(h.object)) continue;
+        _snrm.copy(h.face.normal).transformDirection(h.object.matrixWorld).normalize();
+        if (_snrm.dot(_sdir) > 0) _snrm.multiplyScalar(-1);
+        const near = 1 - h.distance / reach;         // closer surfaces get a bigger burn
+        this.#events.emit('fx:decal', {
+          kind: 'scorch', x: h.point.x, y: h.point.y, z: h.point.z,
+          nx: _snrm.x, ny: _snrm.y, nz: _snrm.z,
+          size: (1.3 + near * 1.4) * scale,
+        });
+        break;
+      }
     }
   }
 
