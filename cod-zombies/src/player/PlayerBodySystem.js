@@ -7,7 +7,7 @@ import { selectedBuild } from '../characters/selection.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
 import { papCamo } from '../weapons/gunMaterials.js';
 import { makeFlashStar, makeFlashCore, makeEnergyFlash, makeShockRing, buildVmFrag, buildVmWraith, buildVmSemtex, buildVmAcid } from '../weapons/Viewmodel.js';
-import { markNoAO, markViewmodel } from '../rendering/aoMask.js';
+import { markNoAO, markViewmodel, VIEWMODEL_LAYER } from '../rendering/aoMask.js';
 import { fpBody, weaponAction } from './fpBodyState.js';
 import { buildPerkBottle } from '../perks/perks.js';
 
@@ -199,6 +199,7 @@ export class PlayerBodySystem extends System {
   #wasCooking = false; #throwT = 0; #inspectT = 0; #lastThrowKind = 'frag';
   #leftTarget = new THREE.Group(); #rightTarget = new THREE.Group(); // action IK targets
   #flash = null; #flashStar = null; #flashCore = null; #flashLight = null;
+  #muzzleLight = null; #muzzleTarget = null; // dynamic viewmodel-only muzzle shadow spot
   #starTex = null; #energyTex = null; // star (bullets) vs plasma (energy weapons)
   #shock = null; #shockRings = []; #shockT = 99; #shockPrev = 0; // thundergun shockwave rings
   #energyFlash = false; #thunder = false; #energyColor = 0xffffff; // per-weapon muzzle mode
@@ -235,6 +236,21 @@ export class PlayerBodySystem extends System {
     markNoAO(this.#flash); markNoAO(this.#shock); // muzzle flash + thunderclap are FX — no AO
     this.#flashLight = new THREE.PointLight(0xffd9a0, 0, 6, 2);
     this.#scene.add(this.#flashLight);
+    // dynamic muzzle SHADOW light: a spotlight from the muzzle back toward the
+    // hands that casts the gun's silhouette across itself + the arms when firing.
+    // Layer-scoped to the VIEWMODEL so it only lights/shadows the gun+hands (its
+    // shadow map holds nothing else) and never touches the world.
+    this.#muzzleLight = new THREE.SpotLight(0xffe6b0, 0, 3.0, 1.15, 0.7, 1.4);
+    this.#muzzleLight.castShadow = true;
+    this.#muzzleLight.shadow.mapSize.set(512, 512);
+    this.#muzzleLight.shadow.camera.near = 0.03; this.#muzzleLight.shadow.camera.far = 3.0;
+    this.#muzzleLight.shadow.bias = -0.002;
+    this.#muzzleLight.layers.set(VIEWMODEL_LAYER);
+    this.#muzzleLight.shadow.camera.layers.set(VIEWMODEL_LAYER);
+    this.#muzzleLight.shadow.autoUpdate = false; // only re-render the shadow map while firing
+    this.#muzzleTarget = new THREE.Object3D();
+    this.#scene.add(this.#muzzleLight); this.#scene.add(this.#muzzleTarget);
+    this.#muzzleLight.target = this.#muzzleTarget;
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F6') { e.preventDefault(); e.stopPropagation(); this.#toggle(); }
       // inspect (KeyH): a quick one-handed look at the hand while the gun holsters
@@ -266,7 +282,7 @@ export class PlayerBodySystem extends System {
     if (this.#body) this.#body.visible = this.#enabled;
     this.#gunHolder.visible = this.#enabled;
     this.#gunHolderL.visible = this.#enabled && this.#dual;
-    if (!this.#enabled && this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; if (this.#shock) this.#shock.visible = false; }
+    if (!this.#enabled && this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; if (this.#muzzleLight) this.#muzzleLight.intensity = 0; if (this.#shock) this.#shock.visible = false; }
   }
 
   #build() {
@@ -480,6 +496,10 @@ export class PlayerBodySystem extends System {
     if (w.data.pap) this.#applyPap(built.group);
     this.#killRaycast(built.group);
     markViewmodel(built.group); // viewmodel gun — dedicated AO pass, out of world AO
+    // the gun RECEIVES world light + shadow like the hands, and CASTS (like the
+    // hands already do) so the dynamic muzzle spotlight below throws the gun's own
+    // silhouette across itself + the hands when firing.
+    built.group.traverse((o) => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = true; } });
     this.#gunHolder.add(built.group);
     // capture animated sub-groups (revolver cylinder / minigun barrel cluster)
     // so the FP hand viewmodel spins them exactly like the overlay Viewmodel does
@@ -572,7 +592,7 @@ export class PlayerBodySystem extends System {
     if (!this.#enabled || !this.#body) return;
     if (!this.#gameState.isPlaying || this.world.first(PlayerTag, Transform) === undefined) {
       this.#body.visible = false; this.#gunHolder.visible = false; this.#gunHolderL.visible = false;
-      if (this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; if (this.#shock) this.#shock.visible = false; }
+      if (this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; if (this.#muzzleLight) this.#muzzleLight.intensity = 0; if (this.#shock) this.#shock.visible = false; }
       return;
     }
     const id = this.world.first(PlayerTag, Transform);
@@ -848,6 +868,7 @@ export class PlayerBodySystem extends System {
         this.#flashLight.color.set(0xbcd8ff);
         this.#flashLight.intensity = this.#shockT < 0.12 ? (1 - this.#shockT / 0.12) * 7 : 0;
       } else { this.#shock.visible = false; this.#flashLight.intensity = 0; }
+      this.#muzzleLight.intensity = 0; // thundergun is a shockwave, no muzzle shadow
       this.#shockPrev = jf;
       return;
     }
@@ -867,10 +888,19 @@ export class PlayerBodySystem extends System {
       this.#flashLight.position.copy(_mz);
       this.#flashLight.color.set(this.#energyFlash ? this.#energyColor : 0xffd9a0);
       this.#flashLight.intensity = lit * (this.#energyFlash ? 5.5 : 4.5);
+      // muzzle SHADOW spot: sit at the muzzle, aim back at the gun body so the front
+      // sight/barrel throw hard flickering shadows across the receiver + hands
+      this.#muzzleLight.position.copy(_mz);
+      this.#gunHolder.getWorldPosition(this.#muzzleTarget.position);
+      this.#muzzleTarget.updateMatrixWorld();
+      this.#muzzleLight.color.set(this.#energyFlash ? this.#energyColor : 0xffe6b0);
+      this.#muzzleLight.intensity = lit * 9;
+      this.#muzzleLight.shadow.needsUpdate = true; // refresh the silhouette this flash frame
     } else {
       this.#flash.visible = false;
       this.#flashStar.material.opacity = 0; this.#flashCore.material.opacity = 0;
       this.#flashLight.intensity = 0;
+      this.#muzzleLight.intensity = 0;
     }
   }
 
