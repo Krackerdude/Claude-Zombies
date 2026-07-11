@@ -42,6 +42,7 @@ export class PostFX {
   #rtBloomB = null; // half-res bloom pong
   #rtGod = null;    // half-res god-ray accumulation buffer
   #normalMat = null; // MeshNormalMaterial override for the normal prepass
+  #maskMesh = null; #maskSprite = null; // solid-white stand-ins for the AO mask pass
 
   // fullscreen quad
   #quadScene;
@@ -100,6 +101,12 @@ export class PostFX {
     // normals-based AO: occlusion pass (reads depth + normal prepass), a
     // separable depth-aware blur, and an apply pass that multiplies into colour
     this.#normalMat = new THREE.MeshNormalMaterial();
+    // solid-white stand-ins for the AO-exclusion mask: tagged objects are swapped
+    // to these so ANY covered pixel writes full alpha (faint FX included), and
+    // depthTest off so nothing suppresses the coverage. Sprites need a sprite
+    // material to keep their billboard; meshes/points use the basic one.
+    this.#maskMesh = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, depthTest: false, depthWrite: false });
+    this.#maskSprite = new THREE.SpriteMaterial({ color: 0xffffff, fog: false, depthTest: false, depthWrite: false });
     this.#mAO = this.#shader(AO_FRAG, {
       tDepth: { value: null }, tNormal: { value: null }, uTexel: { value: new THREE.Vector2() },
       uNear: { value: 0.3 }, uFar: { value: 250 }, uP00: { value: 1 }, uP11: { value: 1 },
@@ -328,29 +335,40 @@ export class PostFX {
     r.render(worldScene, worldCamera);
     const depth = this.#rtScene.depthTexture;
 
-    // 1b) normal prepass → rtNormal (view-space normals for the AO). One extra
-    // flat render of the same scene; skipped entirely when AO is off. Transparent
-    // FX get overridden to opaque normals but the bilateral denoise absorbs it.
     if (aoOn) {
+      // collect every AO-excluded object once (emissive parts + FX) for the two
+      // off-screen passes below
+      const tagged = [];
+      worldScene.traverse((o) => {
+        if ((o.isMesh || o.isSprite || o.isPoints || o.isLine) && (o.layers.mask & (1 << NO_AO_LAYER)) !== 0) tagged.push(o);
+      });
       const prevOverride = worldScene.overrideMaterial;
       // suppress the scene background for these off-screen passes — otherwise it
       // paints an opaque fullscreen fill (alpha 1 everywhere), which would blanket
       // the AO-exclusion mask and disable AO across the whole frame.
       const prevBg = worldScene.background;
       worldScene.background = null;
+
+      // 1b) normal prepass → rtNormal (view-space normals for the AO). HIDE the
+      // excluded objects: otherwise the override makes transparent FX (light beams,
+      // smoke) opaque in the normal buffer while they wrote NO depth in the colour
+      // pass — that P/N mismatch is what smears AO into beam-shaped blobs. With them
+      // hidden, normals stay consistent with depth (the opaque geometry behind).
+      const vis = tagged.map((o) => o.visible);
+      for (const o of tagged) o.visible = false;
       worldScene.overrideMaterial = this.#normalMat;
       r.setRenderTarget(this.#rtNormal);
       r.clear();
       r.render(worldScene, worldCamera);
-
       worldScene.overrideMaterial = prevOverride;
+      for (let i = 0; i < tagged.length; i++) tagged[i].visible = vis[i];
 
-      // 1c) AO-exclusion mask → rtAOMask: render ONLY the no-AO-layer objects
-      // (emissive parts + FX) with their OWN materials onto a fully transparent
-      // clear, and read COVERAGE from the alpha channel. Using each object's real
-      // material (no override) is what makes this work for sprites too (billboard
-      // particles ignore scene.overrideMaterial). The apply pass forces "no
-      // occlusion" wherever alpha coverage is present.
+      // 1c) AO-exclusion mask → rtAOMask: swap the excluded objects to a SOLID
+      // white stand-in and render only them (layer-filtered) onto a transparent
+      // clear. Solid white → any covered pixel writes full alpha regardless of the
+      // FX's real (often faint) opacity, and sprites keep their billboard.
+      const mats = tagged.map((o) => o.material);
+      for (const o of tagged) o.material = o.isSprite ? this.#maskSprite : this.#maskMesh;
       const prevLayer = worldCamera.layers.mask;
       const prevClear = r.getClearColor(new THREE.Color()).getHex();
       const prevAlpha = r.getClearAlpha();
@@ -361,6 +379,7 @@ export class PostFX {
       r.render(worldScene, worldCamera);
       worldCamera.layers.mask = prevLayer;
       r.setClearColor(prevClear, prevAlpha);
+      for (let i = 0; i < tagged.length; i++) tagged[i].material = mats[i];
       worldScene.background = prevBg;
     }
 
@@ -500,6 +519,8 @@ export class PostFX {
     this.#disposeTargets();
     this.#black?.dispose();
     this.#normalMat?.dispose();
+    this.#maskMesh?.dispose();
+    this.#maskSprite?.dispose();
     this.#quad.geometry.dispose();
     for (const m of [this.#mCopy, this.#mDof, this.#mBright, this.#mBlur, this.#mFinal,
       this.#mGodSrc, this.#mGodBlur, this.#mAO, this.#mAOBlur, this.#mAOApply, this.#mOutline, this.#mMotion]) m?.dispose();

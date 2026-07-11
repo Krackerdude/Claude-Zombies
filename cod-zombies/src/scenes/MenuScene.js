@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildZombieRig } from './zombieRig.js';
 import { randomZombieLook } from './zombieAssets.js';
 import { selectedBuild, onCharacterChange } from '../characters/selection.js';
+import { autoTagNoAO } from '../rendering/aoMask.js';
 
 /**
  * The main-menu backdrop: a separate, self-lit THREE scene — a dark snowy
@@ -127,6 +128,9 @@ export function buildMenuScene() {
   // --- falling snow ---
   const snow = buildSnow();
   scene.add(snow.points);
+
+  // exclude the campfire flames/glow + snow (light-emitting / FX) from AO
+  autoTagNoAO(scene);
 
   return {
     scene,
