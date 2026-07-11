@@ -138,6 +138,9 @@ export class SettingsStore {
       P.dof.enabled = g.dof !== false; P.dof.maxBlur = g.dofBlur;
       P.godrays.enabled = g.godRays !== false; P.godrays.intensity = g.godRaysIntensity;
       P.ssao.enabled = g.ssao !== false; P.ssao.intensity = g.ssaoIntensity;
+      // the viewmodel AO rides the same AO toggle + intensity slider, scaled down
+      // (the near gun wants only a whisper: ~0.45 at the 1.55 default slider)
+      P.viewmodelAO.enabled = g.ssao !== false; P.viewmodelAO.intensity = g.ssaoIntensity * 0.29;
       P.outline.enabled = g.outline !== false; P.outline.strength = g.outlineStrength;
       P.motionBlur.enabled = g.motionBlur !== false; P.motionBlur.strength = g.motionBlurStrength;
       P.heatHaze.enabled = g.heatHaze !== false;
