@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { markNoAO } from '../rendering/aoMask.js';
 
 /**
  * World-space shooting effects — the M1911 blueprint that every gun will reuse.
@@ -141,6 +142,7 @@ export class WeaponFx {
     for (let i = 0; i < n; i++) {
       const m = factory(); m.visible = false;
       m.traverse((o) => { o.raycast = () => {}; }); // bullets must never hit our own FX
+      markNoAO(m); // every bullet/impact/blood/explosion FX is excluded from AO
       this.#scene.add(m); slots.push({ mesh: m, busy: false });
     }
     return { slots, cur: 0 };

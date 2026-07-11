@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { autoTagNoAO } from '../rendering/aoMask.js';
 
 /**
  * The Pack-a-Punch machine: a stylized teal carnival chamber on splayed legs,
@@ -117,5 +118,6 @@ export function buildPaP() {
   // system entirely (no cast, no receive). Enrol every solid part like the other
   // machines — the emissive glow plane is skipped so it doesn't cast a hard slab.
   root.traverse((o) => { if (o.isMesh && o !== glow) { o.castShadow = true; o.receiveShadow = true; } });
+  autoTagNoAO(root); // exclude the entrance glow + emissive signage from AO
   return root;
 }

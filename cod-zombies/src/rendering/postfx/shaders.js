@@ -172,14 +172,16 @@ export const AO_BLUR_FRAG = /* glsl */ `
 
 /** Composite the half-res AO into the world colour. Two things beyond a plain
  *  multiply: (1) a depth-aware 3x3 upsample so the half-res AO snaps to full-res
- *  geometry edges instead of smearing across them (kills the muddiness); (2) a
- *  luminance mask so self-lit / bright surfaces (fire, neon, the practical
- *  lights) keep their glow instead of being darkened by occlusion. */
+ *  geometry edges instead of smearing across them (kills the muddiness); (2) an
+ *  explicit exclusion mask — light-emitting parts and FX (muzzle flash, tracers,
+ *  impacts, blood, plasma, perk panels/neon) are rendered into tMask and forced
+ *  to full brightness, so AO never darkens or muddies them. */
 export const AO_APPLY_FRAG = /* glsl */ `
   #include <packing>
   uniform sampler2D tDiffuse;
   uniform sampler2D tAO;
   uniform sampler2D tDepth;
+  uniform sampler2D tMask;   // 1 where AO must be excluded (emissive / FX)
   uniform vec2 uAOTexel;     // half-res AO texel
   uniform float uNear, uFar;
   varying vec2 vUv;
@@ -197,10 +199,8 @@ export const AO_APPLY_FRAG = /* glsl */ `
       }
     }
     ao = wsum > 0.0 ? ao / wsum : texture2D(tAO, vUv).r;
-    // spare self-lit / bright pixels (emissive fire, neon, lamps) from occlusion
-    float lum = dot(col, vec3(0.299, 0.587, 0.114));
-    float mask = 1.0 - smoothstep(0.55, 0.95, lum);
-    gl_FragColor = vec4(col * mix(1.0, ao, mask), 1.0);
+    ao = mix(ao, 1.0, step(0.08, texture2D(tMask, vUv).a)); // excluded (alpha coverage) → no occlusion
+    gl_FragColor = vec4(col * ao, 1.0);
   }
 `;
 

@@ -32,6 +32,7 @@ import { makeChalkTexture, makeGlowTexture } from '../util/chalk.js';
 import { PlayerTag, Transform } from '../ecs/components/index.js';
 import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../rendering/materials/surfaces.js';
 import { prewarmZombieCosmetics } from './zombieAssets.js';
+import { autoTagNoAO } from '../rendering/aoMask.js';
 import { MenuSystem } from './MenuSystem.js';
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../rendering/AmbientParticles.js';
@@ -358,6 +359,10 @@ export function buildArena(engine) {
   // park every shared zombie material (skins + hair/cloth cosmetics) hidden in
   // the scene so the load-time prewarm compiles them and the first wave is smooth
   prewarmZombieCosmetics(scene);
+
+  // exclude every light-emitting / FX part already in the arena (neon signs,
+  // wall-buy chalk glows, dusty light cones, mystery-box glow, rain) from AO
+  autoTagNoAO(scene);
 
   return { nav, playerId };
 }
