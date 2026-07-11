@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { PostFXConfig } from '../../config/index.js';
-import { NO_AO_LAYER } from '../aoMask.js';
+import { NO_AO_LAYER, VIEWMODEL_LAYER } from '../aoMask.js';
 import {
   FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLUR_FRAG, FINAL_FRAG,
-  GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, AO_FRAG, AO_BLUR_FRAG, AO_APPLY_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
+  GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, AO_FRAG, AO_BLUR_FRAG, AO_APPLY_FRAG, AO_VM_APPLY_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
 } from './shaders.js';
 
 /**
@@ -38,6 +38,8 @@ export class PostFX {
   #rtWork = null;   // working colour buffer with a depth buffer for the gun
   #rtAOa = null;    // half-res AO ping (occlusion + denoise)
   #rtAOb = null;    // half-res AO pong
+  #rtVmNormal = null; // viewmodel-only normals + depth (dedicated viewmodel AO)
+  #rtVmAO = null;   // half-res viewmodel AO
   #rtBloomA = null; // half-res bloom ping
   #rtBloomB = null; // half-res bloom pong
   #rtGod = null;    // half-res god-ray accumulation buffer
@@ -51,7 +53,7 @@ export class PostFX {
   #black; // 1×1 black fallback for the bloom/god slots when disabled
 
   // stage materials
-  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mOutline; #mMotion;
+  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmApply; #mOutline; #mMotion;
 
   // motion-blur matrices
   #curVP = new THREE.Matrix4();
@@ -118,6 +120,16 @@ export class PostFX {
     });
     this.#mAOApply = this.#shader(AO_APPLY_FRAG, {
       tDiffuse: { value: null }, tAO: { value: null }, tDepth: { value: null }, tMask: { value: null },
+      uAOTexel: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 250 },
+    });
+    // dedicated viewmodel AO: same occlusion shader tuned to viewmodel scale, + apply
+    this.#mVmAO = this.#shader(AO_FRAG, {
+      tDepth: { value: null }, tNormal: { value: null }, uTexel: { value: new THREE.Vector2() },
+      uNear: { value: 0.1 }, uFar: { value: 250 }, uP00: { value: 1 }, uP11: { value: 1 },
+      uRadius: { value: 0.09 }, uIntensity: { value: 1.1 }, uBias: { value: 0.008 }, uPower: { value: 1.4 },
+    });
+    this.#mVmApply = this.#shader(AO_VM_APPLY_FRAG, {
+      tDiffuse: { value: null }, tAO: { value: null }, tDepth: { value: null },
       uAOTexel: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 250 },
     });
 
@@ -199,6 +211,11 @@ export class PostFX {
     const bcol = { ...color(), depthBuffer: false };
     this.#rtAOa = new THREE.WebGLRenderTarget(hw, hh, bcol); // AO computed + denoised at half res
     this.#rtAOb = new THREE.WebGLRenderTarget(hw, hh, bcol);
+    // viewmodel AO: full-res normals (+ own depth texture) → half-res AO
+    const vmDepthTex = new THREE.DepthTexture(w, h);
+    vmDepthTex.format = THREE.DepthFormat; vmDepthTex.type = THREE.UnsignedIntType;
+    this.#rtVmNormal = new THREE.WebGLRenderTarget(w, h, { ...color(), depthTexture: vmDepthTex });
+    this.#rtVmAO = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtBloomA = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtBloomB = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtGod = new THREE.WebGLRenderTarget(hw, hh, bcol);
@@ -210,6 +227,8 @@ export class PostFX {
     this.#mAO.uniforms.uTexel.value.copy(halfTexel);
     this.#mAOBlur.uniforms.uTexel.value.copy(halfTexel);
     this.#mAOApply.uniforms.uAOTexel.value.copy(halfTexel);
+    this.#mVmAO.uniforms.uTexel.value.copy(halfTexel);
+    this.#mVmApply.uniforms.uAOTexel.value.copy(halfTexel);
     this.#mOutline.uniforms.uTexel.value.copy(texel);
     this.#mGodSrc.uniforms.uAspect.value = w / h;
   }
@@ -270,6 +289,10 @@ export class PostFX {
     const ao = params.ssao ?? {}; const a = this.#mAO.uniforms;
     a.uRadius.value = ao.radius ?? 0.6; a.uIntensity.value = ao.intensity ?? 1.0;
     a.uBias.value = ao.bias ?? 0.02; a.uPower.value = ao.power ?? 1.5;
+
+    const vao = params.viewmodelAO ?? {}; const va = this.#mVmAO.uniforms;
+    va.uRadius.value = vao.radius ?? 0.09; va.uIntensity.value = vao.intensity ?? 1.1;
+    va.uBias.value = vao.bias ?? 0.008; va.uPower.value = vao.power ?? 1.4;
 
     const ol = params.outline ?? {}; const o = this.#mOutline.uniforms;
     o.uThickness.value = ol.thickness ?? 1; o.uDepthEdge.value = ol.depthEdge ?? 1.1;
@@ -380,6 +403,20 @@ export class PostFX {
       worldCamera.layers.mask = prevLayer;
       r.setClearColor(prevClear, prevAlpha);
       for (let i = 0; i < tagged.length; i++) tagged[i].material = mats[i];
+
+      // 1d) viewmodel normal prepass → rtVmNormal: render ONLY the viewmodel layer
+      // (gun + hands + props) with view normals into its OWN buffer (+ depth). The
+      // dedicated viewmodel AO computed from this self-shadows the gun without ever
+      // touching the world's depth, so no ghosting.
+      if (p.viewmodelAO?.enabled !== false) {
+        worldScene.overrideMaterial = this.#normalMat;
+        worldCamera.layers.set(VIEWMODEL_LAYER);
+        r.setRenderTarget(this.#rtVmNormal);
+        r.clear();
+        r.render(worldScene, worldCamera);
+        worldCamera.layers.mask = prevLayer;
+        worldScene.overrideMaterial = prevOverride;
+      }
       worldScene.background = prevBg;
     }
 
@@ -418,6 +455,34 @@ export class PostFX {
       srcTex = ping.texture;
       const t = ping; ping = pong; pong = t;
     }
+
+    // Dedicated viewmodel AO: occlusion from the viewmodel-only buffer → denoise →
+    // multiply into the gun/hands. Self-shadows at the gun's scale (tiny radius),
+    // no ghosting since the buffer never sees the world. No-op when no viewmodel is
+    // on-screen (the buffer is empty → AO is 1 everywhere).
+    if (aoOn && p.viewmodelAO?.enabled !== false) {
+      const proj = worldCamera.projectionMatrix.elements;
+      const vd = this.#rtVmNormal.depthTexture;
+      const v = this.#mVmAO.uniforms;
+      v.uNear.value = near; v.uFar.value = far; v.uP00.value = proj[0]; v.uP11.value = proj[5];
+      v.tDepth.value = vd; v.tNormal.value = this.#rtVmNormal.texture;
+      this.#blit(this.#mVmAO, this.#rtVmAO);
+      // bilateral denoise (reusing the world blur material + rtAOb as scratch)
+      const b = this.#mAOBlur.uniforms;
+      b.uNear.value = near; b.uFar.value = far; b.tDepth.value = vd;
+      b.tAO.value = this.#rtVmAO.texture; b.uDir.value.set(1, 0);
+      this.#blit(this.#mAOBlur, this.#rtAOb);
+      b.tAO.value = this.#rtAOb.texture; b.uDir.value.set(0, 1);
+      this.#blit(this.#mAOBlur, this.#rtVmAO);
+      // apply: colour *= viewmodel AO (1.0 off the gun, so world is untouched)
+      const vp = this.#mVmApply.uniforms;
+      vp.uNear.value = near; vp.uFar.value = far; vp.tDepth.value = vd;
+      vp.tDiffuse.value = srcTex; vp.tAO.value = this.#rtVmAO.texture;
+      this.#blit(this.#mVmApply, ping);
+      srcTex = ping.texture;
+      const t = ping; ping = pong; pong = t;
+    }
+
     if (p.outline?.enabled !== false && (p.outline?.strength ?? 0) > 0) {
       this.#mOutline.uniforms.uNear.value = near; this.#mOutline.uniforms.uFar.value = far;
       run(this.#mOutline);
@@ -510,6 +575,9 @@ export class PostFX {
     this.#rtWork?.dispose();
     this.#rtAOa?.dispose();
     this.#rtAOb?.dispose();
+    this.#rtVmNormal?.depthTexture?.dispose();
+    this.#rtVmNormal?.dispose();
+    this.#rtVmAO?.dispose();
     this.#rtBloomA?.dispose();
     this.#rtBloomB?.dispose();
     this.#rtGod?.dispose();
@@ -523,6 +591,6 @@ export class PostFX {
     this.#maskSprite?.dispose();
     this.#quad.geometry.dispose();
     for (const m of [this.#mCopy, this.#mDof, this.#mBright, this.#mBlur, this.#mFinal,
-      this.#mGodSrc, this.#mGodBlur, this.#mAO, this.#mAOBlur, this.#mAOApply, this.#mOutline, this.#mMotion]) m?.dispose();
+      this.#mGodSrc, this.#mGodBlur, this.#mAO, this.#mAOBlur, this.#mAOApply, this.#mVmAO, this.#mVmApply, this.#mOutline, this.#mMotion]) m?.dispose();
   }
 }

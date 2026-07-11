@@ -7,7 +7,7 @@ import { selectedBuild } from '../characters/selection.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
 import { papCamo } from '../weapons/gunMaterials.js';
 import { makeFlashStar, makeFlashCore, makeEnergyFlash, makeShockRing, buildVmFrag, buildVmWraith, buildVmSemtex, buildVmAcid } from '../weapons/Viewmodel.js';
-import { markNoAO } from '../rendering/aoMask.js';
+import { markNoAO, markViewmodel } from '../rendering/aoMask.js';
 import { fpBody, weaponAction } from './fpBodyState.js';
 import { buildPerkBottle } from '../perks/perks.js';
 
@@ -308,9 +308,9 @@ export class PlayerBodySystem extends System {
       J.handL.add(this.#bottle);
     }
     this.#killRaycast(this.#body); // body + hand-held props ignore bullet/shade rays
-    // the first-person body/hands + hand props are a near-camera viewmodel — exclude
-    // from world AO (half-res AO over it reads as ghosting / translucency)
-    markNoAO(this.#body);
+    // the first-person body/hands + hand props are a near-camera viewmodel: out of
+    // the world AO, into the dedicated viewmodel-AO pass (self-shadows cleanly)
+    markViewmodel(this.#body);
   }
 
   /** Our own hand-scale combat knife (blade along -Y, pitched forward out of the fist). */
@@ -479,7 +479,7 @@ export class PlayerBodySystem extends System {
     if (!built?.group) return;
     if (w.data.pap) this.#applyPap(built.group);
     this.#killRaycast(built.group);
-    markNoAO(built.group); // viewmodel gun — excluded from world AO like the hands
+    markViewmodel(built.group); // viewmodel gun — dedicated AO pass, out of world AO
     this.#gunHolder.add(built.group);
     // capture animated sub-groups (revolver cylinder / minigun barrel cluster)
     // so the FP hand viewmodel spins them exactly like the overlay Viewmodel does
@@ -513,7 +513,7 @@ export class PlayerBodySystem extends System {
       if (left?.group) {
         if (w.data.pap) this.#applyPap(left.group);
         this.#killRaycast(left.group);
-        markNoAO(left.group); // dual-wield twin — also excluded from AO
+        markViewmodel(left.group); // dual-wield twin — dedicated AO pass too
         this.#gunHolderL.add(left.group);
         this.#gunHolderL.scale.set(-1, 1, 1); // mirror
         const udL = left.group.userData || {};
