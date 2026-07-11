@@ -38,6 +38,7 @@ import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../rendering/AmbientParticles.js';
 import { DecalSystem } from '../rendering/DecalSystem.js';
 import { GibSystem } from '../rendering/GibSystem.js';
+import { SkySystem } from './SkySystem.js';
 import { buildLightCone } from '../rendering/lightCone.js';
 import { EffectsDirector } from '../rendering/EffectsDirector.js';
 import { WeatherSystem } from '../rendering/WeatherSystem.js';
@@ -244,6 +245,10 @@ export function buildArena(engine) {
   // ambient haze + persistent ground decals (blood pools, scorch). Both are
   // isolated, event-driven, and individually disable-able for performance.
   engine.world.registerSystem(new AmbientParticles());
+  // animated night skydome — aurora, stars, and the glowing moon the volumetric
+  // shafts stream from (and bloom haloes). Registered before decals/FX so it
+  // paints first, behind everything.
+  engine.world.registerSystem(new SkySystem());
   engine.world.registerSystem(new DecalSystem());
   // bloody gibs flung from severed limbs / blown-apart heads (ballistic, pooled)
   engine.world.registerSystem(new GibSystem());
