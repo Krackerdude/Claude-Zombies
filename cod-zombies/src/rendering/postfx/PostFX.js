@@ -53,6 +53,7 @@ export class PostFX {
   // volumetric key-light descriptor (world space), pushed each frame by RenderManager
   #volSunDir = new THREE.Vector3(0, 1, 0);
   #volSunColor = new THREE.Color(1, 1, 1);
+  #sunLight = null;
   #volFrame = 0;
 
   // fullscreen quad
@@ -177,6 +178,8 @@ export class PostFX {
       uCamWorld: { value: new THREE.Matrix4() }, uCamPos: { value: new THREE.Vector3() },
       uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Vector3(1, 1, 1) },
       uSunScatter: { value: 1.5 }, uHG: { value: 0.72 },
+      uSunShadow: { value: null }, uSunMatrix: { value: new THREE.Matrix4() },
+      uSunHasShadow: { value: 0 }, uSunBias: { value: 0.0015 },
       uFogDensity: { value: 0.06 }, uFogHeight: { value: 0.12 }, uFogY0: { value: 0 },
       uAmbient: { value: new THREE.Vector3(0.05, 0.06, 0.09) },
       uMaxDist: { value: 60 }, uSteps: { value: 40 }, uFrame: { value: 0 },
@@ -362,9 +365,10 @@ export class PostFX {
   /** World-space key-light descriptor for the volumetric pass, pushed each frame
    *  by RenderManager (the screen `sun` descriptor is gated by on-screen-ness; the
    *  shafts need the sun's world direction + colour regardless of where it is). */
-  setSun(dir, color) {
+  setSun(dir, color, light = null) {
     if (dir) this.#volSunDir.copy(dir).normalize();
     if (color) this.#volSunColor.copy(color);
+    this.#sunLight = light; // its shadow map + matrix carve the occluded shafts
   }
 
   /** Active heat-haze sources: array of { x, y, strength } in screen uv (≤4). */
@@ -578,6 +582,12 @@ export class PostFX {
       vm.uSunDir.value.copy(this.#volSunDir);
       vm.uSunColor.value.set(this.#volSunColor.r, this.#volSunColor.g, this.#volSunColor.b);
       vm.uFrame.value = (this.#volFrame = (this.#volFrame + 1) & 63);
+      // reuse the key light's Three.js shadow map to occlude the shafts — real
+      // beams carved by geometry. FX (castShadow=false) never pollute it.
+      const sm = this.#sunLight?.shadow?.map?.texture ?? null;
+      vm.uSunHasShadow.value = sm ? 1 : 0;
+      vm.uSunShadow.value = sm || this.#black;
+      if (sm) vm.uSunMatrix.value.copy(this.#sunLight.shadow.matrix);
       this.#blit(this.#mVolMarch, this.#rtVolA);       // → half-res scatter
 
       const vc = this.#mVolComposite.uniforms;

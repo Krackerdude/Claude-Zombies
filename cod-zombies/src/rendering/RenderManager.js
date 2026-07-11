@@ -252,7 +252,7 @@ export class RenderManager {
       // ness). Compute it straight from the light so shafts exist even off-screen.
       if (this.sunLight && this.postFX.setSun) {
         this.#sunDir.copy(this.sunLight.position).sub(this.sunLight.target.position).normalize();
-        this.postFX.setSun(this.#sunDir, this.sunLight.color);
+        this.postFX.setSun(this.#sunDir, this.sunLight.color, this.sunLight);
       }
       this.postFX.setHeat?.(this.#computeHeat(camera));
       this.postFX.render(scene, camera, this.#overlayScene, this.vmCamera || camera, sun);
