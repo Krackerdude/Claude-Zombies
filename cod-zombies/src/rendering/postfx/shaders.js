@@ -539,6 +539,13 @@ export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
   uniform mat4 uSunMatrix;      // world → shadow uv+depth ([0,1]^3)
   uniform float uSunHasShadow;  // 1 when a shadow map is bound this frame
   uniform float uSunBias;
+  // local practical lights (lamps, fire, perks, muzzle flashes, explosions)
+  #define VOL_MAX_LIGHTS 8
+  uniform vec3 uLightPos[VOL_MAX_LIGHTS];
+  uniform vec3 uLightColor[VOL_MAX_LIGHTS]; // colour premultiplied by intensity
+  uniform float uLightRange[VOL_MAX_LIGHTS];
+  uniform int uLightN;
+  uniform float uLightScatter;
   uniform float uFogDensity, uFogHeight, uFogY0;
   uniform vec3 uAmbient;
   uniform float uMaxDist;
@@ -591,6 +598,19 @@ export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
         // sun in-scatter is gated by the shadow map → beams only where light
         // actually reaches (carved by real geometry); ambient fills the rest.
         vec3 inS = uSunColor * uSunScatter * phase * sunVis(wp) + uAmbient;
+        // local practicals — each nearby point light adds a dusty glow that falls
+        // off with distance and phase-boosts toward the source (a lamp haloes,
+        // and a muzzle flash / explosion momentarily lights the fog around it).
+        for (int j = 0; j < VOL_MAX_LIGHTS; j++) {
+          if (j >= uLightN) break;
+          vec3 L = uLightPos[j] - wp;
+          float dist2 = dot(L, L);
+          float rng = uLightRange[j];
+          float win = clamp(1.0 - dist2 / (rng * rng), 0.0, 1.0);   // soft range cutoff
+          float att = win * win / (dist2 + 0.6);                    // inverse-square-ish
+          float lp = hg(dot(rd, L * inversesqrt(max(dist2, 1e-4))), 0.35);
+          inS += uLightColor[j] * (uLightScatter * att * lp);
+        }
         scatter += transmit * inS * od;            // in-scatter, attenuated to here
         transmit *= exp(-od);                      // Beer–Lambert
         if (transmit < 0.02) break;
