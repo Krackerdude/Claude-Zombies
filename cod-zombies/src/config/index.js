@@ -14,8 +14,13 @@ export const RenderConfig = {
   shadows: true,
   fov: 75, // degrees — gameplay camera (tweens with sprint/slide)
   viewmodelFov: 70, // degrees — dedicated viewmodel camera, never tweened
-  near: 0.1,
-  far: 1000,
+  // Tight depth range for screen-space precision. The old 0.1–1000 (10000:1)
+  // range starved the depth buffer of precision on large flat floors, which is a
+  // primary cause of SSAO/DoF banding + striping. 0.3–250 (≈830:1) is ~12× more
+  // precise and the arena's fog fully saturates well before 250m, so nothing
+  // visible is lost. (near 0.3 stays clear of the first-person body/gun.)
+  near: 0.3,
+  far: 250,
 };
 
 /**
@@ -83,12 +88,16 @@ export const PostFXConfig = {
 
   // --- ambient occlusion: a depth-cavity darkening that grounds geometry,
   // sinks corners + where zombies meet the floor into shadow (readability) ---
+  // Normals-based horizon AO (Alchemy AO): real view normals from a normal
+  // prepass + a depth-aware bilateral denoise, computed at half res. Reads as a
+  // subtle contact shadow (object-to-floor, corners, creases) rather than a
+  // scene-wide darken. radius is world metres — small on this human-scale arena.
   ssao: {
     enabled: true,
-    radius: 0.55,        // metres — depth gap that counts as a crevice
-    intensity: 1.55,     // darkening strength
-    bias: 0.025,         // ignore tiny depth diffs (no self-occlusion shimmer)
-    power: 1.6,          // contrast of the occlusion falloff
+    radius: 0.6,         // metres — sampling hemisphere; contact-shadow scale
+    intensity: 1.0,      // darkening strength (0.6–1.1 tasteful)
+    bias: 0.02,          // metres — reject near-coplanar samples (no flat-floor shimmer)
+    power: 1.5,          // contrast of the occlusion falloff
   },
 
   // --- ink / cel outlines: Persona 5 line-art on geometry edges (Sobel on
