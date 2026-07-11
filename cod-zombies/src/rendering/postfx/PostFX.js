@@ -39,7 +39,8 @@ export class PostFX {
   #rtAOa = null;    // half-res AO ping (occlusion + denoise)
   #rtAOb = null;    // half-res AO pong
   #rtVmNormal = null; // viewmodel-only normals + depth (dedicated viewmodel AO)
-  #rtVmAO = null;   // half-res viewmodel AO
+  #rtVmAO = null;   // full-res viewmodel AO (the gun is the hero — no half-res blotch)
+  #rtVmAOb = null;  // full-res viewmodel AO scratch (denoise)
   #rtBloomA = null; // half-res bloom ping
   #rtBloomB = null; // half-res bloom pong
   #rtGod = null;    // half-res god-ray accumulation buffer
@@ -53,7 +54,7 @@ export class PostFX {
   #black; // 1×1 black fallback for the bloom/god slots when disabled
 
   // stage materials
-  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmApply; #mOutline; #mMotion;
+  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmBlur; #mVmApply; #mOutline; #mMotion;
 
   // motion-blur matrices
   #curVP = new THREE.Matrix4();
@@ -127,6 +128,10 @@ export class PostFX {
       tDepth: { value: null }, tNormal: { value: null }, uTexel: { value: new THREE.Vector2() },
       uNear: { value: 0.1 }, uFar: { value: 250 }, uP00: { value: 1 }, uP11: { value: 1 },
       uRadius: { value: 0.09 }, uIntensity: { value: 1.1 }, uBias: { value: 0.008 }, uPower: { value: 1.4 },
+    });
+    this.#mVmBlur = this.#shader(AO_BLUR_FRAG, {
+      tAO: { value: null }, tDepth: { value: null }, uTexel: { value: new THREE.Vector2() },
+      uDir: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 250 },
     });
     this.#mVmApply = this.#shader(AO_VM_APPLY_FRAG, {
       tDiffuse: { value: null }, tAO: { value: null }, tDepth: { value: null },
@@ -215,7 +220,8 @@ export class PostFX {
     const vmDepthTex = new THREE.DepthTexture(w, h);
     vmDepthTex.format = THREE.DepthFormat; vmDepthTex.type = THREE.UnsignedIntType;
     this.#rtVmNormal = new THREE.WebGLRenderTarget(w, h, { ...color(), depthTexture: vmDepthTex });
-    this.#rtVmAO = new THREE.WebGLRenderTarget(hw, hh, bcol);
+    this.#rtVmAO = new THREE.WebGLRenderTarget(w, h, { ...color(), depthBuffer: false });
+    this.#rtVmAOb = new THREE.WebGLRenderTarget(w, h, { ...color(), depthBuffer: false });
     this.#rtBloomA = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtBloomB = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtGod = new THREE.WebGLRenderTarget(hw, hh, bcol);
@@ -227,8 +233,9 @@ export class PostFX {
     this.#mAO.uniforms.uTexel.value.copy(halfTexel);
     this.#mAOBlur.uniforms.uTexel.value.copy(halfTexel);
     this.#mAOApply.uniforms.uAOTexel.value.copy(halfTexel);
-    this.#mVmAO.uniforms.uTexel.value.copy(halfTexel);
-    this.#mVmApply.uniforms.uAOTexel.value.copy(halfTexel);
+    this.#mVmAO.uniforms.uTexel.value.copy(texel);     // full-res: crisp on the gun
+    this.#mVmBlur.uniforms.uTexel.value.copy(texel);
+    this.#mVmApply.uniforms.uAOTexel.value.copy(texel);
     this.#mOutline.uniforms.uTexel.value.copy(texel);
     this.#mGodSrc.uniforms.uAspect.value = w / h;
   }
@@ -467,13 +474,13 @@ export class PostFX {
       v.uNear.value = near; v.uFar.value = far; v.uP00.value = proj[0]; v.uP11.value = proj[5];
       v.tDepth.value = vd; v.tNormal.value = this.#rtVmNormal.texture;
       this.#blit(this.#mVmAO, this.#rtVmAO);
-      // bilateral denoise (reusing the world blur material + rtAOb as scratch)
-      const b = this.#mAOBlur.uniforms;
+      // full-res bilateral denoise (dedicated material + scratch)
+      const b = this.#mVmBlur.uniforms;
       b.uNear.value = near; b.uFar.value = far; b.tDepth.value = vd;
       b.tAO.value = this.#rtVmAO.texture; b.uDir.value.set(1, 0);
-      this.#blit(this.#mAOBlur, this.#rtAOb);
-      b.tAO.value = this.#rtAOb.texture; b.uDir.value.set(0, 1);
-      this.#blit(this.#mAOBlur, this.#rtVmAO);
+      this.#blit(this.#mVmBlur, this.#rtVmAOb);
+      b.tAO.value = this.#rtVmAOb.texture; b.uDir.value.set(0, 1);
+      this.#blit(this.#mVmBlur, this.#rtVmAO);
       // apply: colour *= viewmodel AO (1.0 off the gun, so world is untouched)
       const vp = this.#mVmApply.uniforms;
       vp.uNear.value = near; vp.uFar.value = far; vp.tDepth.value = vd;
@@ -578,6 +585,7 @@ export class PostFX {
     this.#rtVmNormal?.depthTexture?.dispose();
     this.#rtVmNormal?.dispose();
     this.#rtVmAO?.dispose();
+    this.#rtVmAOb?.dispose();
     this.#rtBloomA?.dispose();
     this.#rtBloomB?.dispose();
     this.#rtGod?.dispose();
