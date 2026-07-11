@@ -126,6 +126,7 @@ export class WeaponFx {
       comet: this.#pool(30, () => this.#mkComet()),
       chunk: this.#pool(30, () => this.#mkChunk()),
       flash: this.#pool(2, () => this.#mkLight()),
+      tracerLight: this.#pool(4, () => this.#mkLight()), // travelling glow so tracers cast real light
     };
     // Keep the explosion/plasma flash lights PERMANENTLY in the scene (visible,
     // intensity 0 when idle). A point light appearing for the first time changes
@@ -134,6 +135,7 @@ export class WeaponFx {
     // Counting them from load means explosions only modulate intensity: no
     // recompile, no hitch. Two lights cover overlapping blasts cheaply.
     for (const s of this.#pools.flash.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
+    for (const s of this.#pools.tracerLight.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
   }
 
   // ---- pool plumbing ----
@@ -207,9 +209,17 @@ export class WeaponFx {
     m.position.copy(from).addScaledVector(_v, len * 0.5);
     _q.setFromUnitVectors(_z, _v); m.quaternion.copy(_q); // local +Z runs muzzle->hit
     m.scale.set(0.022, 0.022, len);                       // thin beam, length along Z
-    m.material.color.setHex(tint ? tint.tracer : 0xfff0b0); // PaP: pink tracer
+    const col = tint ? tint.tracer : 0xfff0b0; // PaP: pink tracer
+    m.material.color.setHex(col);
     m.material.opacity = 0.9; m.visible = true;
     this.#rec('tracer', s, 0.05, { o0: 0.9, fade: 'linear' });
+    // the tracer EMITS light in its own colour — a bright glow riding the streak
+    // near the muzzle, so bullets actually splash light on the gun + environment
+    const ls = this.#take('tracerLight'); const L = ls.mesh;
+    L.color.setHex(col);
+    L.position.copy(from).addScaledVector(_v, Math.min(len * 0.5, 3.0));
+    L.distance = 6; L.intensity = 0; L.visible = true;
+    this.#rec('flash', ls, 0.07, { o0: 3.2 }); // 'flash' kind → quadratic intensity fade
   }
 
   /** Non-zombie surface hit: smoke + material-coloured sparks/debris + a hole. */
