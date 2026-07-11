@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PostFXConfig } from '../../config/index.js';
 import {
   FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLUR_FRAG, FINAL_FRAG,
-  GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, SSAO_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
+  GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, AO_FRAG, AO_BLUR_FRAG, AO_APPLY_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
 } from './shaders.js';
 
 /**
@@ -30,12 +30,16 @@ export class PostFX {
 
   // render targets
   #rtScene = null;  // world colour + depth texture (the chain's depth source)
+  #rtNormal = null; // world view-space normals (normal prepass) for AO
   #rtA = null;      // full-res ping for the world-processing chain
   #rtB = null;      // full-res pong
   #rtWork = null;   // working colour buffer with a depth buffer for the gun
+  #rtAOa = null;    // half-res AO ping (occlusion + denoise)
+  #rtAOb = null;    // half-res AO pong
   #rtBloomA = null; // half-res bloom ping
   #rtBloomB = null; // half-res bloom pong
   #rtGod = null;    // half-res god-ray accumulation buffer
+  #normalMat = null; // MeshNormalMaterial override for the normal prepass
 
   // fullscreen quad
   #quadScene;
@@ -44,7 +48,7 @@ export class PostFX {
   #black; // 1×1 black fallback for the bloom/god slots when disabled
 
   // stage materials
-  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mSsao; #mOutline; #mMotion;
+  #mCopy; #mDof; #mBright; #mBlur; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mOutline; #mMotion;
 
   // motion-blur matrices
   #curVP = new THREE.Matrix4();
@@ -91,11 +95,19 @@ export class PostFX {
       uBokeh: { value: 2.6 }, uAutofocus: { value: 1 },
     });
 
-    this.#mSsao = this.#shader(SSAO_FRAG, {
-      tDiffuse: { value: null }, tDepth: { value: null }, uTexel: { value: new THREE.Vector2() },
-      uNear: { value: 0.1 }, uFar: { value: 1000 },
-      uRadius: { value: 0.55 }, uIntensity: { value: 1.15 }, uBias: { value: 0.025 }, uPower: { value: 1.6 },
+    // normals-based AO: occlusion pass (reads depth + normal prepass), a
+    // separable depth-aware blur, and an apply pass that multiplies into colour
+    this.#normalMat = new THREE.MeshNormalMaterial();
+    this.#mAO = this.#shader(AO_FRAG, {
+      tDepth: { value: null }, tNormal: { value: null }, uTexel: { value: new THREE.Vector2() },
+      uNear: { value: 0.3 }, uFar: { value: 250 }, uP00: { value: 1 }, uP11: { value: 1 },
+      uRadius: { value: 0.6 }, uIntensity: { value: 1.0 }, uBias: { value: 0.02 }, uPower: { value: 1.5 },
     });
+    this.#mAOBlur = this.#shader(AO_BLUR_FRAG, {
+      tAO: { value: null }, tDepth: { value: null }, uTexel: { value: new THREE.Vector2() },
+      uDir: { value: new THREE.Vector2() }, uNear: { value: 0.3 }, uFar: { value: 250 },
+    });
+    this.#mAOApply = this.#shader(AO_APPLY_FRAG, { tDiffuse: { value: null }, tAO: { value: null } });
 
     this.#mOutline = this.#shader(OUTLINE_FRAG, {
       tDiffuse: { value: null }, tDepth: { value: null }, uTexel: { value: new THREE.Vector2() },
@@ -162,6 +174,9 @@ export class PostFX {
     depthTex.type = THREE.UnsignedIntType;
     this.#rtScene = new THREE.WebGLRenderTarget(w, h, { ...color(), depthTexture: depthTex });
     this.#rtWork = new THREE.WebGLRenderTarget(w, h, color());
+    // normal prepass target — needs its own depth buffer so the nearest surface's
+    // normal wins (matches rtScene's depth for the same camera/frame)
+    this.#rtNormal = new THREE.WebGLRenderTarget(w, h, { ...color(), depthBuffer: true });
     const chainCol = { ...color(), depthBuffer: false };
     this.#rtA = new THREE.WebGLRenderTarget(w, h, chainCol);
     this.#rtB = new THREE.WebGLRenderTarget(w, h, chainCol);
@@ -169,14 +184,18 @@ export class PostFX {
     const hw = Math.max(1, Math.floor(w / 2));
     const hh = Math.max(1, Math.floor(h / 2));
     const bcol = { ...color(), depthBuffer: false };
+    this.#rtAOa = new THREE.WebGLRenderTarget(hw, hh, bcol); // AO computed + denoised at half res
+    this.#rtAOb = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtBloomA = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtBloomB = new THREE.WebGLRenderTarget(hw, hh, bcol);
     this.#rtGod = new THREE.WebGLRenderTarget(hw, hh, bcol);
 
     const texel = new THREE.Vector2(1 / w, 1 / h);
+    const halfTexel = new THREE.Vector2(1 / hw, 1 / hh);
     this.#mFinal.uniforms.uResolution.value.set(w, h);
     this.#mDof.uniforms.uTexel.value.copy(texel);
-    this.#mSsao.uniforms.uTexel.value.copy(texel);
+    this.#mAO.uniforms.uTexel.value.copy(halfTexel);
+    this.#mAOBlur.uniforms.uTexel.value.copy(halfTexel);
     this.#mOutline.uniforms.uTexel.value.copy(texel);
     this.#mGodSrc.uniforms.uAspect.value = w / h;
   }
@@ -234,9 +253,9 @@ export class PostFX {
     d.uMaxBlur.value = dof.maxBlur ?? 1;
     d.uBokeh.value = dof.bokehRadius ?? 2.6;
 
-    const ao = params.ssao ?? {}; const a = this.#mSsao.uniforms;
-    a.uRadius.value = ao.radius ?? 0.55; a.uIntensity.value = ao.intensity ?? 1.15;
-    a.uBias.value = ao.bias ?? 0.025; a.uPower.value = ao.power ?? 1.6;
+    const ao = params.ssao ?? {}; const a = this.#mAO.uniforms;
+    a.uRadius.value = ao.radius ?? 0.6; a.uIntensity.value = ao.intensity ?? 1.0;
+    a.uBias.value = ao.bias ?? 0.02; a.uPower.value = ao.power ?? 1.5;
 
     const ol = params.outline ?? {}; const o = this.#mOutline.uniforms;
     o.uThickness.value = ol.thickness ?? 1; o.uDepthEdge.value = ol.depthEdge ?? 1.1;
@@ -294,11 +313,25 @@ export class PostFX {
     const prevTarget = r.getRenderTarget();
     const near = worldCamera.near, far = worldCamera.far;
 
+    const aoOn = p.ssao?.enabled !== false && (p.ssao?.intensity ?? 0) > 0;
+
     // 1) world → rtScene (writes the depth texture every chain stage reads)
     r.autoClear = true;
     r.setRenderTarget(this.#rtScene);
     r.render(worldScene, worldCamera);
     const depth = this.#rtScene.depthTexture;
+
+    // 1b) normal prepass → rtNormal (view-space normals for the AO). One extra
+    // flat render of the same scene; skipped entirely when AO is off. Transparent
+    // FX get overridden to opaque normals but the bilateral denoise absorbs it.
+    if (aoOn) {
+      const prevOverride = worldScene.overrideMaterial;
+      worldScene.overrideMaterial = this.#normalMat;
+      r.setRenderTarget(this.#rtNormal);
+      r.clear();
+      r.render(worldScene, worldCamera);
+      worldScene.overrideMaterial = prevOverride;
+    }
 
     // 2) world-processing chain, ping-ponging rtA/rtB
     let srcTex = this.#rtScene.texture;
@@ -311,9 +344,27 @@ export class PostFX {
       const t = ping; ping = pong; pong = t;
     };
 
-    if (p.ssao?.enabled !== false && (p.ssao?.intensity ?? 0) > 0) {
-      this.#mSsao.uniforms.uNear.value = near; this.#mSsao.uniforms.uFar.value = far;
-      run(this.#mSsao);
+    // Alchemy AO: occlusion at half res → depth-aware bilateral denoise → multiply
+    // into the colour chain. Uses real view normals so it doesn't stripe/halo.
+    if (aoOn) {
+      const proj = worldCamera.projectionMatrix.elements;
+      const a = this.#mAO.uniforms;
+      a.uNear.value = near; a.uFar.value = far; a.uP00.value = proj[0]; a.uP11.value = proj[5];
+      a.tDepth.value = depth; a.tNormal.value = this.#rtNormal.texture;
+      this.#blit(this.#mAO, this.#rtAOa);
+      // separable bilateral blur (H then V), depth-guided
+      const b = this.#mAOBlur.uniforms;
+      b.uNear.value = near; b.uFar.value = far; b.tDepth.value = depth;
+      b.tAO.value = this.#rtAOa.texture; b.uDir.value.set(1, 0);
+      this.#blit(this.#mAOBlur, this.#rtAOb);
+      b.tAO.value = this.#rtAOb.texture; b.uDir.value.set(0, 1);
+      this.#blit(this.#mAOBlur, this.#rtAOa);
+      // apply: colour *= AO (this is the chain colour step)
+      this.#mAOApply.uniforms.tDiffuse.value = srcTex;
+      this.#mAOApply.uniforms.tAO.value = this.#rtAOa.texture;
+      this.#blit(this.#mAOApply, ping);
+      srcTex = ping.texture;
+      const t = ping; ping = pong; pong = t;
     }
     if (p.outline?.enabled !== false && (p.outline?.strength ?? 0) > 0) {
       this.#mOutline.uniforms.uNear.value = near; this.#mOutline.uniforms.uFar.value = far;
@@ -400,9 +451,12 @@ export class PostFX {
   #disposeTargets() {
     this.#rtScene?.depthTexture?.dispose();
     this.#rtScene?.dispose();
+    this.#rtNormal?.dispose();
     this.#rtA?.dispose();
     this.#rtB?.dispose();
     this.#rtWork?.dispose();
+    this.#rtAOa?.dispose();
+    this.#rtAOb?.dispose();
     this.#rtBloomA?.dispose();
     this.#rtBloomB?.dispose();
     this.#rtGod?.dispose();
@@ -411,8 +465,9 @@ export class PostFX {
   dispose() {
     this.#disposeTargets();
     this.#black?.dispose();
+    this.#normalMat?.dispose();
     this.#quad.geometry.dispose();
     for (const m of [this.#mCopy, this.#mDof, this.#mBright, this.#mBlur, this.#mFinal,
-      this.#mGodSrc, this.#mGodBlur, this.#mSsao, this.#mOutline, this.#mMotion]) m?.dispose();
+      this.#mGodSrc, this.#mGodBlur, this.#mAO, this.#mAOBlur, this.#mAOApply, this.#mOutline, this.#mMotion]) m?.dispose();
   }
 }

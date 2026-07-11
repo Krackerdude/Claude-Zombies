@@ -88,12 +88,16 @@ export const PostFXConfig = {
 
   // --- ambient occlusion: a depth-cavity darkening that grounds geometry,
   // sinks corners + where zombies meet the floor into shadow (readability) ---
+  // Normals-based horizon AO (Alchemy AO): real view normals from a normal
+  // prepass + a depth-aware bilateral denoise, computed at half res. Reads as a
+  // subtle contact shadow (object-to-floor, corners, creases) rather than a
+  // scene-wide darken. radius is world metres — small on this human-scale arena.
   ssao: {
     enabled: true,
-    radius: 0.55,        // metres — depth gap that counts as a crevice
-    intensity: 1.55,     // darkening strength
-    bias: 0.025,         // ignore tiny depth diffs (no self-occlusion shimmer)
-    power: 1.6,          // contrast of the occlusion falloff
+    radius: 0.6,         // metres — sampling hemisphere; contact-shadow scale
+    intensity: 1.0,      // darkening strength (0.6–1.1 tasteful)
+    bias: 0.02,          // metres — reject near-coplanar samples (no flat-floor shimmer)
+    power: 1.5,          // contrast of the occlusion falloff
   },
 
   // --- ink / cel outlines: Persona 5 line-art on geometry edges (Sobel on

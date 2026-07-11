@@ -76,31 +76,108 @@ export const DOF_FRAG = /* glsl */ `
  * where a body meets the floor. Multiplies the darkening straight into the
  * scene colour, so no separate composite pass is needed.
  */
-export const SSAO_FRAG = /* glsl */ `
+/**
+ * Alchemy AO (McGuire 2011) — horizon-style ambient occlusion that uses REAL
+ * view-space normals (from the normal prepass) instead of guessing occlusion
+ * from raw depth gaps. Reconstructs each sample's view position and weights it
+ * by the angle to the surface normal with a world-radius range check, so it
+ * doesn't stripe on flat receding floors or halo at silhouettes. Outputs a
+ * single-channel occlusion term (1 = lit) into a half-res buffer that the
+ * bilateral pass then denoises. Per-pixel rotation (interleaved-gradient noise)
+ * decorrelates the sample rings; the blur cleans the residual dither.
+ */
+export const AO_FRAG = /* glsl */ `
   #include <packing>
-  uniform sampler2D tDiffuse;
   uniform sampler2D tDepth;
-  uniform vec2 uTexel;
-  uniform float uNear, uFar, uRadius, uIntensity, uBias, uPower;
+  uniform sampler2D tNormal;
+  uniform vec2 uTexel;            // AO-buffer texel (half res)
+  uniform float uNear, uFar;
+  uniform float uP00, uP11;       // projection scale (projMatrix[0][0], [1][1])
+  uniform float uRadius, uIntensity, uBias, uPower;
   varying vec2 vUv;
 
   float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
 
+  // view-space position from depth (perspective un-project)
+  vec3 viewPos(vec2 uv) {
+    float d = lin(uv);                 // positive view distance (= -viewZ)
+    vec2 ndc = uv * 2.0 - 1.0;
+    return vec3(ndc.x * d / uP00, ndc.y * d / uP11, -d);
+  }
+
+  // interleaved gradient noise → per-pixel ring rotation (temporally cheap dither)
+  float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+
   void main() {
-    vec3 col = texture2D(tDiffuse, vUv).rgb;
-    float dC = lin(vUv);
-    if (dC >= uFar * 0.9) { gl_FragColor = vec4(col, 1.0); return; } // sky
-    float pr = clamp(uRadius * 40.0 / dC, 3.0, 22.0); // ring radius in px, shrinks with distance
+    float d = lin(vUv);
+    if (d >= uFar * 0.9) { gl_FragColor = vec4(1.0); return; } // sky = fully lit
+    vec3 P = viewPos(vUv);
+    vec3 N = normalize(texture2D(tNormal, vUv).xyz * 2.0 - 1.0);
+
+    // world radius → uv radius at this depth (aspect-correct via P00/P11)
+    float rx = uRadius * uP00 / (2.0 * d);
+    float ry = uRadius * uP11 / (2.0 * d);
+    float rr = uRadius * uRadius;
+    float rot = ign(gl_FragCoord.xy) * 6.2831853;
+
+    const int NS = 12;
     float occ = 0.0;
-    const int N = 8;
-    for (int i = 0; i < N; i++) {
-      float a = float(i) / float(N) * 6.2831853 + dC * 2.7; // depth-varied rotation
-      vec2 o = vec2(cos(a), sin(a)) * uTexel * pr;
-      float diff = dC - lin(vUv + o);          // >0 => neighbour is nearer (a crevice)
-      if (diff > uBias) occ += clamp(1.0 - (diff - uBias) / uRadius, 0.0, 1.0);
+    for (int i = 0; i < NS; i++) {
+      float t = (float(i) + 0.5) / float(NS);
+      float ang = t * 6.2831853 * 3.0 + rot;   // 3-turn spiral
+      vec2 off = vec2(cos(ang) * rx, sin(ang) * ry) * t;
+      vec3 S = viewPos(vUv + off);
+      vec3 V = S - P;
+      float vv = dot(V, V);
+      float vn = dot(V, N);
+      float falloff = clamp(1.0 - vv / rr, 0.0, 1.0); // ignore samples beyond radius
+      occ += falloff * max(0.0, vn - uBias) / (vv + 1e-4);
     }
-    occ = pow(clamp(occ / float(N), 0.0, 1.0), uPower) * uIntensity;
-    gl_FragColor = vec4(col * clamp(1.0 - occ, 0.0, 1.0), 1.0);
+    occ = (2.0 / float(NS)) * occ * uIntensity;
+    float ao = pow(clamp(1.0 - occ, 0.0, 1.0), uPower);
+    gl_FragColor = vec4(vec3(ao), 1.0);
+  }
+`;
+
+/** Separable depth-aware (bilateral) blur for the AO buffer — smooths the
+ *  sampling dither without bleeding occlusion across depth discontinuities
+ *  (which is what causes AO halos). Run once horizontal, once vertical. */
+export const AO_BLUR_FRAG = /* glsl */ `
+  #include <packing>
+  uniform sampler2D tAO;
+  uniform sampler2D tDepth;
+  uniform vec2 uTexel;    // AO-buffer texel
+  uniform vec2 uDir;      // (1,0) then (0,1)
+  uniform float uNear, uFar;
+  varying vec2 vUv;
+  float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+  void main() {
+    float dC = lin(vUv);
+    float sum = texture2D(tAO, vUv).r;
+    float wsum = 1.0;
+    for (int i = 1; i <= 4; i++) {
+      float fw = float(i);
+      vec2 o = uDir * uTexel * fw;
+      for (int s = -1; s <= 1; s += 2) {
+        vec2 suv = vUv + o * float(s);
+        float dd = lin(suv);
+        float w = exp(-abs(dd - dC) * 8.0) * exp(-fw * fw * 0.12); // depth × spatial
+        sum += texture2D(tAO, suv).r * w;
+        wsum += w;
+      }
+    }
+    gl_FragColor = vec4(vec3(sum / wsum), 1.0);
+  }
+`;
+
+/** Multiply the world colour by the denoised (half-res, linearly upsampled) AO. */
+export const AO_APPLY_FRAG = /* glsl */ `
+  uniform sampler2D tDiffuse;
+  uniform sampler2D tAO;
+  varying vec2 vUv;
+  void main() {
+    float ao = texture2D(tAO, vUv).r;
+    gl_FragColor = vec4(texture2D(tDiffuse, vUv).rgb * ao, 1.0);
   }
 `;
 
