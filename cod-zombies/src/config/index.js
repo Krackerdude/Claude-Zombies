@@ -252,8 +252,22 @@ export const DecalConfig = {
  * light, and a low ground-mist band. All isolated + disable-able.
  */
 export const WeatherConfig = {
-  rain: {
+  // Snow suits the aurora night — moonlit flakes drifting down, catching the
+  // lightning. Rain is kept as an alternative (enable it + disable snow for a
+  // thunderstorm look).
+  snow: {
     enabled: true,
+    count: 1300,         // flake count in the volume around the player
+    area: 18,            // half-extent (metres) of the snow column
+    height: 16,          // column height
+    speed: 2.4,          // slow drift-fall (m/s)
+    sway: 0.9,           // horizontal sway amplitude
+    size: 0.11,          // world-space flake size
+    opacity: 0.9,
+    color: 0xe2ecff,     // moonlit cool white
+  },
+  rain: {
+    enabled: false,
     count: 900,          // streak count in the volume around the player
     area: 16,            // half-extent (metres) of the rain column
     height: 14,          // column height

@@ -191,7 +191,7 @@ export class PostFX {
       uLightPos: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) },
       uLightColor: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) },
       uLightRange: { value: new Float32Array(8) },
-      uLightN: { value: 0 }, uLightScatter: { value: 1.0 },
+      uLightN: { value: 0 }, uLightScatter: { value: 1.0 }, uFlash: { value: 0 },
       uFogDensity: { value: 0.06 }, uFogHeight: { value: 0.12 }, uFogY0: { value: 0 },
       uAmbient: { value: new THREE.Vector3(0.05, 0.06, 0.09) },
       uMaxDist: { value: 60 }, uSteps: { value: 40 }, uFrame: { value: 0 },
@@ -415,6 +415,12 @@ export class PostFX {
     if (dir) this.#volSunDir.copy(dir).normalize();
     if (color) this.#volSunColor.copy(color);
     this.#sunLight = light; // its shadow map + matrix carve the occluded shafts
+  }
+
+  /** Lightning: momentarily flood the whole volumetric fog cool-white. Driven by
+   *  WeatherSystem's strike envelope; 0 clears it. */
+  setVolumetricFlash(v) {
+    this.#mVolMarch.uniforms.uFlash.value = Math.max(0, v || 0);
   }
 
   /** Active heat-haze sources: array of { x, y, strength } in screen uv (≤4). */

@@ -575,6 +575,7 @@ export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
   uniform float uLightRange[VOL_MAX_LIGHTS];
   uniform int uLightN;
   uniform float uLightScatter;
+  uniform float uFlash;          // lightning: momentarily floods the whole fog volume cool-white
   uniform float uFogDensity, uFogHeight, uFogY0;
   uniform vec3 uAmbient;
   uniform float uMaxDist;
@@ -640,6 +641,7 @@ export const VOLUMETRIC_MARCH_FRAG = /* glsl */ `
           float lp = hg(dot(rd, L * inversesqrt(max(dist2, 1e-4))), 0.35);
           inS += uLightColor[j] * (uLightScatter * att * lp);
         }
+        inS += vec3(0.55, 0.65, 1.0) * uFlash;     // lightning floods the fog cool-white
         scatter += transmit * inS * od;            // in-scatter, attenuated to here
         transmit *= exp(-od);                      // Beer–Lambert
         if (transmit < 0.02) break;

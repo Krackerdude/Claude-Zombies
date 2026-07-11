@@ -17,14 +17,17 @@ import { WeatherConfig } from '../config/index.js';
 export class WeatherSystem extends System {
   #scene;
   #events = null;
+  #postFX = null;    // to pulse the volumetric fog on a lightning strike
   #rain = null;
   #rainHeads = null; // Float32Array of head positions (x,y,z) per drop
+  #snow = null;
+  #snowRel = null;   // Float32Array of flake positions (x,y,z) relative to the column
+  #snowPhase = null;
+  #snowMat = null;
   #mist = null;
   #mistRel = null;
   #mistPhase = null;
   #flash = null;
-  #bgBase = new THREE.Color();
-  #fogBase = new THREE.Color();
   #t = 0;
   #strikeIn = 5;
   #strikeT = -1; // >=0 while a strike envelope is playing
@@ -34,10 +37,11 @@ export class WeatherSystem extends System {
     const sceneMgr = this.world.services.get(Service.Scene);
     this.#scene = sceneMgr.scene;
     this.#events = this.world.services.get(Service.Events);
-    if (this.#scene.background?.isColor) this.#bgBase.copy(this.#scene.background);
-    if (this.#scene.fog?.color) this.#fogBase.copy(this.#scene.fog.color);
+    const render = this.world.services.has(Service.Render) ? this.world.services.get(Service.Render) : null;
+    this.#postFX = render?.postFX ?? null;
 
     this.#buildRain();
+    this.#buildSnow();
     this.#buildMist();
 
     // a broad, steep, shadowless flash light for lightning
@@ -90,6 +94,29 @@ export class WeatherSystem extends System {
     this.#rain.geometry.attributes.position.needsUpdate = true;
   }
 
+  #buildSnow() {
+    const s = WeatherConfig.snow;
+    if (!s) return;
+    this.#snowRel = new Float32Array(s.count * 3);
+    this.#snowPhase = new Float32Array(s.count);
+    for (let i = 0; i < s.count; i++) {
+      this.#snowRel[i * 3] = (Math.random() * 2 - 1) * s.area;
+      this.#snowRel[i * 3 + 1] = Math.random() * s.height;
+      this.#snowRel[i * 3 + 2] = (Math.random() * 2 - 1) * s.area;
+      this.#snowPhase[i] = Math.random() * 6.28;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(this.#snowRel, 3));
+    this.#snowMat = new THREE.PointsMaterial({
+      map: flakeTexture(), color: s.color, size: s.size ?? 0.11, sizeAttenuation: true,
+      transparent: true, opacity: s.opacity, depthWrite: false, blending: THREE.NormalBlending, fog: false,
+    });
+    this.#snow = new THREE.Points(geo, this.#snowMat);
+    this.#snow.frustumCulled = false;
+    this.#snow.raycast = () => {};
+    this.#scene.add(this.#snow);
+  }
+
   #buildMist() {
     const m = WeatherConfig.mist;
     this.#mistRel = new Float32Array(m.count * 3);
@@ -136,6 +163,26 @@ export class WeatherSystem extends System {
       this.#writeRain();
     }
 
+    // --- snow: slow drift-fall with a gentle horizontal sway, moonlit flakes ---
+    const scfg = WeatherConfig.snow;
+    if (this.#snow) {
+      this.#snow.visible = scfg?.enabled !== false;
+      if (this.#snow.visible) {
+        if (p) this.#snow.position.set(p.x, 0, p.z);
+        const rel = this.#snowRel, fall = scfg.speed * dt;
+        for (let i = 0; i < this.#snowPhase.length; i++) {
+          const b = i * 3, ph = this.#snowPhase[i];
+          rel[b + 1] -= fall;
+          if (rel[b + 1] < 0) rel[b + 1] += scfg.height;             // wrap to the top
+          rel[b] += Math.cos(this.#t * 0.6 + ph) * scfg.sway * dt;    // sway x
+          rel[b + 2] += Math.sin(this.#t * 0.5 + ph * 1.3) * scfg.sway * dt; // sway z
+          if (rel[b] > scfg.area) rel[b] -= scfg.area * 2; else if (rel[b] < -scfg.area) rel[b] += scfg.area * 2;
+          if (rel[b + 2] > scfg.area) rel[b + 2] -= scfg.area * 2; else if (rel[b + 2] < -scfg.area) rel[b + 2] += scfg.area * 2;
+        }
+        this.#snow.geometry.attributes.position.needsUpdate = true;
+      }
+    }
+
     // --- ground mist ---
     const mcfg = WeatherConfig.mist;
     this.#mist.visible = mcfg.enabled !== false;
@@ -173,10 +220,10 @@ export class WeatherSystem extends System {
       else if (t < 0.22) i = ((t - 0.16) / 0.06) * 3.0;    // strike 2
       else if (t < 0.45) i = (1.0 - (t - 0.22) / 0.23) * 3.0; // fade
       else { this.#restoreSky(); this.#strikeT = -1; this.#strikeIn = this.#randGap(); return; }
-      this.#flash.intensity = i;
-      const k = Math.min(1, i / 4) * 0.6;
-      if (this.#scene.background?.isColor) this.#scene.background.lerpColors(this.#bgBase, COL_FLASH, k);
-      if (this.#scene.fog?.color) this.#scene.fog.color.lerpColors(this.#fogBase, COL_FLASH, k * 0.7);
+      this.#flash.intensity = i;                    // lights the geometry
+      const k = Math.min(1, i / 4);
+      this.#postFX?.setVolumetricFlash?.(k * 0.85); // floods the FOG cool-white — the big one
+      if (this.#snowMat) this.#snowMat.opacity = (WeatherConfig.snow?.opacity ?? 0.9) * (1 + k * 0.8); // flakes glare in the flash
     } else {
       this.#strikeIn -= dt;
       if (this.#strikeIn <= 0) { this.#strikeT = 0; this.#events?.emit('weather:lightning', {}); }
@@ -185,12 +232,12 @@ export class WeatherSystem extends System {
 
   #restoreSky() {
     this.#flash.intensity = 0;
-    if (this.#scene.background?.isColor) this.#scene.background.copy(this.#bgBase);
-    if (this.#scene.fog?.color) this.#scene.fog.color.copy(this.#fogBase);
+    this.#postFX?.setVolumetricFlash?.(0);
+    if (this.#snowMat) this.#snowMat.opacity = WeatherConfig.snow?.opacity ?? 0.9;
   }
 
   dispose() {
-    for (const o of [this.#rain, this.#mist]) {
+    for (const o of [this.#rain, this.#snow, this.#mist]) {
       if (!o) continue;
       o.removeFromParent();
       o.geometry.dispose();
@@ -201,7 +248,17 @@ export class WeatherSystem extends System {
   }
 }
 
-const COL_FLASH = new THREE.Color(0xaecbff);
+/** Soft six-point snowflake blob. */
+function flakeTexture() {
+  const s = 32, c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.4, 'rgba(255,255,255,0.7)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.beginPath(); x.arc(s / 2, s / 2, s / 2, 0, 7); x.fill();
+  return new THREE.CanvasTexture(c);
+}
 
 /** Soft round blob for a mist puff. */
 function mistTexture() {
