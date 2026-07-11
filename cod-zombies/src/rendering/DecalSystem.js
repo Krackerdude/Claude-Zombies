@@ -8,6 +8,7 @@ const _z = new THREE.Vector3(0, 0, 1);
 const _n = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _roll = new THREE.Quaternion();
+const _DRY = new THREE.Color(0x2a0805); // congealed near-black brown that fresh blood dries to
 
 /**
  * Persistent ground decals — the world remembering violence. Blood pools spread
@@ -84,6 +85,7 @@ export class DecalSystem extends System {
     const m = slot.mesh; const mat = m.material;
     const hole = kind === 'hole', scorch = kind === 'scorch';
     mat.emissive && mat.emissive.setHex(0x000000);
+    slot.dries = false;
     if (scorch) {
       mat.map = this.#tex.scorch; mat.color.setHex(0x100d0b); mat.roughness = 0.95;
       slot.life = this.#cfg.scorchLife ?? 55; slot.peak = 0.88;
@@ -93,6 +95,7 @@ export class DecalSystem extends System {
     } else {
       mat.map = this.#tex.splat; mat.color.setHex(0x780a0e); mat.roughness = 0.42; // fresh blood is wet → catches the lamps
       slot.life = this.#cfg.splatLife ?? 70; slot.peak = 0.9;
+      slot.dries = true; slot.c0 = 0x780a0e; slot.r0 = 0.42; // congeals wet→dark over its life
     }
     mat.needsUpdate = true;
     // orient the quad's +Z to the surface normal, with a random roll in-plane
@@ -112,6 +115,7 @@ export class DecalSystem extends System {
     this.#cur = (this.#cur + 1) % this.#slots.length;
     const m = slot.mesh;
     const mat = m.material;
+    slot.dries = false;
 
     if (kind === 'blood') {
       mat.map = this.#tex.blood;
@@ -120,6 +124,7 @@ export class DecalSystem extends System {
       mat.roughness = 0.45;                 // wet sheen catches the lamps
       slot.life = this.#cfg.bloodLife;
       slot.peak = 0.92;
+      slot.dries = true; slot.c0 = 0x6e0206; slot.r0 = 0.45; // pools congeal wet→dark as they age
       const sc = 1.2 + Math.random() * 1.0;
       m.scale.set(sc, sc, 1);
     } else if (kind === 'plasma') {
@@ -172,6 +177,15 @@ export class DecalSystem extends System {
       const tailStart = slot.life * 0.7;
       const fade = slot.age > tailStart ? 1 - (slot.age - tailStart) / (slot.life - tailStart) : 1;
       mat.opacity = slot.peak * fin * fade;
+
+      // wet → dry: fresh blood glistens and catches the lamps, then congeals to a
+      // dull near-black over the first ~60% of its life. Colour darkens toward
+      // _DRY and roughness climbs so the sheen dies out.
+      if (slot.dries) {
+        const k = Math.min(1, slot.age / (slot.life * 0.6));
+        mat.color.setHex(slot.c0).lerp(_DRY, k);
+        mat.roughness = slot.r0 + (0.92 - slot.r0) * k;
+      }
     }
   }
 
