@@ -103,6 +103,9 @@ export function buildZombieRig(look) {
   root.userData.joints = J;
   root.userData.rest = { shoulder: -1.15, shoulderZ: 0.12, elbow: 0.35, torso: 0.16, hipY: HIP_Y };
   root.userData.noBulletFx = true; // bullets that strike zombies make blood, never holes/debris
+  // receive the world's directional shadow too — without this the moon's wall/board
+  // shadows pass straight through the horde and everything reads as pre-baked
+  root.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
   return root;
 }
 

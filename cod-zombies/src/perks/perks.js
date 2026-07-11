@@ -211,18 +211,24 @@ let WHITE;
 // dispatch: each overhauled perk has its own bespoke machine; the rest still
 // fall back to the cowboy chassis until their own pass.
 export function buildPerkMachine(def) {
+  let g;
   switch (def.theme) {
-    case 'diner': return buildDinerMachine(def);   // Quick Revive — 60s diner cooler
-    case 'cozy': return buildPinupMachine(def);    // Juggernog — vintage pin-up deco
-    case 'smooth': return buildSalsaMachine(def);  // Speed Cola — Mexicana / salsa
-    case 'jazz': return buildDiscoMachine(def);    // Stamin-Up — 70s disco funk jukebox
-    case 'mexican': return buildMuleKickMachine(def); // Mule Kick — western gun-rack
-    case 'disco': return buildAtomicMachine(def);  // PHD Flopper — purple atomic deco
-    case 'electric': return buildElectricMachine(def); // Electric Cherry — chair cooler + neon
-    case 'metal': return buildDeadshotMachine(def); // Deadshot Daiquiri — heavy metal
+    case 'diner': g = buildDinerMachine(def); break;   // Quick Revive — 60s diner cooler
+    case 'cozy': g = buildPinupMachine(def); break;    // Juggernog — vintage pin-up deco
+    case 'smooth': g = buildSalsaMachine(def); break;  // Speed Cola — Mexicana / salsa
+    case 'jazz': g = buildDiscoMachine(def); break;    // Stamin-Up — 70s disco funk jukebox
+    case 'mexican': g = buildMuleKickMachine(def); break; // Mule Kick — western gun-rack
+    case 'disco': g = buildAtomicMachine(def); break;  // PHD Flopper — purple atomic deco
+    case 'electric': g = buildElectricMachine(def); break; // Electric Cherry — chair cooler + neon
+    case 'metal': g = buildDeadshotMachine(def); break; // Deadshot Daiquiri — heavy metal
     case 'cowboy':
-    default: return buildCowboyMachine(def);
+    default: g = buildCowboyMachine(def);
   }
+  // the cabinets already cast; let them RECEIVE the moon shadow too, so wall/board
+  // shadows fall across the machine instead of passing through it (looks pre-baked).
+  // Unlit neon/glow parts use MeshBasicMaterial and simply ignore receiveShadow.
+  g.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+  return g;
 }
 
 // The same emblem each machine shows, keyed by perk id — used by the HUD chips

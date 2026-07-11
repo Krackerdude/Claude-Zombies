@@ -18,7 +18,7 @@ import * as THREE from 'three';
 function box(w, h, d, mat, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   m.position.set(x, y, z);
-  m.castShadow = true;
+  m.castShadow = true; m.receiveShadow = true;
   return m;
 }
 function pivot(x, y, z) { const g = new THREE.Group(); g.position.set(x, y, z); return g; }

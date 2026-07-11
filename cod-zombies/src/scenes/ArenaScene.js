@@ -183,7 +183,7 @@ export function buildArena(engine) {
       const th = rnd(0.17, 0.23); // board thickness varies
 
       const board = new THREE.Mesh(new THREE.BoxGeometry(w, th, d), plankMat);
-      board.castShadow = true;
+      board.castShadow = true; board.receiveShadow = true;
       board.rotation.y = rnd(-0.05, 0.05); // slight yaw warp
       group.add(board);
 
@@ -277,6 +277,7 @@ export function buildArena(engine) {
   // mystery box in a corner — classic wooden crate on cinder blocks
   const boxPos = new THREE.Vector3(-6, 0, 6);
   const boxRig = buildMysteryBox();
+  boxRig.traverse((o) => { if (o.isMesh) o.receiveShadow = true; }); // catch the moon shadow, not just cast it
   boxRig.position.copy(boxPos);
   scene.add(boxRig);
   // collider extends well above the lid so the player can't jump up and stand on
