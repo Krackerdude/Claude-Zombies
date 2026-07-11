@@ -170,14 +170,37 @@ export const AO_BLUR_FRAG = /* glsl */ `
   }
 `;
 
-/** Multiply the world colour by the denoised (half-res, linearly upsampled) AO. */
+/** Composite the half-res AO into the world colour. Two things beyond a plain
+ *  multiply: (1) a depth-aware 3x3 upsample so the half-res AO snaps to full-res
+ *  geometry edges instead of smearing across them (kills the muddiness); (2) a
+ *  luminance mask so self-lit / bright surfaces (fire, neon, the practical
+ *  lights) keep their glow instead of being darkened by occlusion. */
 export const AO_APPLY_FRAG = /* glsl */ `
+  #include <packing>
   uniform sampler2D tDiffuse;
   uniform sampler2D tAO;
+  uniform sampler2D tDepth;
+  uniform vec2 uAOTexel;     // half-res AO texel
+  uniform float uNear, uFar;
   varying vec2 vUv;
+  float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
   void main() {
-    float ao = texture2D(tAO, vUv).r;
-    gl_FragColor = vec4(texture2D(tDiffuse, vUv).rgb * ao, 1.0);
+    vec3 col = texture2D(tDiffuse, vUv).rgb;
+    float dC = lin(vUv);
+    // depth-guided upsample: weight AO taps by depth similarity to this pixel
+    float ao = 0.0, wsum = 0.0;
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        vec2 suv = vUv + vec2(float(x), float(y)) * uAOTexel;
+        float w = exp(-abs(lin(suv) - dC) * 6.0);
+        ao += texture2D(tAO, suv).r * w; wsum += w;
+      }
+    }
+    ao = wsum > 0.0 ? ao / wsum : texture2D(tAO, vUv).r;
+    // spare self-lit / bright pixels (emissive fire, neon, lamps) from occlusion
+    float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    float mask = 1.0 - smoothstep(0.55, 0.95, lum);
+    gl_FragColor = vec4(col * mix(1.0, ao, mask), 1.0);
   }
 `;
 
