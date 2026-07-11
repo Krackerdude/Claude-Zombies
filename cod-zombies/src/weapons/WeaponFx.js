@@ -131,6 +131,7 @@ export class WeaponFx {
       flash: this.#pool(2, () => this.#mkLight()),
       tracerLight: this.#pool(4, () => this.#mkLight()), // travelling glow so tracers cast real light
       emberLight: this.#pool(3, () => this.#mkLight()),  // lingering warm afterglow that lights the room as a fireball billows
+      muzzleFlash: this.#pool(3, () => this.#mkLight()), // per-shot world flash: strobes the room + zombies with gunfire
     };
     // Keep the explosion/plasma flash lights PERMANENTLY in the scene (visible,
     // intensity 0 when idle). A point light appearing for the first time changes
@@ -141,6 +142,7 @@ export class WeaponFx {
     for (const s of this.#pools.flash.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
     for (const s of this.#pools.tracerLight.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
     for (const s of this.#pools.emberLight.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
+    for (const s of this.#pools.muzzleFlash.slots) { s.mesh.visible = true; s.mesh.intensity = 0; }
   }
 
   // ---- pool plumbing ----
@@ -335,7 +337,20 @@ export class WeaponFx {
 
   /** At-the-muzzle effects in world space: light cartoony smoke + a few forward
    *  sparks + the ejected shell. (The bright flash itself is on the viewmodel.) */
+  /** WORLD muzzle flash — a brief bright light thrown out of the barrel that
+   *  strobes the room and the zombies ahead with each shot (the viewmodel has
+   *  its own flash; this one is the world's). Sat a little forward of the muzzle
+   *  so it doesn't bury itself in the gun. Shared by bullets and energy bolts. */
+  muzzleWorldFlash(pos, dir, colorHex = 0xffd39a) {
+    const s = this.#take('muzzleFlash'); const L = s.mesh;
+    L.color.setHex(colorHex);
+    L.position.copy(pos).addScaledVector(dir, 0.45);
+    L.distance = 8.5; L.intensity = 0; L.visible = true;
+    this.#rec('flash', s, 0.055, { o0: 5.5 }); // 'flash' kind → quick quadratic fade = a sharp strobe
+  }
+
   spawnMuzzle(pos, dir, right, up, tint = null) {
+    this.muzzleWorldFlash(pos, dir, tint ? tint.muzzle : 0xffd39a);
     // one light, fast-rising smoke wisp
     {
       const s = this.#take('smoke'); const m = s.mesh;
