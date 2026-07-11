@@ -7,6 +7,7 @@ import { selectedBuild } from '../characters/selection.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
 import { papCamo } from '../weapons/gunMaterials.js';
 import { makeFlashStar, makeFlashCore, makeEnergyFlash, makeShockRing, buildVmFrag, buildVmWraith, buildVmSemtex, buildVmAcid } from '../weapons/Viewmodel.js';
+import { markNoAO } from '../rendering/aoMask.js';
 import { fpBody, weaponAction } from './fpBodyState.js';
 import { buildPerkBottle } from '../perks/perks.js';
 
@@ -231,6 +232,7 @@ export class PlayerBodySystem extends System {
       r.renderOrder = 999; this.#shock.add(r); this.#shockRings.push(r);
     }
     this.#shock.visible = false; this.#scene.add(this.#shock);
+    markNoAO(this.#flash); markNoAO(this.#shock); // muzzle flash + thunderclap are FX — no AO
     this.#flashLight = new THREE.PointLight(0xffd9a0, 0, 6, 2);
     this.#scene.add(this.#flashLight);
     window.addEventListener('keydown', (e) => {

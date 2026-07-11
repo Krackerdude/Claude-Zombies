@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ps1Snap } from '../rendering/ps1.js';
+import { autoTagNoAO } from '../rendering/aoMask.js';
 
 /**
  * The nine perks. Each has a signature color/accent, a cost, a short HUD glyph,
@@ -228,6 +229,7 @@ export function buildPerkMachine(def) {
   // shadows fall across the machine instead of passing through it (looks pre-baked).
   // Unlit neon/glow parts use MeshBasicMaterial and simply ignore receiveShadow.
   g.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
+  autoTagNoAO(g); // exclude the glowing panels / neon / lit signage from AO
   return g;
 }
 

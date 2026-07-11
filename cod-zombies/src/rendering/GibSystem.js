@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { Service } from '../core/ServiceLocator.js';
 import { goreMaterials } from '../ai/dismember.js';
+import { NO_AO_LAYER } from './aoMask.js';
 
 /**
  * Bloody gibs: when a limb is shot off or a head is blown apart, the wound
@@ -38,6 +39,7 @@ export class GibSystem extends System {
       mesh.visible = false;
       mesh.castShadow = false;
       mesh.raycast = () => {};
+      mesh.layers.enable(NO_AO_LAYER); // gore/blood is FX — never darken it with AO
       this.#scene.add(mesh);
       this.#gibs.push({
         mesh, active: false, age: 0, life: 0, rest: false, radius: 0.03,

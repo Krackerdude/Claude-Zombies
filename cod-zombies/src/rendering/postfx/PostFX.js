@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PostFXConfig } from '../../config/index.js';
+import { NO_AO_LAYER } from '../aoMask.js';
 import {
   FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLUR_FRAG, FINAL_FRAG,
   GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, AO_FRAG, AO_BLUR_FRAG, AO_APPLY_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
@@ -31,6 +32,7 @@ export class PostFX {
   // render targets
   #rtScene = null;  // world colour + depth texture (the chain's depth source)
   #rtNormal = null; // world view-space normals (normal prepass) for AO
+  #rtAOMask = null; // white where AO is excluded (emissive parts + FX)
   #rtA = null;      // full-res ping for the world-processing chain
   #rtB = null;      // full-res pong
   #rtWork = null;   // working colour buffer with a depth buffer for the gun
@@ -108,7 +110,7 @@ export class PostFX {
       uDir: { value: new THREE.Vector2() }, uNear: { value: 0.3 }, uFar: { value: 250 },
     });
     this.#mAOApply = this.#shader(AO_APPLY_FRAG, {
-      tDiffuse: { value: null }, tAO: { value: null }, tDepth: { value: null },
+      tDiffuse: { value: null }, tAO: { value: null }, tDepth: { value: null }, tMask: { value: null },
       uAOTexel: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 250 },
     });
 
@@ -180,6 +182,7 @@ export class PostFX {
     // normal prepass target — needs its own depth buffer so the nearest surface's
     // normal wins (matches rtScene's depth for the same camera/frame)
     this.#rtNormal = new THREE.WebGLRenderTarget(w, h, { ...color(), depthBuffer: true });
+    this.#rtAOMask = new THREE.WebGLRenderTarget(w, h, { ...color(), depthBuffer: true });
     const chainCol = { ...color(), depthBuffer: false };
     this.#rtA = new THREE.WebGLRenderTarget(w, h, chainCol);
     this.#rtB = new THREE.WebGLRenderTarget(w, h, chainCol);
@@ -334,7 +337,25 @@ export class PostFX {
       r.setRenderTarget(this.#rtNormal);
       r.clear();
       r.render(worldScene, worldCamera);
+
       worldScene.overrideMaterial = prevOverride;
+
+      // 1c) AO-exclusion mask → rtAOMask: render ONLY the no-AO-layer objects
+      // (emissive parts + FX) with their OWN materials onto a fully transparent
+      // clear, and read COVERAGE from the alpha channel. Using each object's real
+      // material (no override) is what makes this work for sprites too (billboard
+      // particles ignore scene.overrideMaterial). The apply pass forces "no
+      // occlusion" wherever alpha coverage is present.
+      const prevLayer = worldCamera.layers.mask;
+      const prevClear = r.getClearColor(new THREE.Color()).getHex();
+      const prevAlpha = r.getClearAlpha();
+      worldCamera.layers.set(NO_AO_LAYER);
+      r.setRenderTarget(this.#rtAOMask);
+      r.setClearColor(0x000000, 0);
+      r.clear();
+      r.render(worldScene, worldCamera);
+      worldCamera.layers.mask = prevLayer;
+      r.setClearColor(prevClear, prevAlpha);
     }
 
     // 2) world-processing chain, ping-ponging rtA/rtB
@@ -367,6 +388,7 @@ export class PostFX {
       const ap = this.#mAOApply.uniforms;
       ap.uNear.value = near; ap.uFar.value = far; ap.tDepth.value = depth;
       ap.tDiffuse.value = srcTex; ap.tAO.value = this.#rtAOa.texture;
+      ap.tMask.value = this.#rtAOMask.texture;
       this.#blit(this.#mAOApply, ping);
       srcTex = ping.texture;
       const t = ping; ping = pong; pong = t;
@@ -457,6 +479,7 @@ export class PostFX {
     this.#rtScene?.depthTexture?.dispose();
     this.#rtScene?.dispose();
     this.#rtNormal?.dispose();
+    this.#rtAOMask?.dispose();
     this.#rtA?.dispose();
     this.#rtB?.dispose();
     this.#rtWork?.dispose();
