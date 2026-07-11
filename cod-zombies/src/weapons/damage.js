@@ -12,7 +12,7 @@ const LIMB_PARTS = { armL: 1, armR: 1, legL: 1, legR: 1 };
  * `opts.dir` is the killing bullet's direction — used to launch the ragdoll.
  * Returns true if this hit was the killing blow.
  */
-export function damageZombie(ctx, id, amount, { award = true, headshot = false, dir = null, force = 1, part = null, knockChance = 0, flinchScale = 1, dismemberChance = 0 } = {}) {
+export function damageZombie(ctx, id, amount, { award = true, headshot = false, dir = null, force = 1, part = null, knockChance = 0, flinchScale = 1, dismemberChance = 0, goreScale = 1 } = {}) {
   const z = ctx.world.get(id, ZombieTag);
   if (!z || z.state === 'dead') return false;
 
@@ -37,12 +37,18 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
       if (rig) {
         severLimb(rig, 'legL'); severLimb(rig, 'legR');
         const at = severLowerBody(rig);
-        if (at) ctx.events.emit('zombie:gib', { ...at, dir, count: 16, speed: 3.6, scale: 1.25 });
+        if (at) {
+          ctx.events.emit('zombie:gib', { ...at, dir, count: Math.round(16 * goreScale), speed: 3.6 * goreScale, scale: 1.25 });
+          ctx.events.emit('fx:geyser', { ...at, dir, power: 1.3 * goreScale }); // arterial spray from the open torso
+        }
       }
     } else {
       z.limbs[part] = false;
       const at = rig ? severLimb(rig, part) : null;
-      if (at) ctx.events.emit('zombie:gib', { ...at, dir, count: 9, speed: 3.2 });
+      if (at) {
+        ctx.events.emit('zombie:gib', { ...at, dir, count: Math.round(9 * goreScale), speed: 3.2 * goreScale });
+        ctx.events.emit('fx:geyser', { ...at, dir, power: goreScale }); // arterial spray from the stump
+      }
     }
   }
 
@@ -80,7 +86,10 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
       if (headshot) {
         const rig = ctx.world.get(id, Renderable)?.object3d;
         const at = rig ? severHead(rig) : null;
-        if (at) ctx.events.emit('zombie:gib', { ...at, dir, count: 18, speed: 3.8, scale: 1.1 });
+        if (at) {
+          ctx.events.emit('zombie:gib', { ...at, dir, count: Math.round(18 * goreScale), speed: 3.8, scale: 1.1 });
+          ctx.events.emit('fx:geyser', { ...at, dir, power: 1.2 * goreScale }); // neck stump fountains
+        }
       }
       // hand the entity off to the corpse system: drop the live tag, keep the rig
       const baseYaw = t ? 2 * Math.atan2(t.quaternion.y, t.quaternion.w) : 0; // zombie's Y-only facing

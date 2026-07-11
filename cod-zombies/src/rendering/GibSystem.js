@@ -22,6 +22,7 @@ const _r = (s) => (Math.random() - 0.5) * s;
 
 export class GibSystem extends System {
   #scene;
+  #events;
   #gibs = [];
   #cur = 0;
   #palette = [];
@@ -30,6 +31,7 @@ export class GibSystem extends System {
   init() {
     this.#scene = this.world.services.get(Service.Scene).scene;
     const events = this.world.services.get(Service.Events);
+    this.#events = events;
     const M = goreMaterials();
 
     // A little library of gib SHAPES so the spray reads as torn anatomy, not a
@@ -85,6 +87,8 @@ export class GibSystem extends System {
       const pick = this.#palette[(Math.random() * this.#palette.length) | 0];
       m.material = pick.mat;
       m.geometry = pick.geo;
+      g.form = pick.form;
+      g.pooled = false; g.landed = false; // hasn't left a resting blood mark / touched floor yet
 
       const base = (0.045 + Math.random() * 0.06) * scale;
       // sculpt the scale to the shape: strips run long, shards run long+thin,
@@ -116,7 +120,19 @@ export class GibSystem extends System {
     for (const g of this.#gibs) {
       if (!g.active) continue;
       g.age += dt;
-      if (g.age >= g.life) { g.active = false; g.mesh.visible = false; continue; }
+      if (g.age >= g.life) {
+        g.active = false; g.mesh.visible = false;
+        // a wet chunk that came to rest on the floor soaks in a little smear of
+        // blood as it decays away — bone stays clean, and only some do it so the
+        // floor doesn't tile red. (Airborne gibs that never landed leave nothing.)
+        if (g.landed && !g.pooled && g.form !== 'shard' && Math.random() < 0.5) {
+          this.#events.emit('fx:decal', {
+            kind: 'blood', x: g.mesh.position.x, y: 0.02, z: g.mesh.position.z,
+            nx: 0, ny: 1, nz: 0, size: 0.18 + Math.random() * 0.16,
+          });
+        }
+        continue;
+      }
       const m = g.mesh;
 
       if (!g.rest) {
@@ -131,6 +147,7 @@ export class GibSystem extends System {
         const floor = FLOOR + g.radius;
         if (m.position.y <= floor) {
           m.position.y = floor;
+          g.landed = true;                   // touched the floor → eligible for a resting smear
           if (g.vy < -0.5) {                 // still moving: bounce + lose energy
             g.vy = -g.vy * 0.3;
             g.vx *= 0.62; g.vz *= 0.62;

@@ -25,6 +25,27 @@ function dismemberChanceFor(damage) {
   return 0.10 + t * 0.15;
 }
 
+/** How brutally a weapon dismembers, by class. A shotgun at point blank shreds;
+ *  a sniper punches limbs clean off; a pistol pings. Returns:
+ *   - dismember: multiplier on the base (damage-scaled) limb-loss chance
+ *   - gore: multiplier on the gib burst size/energy at the wound
+ *  so the same hit sprays a different amount of meat depending on the gun. */
+const GORE_PROFILE = {
+  shotgun:  { dismember: 2.0, gore: 1.7 },  // messiest — a wall of pellets
+  sniper:   { dismember: 2.2, gore: 1.5 },  // surgical amputation, big exit
+  launcher: { dismember: 2.4, gore: 1.9 },  // near a blast, everything comes apart
+  hmg:      { dismember: 1.4, gore: 1.3 },  // heavy sustained fire chews limbs
+  special:  { dismember: 1.4, gore: 1.3 },  // death machine minigun
+  ar:       { dismember: 1.0, gore: 1.0 },
+  smg:      { dismember: 0.85, gore: 0.9 },
+  pistol:   { dismember: 0.7, gore: 0.7 },  // pings, rarely severs
+  wonder:   { dismember: 1.2, gore: 1.4 },
+};
+function goreProfileFor(data) {
+  const p = GORE_PROFILE[data.category] || GORE_PROFILE.ar;
+  return { dismemberChance: Math.min(0.6, dismemberChanceFor(data.damage) * p.dismember), goreScale: p.gore };
+}
+
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 const _fwd = new THREE.Vector3();
@@ -205,6 +226,10 @@ export class WeaponSystem extends System {
     // ray-gun / energy hit: a coloured radial plasma burst, no fire or shake
     this.#events.on('weapon:plasma', (e) => {
       if (this.#fx) this.#fx.spawnPlasma(_explo.set(e.x, e.y ?? 0.6, e.z), e.color ?? 0x46f060);
+    });
+    // arterial geyser from a fresh stump (limb/head severed)
+    this.#events.on('fx:geyser', (e) => {
+      if (this.#fx) this.#fx.spawnGeyser(_explo.set(e.x, e.y ?? 1.1, e.z), e.dir, e.power ?? 1);
     });
     // blood spurt on each zombie caught in a blast (spurts outward from the hit)
     this.#events.on('fx:blood', (e) => {
@@ -509,7 +534,8 @@ export class WeaponSystem extends System {
         const hsMul = headshot ? weapon.data.headshotMultiplier * (pk ? pk.headshotMul() : 1) : 1;
         const dMul = pk ? pk.damageMul(weapon.data.category) : 1;
         const dmg = weapon.data.damage * hsMul * dMul * falloff;
-        if (damageZombie(this.#ctx, id, dmg, { headshot, dir: _dir, part, flinchScale: flinchScaleFor(weapon.data.fireMode), dismemberChance: dismemberChanceFor(weapon.data.damage) })) anyKill = true;
+        const gp = goreProfileFor(weapon.data);
+        if (damageZombie(this.#ctx, id, dmg, { headshot, dir: _dir, part, flinchScale: flinchScaleFor(weapon.data.fireMode), dismemberChance: gp.dismemberChance, goreScale: gp.goreScale })) anyKill = true;
         pen++;
       }
 
