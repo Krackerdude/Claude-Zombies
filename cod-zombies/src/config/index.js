@@ -112,10 +112,10 @@ export const PostFXConfig = {
   // Radius is tiny — the gun is only ~0.5 m across at ~0.3 m from the eye.
   viewmodelAO: {
     enabled: true,
-    radius: 0.09,        // metres — viewmodel-scale sampling hemisphere
-    intensity: 1.1,      // darkening strength
-    bias: 0.008,         // metres
-    power: 1.4,          // contrast
+    radius: 0.08,        // metres — viewmodel-scale sampling hemisphere
+    intensity: 0.45,     // darkening strength — SUBTLE (a whisper of contact shade)
+    bias: 0.012,         // metres — reject flat surfaces so they don't self-shade/noise
+    power: 1.3,          // contrast
   },
 
   // --- ink / cel outlines: Persona 5 line-art on geometry edges (Sobel on
