@@ -333,6 +333,11 @@ export class PostFX {
     // FX get overridden to opaque normals but the bilateral denoise absorbs it.
     if (aoOn) {
       const prevOverride = worldScene.overrideMaterial;
+      // suppress the scene background for these off-screen passes — otherwise it
+      // paints an opaque fullscreen fill (alpha 1 everywhere), which would blanket
+      // the AO-exclusion mask and disable AO across the whole frame.
+      const prevBg = worldScene.background;
+      worldScene.background = null;
       worldScene.overrideMaterial = this.#normalMat;
       r.setRenderTarget(this.#rtNormal);
       r.clear();
@@ -356,6 +361,7 @@ export class PostFX {
       r.render(worldScene, worldCamera);
       worldCamera.layers.mask = prevLayer;
       r.setClearColor(prevClear, prevAlpha);
+      worldScene.background = prevBg;
     }
 
     // 2) world-processing chain, ping-ponging rtA/rtB
