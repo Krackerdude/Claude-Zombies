@@ -691,3 +691,60 @@ export const VOLUMETRIC_COMPOSITE_FRAG = /* glsl */ `
     gl_FragColor = vec4(outc, 1.0);
   }
 `;
+
+/**
+ * BOKEH LENS FLARE — screen-space ghosts + halo generated from the blurred
+ * bright buffer (the bloom source), so the artifacts are soft out-of-focus
+ * discs (bokeh) rather than hard sprites. Ghosts march along the vector from
+ * each bright spot through screen-centre (the classic John-Chapman feature
+ * generation); a halo ring rides a fixed distance in; both are chromatically
+ * split (R/G/B sampled at slightly different scales) for that lens-glass
+ * fringe, and tinted by a radius LUT (warm core → cool rim). Added into the
+ * final composite via the (retired) god-ray slot.
+ */
+export const LENSFLARE_FRAG = /* glsl */ `
+  uniform sampler2D tBright;   // blurred bright buffer (bloom mip)
+  uniform vec2 uTexel;
+  uniform int uGhosts;
+  uniform float uDispersal;    // ghost spacing along the centre vector
+  uniform float uHaloWidth;    // halo ring radius
+  uniform float uChroma;       // chromatic split (in uv)
+  varying vec2 vUv;
+
+  // chromatic sample: R/G/B fetched along dir for a glass-fringe split
+  vec3 chroma(vec2 uv, vec2 dir) {
+    return vec3(
+      texture2D(tBright, uv + dir).r,
+      texture2D(tBright, uv).g,
+      texture2D(tBright, uv - dir).b
+    );
+  }
+
+  void main() {
+    vec2 texcoord = vec2(1.0) - vUv;            // flip through centre
+    vec2 ghostVec = (vec2(0.5) - texcoord) * uDispersal;
+    vec2 cdir = normalize(ghostVec + 1e-5) * uChroma;
+
+    vec3 result = vec3(0.0);
+    for (int i = 0; i < 8; i++) {
+      if (i >= uGhosts) break;
+      vec2 offset = texcoord + ghostVec * float(i);
+      // fade ghosts toward the screen edge (they live near centre)
+      float w = length(vec2(0.5) - offset) / 0.7071;
+      w = pow(clamp(1.0 - w, 0.0, 1.0), 4.0);
+      result += chroma(offset, cdir) * w;
+    }
+
+    // radial colour LUT — warm inner ghosts, cool outer
+    float r = length(texcoord - vec2(0.5)) / 0.7071;
+    result *= mix(vec3(1.0, 0.75, 0.5), vec3(0.5, 0.65, 1.0), r);
+
+    // halo ring
+    vec2 haloVec = normalize(ghostVec + 1e-5) * uHaloWidth;
+    float hw = length(vec2(0.5) - fract(texcoord + haloVec)) / 0.7071;
+    hw = pow(clamp(1.0 - hw, 0.0, 1.0), 6.0);
+    result += chroma(texcoord + haloVec, cdir) * hw * vec3(0.7, 0.8, 1.0);
+
+    gl_FragColor = vec4(result, 1.0);
+  }
+`;
