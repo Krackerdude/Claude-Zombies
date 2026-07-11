@@ -204,9 +204,15 @@ export const ParticleConfig = {
  */
 export const DecalConfig = {
   enabled: true,
-  max: 56,             // pooled decals; oldest recycled beyond this
+  max: 56,             // pooled GROUND decals (pools/scorch); oldest recycled beyond this
   bloodLife: 38,       // seconds a blood pool persists before it has faded
   scorchLife: 55,      // seconds a scorch/burn persists
+  // surface decals — normal-oriented, stamped on whatever a shot hits: blood
+  // spray on the wall/floor BEHIND a hit zombie, and bullet pockmarks that build
+  // up where you hold. Bigger budget + longer life so the room escalates.
+  surfaceMax: 180,     // pooled surface decals (spray + pockmarks)
+  splatLife: 70,       // seconds a blood spray persists
+  holeLife: 120,       // seconds a bullet pockmark persists
 };
 
 /**
