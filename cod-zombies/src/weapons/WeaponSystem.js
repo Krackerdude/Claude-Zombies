@@ -40,6 +40,8 @@ const _end = new THREE.Vector3();
 const _muz = new THREE.Vector3();
 const _muz2 = new THREE.Vector3();
 const _nrm = new THREE.Vector3();
+const _bnrm = new THREE.Vector3(); // blood-spray surface normal (wall behind a hit zombie)
+const _bpt = new THREE.Vector3();  // blood-spray surface point
 const _col = new THREE.Color();
 const _explo = new THREE.Vector3();
 const _ja = new THREE.Vector3(); // bone-hitbox joint A
@@ -512,6 +514,7 @@ export class WeaponSystem extends System {
         if (isFinite(ztca) && ztca <= wallDist) {
           _end.copy(o).addScaledVector(_dir, ztca);
           this.#fx.spawnBlood(_end, _dir);               // zombie: blood, no smoke/holes
+          this.#bloodSpray(_end, _dir);                  // blood sprays onto the wall behind
         } else if (wallDist < weapon.data.range && this.#surfaceImpact(o, _dir, wallDist)) {
           // #surfaceImpact hit a real surface and set _end to its exact point
         } else {
@@ -550,9 +553,42 @@ export class WeaponSystem extends System {
       const mc = pick.object.material && pick.object.material.color;
       _col.copy(mc || _col.setHex(0x9a9a9a));
       this.#fx.spawnImpact(_end, _nrm, _col);
+      // persistent pockmark on the surface
+      this.#events.emit('fx:decal', {
+        kind: 'hole', x: _end.x, y: _end.y, z: _end.z,
+        nx: _nrm.x, ny: _nrm.y, nz: _nrm.z,
+        size: 0.24 + Math.random() * 0.1,
+      });
       return true;
     }
     return false; // only a zombie/dynamic prop (or open sky) along the ray
+  }
+
+  /** A zombie was hit — cast the bullet onward to whatever wall/floor is behind
+   *  it and spray persistent blood there, so the room wears the carnage. Skips
+   *  other zombies/corpses and torn-off planks; capped so distant shots into open
+   *  air don't paint the skybox. */
+  #bloodSpray(from, dir) {
+    if (!this.#fx) return;
+    _bpt.copy(from).addScaledVector(dir, 0.05); // start just past the body
+    this.#fxRay.set(_bpt, dir);
+    this.#fxRay.far = 16; // reach the far wall of a room-sized space
+    const hits = this.#fxRay.intersectObjects(this.#sceneMgr.scene.children, true);
+    for (const h of hits) {
+      if (!h.face || h.distance < 0.1) continue;
+      if (this.#fxIgnored(h.object)) continue;   // don't paint zombies/corpses
+      if (this.#hidden(h.object)) continue;
+      _bnrm.copy(h.face.normal).transformDirection(h.object.matrixWorld).normalize();
+      if (_bnrm.dot(dir) > 0) _bnrm.multiplyScalar(-1);
+      // spray grows with distance travelled — a point-blank hit is a tight
+      // splat, a shot across the room throws a wide sheet.
+      const size = 0.7 + Math.min(1.2, h.distance * 0.22) + Math.random() * 0.4;
+      this.#events.emit('fx:decal', {
+        kind: 'blood', x: h.point.x, y: h.point.y, z: h.point.z,
+        nx: _bnrm.x, ny: _bnrm.y, nz: _bnrm.z, size,
+      });
+      return;
+    }
   }
 
   #fxIgnored(obj) {

@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { Service } from '../core/ServiceLocator.js';
 import { DecalConfig } from '../config/index.js';
+import { markNoAO } from './aoMask.js';
+
+const _z = new THREE.Vector3(0, 0, 1);
+const _n = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const _roll = new THREE.Quaternion();
 
 /**
  * Persistent ground decals — the world remembering violence. Blood pools spread
@@ -17,8 +23,10 @@ import { DecalConfig } from '../config/index.js';
 export class DecalSystem extends System {
   #cfg;
   #scene;
-  #slots = [];
+  #slots = [];       // flat GROUND decals (pools / scorch / plasma)
   #cur = 0;
+  #surf = [];        // normal-oriented SURFACE decals (blood spray / bullet pockmarks)
+  #surfCur = 0;
   #tex = {};
 
   init() {
@@ -27,7 +35,7 @@ export class DecalSystem extends System {
     this.#scene = sceneMgr.scene;
     const events = this.world.services.get(Service.Events);
 
-    this.#tex = { blood: bloodDecalTexture(), scorch: scorchDecalTexture() };
+    this.#tex = { blood: bloodDecalTexture(), scorch: scorchDecalTexture(), splat: splatDecalTexture(), hole: holeDecalTexture() };
 
     // pool of flat, upward-facing quads
     const geo = new THREE.PlaneGeometry(1, 1);
@@ -45,9 +53,51 @@ export class DecalSystem extends System {
       this.#slots.push({ mesh: m, age: 0, life: 0, fadeIn: 0.4, peak: 1, active: false });
     }
 
+    // pool of SURFACE quads — oriented to a hit normal, so blood sprays across a
+    // wall and pockmarks stick to whatever you shoot. Bigger budget, longer life.
+    for (let i = 0; i < (this.#cfg.surfaceMax ?? 160); i++) {
+      const mat = new THREE.MeshStandardMaterial({
+        transparent: true, opacity: 0, depthWrite: false,
+        roughness: 0.5, metalness: 0.0,
+        polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6,
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.visible = false; m.receiveShadow = true; m.castShadow = false;
+      m.raycast = () => {};
+      markNoAO(m);              // gore is FX — keep AO off it
+      this.#scene.add(m);
+      this.#surf.push({ mesh: m, age: 0, life: 0, fadeIn: 0.18, peak: 1, active: false });
+    }
+
     events.on('zombie:killed', ({ x, z }) => this.#stamp('blood', x, z));
     events.on('weapon:explosion', ({ x, y, z }) => { if (y < 1.4) this.#stamp('scorch', x, z); });
     events.on('weapon:plasma', ({ x, y, z, color }) => { if (y < 1.4) this.#stamp('plasma', x, z, color); });
+    // surface decals: blood spray behind a hit zombie + bullet pockmarks
+    events.on('fx:decal', (e) => this.#stampSurface(e));
+  }
+
+  /** Stamp a normal-oriented decal on whatever surface a shot found. */
+  #stampSurface({ kind, x, y, z, nx, ny, nz, size }) {
+    if (!this.#cfg.enabled) return;
+    const slot = this.#surf[this.#surfCur];
+    this.#surfCur = (this.#surfCur + 1) % this.#surf.length;
+    const m = slot.mesh; const mat = m.material;
+    const hole = kind === 'hole';
+    mat.map = hole ? this.#tex.hole : this.#tex.splat;
+    mat.color.setHex(hole ? 0x15151a : 0x780a0e);
+    mat.roughness = hole ? 0.85 : 0.42;        // fresh blood is wet → catches the lamps
+    mat.needsUpdate = true;
+    slot.life = hole ? (this.#cfg.holeLife ?? 120) : (this.#cfg.splatLife ?? 70);
+    slot.peak = hole ? 0.95 : 0.9;
+    // orient the quad's +Z to the surface normal, with a random roll in-plane
+    _n.set(nx, ny, nz).normalize();
+    _q.setFromUnitVectors(_z, _n);
+    _roll.setFromAxisAngle(_z, Math.random() * Math.PI * 2);
+    m.quaternion.copy(_q).multiply(_roll);
+    m.position.set(x, y, z).addScaledVector(_n, 0.02 + Math.random() * 0.01);
+    const sc = (size ?? (hole ? 0.28 : 0.9)) * (0.75 + Math.random() * 0.6);
+    m.scale.set(sc, sc, 1);
+    mat.opacity = 0; slot.age = 0; slot.active = true; m.visible = true;
   }
 
   #stamp(kind, x, z, color) {
@@ -101,7 +151,12 @@ export class DecalSystem extends System {
   }
 
   update(dt) {
-    for (const slot of this.#slots) {
+    this.#animate(this.#slots, dt);
+    this.#animate(this.#surf, dt);
+  }
+
+  #animate(slots, dt) {
+    for (const slot of slots) {
       if (!slot.active) continue;
       slot.age += dt;
       if (slot.age >= slot.life) { slot.active = false; slot.mesh.visible = false; slot.mesh.material.opacity = 0; continue; }
@@ -115,7 +170,7 @@ export class DecalSystem extends System {
   }
 
   dispose() {
-    for (const slot of this.#slots) {
+    for (const slot of [...this.#slots, ...this.#surf]) {
       slot.mesh.removeFromParent();
       slot.mesh.material.dispose();
     }
@@ -141,6 +196,83 @@ function bloodDecalTexture() {
   for (let i = 0; i < 10; i++) {
     const a = Math.random() * Math.PI * 2, r = s * (0.18 + Math.random() * 0.26);
     blob(s / 2 + Math.cos(a) * r, s / 2 + Math.sin(a) * r, s * (0.04 + Math.random() * 0.1), 0.8);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = 4;
+  return t;
+}
+
+// Directional blood splat: a torn central mass with droplets and thin streaks
+// flung outward, so it reads as spray hitting a wall rather than a neat circle.
+function splatDecalTexture() {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d');
+  const cx = s * 0.5, cy = s * 0.5;
+  const blob = (px, py, rad, a) => {
+    const g = x.createRadialGradient(px, py, 0, px, py, rad);
+    g.addColorStop(0, `rgba(150,6,10,${a})`);
+    g.addColorStop(0.6, `rgba(110,2,8,${a * 0.85})`);
+    g.addColorStop(1, 'rgba(80,0,5,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(px, py, rad, 0, 7); x.fill();
+  };
+  // torn central mass — a few overlapping lobes
+  blob(cx, cy, s * 0.26, 0.96);
+  for (let i = 0; i < 5; i++) {
+    const a = Math.random() * Math.PI * 2, r = s * (0.06 + Math.random() * 0.12);
+    blob(cx + Math.cos(a) * r, cy + Math.sin(a) * r, s * (0.1 + Math.random() * 0.12), 0.9);
+  }
+  // flung droplets + thin streaks radiating out
+  for (let i = 0; i < 22; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = s * (0.24 + Math.random() * 0.24);
+    const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+    blob(px, py, s * (0.015 + Math.random() * 0.05), 0.75);
+    if (Math.random() < 0.4) {
+      // a whip-streak pointing back toward the impact
+      x.strokeStyle = 'rgba(120,2,8,0.7)';
+      x.lineWidth = s * (0.008 + Math.random() * 0.014);
+      x.beginPath();
+      x.moveTo(px, py);
+      x.lineTo(px - Math.cos(a) * s * (0.05 + Math.random() * 0.08),
+               py - Math.sin(a) * s * (0.05 + Math.random() * 0.08));
+      x.stroke();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = 4;
+  return t;
+}
+
+// Bullet pockmark: a dark punched core with a lighter rim and a few hairline
+// cracks. Tinted at stamp time; the alpha shape is what sells the pit.
+function holeDecalTexture() {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const x = c.getContext('2d');
+  const cx = s * 0.5, cy = s * 0.5;
+  // soft debris ring
+  let g = x.createRadialGradient(cx, cy, 0, cx, cy, s * 0.5);
+  g.addColorStop(0, 'rgba(255,255,255,0)');
+  g.addColorStop(0.34, 'rgba(255,255,255,0)');
+  g.addColorStop(0.42, 'rgba(255,255,255,0.55)');
+  g.addColorStop(0.62, 'rgba(255,255,255,0.22)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, s, s);
+  // dark punched core
+  g = x.createRadialGradient(cx, cy, 0, cx, cy, s * 0.22);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.7, 'rgba(255,255,255,0.9)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.beginPath(); x.arc(cx, cy, s * 0.22, 0, 7); x.fill();
+  // hairline cracks
+  x.strokeStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 6; i++) {
+    const a = Math.random() * Math.PI * 2;
+    x.lineWidth = s * (0.006 + Math.random() * 0.01);
+    x.beginPath();
+    x.moveTo(cx + Math.cos(a) * s * 0.1, cy + Math.sin(a) * s * 0.1);
+    x.lineTo(cx + Math.cos(a) * s * (0.24 + Math.random() * 0.14),
+             cy + Math.sin(a) * s * (0.24 + Math.random() * 0.14));
+    x.stroke();
   }
   const t = new THREE.CanvasTexture(c);
   t.anisotropy = 4;
