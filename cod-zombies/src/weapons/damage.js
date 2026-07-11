@@ -39,7 +39,7 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
         const at = severLowerBody(rig);
         if (at) {
           ctx.events.emit('zombie:gib', { ...at, dir, count: Math.round(16 * goreScale), speed: 3.6 * goreScale, scale: 1.25 });
-          ctx.events.emit('fx:geyser', { ...at, dir, power: 1.3 * goreScale }); // arterial spray from the open torso
+          ctx.events.emit('fx:geyser', { x: at.x, y: at.y, z: at.z, dir: { x: at.nx, y: at.ny, z: at.nz }, power: 1.3 * goreScale }); // sprays out the waist stump
         }
       }
     } else {
@@ -47,7 +47,7 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
       const at = rig ? severLimb(rig, part) : null;
       if (at) {
         ctx.events.emit('zombie:gib', { ...at, dir, count: Math.round(9 * goreScale), speed: 3.2 * goreScale });
-        ctx.events.emit('fx:geyser', { ...at, dir, power: goreScale }); // arterial spray from the stump
+        ctx.events.emit('fx:geyser', { x: at.x, y: at.y, z: at.z, dir: { x: at.nx, y: at.ny, z: at.nz }, power: goreScale }); // sprays out the arm socket
       }
     }
   }
@@ -88,7 +88,7 @@ export function damageZombie(ctx, id, amount, { award = true, headshot = false, 
         const at = rig ? severHead(rig) : null;
         if (at) {
           ctx.events.emit('zombie:gib', { ...at, dir, count: Math.round(18 * goreScale), speed: 3.8, scale: 1.1 });
-          ctx.events.emit('fx:geyser', { ...at, dir, power: 1.2 * goreScale }); // neck stump fountains
+          ctx.events.emit('fx:geyser', { x: at.x, y: at.y, z: at.z, dir: { x: at.nx, y: at.ny, z: at.nz }, power: 1.2 * goreScale }); // neck stump fountains up
         }
       }
       // hand the entity off to the corpse system: drop the live tag, keep the rig

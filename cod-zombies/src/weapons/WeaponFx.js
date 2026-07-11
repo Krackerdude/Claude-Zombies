@@ -17,6 +17,9 @@ import { markNoAO } from '../rendering/aoMask.js';
 const _z = new THREE.Vector3(0, 0, 1);
 const _v = new THREE.Vector3();
 const _q = new THREE.Quaternion();
+const _gn = new THREE.Vector3(); // geyser: wound normal
+const _gt = new THREE.Vector3(); // geyser: tangent
+const _gb = new THREE.Vector3(); // geyser: bitangent
 
 // ---- shared textures (built once) ----
 function softTex(draw, size = 64) {
@@ -287,42 +290,45 @@ export class WeaponFx {
     }
   }
 
-  /** Arterial geyser from a fresh stump: a tall fountain of blood that erupts
-   *  UP and out (leaning the way the limb was blown off), plus a couple of fat
-   *  gouts, so a severed limb visibly pumps. `power` scales height + volume with
-   *  the weapon's gore profile. */
+  /** Arterial spray from a fresh stump: blood pumps OUT the way the wound faces
+   *  (its outward normal) — a shot-off right arm sprays right, a crawler's waist
+   *  sprays down-and-back, a neck sprays up — fanned into a cone and pulled into
+   *  a gravity arc. Not a forced fountain: it's veins letting go, so it's low and
+   *  directional. `dir` is the wound normal {x,y,z}; `power` scales volume/reach. */
   spawnGeyser(point, dir, power = 1) {
-    const dx = dir?.x ?? 0, dz = dir?.z ?? 0;
-    const dl = Math.hypot(dx, dz) || 1;
-    const ndx = dx / dl, ndz = dz / dl;
-    // the jet: many fine droplets fired mostly upward, biased along the wound
-    const n = Math.round((14 + Math.random() * 6) * power);
+    _gn.set(dir?.x ?? 0, dir?.y ?? 0, dir?.z ?? 0);
+    if (_gn.lengthSq() < 1e-6) _gn.set(0, 1, 0);
+    _gn.normalize();
+    // two axes across the wound face, to fan the spray into a cone
+    _gt.crossVectors(_gn, Math.abs(_gn.y) > 0.9 ? _z : _v.set(0, 1, 0)).normalize();
+    _gb.crossVectors(_gn, _gt).normalize();
+    const spray = (a, b, o) => _v.copy(_gn).multiplyScalar(o).addScaledVector(_gt, a).addScaledVector(_gb, b);
+    const n = Math.round((7 + Math.random() * 4) * power);
     for (let i = 0; i < n; i++) {
       const s = this.#take('blood'); const m = s.mesh;
       m.material.color.setHex(0x8a0008); m.material.opacity = 0.95;
-      m.scale.setScalar((0.06 + Math.random() * 0.07) * power);
+      m.scale.setScalar((0.05 + Math.random() * 0.05) * power);
       m.position.copy(point);
       m.visible = true;
-      const up = (4.5 + Math.random() * 3.5) * power;        // strong vertical launch
-      const out = 1.4 + Math.random() * 1.2;
-      this.#rec('blood', s, 0.5 + Math.random() * 0.4, {
-        vx: ndx * out + (Math.random() - 0.5) * 1.8,
-        vy: up,
-        vz: ndz * out + (Math.random() - 0.5) * 1.8,
-        grav: 11, o0: 0.95, fade: 'out', grow: -0.2,
+      const out = (3.0 + Math.random() * 2.2) * power;      // dominant: out the wound
+      spray((Math.random() - 0.5) * 1.8, (Math.random() - 0.5) * 1.8, out);
+      this.#rec('blood', s, 0.4 + Math.random() * 0.3, {
+        vx: _v.x, vy: _v.y + 0.4, vz: _v.z,                 // a touch of lift so it arcs
+        grav: 10, o0: 0.95, fade: 'out', grow: -0.2,
       });
     }
-    // a couple of fat gouts riding the jet, for weight
-    const g = Math.round(3 * power);
+    // a couple of fat gouts riding the spray, for weight — same wound-facing arc
+    const g = Math.round(2 * power);
     for (let i = 0; i < g; i++) {
       const s = this.#take('blood'); const m = s.mesh;
       m.material.color.setHex(0x5c0006); m.material.opacity = 0.9;
-      m.scale.setScalar((0.13 + Math.random() * 0.08) * power);
-      m.position.copy(point).add(_v.set((Math.random() - 0.5) * 0.1, 0.05, (Math.random() - 0.5) * 0.1));
+      m.scale.setScalar((0.1 + Math.random() * 0.06) * power);
+      m.position.copy(point).add(_v.set((Math.random() - 0.5) * 0.08, 0.02, (Math.random() - 0.5) * 0.08));
       m.visible = true;
-      this.#rec('blood', s, 0.55 + Math.random() * 0.35, {
-        vx: ndx * 1.2 + (Math.random() - 0.5) * 1.0, vy: (3.2 + Math.random() * 2) * power, vz: ndz * 1.2 + (Math.random() - 0.5) * 1.0,
-        grav: 12, o0: 0.9, fade: 'late', grow: 0.1,
+      spray((Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 0.9, (2.0 + Math.random() * 1.3) * power);
+      this.#rec('blood', s, 0.45 + Math.random() * 0.3, {
+        vx: _v.x, vy: _v.y + 0.3, vz: _v.z,
+        grav: 11, o0: 0.9, fade: 'late', grow: 0.08,
       });
     }
   }
