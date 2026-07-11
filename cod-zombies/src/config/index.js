@@ -64,13 +64,42 @@ export const PostFXConfig = {
   // --- god rays: light shafts streaming from the moon past the rooftops ---
   // Minimal + atmospheric. The source is a soft disc at the key light's screen
   // position, masked to background (sky) pixels so geometry occludes the shafts.
+  // Retired in favour of the real ray-marched volumetric pass below. The old
+  // screen-space radial blur only faked sun shafts (no geometric occlusion, sun
+  // had to be on-screen). Kept off so the sun halo now comes from bloom.
   godrays: {
+    enabled: false,
+    size: 0.05, density: 0.55, weight: 0.4, decay: 0.93, intensity: 1.0,
+  },
+
+  // --- volumetric lighting: true ray-marched in-scattering ---
+  // A half-res post pass reconstructs each pixel's world ray from depth and
+  // marches through a participating medium (height fog), accumulating light that
+  // scatters toward the eye. The sun/moon is sampled against a dedicated depth
+  // map so its shafts are OCCLUDED by real geometry (beams through windows,
+  // rails, doorways); nearby practical lights add dusty local glow. A
+  // Henyey–Greenstein phase makes beams bloom when you look toward the source,
+  // and Beer–Lambert transmittance turns distance into atmospheric haze.
+  volumetric: {
     enabled: true,
-    size: 0.05,          // uv radius of the (aspect-corrected, circular) moon disc
-    density: 0.55,       // radial step scale (longer = reaches further)
-    weight: 0.4,         // per-sample contribution (blur is normalised, so bounded)
-    decay: 0.93,         // falloff along the shaft
-    intensity: 1.0,      // additive strength in the final composite
+    intensity: 1.0,       // master multiplier on the scattered light added to the scene
+    steps: 40,            // ray-march samples (quality vs cost); dithered so this can stay modest
+    maxDistance: 60,      // metres — how far the march reaches before it stops accumulating
+    resScale: 0.5,        // march at this fraction of screen res (0.5 = half), then upsample
+    // participating medium (fog)
+    fogDensity: 0.06,     // base extinction per metre at the fog floor
+    fogHeight: 0.12,      // exponential height falloff (bigger = fog hugs the floor tighter)
+    fogY0: 0.0,           // world height where fog is densest
+    ambient: [0.05, 0.06, 0.09], // faint sky/bounce scatter so shadowed fog isn't pure black
+    // sun / moon shaft
+    sunScatter: 1.5,      // in-scatter strength of the key light
+    anisotropy: 0.72,     // Henyey–Greenstein g (0 = uniform, →1 = sharp forward beams)
+    // local practical lights (lamps, fire, muzzle, explosions)
+    localScatter: 1.0,    // in-scatter strength of nearby point lights
+    localLights: 6,       // max practicals sampled per frame (nearest to camera)
+    // shadow map for the sun's occluded shafts
+    sunShadowSize: 1024,  // resolution of the dedicated sun depth map
+    sunShadowExtent: 28,  // half-width (m) of the ortho frustum tracked around the player
   },
 
   // --- colour grade: the Persona identity lives here ---

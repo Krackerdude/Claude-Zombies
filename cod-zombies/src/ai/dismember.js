@@ -50,6 +50,7 @@ export function goreMaterials() { return mats(); }
 const _chunkGeo = new THREE.BoxGeometry(1, 1, 1);
 const _rnd = (s) => (Math.random() - 0.5) * s;
 const _wp = new THREE.Vector3();
+const _wd = new THREE.Vector3();
 
 // world position of a point local to a joint (used to seed the gib burst at the
 // exact wound). Updates the joint's world matrix first so it's current.
@@ -58,6 +59,14 @@ function worldOf(joint, x, y, z) {
   _wp.set(x, y, z);
   joint.localToWorld(_wp);
   return { x: _wp.x, y: _wp.y, z: _wp.z };
+}
+
+// a LOCAL direction rotated into world space by the joint's orientation — the
+// way a wound faces, so the arterial spray erupts out the stump (not straight
+// up). Returns { nx, ny, nz }, normalized. Assumes matrixWorld is current.
+function worldDir(joint, x, y, z) {
+  _wd.set(x, y, z).transformDirection(joint.matrixWorld);
+  return { nx: _wd.x, ny: _wd.y, nz: _wd.z };
 }
 
 /** An irregular meat chunk: a unit box scaled/rotated/placed randomly. */
@@ -126,7 +135,10 @@ export function severLimb(rig, limb) {
     wound.add(s);
   }
   parent.add(wound);
-  return worldOf(parent, spec.x, spec.y, spec.z);
+  // the socket faces outward (±x, away from the torso) and hangs a little down —
+  // that's where the spray erupts, so a right arm sprays right, a left arm left.
+  const dir = worldDir(parent, Math.sign(spec.x) || 1, -0.15, 0);
+  return { ...worldOf(parent, spec.x, spec.y, spec.z), ...dir };
 }
 
 /** Head shot off on a kill: hide the head, cap the neck with a gory stump, and
@@ -137,8 +149,10 @@ export function severHead(rig) {
   const head = J.head;
   const torso = head.parent;
   if (!torso) return null;
-  // skull centre in world BEFORE we hide it — that's where the burst originates
+  // skull centre in world BEFORE we hide it — that's where the burst originates.
+  // the neck stump faces up (+y) and a touch forward — spray fountains upward.
   const pos = worldOf(head, 0, 0.2, 0);
+  const dir = worldDir(head, 0, 1, 0.15);
   head.userData.severed = true;
   head.visible = false;
 
@@ -162,7 +176,7 @@ export function severHead(rig) {
     wound.add(s);
   }
   torso.add(wound);
-  return pos;
+  return { ...pos, ...dir };
 }
 
 /** Both legs gone: cut the body off at the waist — a grotesque open torso with
@@ -214,5 +228,8 @@ export function severLowerBody(rig) {
     wound.add(e);
   }
   hips.add(wound);
-  return worldOf(hips, 0, -0.05, 0);
+  // the waist is cut open facing DOWN and BACK (legs used to run down, guts
+  // spill rearward) — the spray erupts from the stump at that low, backward angle.
+  const dir = worldDir(hips, 0, -0.55, -0.7);
+  return { ...worldOf(hips, 0, -0.05, 0), ...dir };
 }

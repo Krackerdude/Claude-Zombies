@@ -1003,6 +1003,8 @@ export class WeaponSystem extends System {
     const mesh = energy ? makeEnergyBolt(ecol) : makeRocket();
 
     const pos = new THREE.Vector3().copy(this.#camera.position).addScaledVector(_fwd, 0.6);
+    // energy bolts flash the room in their own hue as they leave the barrel
+    if (energy && this.#fx) this.#fx.muzzleWorldFlash(pos, _fwd, ecol);
     const id = this.world.createEntity();
     const tr = new Transform(pos);
     tr.quaternion.copy(this.#camera.quaternion);

@@ -247,6 +247,13 @@ export class RenderManager {
     // backend transparently falls through to the direct path below.
     if (this.postFX && this.postFX.enabled) {
       const sun = this.#computeSun(camera);
+      // the volumetric pass needs the key light's WORLD direction + colour every
+      // frame (unlike the screen god-ray descriptor, which is gated by on-screen-
+      // ness). Compute it straight from the light so shafts exist even off-screen.
+      if (this.sunLight && this.postFX.setSun) {
+        this.#sunDir.copy(this.sunLight.position).sub(this.sunLight.target.position).normalize();
+        this.postFX.setSun(this.#sunDir, this.sunLight.color);
+      }
       this.postFX.setHeat?.(this.#computeHeat(camera));
       this.postFX.render(scene, camera, this.#overlayScene, this.vmCamera || camera, sun);
       return;
