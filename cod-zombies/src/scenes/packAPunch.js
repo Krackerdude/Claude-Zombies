@@ -113,5 +113,9 @@ export function buildPaP() {
     inZ: -0.28,  // sucked deep behind the rollers, against the glow (hidden)
     outZ: 0.7,   // pushed forward out the entrance (grabbable)
   };
+  // this rig never set a single shadow flag, so it was absent from the shadow
+  // system entirely (no cast, no receive). Enrol every solid part like the other
+  // machines — the emissive glow plane is skipped so it doesn't cast a hard slab.
+  root.traverse((o) => { if (o.isMesh && o !== glow) { o.castShadow = true; o.receiveShadow = true; } });
   return root;
 }
