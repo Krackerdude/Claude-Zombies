@@ -106,6 +106,18 @@ export const PostFXConfig = {
     power: 1.5,          // contrast of the occlusion falloff
   },
 
+  // Dedicated viewmodel AO: the first-person gun/hands get their OWN AO pass from
+  // a viewmodel-only depth+normal buffer, so they self-shadow (arm creases, under
+  // the trigger guard, where the hand grips) without ghosting against the world.
+  // Radius is tiny — the gun is only ~0.5 m across at ~0.3 m from the eye.
+  viewmodelAO: {
+    enabled: true,
+    radius: 0.09,        // metres — viewmodel-scale sampling hemisphere
+    intensity: 1.1,      // darkening strength
+    bias: 0.008,         // metres
+    power: 1.4,          // contrast
+  },
+
   // --- ink / cel outlines: Persona 5 line-art on geometry edges (Sobel on
   // depth + reconstructed normals) ---
   outline: {

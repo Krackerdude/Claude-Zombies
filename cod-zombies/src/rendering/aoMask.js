@@ -18,6 +18,11 @@ import * as THREE from 'three';
  */
 export const NO_AO_LAYER = 11;
 
+// The first-person viewmodel (gun + hands + hand props). It's excluded from the
+// world AO (it also carries NO_AO_LAYER) but gets its OWN dedicated AO pass at
+// viewmodel scale, so it self-shadows cleanly without ghosting against the world.
+export const VIEWMODEL_LAYER = 12;
+
 /** A material that emits light or is a pure additive/transparent effect —
  *  i.e. something AO should never touch. */
 function emitsOrFx(m) {
@@ -36,6 +41,12 @@ const RENDERABLE = (o) => o.isMesh || o.isSprite || o.isPoints;
  *  rule can't see, e.g. blood gibs). */
 export function markNoAO(obj) {
   obj.traverse((o) => { if (RENDERABLE(o)) o.layers.enable(NO_AO_LAYER); });
+}
+
+/** Tag `obj` as first-person viewmodel: out of the world AO (NO_AO) AND into the
+ *  dedicated viewmodel-AO pass (VIEWMODEL). Use for the gun, hands and props. */
+export function markViewmodel(obj) {
+  obj.traverse((o) => { if (RENDERABLE(o)) { o.layers.enable(NO_AO_LAYER); o.layers.enable(VIEWMODEL_LAYER); } });
 }
 
 /** Tag only the light-emitting / FX parts under `root` (by material), so the

@@ -139,6 +139,36 @@ export const AO_FRAG = /* glsl */ `
   }
 `;
 
+/** Apply the dedicated VIEWMODEL AO (half-res) to the colour. Same depth-guided
+ *  upsample as the world apply, but no exclusion mask: the viewmodel AO buffer is
+ *  computed from a viewmodel-ONLY depth buffer, so it is 1.0 (no occlusion)
+ *  everywhere off the gun/hands — the depth-guided weights reject any bleed onto
+ *  the world at the silhouette, so a plain multiply only ever darkens the gun. */
+export const AO_VM_APPLY_FRAG = /* glsl */ `
+  #include <packing>
+  uniform sampler2D tDiffuse;
+  uniform sampler2D tAO;
+  uniform sampler2D tDepth;   // viewmodel-only depth
+  uniform vec2 uAOTexel;
+  uniform float uNear, uFar;
+  varying vec2 vUv;
+  float lin(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+  void main() {
+    vec3 col = texture2D(tDiffuse, vUv).rgb;
+    float dC = lin(vUv);
+    float ao = 0.0, wsum = 0.0;
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        vec2 suv = vUv + vec2(float(x), float(y)) * uAOTexel;
+        float w = exp(-abs(lin(suv) - dC) * 6.0);
+        ao += texture2D(tAO, suv).r * w; wsum += w;
+      }
+    }
+    ao = wsum > 0.0 ? ao / wsum : texture2D(tAO, vUv).r;
+    gl_FragColor = vec4(col * ao, 1.0);
+  }
+`;
+
 /** Separable depth-aware (bilateral) blur for the AO buffer — smooths the
  *  sampling dither without bleeding occlusion across depth discontinuities
  *  (which is what causes AO halos). Run once horizontal, once vertical. */
