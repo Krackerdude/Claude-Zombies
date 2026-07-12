@@ -54,6 +54,8 @@ export class PostFX {
 
   // volumetric key-light descriptor (world space), pushed each frame by RenderManager
   #volSunDir = new THREE.Vector3(0, 1, 0);
+  #moonVP = new THREE.Matrix4();     // scratch view-proj for projecting the moon
+  #moonClip = new THREE.Vector4();   // scratch clip-space moon position
   #volSunColor = new THREE.Color(1, 1, 1);
   #sunLight = null;
   #volFrame = 0;
@@ -173,6 +175,7 @@ export class PostFX {
     this.#mFlare = this.#shader(LENSFLARE_FRAG, {
       tBright: { value: null }, uTexel: { value: new THREE.Vector2() },
       uGhosts: { value: 5 }, uDispersal: { value: 0.32 }, uHaloWidth: { value: 0.42 }, uChroma: { value: 0.012 },
+      uMoonUv: { value: new THREE.Vector2(0.5, 0.5) }, uMoonR: { value: 0.13 }, uMoonOn: { value: 0 },
     });
 
     this.#mGodSrc = this.#shader(GODRAY_SOURCE_FRAG, {
@@ -726,6 +729,19 @@ export class PostFX {
       f.uDispersal.value = lf.dispersal ?? 0.32;
       f.uHaloWidth.value = lf.haloWidth ?? 0.42;
       f.uChroma.value = lf.chroma ?? 0.012;
+      // Only the MOON throws a flare. Project its direction (the key light's
+      // world direction, where the moon disc is drawn) to screen uv and hand it
+      // to the shader as the sole allowed flare source — so muzzle flashes, fire,
+      // neon and explosions no longer smear ghosts across the frame.
+      this.#moonVP.multiplyMatrices(worldCamera.projectionMatrix, worldCamera.matrixWorldInverse);
+      this.#moonClip.set(this.#volSunDir.x, this.#volSunDir.y, this.#volSunDir.z, 0).applyMatrix4(this.#moonVP);
+      if (this.#moonClip.w > 1e-4) {
+        f.uMoonUv.value.set(this.#moonClip.x / this.#moonClip.w * 0.5 + 0.5, this.#moonClip.y / this.#moonClip.w * 0.5 + 0.5);
+        f.uMoonOn.value = 1;
+      } else {
+        f.uMoonOn.value = 0; // moon behind the camera → no flare at all
+      }
+      f.uMoonR.value = lf.moonRadius ?? 0.13;
       this.#blit(this.#mFlare, this.#rtGod);       // generate → half-res
       this.#mFinal.uniforms.tGod.value = this.#rtGod.texture;
       this.#mFinal.uniforms.uGodColor.value.set(1, 1, 1);

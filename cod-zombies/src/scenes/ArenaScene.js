@@ -35,6 +35,7 @@ import { prewarmZombieCosmetics } from './zombieAssets.js';
 import { autoTagNoAO } from '../rendering/aoMask.js';
 import { mergeStatic } from '../util/mergeStatic.js';
 import { CullingSystem } from '../rendering/CullingSystem.js';
+import { ShadowSystem } from '../rendering/ShadowSystem.js';
 import { MenuSystem } from './MenuSystem.js';
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../rendering/AmbientParticles.js';
@@ -94,6 +95,7 @@ export function buildArena(engine) {
   // interior bulbs gutter like bad wiring, the cool fills breathe slowly.
   const flickerLights = [];
   const lightCones = [];
+  const shadowSpots = []; // shadow-casting practical spots (frozen by ShadowSystem)
   const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16, flicker = null, cone = false, shadow = false) => {
     const l = new THREE.PointLight(color, intensity, dist, 2); // omni fill (room lighting)
     l.position.set(x, 3.2, z);
@@ -113,6 +115,7 @@ export function buildArena(engine) {
       sp.shadow.bias = -0.0006; sp.shadow.normalBias = 0.02;
       if (flicker) { sp.userData.flicker = flicker; flickerLights.push(sp); }
       scene.add(sp);
+      shadowSpots.push(sp);
     }
     // dusty volumetric beam dropping from the bulb to the floor
     if (cone) {
@@ -248,6 +251,10 @@ export function buildArena(engine) {
   // The shared normal maps join the tunable-texture set for anisotropy control.
   engine.world.registerSystem(new AtmosphereSystem(flickerLights, AtmosphereConfig, lightCones));
   sceneMgr.tunableTextures.push(...sharedNormalMaps());
+
+  // Tier 4 — shadow caching: freeze the practical spots + the moon/sun cascade
+  // and only re-render each when a moving caster (zombie/player) is under it.
+  engine.world.registerSystem(new ShadowSystem(shadowSpots, sun));
 
   // ambient haze + persistent ground decals (blood pools, scorch). Both are
   // isolated, event-driven, and individually disable-able for performance.

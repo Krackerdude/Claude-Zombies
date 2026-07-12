@@ -116,6 +116,7 @@ export const PostFXConfig = {
     dispersal: 0.36,     // spacing of the ghosts (bigger = spread further apart)
     haloWidth: 0.44,     // radius of the halo ring
     chroma: 0.017,       // chromatic split (glass fringe) in uv
+    moonRadius: 0.13,    // only bright pixels within this uv radius of the moon flare (moon-only)
   },
 
   // --- colour grade: the Persona identity lives here ---
