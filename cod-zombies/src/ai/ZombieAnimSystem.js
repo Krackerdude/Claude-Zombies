@@ -110,24 +110,15 @@ export class ZombieAnimSystem extends System {
         z.state === 'knocked' || z.swipe > 0 || z.state === 'teardown' ||
         z.flinch > 0 || z.acidSlow > 0;
       let dtEff = dt;
-      if (!urgent) {
-        // Off-screen (frustum-culled by CullingSystem): you can't see the pose,
-        // so hold it entirely — zero pose math. Safe because every pose that
-        // advances GAMEPLAY state (melt→crawler, body-melt→reap, knockdown) is in
-        // the `urgent` set above and still runs; and the cull margin flips a rig
-        // visible while it's still ~3m off-screen, so it's re-posed before it can
-        // actually be seen. When culling is off, rigs stay visible → normal bands.
-        if (!rig.visible) { z.animAccum = (z.animAccum || 0) + dt; continue; }
-        if (ppos) {
-          const t = this.world.get(id, Transform)?.position ?? rig.position;
-          const dx = t.x - ppos.x, dz = t.z - ppos.z, d2 = dx * dx + dz * dz;
-          const stride = d2 > ANIM_FAR2 ? 3 : d2 > ANIM_MID2 ? 2 : 1;
-          if (stride > 1) {
-            if (z.animPhase === undefined) z.animPhase = (id * 7) & 7; // stagger the bands
-            z.animAccum = (z.animAccum || 0) + dt;                      // count this frame's dt
-            if ((this.#frame + z.animPhase) % stride !== 0) continue;   // hold last pose
-            dtEff = z.animAccum; z.animAccum = 0;                       // apply all elapsed since last pose
-          }
+      if (!urgent && ppos) {
+        const t = this.world.get(id, Transform)?.position ?? rig.position;
+        const dx = t.x - ppos.x, dz = t.z - ppos.z, d2 = dx * dx + dz * dz;
+        const stride = d2 > ANIM_FAR2 ? 3 : d2 > ANIM_MID2 ? 2 : 1;
+        if (stride > 1) {
+          if (z.animPhase === undefined) z.animPhase = (id * 7) & 7; // stagger the bands
+          z.animAccum = (z.animAccum || 0) + dt;                      // count this frame's dt
+          if ((this.#frame + z.animPhase) % stride !== 0) continue;   // hold last pose
+          dtEff = z.animAccum; z.animAccum = 0;                       // apply all elapsed since last pose
         }
       }
       // flush any dt still banked from a prior band (e.g. a zombie that just moved
