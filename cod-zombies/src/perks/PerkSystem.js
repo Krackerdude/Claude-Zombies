@@ -53,12 +53,16 @@ export class PerkSystem extends System {
     this.#scene = s.get(Service.Scene).scene;
     this.#physics = s.get(Service.Physics);
 
+    const cull = s.has(Service.Cull) ? s.get(Service.Cull) : null;
     for (const [id, x, z] of PLACEMENT) {
       const def = PERKS[id];
       const rig = buildPerkMachine(def);
       rig.position.set(x, 0, z);
       rig.rotation.y = Math.atan2(-x, -z); // face room center
       this.#scene.add(rig);
+      // Tier 2: each machine is a heavy static cell — cull its whole subtree
+      // when it's off-screen (its glow/spin animate in place, bounds hold).
+      cull?.register(rig);
       // collider raised ~1m above the machine so the player can't jump on top
       // (footprint unchanged; bullets ignore physics colliders).
       const colH = def.h + 1.0;

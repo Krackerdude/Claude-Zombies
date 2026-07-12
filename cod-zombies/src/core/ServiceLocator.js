@@ -74,4 +74,5 @@ export const Service = Object.freeze({
   Perks: 'perks',
   Tactical: 'tactical',
   Lethal: 'lethal',
+  Cull: 'cull',
 });

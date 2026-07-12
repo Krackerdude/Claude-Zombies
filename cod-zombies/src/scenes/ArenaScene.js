@@ -34,6 +34,7 @@ import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../render
 import { prewarmZombieCosmetics } from './zombieAssets.js';
 import { autoTagNoAO } from '../rendering/aoMask.js';
 import { mergeStatic } from '../util/mergeStatic.js';
+import { CullingSystem } from '../rendering/CullingSystem.js';
 import { MenuSystem } from './MenuSystem.js';
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../rendering/AmbientParticles.js';
@@ -278,6 +279,7 @@ export function buildArena(engine) {
   const glowTex = makeGlowTexture();
 
   const wallBuys = [];
+  const wallBuyGroups = [];
   const addWallBuy = (key, x, y, z, rotY) => {
     const group = new THREE.Group();
     group.position.set(x, y, z);
@@ -293,6 +295,7 @@ export function buildArena(engine) {
     );
     group.add(glow, chalk);
     scene.add(group);
+    wallBuyGroups.push(group);
     wallBuys.push({ id: 'wb_' + key, key, cost: weaponCost(key), position: new THREE.Vector3(x, y, z) });
   };
 
@@ -319,6 +322,17 @@ export function buildArena(engine) {
   papRig.rotation.y = -Math.PI / 2; // face into the room
   scene.add(papRig);
   physics.createStaticBox({ x: papPos.x, y: 1.0, z: papPos.z }, { x: 0.85, y: 1.3, z: 0.6 });
+
+  // Tier 2 — visibility culling. Register the heavy, always-present static props
+  // as culling cells so the renderer skips their whole subtrees when they fall
+  // outside the view. Registered as a service BEFORE the systems block so
+  // PerkSystem can add its machines (the biggest leaf-count cells) too; the box
+  // and PaP animate only their innards, so their outer bounds stay valid.
+  const cull = new CullingSystem();
+  cull.register(boxRig);
+  cull.register(papRig);
+  for (const g of wallBuyGroups) cull.register(g);
+  engine.services.register(Service.Cull, cull);
 
   // live state is published here by the EconomySystem; the box/PaP systems read it
   const economy = {
