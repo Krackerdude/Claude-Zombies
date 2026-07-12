@@ -183,11 +183,12 @@ const _WORLD_DOWN = new THREE.Vector3(0, -1, 0);
  * are there when you look down, and the gun (placed relative to the camera, so
  * it aims where you look) is held with both hands via two-bone arm IK to the
  * weapon's gripR/gripL sockets. Head hidden (camera lives there). Same rig
- * remote players / theater will use. F6 toggles it; off by default.
+ * remote players / theater will use. ON by default; F6 toggles back to the old
+ * camera-locked overlay gun.
  */
 export class PlayerBodySystem extends System {
   #scene; #time; #gameState; #weapons; #camera; #physics;
-  #body = null; #built = false; #enabled = false; #wallPush = 0; #kick = 0;
+  #body = null; #built = false; #enabled = true; #wallPush = 0; #kick = 0; // world-body viewmodel ON by default (F6 toggles back to the overlay gun)
   #gunHolder = new THREE.Group(); #gunHolderL = new THREE.Group(); // R gun; L gun (dual-wield)
   #gunAnchors = null; #gunAnchorsL = null; #dual = false;
   #gunKey = null; #gunSightY = 0.08; #gunDrop = 0; #gunPull = 0; #aimPitch = 0;
@@ -599,7 +600,11 @@ export class PlayerBodySystem extends System {
   }
 
   lateUpdate(dt) {
-    if (!this.#enabled || !this.#body) return;
+    if (!this.#enabled) return;
+    // built lazily on the first in-game frame (needs the selected character rig,
+    // which isn't available at Engine-construction time when init() runs)
+    if (!this.#built && this.#gameState.isPlaying) this.#build();
+    if (!this.#body) return;
     if (!this.#gameState.isPlaying || this.world.first(PlayerTag, Transform) === undefined) {
       this.#body.visible = false; this.#gunHolder.visible = false; this.#gunHolderL.visible = false;
       if (this.#flash) { this.#flash.visible = false; this.#flashLight.intensity = 0; if (this.#muzzleLight) this.#muzzleLight.intensity = 0; if (this.#shock) this.#shock.visible = false; }

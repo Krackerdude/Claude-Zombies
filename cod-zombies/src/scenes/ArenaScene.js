@@ -337,6 +337,12 @@ export function buildArena(engine) {
   // three.js already frustum-culls each mesh from the main view for free; the
   // group-cull's small extra saving wasn't worth the shadow churn, so the props
   // just stay in the scene like everything else.
+  //
+  // Visibility culling is DEFERRED to the map system: in a single room it barely
+  // helps, but multi-room maps can cull a whole cell — its geometry AND its
+  // lights/shadows together — which is shadow-safe by construction (no per-prop
+  // toggling against the sun map) and an actual win. Build cell/portal culling
+  // into the map format, not per-prop here.
 
   // live state is published here by the EconomySystem; the box/PaP systems read it
   const economy = {
