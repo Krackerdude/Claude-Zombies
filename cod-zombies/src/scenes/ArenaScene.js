@@ -29,7 +29,7 @@ import { PerkSystem } from '../perks/PerkSystem.js';
 import { BarrierFxSystem } from './BarrierFxSystem.js';
 import { weaponCost, weaponCategory } from '../weapons/catalog.js';
 import { makeChalkTexture, makeGlowTexture } from '../util/chalk.js';
-import { PlayerTag, Transform, ZombieTag, Renderable } from '../ecs/components/index.js';
+import { PlayerTag, Transform } from '../ecs/components/index.js';
 import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../rendering/materials/surfaces.js';
 import { prewarmZombieCosmetics } from './zombieAssets.js';
 import { autoTagNoAO } from '../rendering/aoMask.js';
@@ -335,25 +335,17 @@ export function buildArena(engine) {
   // outside the view. Registered as a service BEFORE the systems block so
   // PerkSystem can add its machines (the biggest leaf-count cells) too; the box
   // and PaP animate only their innards, so their outer bounds stay valid.
+  // NOTE: only the STATIC props are culled. Zombies are deliberately NOT dynamic-
+  // culled here: hiding an off-screen rig (visible=false) also drops it from the
+  // sun shadow pass, which is where a freshly-spawned zombie's geometry + shader
+  // program first upload/compile. Deferring that to the frame you first LOOK at a
+  // spawned crowd caused a bad hitch (worst at wave start, easing as programs
+  // warm up). Leaving zombies in the shadow pass keeps them warm from spawn;
+  // three.js still frustum-culls their meshes from the main view for free.
   const cull = new CullingSystem();
   cull.register(boxRig);
   cull.register(papRig);
   for (const g of wallBuyGroups) cull.register(g);
-  // Dynamic cell source: the live zombie horde. Each frame, cull any rig whose
-  // padded bounding sphere (torso-centred, ~1.4m + the shared shadow margin)
-  // clears the frustum — so dozens of off-screen animated rigs skip both the
-  // main and shadow passes. Same margin as the static cells keeps it shadow-safe
-  // (a body is only hidden once it's well outside the view, beyond its short
-  // shadow's reach) and never pops near-side zombies whose sphere still clips in.
-  const ZOMBIE_R = 1.4;
-  cull.addDynamicSource((frustum) => {
-    for (const id of engine.world.query(ZombieTag, Renderable)) {
-      const rig = engine.world.get(id, Renderable).object3d;
-      if (frustum === null) { rig.visible = true; continue; } // culling off → reveal
-      const t = engine.world.get(id, Transform)?.position;
-      rig.visible = !t || cull.testSphere(t.x, t.y + 1.0, t.z, ZOMBIE_R);
-    }
-  });
   engine.services.register(Service.Cull, cull);
 
   // live state is published here by the EconomySystem; the box/PaP systems read it
