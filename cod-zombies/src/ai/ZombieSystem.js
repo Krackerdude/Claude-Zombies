@@ -12,6 +12,22 @@ const _camDir = new THREE.Vector3();
 const _oc = new THREE.Vector3();
 const _center = new THREE.Vector3();
 
+// Tier 6 — CPU amortization. The horde's path recomputes (A*) are the priciest
+// per-frame AI work. Left in lockstep they spike: every zombie that plans on the
+// same frame replans together forever (fixed interval), and a nav change forces
+// ALL of them to replan on one frame. Spread that work out instead:
+//   - jitter each replan interval so zombies desync and A* trickles across frames
+//   - zombies far from the player replan less often (a long path tolerates a
+//     little staleness — they're nowhere near yet)
+//   - a nav change (barrier opened) staggers everyone's forced replan over a
+//     short window rather than firing them all at once
+// Pure smoothing: paths still refresh within the same ~1s envelope, just not all
+// on the same tick, so the AI behaves the same without the periodic hitch.
+const REPLAN_JITTER = 0.4;        // ±20% on the interval (0.8..1.2×) to desync the horde
+const REPLAN_FAR_DIST = 18;       // metres — beyond this, replan less often
+const REPLAN_FAR_MULT = 1.7;      // interval multiplier for distant zombies
+const NAV_DIRTY_SPREAD = 0.4;     // seconds to spread a nav-change replan burst over
+
 /**
  * Per-zombie brain + the player's combat hooks. Runs only while playing.
  *
@@ -156,10 +172,17 @@ export class ZombieSystem extends System {
         break;
 
       case 'pathing': {
+        // a nav change nudges this zombie to replan SOON, but at a staggered
+        // offset so the whole horde doesn't A* on the same frame (see below)
+        if (this.#navDirty) z.replan = Math.min(z.replan, Math.random() * NAV_DIRTY_SPREAD);
         z.replan -= dt;
-        if (z.replan <= 0 || this.#navDirty || !z.path) {
+        if (z.replan <= 0 || !z.path) {
           this.#plan(z, t, goalCell);
-          z.replan = ZombieConfig.replanInterval;
+          // desync + distance-scale the next replan so the horde's path work
+          // trickles across frames instead of spiking in lockstep
+          const far = this.#flatDist(t.position, playerPos) > REPLAN_FAR_DIST;
+          const base = ZombieConfig.replanInterval * (far ? REPLAN_FAR_MULT : 1);
+          z.replan = base * (1 - REPLAN_JITTER / 2 + Math.random() * REPLAN_JITTER);
         }
         if (this.#flatDist(t.position, playerPos) <= ZombieConfig.attackRange) {
           z.state = 'attack';
