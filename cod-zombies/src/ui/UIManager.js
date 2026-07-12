@@ -128,7 +128,12 @@ export class UIManager {
       vignette: gx.vignette !== false ? gx.vignetteAmount : 0,
     });
     this.#events.on('settings:fx', (fx) => this.#applyFxVars(fx));
-    this.#events.on('state:change', () => this.#refresh());
+    this.#events.on('state:change', ({ state } = {}) => {
+      // PERF: entering gameplay, free the menu 3D views' WebGL contexts so only
+      // the game's renderer stays live (they lazily recreate on next menu open).
+      if (state === AppState.PLAYING) { this.#factoryView?.release?.(); this.#machineView?.release?.(); }
+      this.#refresh();
+    });
 
     // Level / progress shown on the main-menu player widget + pause-menu rank bar
     // are derived from the persistent profile. Paint them now and on any change.
