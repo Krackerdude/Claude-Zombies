@@ -4,7 +4,7 @@ import { NO_AO_LAYER, VIEWMODEL_LAYER } from '../aoMask.js';
 import {
   FULLSCREEN_VERT, COPY_FRAG, DOF_FRAG, BRIGHT_FRAG, BLOOM_UP_FRAG, BLUR_FRAG, FINAL_FRAG,
   GODRAY_SOURCE_FRAG, GODRAY_BLUR_FRAG, AO_FRAG, AO_BLUR_FRAG, AO_APPLY_FRAG, AO_VM_APPLY_FRAG, OUTLINE_FRAG, MOTIONBLUR_FRAG,
-  VOLUMETRIC_MARCH_FRAG, VOLUMETRIC_COMPOSITE_FRAG,
+  VOLUMETRIC_MARCH_FRAG, VOLUMETRIC_COMPOSITE_FRAG, LENSFLARE_FRAG,
 } from './shaders.js';
 
 /**
@@ -68,7 +68,7 @@ export class PostFX {
   #black; // 1×1 black fallback for the bloom/god slots when disabled
 
   // stage materials
-  #mCopy; #mDof; #mBright; #mBlur; #mBloomUp; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmBlur; #mVmApply; #mOutline; #mMotion; #mVolMarch; #mVolComposite;
+  #mCopy; #mDof; #mBright; #mBlur; #mBloomUp; #mFlare; #mFinal; #mGodSrc; #mGodBlur; #mAO; #mAOBlur; #mAOApply; #mVmAO; #mVmBlur; #mVmApply; #mOutline; #mMotion; #mVolMarch; #mVolComposite;
 
   // motion-blur matrices
   #curVP = new THREE.Matrix4();
@@ -169,6 +169,10 @@ export class PostFX {
     this.#mBlur = this.#shader(BLUR_FRAG, { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() } });
     this.#mBloomUp = this.#shader(BLOOM_UP_FRAG, {
       tSmall: { value: null }, tBig: { value: null }, uTexel: { value: new THREE.Vector2() }, uScatter: { value: 1 },
+    });
+    this.#mFlare = this.#shader(LENSFLARE_FRAG, {
+      tBright: { value: null }, uTexel: { value: new THREE.Vector2() },
+      uGhosts: { value: 5 }, uDispersal: { value: 0.32 }, uHaloWidth: { value: 0.42 }, uChroma: { value: 0.012 },
     });
 
     this.#mGodSrc = this.#shader(GODRAY_SOURCE_FRAG, {
@@ -707,18 +711,25 @@ export class PostFX {
       this.#mFinal.uniforms.tBloom.value = this.#black;
     }
 
-    // 5) god rays — disc at the key light's screen position, masked to sky depth
+    // 5) BOKEH LENS FLARE — ghosts + halo generated from the blurred bright
+    //    buffer (a bloom mip), so the artifacts are soft out-of-focus discs from
+    //    the moon, fire, muzzle flashes and neon. Added through the (retired)
+    //    god-ray composite slot. Needs the bloom bright buffer, so it rides on
+    //    bloom being enabled.
     let godI = 0;
-    if (sun && p.godrays?.enabled !== false && (p.godrays?.intensity ?? 0) > 0) {
-      this.#mGodSrc.uniforms.tDepth.value = depth;
-      this.#mGodSrc.uniforms.uSun.value.set(sun.x, sun.y);
-      this.#blit(this.#mGodSrc, this.#rtBloomB);
-      this.#mGodBlur.uniforms.tDiffuse.value = this.#rtBloomB.texture;
-      this.#mGodBlur.uniforms.uSun.value.set(sun.x, sun.y);
-      this.#blit(this.#mGodBlur, this.#rtGod);
+    const lf = p.lensFlare ?? {};
+    if (bloomI > 0 && lf.enabled !== false && (lf.strength ?? 0) > 0 && this.#rtBloom2a) {
+      const f = this.#mFlare.uniforms;
+      f.tBright.value = this.#rtBloomA.texture;    // half-res blurred bright = tighter bokeh discs
+      f.uTexel.value.set(1 / this.#rtBloomA.width, 1 / this.#rtBloomA.height);
+      f.uGhosts.value = lf.ghosts ?? 5;
+      f.uDispersal.value = lf.dispersal ?? 0.32;
+      f.uHaloWidth.value = lf.haloWidth ?? 0.42;
+      f.uChroma.value = lf.chroma ?? 0.012;
+      this.#blit(this.#mFlare, this.#rtGod);       // generate → half-res
       this.#mFinal.uniforms.tGod.value = this.#rtGod.texture;
-      this.#mFinal.uniforms.uGodColor.value.set(sun.color[0], sun.color[1], sun.color[2]);
-      godI = (p.godrays?.intensity ?? 0.55) * sun.strength;
+      this.#mFinal.uniforms.uGodColor.value.set(1, 1, 1);
+      godI = lf.strength ?? 0.6;
     } else {
       this.#mFinal.uniforms.tGod.value = this.#black;
     }

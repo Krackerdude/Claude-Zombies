@@ -105,6 +105,19 @@ export const PostFXConfig = {
     sunShadowExtent: 28,  // half-width (m) of the ortho frustum tracked around the player
   },
 
+  // --- bokeh lens flare: ghosts + halo from the brightest sources ---
+  // Screen-space, generated from the blurred bright buffer so the artifacts are
+  // soft out-of-focus discs (bokeh) — the moon, fire, muzzle flashes and neon
+  // throw a chromatic ghost chain + halo ring back through screen-centre.
+  lensFlare: {
+    enabled: true,
+    strength: 0.9,       // additive intensity of the flare in the final composite
+    ghosts: 6,           // number of ghost discs along the centre vector
+    dispersal: 0.36,     // spacing of the ghosts (bigger = spread further apart)
+    haloWidth: 0.44,     // radius of the halo ring
+    chroma: 0.017,       // chromatic split (glass fringe) in uv
+  },
+
   // --- colour grade: the Persona identity lives here ---
   grade: {
     enabled: true,

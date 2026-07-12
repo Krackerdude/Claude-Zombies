@@ -3,24 +3,38 @@ import { buildGumballMachine } from '../gobblegums/gumballMachine.js';
 
 /**
  * A small, self-contained WebGL view that renders the 3D Dr. Monty's gumball
- * machine for the GobbleGum pack menu and slowly turns it. Its own renderer /
- * scene / camera (one extra context, alpha so it composites over the menu).
- * start()/stop() drive the spin loop; the canvas is reused across opens.
+ * machine for the GobbleGum pack menu and slowly turns it.
+ *
+ * PERF: the GL context is created LAZILY (on first show) and released via
+ * release() when leaving the menus for gameplay — so it never sits alongside the
+ * game's renderer as a second live WebGL context (the cost that made each extra
+ * menu tax the in-game framerate). The scene/geometry is CPU-only and persists
+ * across releases, so re-opening just re-creates a fresh context and re-uploads.
  */
 export class GumballMachineView {
-  #renderer = null; #scene; #camera; #machine; #canvas; #cy = 0;
+  #renderer = null; #scene; #camera; #machine; #canvas = null; #cy = 0;
+  #host = null; #supported = null;
   #raf = 0; #running = false; #last = 0;
 
-  constructor() { this.#init(); }
+  constructor() { this.#buildScene(); } // CPU-only content; no GL context yet
 
-  #init() {
+  /** Create the GL context on demand; safe to call repeatedly. */
+  #ensureRenderer() {
+    if (this.#renderer) return true;
+    if (this.#supported === false) return false;
     try {
       this.#renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
-    } catch { this.#renderer = null; return; } // no WebGL — pack menu still works, just no model
+    } catch { this.#renderer = null; this.#supported = false; return false; } // no WebGL — menu still works, no model
+    this.#supported = true;
     this.#renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.#canvas = this.#renderer.domElement;
     this.#canvas.className = 'gp-machine-canvas';
+    if (this.#host && this.#canvas.parentElement !== this.#host) this.#host.appendChild(this.#canvas);
+    this.resize();
+    return true;
+  }
 
+  #buildScene() {
     const scene = new THREE.Scene();
     const cam = new THREE.PerspectiveCamera(34, 1, 0.05, 100);
 
@@ -46,9 +60,15 @@ export class GumballMachineView {
     this.#scene = scene; this.#camera = cam; this.#machine = machine;
   }
 
-  get ok() { return !!this.#renderer; }
+  get ok() { return this.#supported !== false; } // optimistic; ensureRenderer confirms/creates on show
 
-  mount(container) { if (this.#canvas) { container.appendChild(this.#canvas); this.resize(); } }
+  mount(container) {
+    this.#host = container;
+    if (this.#ensureRenderer() && this.#canvas) {
+      if (this.#canvas.parentElement !== container) container.appendChild(this.#canvas);
+      this.resize();
+    }
+  }
 
   resize() {
     if (!this.#renderer || !this.#canvas) return;
@@ -59,7 +79,8 @@ export class GumballMachineView {
   }
 
   start() {
-    if (!this.#renderer || this.#running) return;
+    if (this.#running) return;
+    if (!this.#ensureRenderer()) return;   // (re)create the context on show
     this.resize();
     this.#running = true; this.#last = performance.now();
     const loop = (t) => {
@@ -77,5 +98,14 @@ export class GumballMachineView {
     this.#running = false;
     if (this.#raf) cancelAnimationFrame(this.#raf);
     this.#raf = 0;
+  }
+
+  /** Fully release the GL context (called when leaving the menus for gameplay).
+   *  The scene persists on the CPU; the next start()/mount() recreates a context. */
+  release() {
+    this.stop();
+    if (this.#canvas?.parentElement) this.#canvas.parentElement.removeChild(this.#canvas);
+    if (this.#renderer) { this.#renderer.dispose(); this.#renderer.forceContextLoss?.(); }
+    this.#renderer = null; this.#canvas = null;
   }
 }

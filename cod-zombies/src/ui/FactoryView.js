@@ -16,7 +16,8 @@ import { RARITIES } from '../gobblegums/gobblegums.js';
  * null if the player can't afford it (the view then plays a denial buzz).
  */
 export class FactoryView {
-  #renderer = null; #scene; #camera; #factory; #canvas; #overlay = null;
+  #renderer = null; #scene; #camera; #factory; #canvas = null; #overlay = null;
+  #host = null; #supported = null;
   #raf = 0; #running = false; #last = 0; #t = 0;
   #ray = new THREE.Raycaster(); #ptr = new THREE.Vector2(-2, -2);
   #hover = -1; #busy = false;
@@ -26,15 +27,23 @@ export class FactoryView {
 
   constructor({ onWager, onBusy = null, onBanner = null } = {}) {
     this.#onWager = onWager; this.#onBusy = onBusy; this.#onBanner = onBanner;
-    this.#init();
+    // CPU-only scene content; the GL context is created lazily on show and
+    // released for gameplay (see #ensureRenderer / release), so it never sits as
+    // a second live WebGL context next to the game's renderer.
+    this.#buildScene();
   }
 
-  get ok() { return !!this.#renderer; }
+  get ok() { return this.#supported !== false; } // optimistic; ensureRenderer confirms/creates on show
 
-  #init() {
+  /** Create the GL context + canvas on demand. A fresh renderer means a fresh
+   *  canvas, so the pointer wiring is (re)attached here each time. */
+  #ensureRenderer() {
+    if (this.#renderer) return true;
+    if (this.#supported === false) return false;
     try {
       this.#renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    } catch { this.#renderer = null; return; }
+    } catch { this.#renderer = null; this.#supported = false; return false; }
+    this.#supported = true;
     this.#renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     // filmic tone-map + sRGB output + soft shadows for a moodier, cinematic look
     this.#renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -44,7 +53,14 @@ export class FactoryView {
     this.#renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.#canvas = this.#renderer.domElement;
     this.#canvas.className = 'fx-factory-canvas';
+    this.#canvas.addEventListener('pointermove', (e) => this.#onPointerMove(e));
+    this.#canvas.addEventListener('pointerdown', () => { if (this.#hover >= 0) this.confirm(this.#hover + 1); });
+    if (this.#host && this.#canvas.parentElement !== this.#host) this.#host.appendChild(this.#canvas);
+    this.resize();
+    return true;
+  }
 
+  #buildScene() {
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x0f2432, 0.055); // deep, cool haze that swallows the back of the hall
     // more focused: slightly tighter (telephoto) FOV to compress depth + crop
@@ -73,16 +89,15 @@ export class FactoryView {
     scene.add(factory);
 
     this.#scene = scene; this.#camera = cam; this.#factory = factory;
-
-    this.#canvas.addEventListener('pointermove', (e) => this.#onPointerMove(e));
-    this.#canvas.addEventListener('pointerdown', () => { if (this.#hover >= 0) this.confirm(this.#hover + 1); });
   }
 
   mount(container, overlay) {
-    if (!this.#canvas) return;
-    container.appendChild(this.#canvas);
+    this.#host = container;
     this.#overlay = overlay || container;
-    this.resize();
+    if (this.#ensureRenderer() && this.#canvas) {
+      if (this.#canvas.parentElement !== container) container.appendChild(this.#canvas);
+      this.resize();
+    }
   }
 
   resize() {
@@ -344,7 +359,8 @@ export class FactoryView {
   // --- loop ---------------------------------------------------------------
 
   start() {
-    if (!this.#renderer || this.#running) return;
+    if (this.#running) return;
+    if (!this.#ensureRenderer()) return;  // (re)create the context on show
     this.resize();
     this.#running = true; this.#last = performance.now();
     const loop = (now) => {
@@ -425,6 +441,15 @@ export class FactoryView {
     for (const a of this.#auras) { a.vat.group.remove(a.mesh); a.geo.dispose(); a.mat.dispose(); a.vat.light.intensity = 0.3; a.vat.light.color.set(a.vat.tint); }
     this.#shakes.length = 0; this.#teslas.length = 0; this.#reels.length = 0; this.#auras.length = 0;
     this.#busy = false;
+  }
+
+  /** Fully release the GL context (called when leaving the menus for gameplay).
+   *  The scene persists on the CPU; the next start()/mount() recreates a context. */
+  release() {
+    this.stop();
+    if (this.#canvas?.parentElement) this.#canvas.parentElement.removeChild(this.#canvas);
+    if (this.#renderer) { this.#renderer.dispose(); this.#renderer.forceContextLoss?.(); }
+    this.#renderer = null; this.#canvas = null;
   }
 }
 
