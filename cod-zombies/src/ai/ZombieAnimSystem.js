@@ -1,7 +1,17 @@
 import { System } from '../ecs/System.js';
-import { ZombieTag, Renderable } from '../ecs/components/index.js';
+import { ZombieTag, Renderable, PlayerTag, Transform } from '../ecs/components/index.js';
 import { Service } from '../core/ServiceLocator.js';
 import { ZombieConfig } from '../config/zombies.js';
+
+// Tier 3 — animation budgeting. Distant zombies re-pose their skeleton at a
+// lower cadence (holding the last pose between updates) instead of every frame.
+// Pose speed is unchanged (skipped dt is accumulated and applied on the next
+// update), and it's imperceptible: a body 15m+ away sampled at ~30Hz, 28m+ at
+// ~20Hz, looks identical while cutting the trig-heavy per-frame pose math on the
+// bulk of an approaching horde. Bands are generous (start well out) so nothing
+// in the thick of combat is ever throttled.
+const ANIM_MID2 = 15 * 15;   // beyond this: pose every 2nd frame (~30Hz)
+const ANIM_FAR2 = 28 * 28;   // beyond this: pose every 3rd frame (~20Hz)
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = (cur, target, dt, rate) => cur + (target - cur) * Math.min(1, dt * rate);
@@ -67,6 +77,7 @@ const VARIANTS = {
 
 export class ZombieAnimSystem extends System {
   #gameState;
+  #frame = 0;
 
   init() {
     this.#gameState = this.world.services.get(Service.GameState);
@@ -74,24 +85,54 @@ export class ZombieAnimSystem extends System {
 
   update(dt) {
     if (!this.#gameState.isPlaying) return;
+    this.#frame++;
+    // player position for the distance banding (skip budgeting if none yet)
+    const pid = this.world.first(PlayerTag, Transform);
+    const ppos = pid !== undefined ? this.world.get(pid, Transform).position : null;
+
     for (const id of this.world.query(ZombieTag, Renderable)) {
       const z = this.world.get(id, ZombieTag);
       const rig = this.world.get(id, Renderable).object3d;
       const J = rig.userData?.joints;
       if (!J) continue;
       const rest = rig.userData.rest;
-      // hellhounds are quadrupeds with their own gallop/lunge rig
+      // hellhounds are quadrupeds with their own gallop/lunge rig — few of them
+      // and fast/dangerous, so they always animate at full rate.
       if (z.hound) { this.#poseHound(z, rig, rest, J, dt); continue; }
       // alternate-ammo states (humanoid zombies only)
       if (z.frozen > 0) continue;                                  // encased in ice: hold the pose
+
+      // --- animation budgeting: throttle only distant, non-urgent locomotion ---
+      // Urgent = anything the player would actually notice a hitch on: a swing,
+      // a teardown, a knockdown, an alt-ammo death, or a fresh hit-flinch. Those
+      // always run every frame regardless of distance.
+      const urgent = z.aatDying || z.rifting > 0 || z.melting || z.meltingLegs ||
+        z.state === 'knocked' || z.swipe > 0 || z.state === 'teardown' ||
+        z.flinch > 0 || z.acidSlow > 0;
+      let dtEff = dt;
+      if (!urgent && ppos) {
+        const t = this.world.get(id, Transform)?.position ?? rig.position;
+        const dx = t.x - ppos.x, dz = t.z - ppos.z, d2 = dx * dx + dz * dz;
+        const stride = d2 > ANIM_FAR2 ? 3 : d2 > ANIM_MID2 ? 2 : 1;
+        if (stride > 1) {
+          if (z.animPhase === undefined) z.animPhase = (id * 7) & 7; // stagger the bands
+          z.animAccum = (z.animAccum || 0) + dt;                      // count this frame's dt
+          if ((this.#frame + z.animPhase) % stride !== 0) continue;   // hold last pose
+          dtEff = z.animAccum; z.animAccum = 0;                       // apply all elapsed since last pose
+        }
+      }
+      // flush any dt still banked from a prior band (e.g. a zombie that just moved
+      // into close range), so its gait resumes at the right speed, never slow-mo
+      if (z.animAccum) { dtEff = dt + z.animAccum; z.animAccum = 0; }
+
       if (z.aatDying) { this.#poseDisintegrate(z, rig, rest, J); continue; } // ash / melt-away
       if (z.rifting > 0) { this.#poseRiftRise(z, rest, J); continue; }       // dragged up into the rift
       // acid bomb dissolves — these override the normal gait entirely
-      if (z.melting) { this.#poseMelt(z, rig, rest, J, dt); continue; }
-      if (z.meltingLegs) { this.#poseLegMelt(z, rig, rest, J, dt); continue; }
-      if (z.crawler) { this.#poseCrawl(z, rest, J, dt); }
+      if (z.melting) { this.#poseMelt(z, rig, rest, J, dtEff); continue; }
+      if (z.meltingLegs) { this.#poseLegMelt(z, rig, rest, J, dtEff); continue; }
+      if (z.crawler) { this.#poseCrawl(z, rest, J, dtEff); }
       else if (z.state === 'knocked') { this.#poseKnock(z, rest, J); }
-      else { this.#poseOne(z, rest, J, dt); }
+      else { this.#poseOne(z, rest, J, dtEff); }
       if (z.acidSlow > 0) this.#acidWrithe(z, J); // layered pain shudder while in the acid
     }
   }
