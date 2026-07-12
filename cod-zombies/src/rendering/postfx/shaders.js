@@ -709,7 +709,18 @@ export const LENSFLARE_FRAG = /* glsl */ `
   uniform float uDispersal;    // ghost spacing along the centre vector
   uniform float uHaloWidth;    // halo ring radius
   uniform float uChroma;       // chromatic split (in uv)
+  uniform vec2 uMoonUv;        // moon's screen position (its light source)
+  uniform float uMoonR;        // radius (uv) around the moon that may flare
+  uniform float uMoonOn;       // 1 when the moon is in front of the camera, else 0
   varying vec2 vUv;
+
+  // Gate a bright-buffer sample to the MOON only: brightness is picked up for the
+  // flare solely where it sits near the moon's screen position. Everything else
+  // that's bright — muzzle flashes, fire, neon, explosions — is masked out, so
+  // the moon is the only source that throws ghosts/halo.
+  float moonMask(vec2 uv) {
+    return uMoonOn * (1.0 - smoothstep(uMoonR * 0.5, uMoonR, distance(uv, uMoonUv)));
+  }
 
   // chromatic sample: R/G/B fetched along dir for a glass-fringe split
   vec3 chroma(vec2 uv, vec2 dir) {
@@ -717,7 +728,7 @@ export const LENSFLARE_FRAG = /* glsl */ `
       texture2D(tBright, uv + dir).r,
       texture2D(tBright, uv).g,
       texture2D(tBright, uv - dir).b
-    );
+    ) * moonMask(uv);
   }
 
   void main() {
