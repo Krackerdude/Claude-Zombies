@@ -28,8 +28,11 @@ import * as THREE from 'three';
 // covers max shadow reach + animated overhang + one frame of camera rotation
 const MARGIN = 3.0;
 
+const _dynSphere = new THREE.Sphere(); // scratch for dynamic-source sphere tests
+
 export class CullingSystem {
-  #cells = [];          // { obj, sphere (padded, world-space) }
+  #cells = [];          // static cells: { obj, sphere (padded, world-space) }
+  #dynamic = [];        // dynamic sources: fn(frustum|null) — test+toggle, or reveal-all
   #frustum = new THREE.Frustum();
   #vp = new THREE.Matrix4();
   #viewInv = new THREE.Matrix4();
@@ -46,9 +49,29 @@ export class CullingSystem {
     this.#primed = false; // (re)compute bounds lazily on next apply
   }
 
+  /**
+   * Register a DYNAMIC cull source for a set of moving objects (e.g. the live
+   * zombie horde) whose membership and positions change every frame. `fn` is
+   * called each apply() with the current frustum; it iterates its objects and
+   * toggles each one's `.visible` via testSphere(). When culling is disabled it
+   * is called with `null` so it can reveal everything it owns.
+   */
+  addDynamicSource(fn) { if (fn) this.#dynamic.push(fn); }
+
+  /** Shadow-/lag-safe frustum test for a dynamic object at (x,y,z) with `radius`
+   *  (the same MARGIN padding the static cells use). Valid during a source call. */
+  testSphere(x, y, z, radius) {
+    _dynSphere.center.set(x, y, z);
+    _dynSphere.radius = radius + MARGIN;
+    return this.#frustum.intersectsSphere(_dynSphere);
+  }
+
   setEnabled(on) {
     this.#enabled = !!on;
-    if (!on) for (const c of this.#cells) c.obj.visible = true; // reveal everything when off
+    if (!on) {
+      for (const c of this.#cells) c.obj.visible = true; // reveal everything when off
+      for (const fn of this.#dynamic) fn(null);
+    }
   }
 
   get enabled() { return this.#enabled; }
@@ -71,7 +94,7 @@ export class CullingSystem {
   apply(camera) {
     this.total = this.#cells.length;
     this.culled = 0;
-    if (!this.#enabled || !this.#cells.length) return;
+    if (!this.#enabled || (!this.#cells.length && !this.#dynamic.length)) return;
     if (!this.#primed) this.#prime();
 
     // We run BEFORE the renderer, so camera.matrixWorldInverse still holds last
@@ -87,5 +110,7 @@ export class CullingSystem {
       if (c.obj.visible !== vis) c.obj.visible = vis;
       if (!vis) this.culled++;
     }
+    // dynamic sources (moving hordes) test their own live objects each frame
+    for (const fn of this.#dynamic) fn(this.#frustum);
   }
 }
