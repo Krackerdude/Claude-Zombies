@@ -29,6 +29,7 @@ export class RenderManager {
 
   #canvas;
   #onResize;
+  #renderScale = Math.min(1, Math.max(0.5, RenderConfig.renderScale ?? 1)); // Tier 5 internal render scale
   #overlayScene = null;
   #sunDir = new THREE.Vector3();
   #sunWorld = new THREE.Vector3();
@@ -150,9 +151,21 @@ export class RenderManager {
     this.camera.updateProjectionMatrix();
     if (this.vmCamera) { this.vmCamera.aspect = w / h; this.vmCamera.updateProjectionMatrix(); }
     if (this.postFX) {
+      // Tier 5 — drive the whole PostFX chain at renderScale of the display; the
+      // final composite blits full-canvas, upscaling the scaled result. Aspect is
+      // preserved (both axes scale together), so nothing stretches.
       const s = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-      this.postFX.setSize(s.x, s.y);
+      const rs = this.#renderScale;
+      this.postFX.setSize(Math.max(1, Math.round(s.x * rs)), Math.max(1, Math.round(s.y * rs)));
     }
+  }
+
+  /** Set the internal render scale (0.5..1). Cheap: just resizes the PostFX RTs
+   *  (done rarely — on a settings change), the composite upscales to the canvas. */
+  setRenderScale(v) {
+    this.#renderScale = Math.min(1, Math.max(0.5, v || 1));
+    RenderConfig.renderScale = this.#renderScale;
+    this.resize();
   }
 
   setFov(deg) {
