@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ps1Snap } from '../rendering/ps1.js';
 import { makeWeapon, BOX_POOL } from '../weapons/catalog.js';
 import { buildWeaponModel } from '../weapons/weaponModels.js';
+import { mergeStatic } from '../util/mergeStatic.js';
 
 /**
  * The classic zombies mystery box: a long, weathered wooden ammo crate sitting
@@ -172,6 +173,12 @@ export function buildMysteryBox() {
     m.scale.setScalar(1.6);
     m.rotation.y = Math.PI / 2; // present broadside
     addHighlight(m);
+    // The box pre-builds EVERY weapon model (so a reveal never hitches) and shows
+    // one at a time, rotating as a whole — nothing inside animates here. Collapse
+    // each from hundreds of primitives/materials into a few merged meshes: same
+    // look, a fraction of the scene-graph nodes, materials and traversal cost.
+    // `m` stays the toggle handle for the reveal; only its innards are merged.
+    mergeStatic(m);
     m.visible = false;
     gunAnchor.add(m);
     models.set(key, m);
