@@ -34,7 +34,6 @@ import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../render
 import { prewarmZombieCosmetics } from './zombieAssets.js';
 import { autoTagNoAO } from '../rendering/aoMask.js';
 import { mergeStatic } from '../util/mergeStatic.js';
-import { CullingSystem } from '../rendering/CullingSystem.js';
 import { ShadowSystem } from '../rendering/ShadowSystem.js';
 import { MenuSystem } from './MenuSystem.js';
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
@@ -330,23 +329,14 @@ export function buildArena(engine) {
   scene.add(papRig);
   physics.createStaticBox({ x: papPos.x, y: 1.0, z: papPos.z }, { x: 0.85, y: 1.3, z: 0.6 });
 
-  // Tier 2 — visibility culling. Register the heavy, always-present static props
-  // as culling cells so the renderer skips their whole subtrees when they fall
-  // outside the view. Registered as a service BEFORE the systems block so
-  // PerkSystem can add its machines (the biggest leaf-count cells) too; the box
-  // and PaP animate only their innards, so their outer bounds stay valid.
-  // NOTE: only the STATIC props are culled. Zombies are deliberately NOT dynamic-
-  // culled here: hiding an off-screen rig (visible=false) also drops it from the
-  // sun shadow pass, which is where a freshly-spawned zombie's geometry + shader
-  // program first upload/compile. Deferring that to the frame you first LOOK at a
-  // spawned crowd caused a bad hitch (worst at wave start, easing as programs
-  // warm up). Leaving zombies in the shadow pass keeps them warm from spawn;
-  // three.js still frustum-culls their meshes from the main view for free.
-  const cull = new CullingSystem();
-  cull.register(boxRig);
-  cull.register(papRig);
-  for (const g of wallBuyGroups) cull.register(g);
-  engine.services.register(Service.Cull, cull);
+  // NOTE: frustum culling of the static props was removed. Toggling a prop's
+  // .visible from the camera frustum also drops it from the sun shadow pass, so
+  // panning at eye level popped the box/perk machines in and out of the shadow-
+  // caster set — the 2048² sun map re-rendered with a changing caster list and
+  // spiked frame time on every toggle (smooth looking up, jittery at eye level).
+  // three.js already frustum-culls each mesh from the main view for free; the
+  // group-cull's small extra saving wasn't worth the shadow churn, so the props
+  // just stay in the scene like everything else.
 
   // live state is published here by the EconomySystem; the box/PaP systems read it
   const economy = {
