@@ -73,10 +73,16 @@ export class EconomySystem extends System {
     } else if (edge) {
       if (focus.kind === 'wallbuy') this.#buyWall(focus, player);
       else if (focus.kind === 'box') this.#useBox(focus, player);
-      else if (focus.kind === 'pap') this.#usePaP(player);
+      else if (focus.kind === 'pap') { if (this.#isPowered) this.#usePaP(player); else this.#events.emit('buy:denied', {}); }
       else if (focus.kind === 'perk') this.#perks?.tryBuy(focus.m.id, player);
+      else if (focus.kind === 'door') this.#buyDoor(focus, player);
+      else if (focus.kind === 'power') this.#turnOnPower(focus);
     }
   }
+
+  /** True on maps without a power system, else the live power state. Perks
+   *  (except Quick Revive) and Pack-a-Punch stay inert until this flips on. */
+  get #isPowered() { const p = this.#economy.power; return !p || p.on; }
 
   // --- focus / prompts ----------------------------------------------------
 
@@ -94,10 +100,14 @@ export class EconomySystem extends System {
     const pap = this.#economy.pap;
     if (pap) consider({ kind: 'pap', pap }, pap.position.x, pap.position.z);
     for (const b of this.#nav.barriers) {
-      if (b.boards < b.maxBoards) consider({ kind: 'repair', barrier: b }, b.position.x, b.position.z);
+      if (b.teardownable && b.boards < b.maxBoards) consider({ kind: 'repair', barrier: b }, b.position.x, b.position.z);
     }
     const perks = this.#perks;
     if (perks) for (const m of perks.machines()) { if (!perks.owns(m.id)) consider({ kind: 'perk', m }, m.x, m.z); }
+    const door = this.#economy.door;
+    if (door && !door.open) consider({ kind: 'door', door }, door.position.x, door.position.z);
+    const power = this.#economy.power;
+    if (power && !power.on) consider({ kind: 'power', power }, power.position.x, power.position.z);
     return best;
   }
 
@@ -114,7 +124,8 @@ export class EconomySystem extends System {
       else if (this.#box.state === 'ready') { text = `[E] Take ${weaponName(this.#box.result)}`; }
       else { affordable = player.points >= EconomyConfig.mysteryBoxCost; text = `[E] Mystery Box — ${EconomyConfig.mysteryBoxCost}`; }
     } else if (focus.kind === 'pap') {
-      if (this.#pap.state === 'ready') { text = '[E] Take Weapon'; affordable = true; }
+      if (!this.#isPowered && this.#pap.state === 'idle') { text = '[E] Pack-a-Punch — Requires Power'; affordable = false; }
+      else if (this.#pap.state === 'ready') { text = '[E] Take Weapon'; affordable = true; }
       else if (this.#pap.state !== 'idle') { text = '...'; affordable = true; }
       else if (this.#weapons.current?.data?.pap) { // already punched -> Re-Pack for an Alternate Ammo Type
         affordable = player.points >= EconomyConfig.papRepackCost;
@@ -123,8 +134,15 @@ export class EconomySystem extends System {
     } else if (focus.kind === 'perk') {
       const perks = this.#perks;
       const cost = focus.m.def.cost;
-      affordable = player.points >= cost && (!perks || perks.count < 5);
-      text = `[E] Purchase ${focus.m.def.name} — ${cost}`;
+      // every perk but Quick Revive is dead until power (Quick Revive works pre-power, per zombies)
+      if (!this.#isPowered && focus.m.id !== 'quickRevive') { text = `[E] ${focus.m.def.name} — Requires Power`; affordable = false; }
+      else { affordable = player.points >= cost && (!perks || perks.count < 5); text = `[E] Purchase ${focus.m.def.name} — ${cost}`; }
+    } else if (focus.kind === 'door') {
+      affordable = player.points >= focus.door.cost;
+      text = `[E] Open Door — ${focus.door.cost}`;
+    } else if (focus.kind === 'power') {
+      affordable = true;
+      text = '[E] Turn On Power';
     } else {
       text = '[E] Hold to Repair';
     }
@@ -151,6 +169,23 @@ export class EconomySystem extends System {
     this.#events.emit('score:changed', { points: player.points });
     this.#events.emit('purchase', { kind: owns ? 'ammo' : 'wallbuy', cost });
     this.#events.emit('buy:ok', { key, refilled: owns });
+  }
+
+  // --- power room: buyable door + power switch ----------------------------
+
+  #buyDoor(focus, player) {
+    const door = focus.door;
+    if (door.open) return;
+    if (player.points < door.cost) { this.#events.emit('buy:denied', {}); return; }
+    player.points -= door.cost;
+    this.#events.emit('score:changed', { points: player.points });
+    this.#events.emit('purchase', { kind: 'door', cost: door.cost });
+    this.#events.emit('door:open', {}); // PowerSystem swings it + opens the nav gate
+  }
+
+  #turnOnPower(focus) {
+    if (focus.power.on) return;
+    this.#events.emit('power:on', {}); // free; PowerSystem throws the switch + lights the map
   }
 
   // --- mystery box --------------------------------------------------------

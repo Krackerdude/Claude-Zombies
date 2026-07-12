@@ -21,6 +21,8 @@ import { buildMysteryBox } from './mysteryBox.js';
 import { MysteryBoxSystem } from './MysteryBoxSystem.js';
 import { buildPaP } from './packAPunch.js';
 import { PaPSystem } from './PaPSystem.js';
+import { buildPowerSwitch } from './powerSwitch.js';
+import { PowerSystem } from './PowerSystem.js';
 import { PowerupSystem } from '../powerups/PowerupSystem.js';
 import { AATSystem } from '../weapons/AATSystem.js';
 import { GadgetSystem } from '../gadgets/GadgetSystem.js';
@@ -95,11 +97,13 @@ export function buildArena(engine) {
   const flickerLights = [];
   const lightCones = [];
   const shadowSpots = []; // shadow-casting practical spots (frozen by ShadowSystem)
+  const poweredLights = []; // every built practical (point/spot/cone) — OFF until the power switch is thrown
   const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16, flicker = null, cone = false, shadow = false) => {
     const l = new THREE.PointLight(color, intensity, dist, 2); // omni fill (room lighting)
     l.position.set(x, 3.2, z);
     if (flicker) { l.userData.flicker = flicker; flickerLights.push(l); }
     scene.add(l);
+    poweredLights.push(l);
     // Tier 3 — a co-located downward SPOTLIGHT that CASTS (single 2D shadow map,
     // far cheaper than a point-light cube). The point light keeps the room lit;
     // this only adds a pooled highlight + real shadows of the player/zombies/props
@@ -115,6 +119,7 @@ export function buildArena(engine) {
       if (flicker) { sp.userData.flicker = flicker; flickerLights.push(sp); }
       scene.add(sp);
       shadowSpots.push(sp);
+      poweredLights.push(sp);
     }
     // dusty volumetric beam dropping from the bulb to the floor
     if (cone) {
@@ -123,6 +128,7 @@ export function buildArena(engine) {
       c.position.set(x, 3.2 - h / 2, z);
       scene.add(c);
       lightCones.push(c);
+      poweredLights.push(c);
     }
     return l;
   };
@@ -239,9 +245,57 @@ export function buildArena(engine) {
   };
 
   addWindow('win_n', { minX: -WH, minZ: B - 0.5, maxX: WH, maxZ: B + 0.5 }, 0x5a4632);
-  addWindow('win_s', { minX: -WH, minZ: -B - 0.5, maxX: WH, maxZ: -B + 0.5 }, 0x5a4632);
   addWindow('win_e', { minX: B - 0.5, minZ: -WH, maxX: B + 0.5, maxZ: WH }, 0x5a4632);
   addWindow('win_w', { minX: -B - 0.5, minZ: -WH, maxX: -B + 0.5, maxZ: WH }, 0x5a4632);
+
+  // --- POWER ROOM ---------------------------------------------------------
+  // The south window is gone; in its place a buyable DOOR opens into a sealed
+  // annex that holds the Pack-a-Punch (west wall) and the power switch (east
+  // wall). Both are dead until power is thrown. The room hangs south of the
+  // building's south wall (which keeps its central door gap), so the door frame
+  // IS that gap. Interior clear space: x ∈ [-5,5], z ∈ [-17.5,-10.5].
+  const room = { minX: -5.5, maxX: 5.5, minZ: -18, maxZ: -10.5, floorZ: -18, wallH: 3.2 };
+  // three new walls (colliders + nav-solid via wall()); the north side is the
+  // existing south building wall with its door gap.
+  wall(room.minX, room.minZ, room.maxX, room.floorZ + 0.5, room.wallH);   // far (south) wall
+  wall(room.minX, room.floorZ, room.minX + 0.5, room.maxZ, room.wallH);    // west wall
+  wall(room.maxX - 0.5, room.floorZ, room.maxX, room.maxZ, room.wallH);    // east wall
+  // ceiling — a dark slab so the annex reads as an enclosed interior (the main
+  // hall is open to the aurora; this room is roofed).
+  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 1 });
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(room.maxX - room.minX, 0.3, room.maxZ - room.minZ), ceilMat);
+  ceil.position.set((room.minX + room.maxX) / 2, room.wallH + 0.15, (room.minZ + room.maxZ) / 2);
+  ceil.receiveShadow = true;
+  scene.add(ceil);
+  // roof lamp inside the annex (collected as a powered light → off until power)
+  lamp(0, -14, 0xffae5c, 5, 12, guttering, true, true);
+
+  // door barrier: blocks the player + nav until the door is bought open. It is a
+  // Barrier (non-teardownable) so zombies never tear it; buying flips it open.
+  const doorBarrier = new Barrier({ id: 'door_s', position: new THREE.Vector3(0, 1.2, -10), teardownable: false });
+  nav.addBarrier(doorBarrier, { minX: -WH, minZ: -B - 0.5, maxX: WH, maxZ: -B + 0.5 });
+  const doorBlock = physics.createStaticBox({ x: 0, y: 1.4, z: -10 }, { x: WH, y: 1.4, z: 0.5 }); // removed on purchase
+
+  // door mesh — a heavy plank door hinged at the WEST jamb (x=-1), filling the
+  // gap when closed. DoorSystem swings it open (into the room) on purchase. Its
+  // theme matches the boarded windows (weathered plank + iron bands); a future
+  // map's "door" can be debris or anything else that fits its own theming.
+  const doorPivot = new THREE.Group();
+  doorPivot.position.set(-WH, 0, -10); // hinge at the gap's west edge, on the wall line
+  const doorWood = plankWood(0x5a4230);
+  const doorSlab = new THREE.Mesh(new THREE.BoxGeometry(2 * WH, 2.9, 0.12), doorWood);
+  doorSlab.position.set(WH, 1.5, 0); // extend +x from the hinge, filling the gap
+  doorSlab.castShadow = true; doorSlab.receiveShadow = true;
+  doorPivot.add(doorSlab);
+  const doorIron = new THREE.MeshStandardMaterial({ color: 0x2a2622, roughness: 0.7, metalness: 0.6 });
+  for (const by of [0.7, 2.3]) { // two iron cross-bands
+    const band = new THREE.Mesh(new THREE.BoxGeometry(2 * WH - 0.05, 0.14, 0.15), doorIron);
+    band.position.set(WH, by, 0); doorPivot.add(band);
+  }
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.02, 8, 16), doorIron);
+  handle.position.set(2 * WH - 0.2, 1.4, 0.09); doorPivot.add(handle);
+  mergeStatic(doorPivot); // the pivot stays the swing handle; innards merge
+  scene.add(doorPivot);
 
   // planks rise out of the ground and snap into place when repaired
   engine.world.registerSystem(new BarrierFxSystem(barrierPlanks, events, scene));
@@ -272,9 +326,9 @@ export function buildArena(engine) {
   engine.world.registerSystem(new WeatherSystem());
 
   // --- exterior spawn points (outside the building) ---
+  // south approach is sealed by the power room, so zombies come from N / E / W
   const spawnPoints = [
     new THREE.Vector3(0, 0, 15), new THREE.Vector3(5, 0, 16), new THREE.Vector3(-5, 0, 16),
-    new THREE.Vector3(0, 0, -15), new THREE.Vector3(5, 0, -16), new THREE.Vector3(-5, 0, -16),
     new THREE.Vector3(15, 0, 0), new THREE.Vector3(16, 0, 5), new THREE.Vector3(16, 0, -5),
     new THREE.Vector3(-15, 0, 0), new THREE.Vector3(-16, 0, 5), new THREE.Vector3(-16, 0, -5),
   ];
@@ -321,13 +375,20 @@ export function buildArena(engine) {
   // the box (footprint unchanged; only the top is raised — bullets ignore it).
   physics.createStaticBox({ x: boxPos.x, y: 1.3, z: boxPos.z }, { x: 1.0, y: 1.3, z: 0.42 });
 
-  // Pack-a-Punch machine in another corner
-  const papPos = new THREE.Vector3(6, 0, 6);
+  // Pack-a-Punch machine — inside the power room, against the WEST wall, facing
+  // east into the room. Dead until power (gated by PaPSystem).
+  const papPos = new THREE.Vector3(-4.3, 0, -14);
   const papRig = buildPaP();
   papRig.position.copy(papPos);
-  papRig.rotation.y = -Math.PI / 2; // face into the room
+  papRig.rotation.y = Math.PI / 2; // face +x (into the room)
   scene.add(papRig);
-  physics.createStaticBox({ x: papPos.x, y: 1.0, z: papPos.z }, { x: 0.85, y: 1.3, z: 0.6 });
+  physics.createStaticBox({ x: papPos.x, y: 1.0, z: papPos.z }, { x: 0.6, y: 1.3, z: 0.85 });
+
+  // power switch — east wall of the room, faces -x (into the room), opposite PaP
+  const powerRig = buildPowerSwitch();
+  const powerPos = new THREE.Vector3(4.86, 1.45, -14);
+  powerRig.position.copy(powerPos);
+  scene.add(powerRig);
 
   // NOTE: frustum culling of the static props was removed. Toggling a prop's
   // .visible from the camera frustum also drops it from the sun shadow pass, so
@@ -349,6 +410,10 @@ export function buildArena(engine) {
     wallBuys,
     box: { position: boxPos, rig: boxRig, state: 'idle', spinProgress: 0, holdProgress: 0, displayKey: null, resultKey: null },
     pap: { position: papPos, rig: papRig, state: 'idle', insertProgress: 0, workProgress: 0, holdProgress: 0, displayKey: null, gunModel: null },
+    // buyable door into the power room + the power switch inside it
+    door: { position: doorBarrier.position, cost: 1250, open: false, pivot: doorPivot, barrier: doorBarrier, block: doorBlock },
+    power: { position: powerPos, on: false, rig: powerRig },
+    poweredLights, // every built practical light — off until power
   };
 
   // --- player ---
@@ -402,6 +467,8 @@ export function buildArena(engine) {
   engine.world.registerSystem(new EconomySystem());
   engine.world.registerSystem(new MysteryBoxSystem());
   engine.world.registerSystem(new PaPSystem());
+  // power room: light/perk/PaP gating + the door swing and switch-throw animations
+  engine.world.registerSystem(new PowerSystem());
 
   // the 3D main-menu backdrop (dark snowy forest + leaning survivor + campfire),
   // drawn in place of the arena whenever the game isn't being played
