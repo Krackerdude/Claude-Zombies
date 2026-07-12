@@ -19,8 +19,16 @@ export class BarrierFxSystem extends System {
   #last = new Map();
   #rising = [];
   #tearing = [];
-  #dust = [];        // pooled sawdust particles
+  #dust = [];        // pooled sawdust particle records (transform state only)
   #dustNext = 0;
+  #dustMesh = null;  // one InstancedMesh draws the whole sawdust pool (Tier 1)
+  #dustGeo = null;
+  // scratch reused every frame while recomposing the sawdust instance matrices
+  #m4 = new THREE.Matrix4();
+  #mp = new THREE.Vector3();
+  #mq = new THREE.Quaternion();
+  #me = new THREE.Euler();
+  #ms = new THREE.Vector3();
 
   constructor(barrierPlanks, events, scene) {
     super();
@@ -47,32 +55,40 @@ export class BarrierFxSystem extends System {
   // --- sawdust pool -------------------------------------------------------
 
   #initDust() {
-    const geo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+    // One shared box + material for all 96 motes, drawn as a single InstancedMesh
+    // instead of 96 scene-graph meshes: identical tumbling sawdust, one draw call.
+    this.#dustGeo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
     const mat = new THREE.MeshBasicMaterial({ color: 0xc7a86a, fog: true });
+    const inst = new THREE.InstancedMesh(this.#dustGeo, mat, 96);
+    inst.count = 0;
+    inst.frustumCulled = false;          // scattered motes can't share one bounds
+    inst.raycast = () => {};
+    inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.#scene.add(inst);
+    this.#dustMesh = inst;
     for (let i = 0; i < 96; i++) {
-      const m = new THREE.Mesh(geo, mat);
-      m.visible = false;
-      m.userData.vel = new THREE.Vector3();
-      m.userData.spin = new THREE.Vector3();
-      m.userData.life = 0; m.userData.maxLife = 1;
-      this.#scene.add(m);
-      this.#dust.push(m);
+      this.#dust.push({
+        active: false, px: 0, py: 0, pz: 0, rx: 0, ry: 0, rz: 0,
+        vel: new THREE.Vector3(), spin: new THREE.Vector3(),
+        life: 0, maxLife: 1, s0: 1,
+      });
     }
   }
 
   #burst(x, y, z, n = 12) {
     if (!this.#dust.length) return;
     for (let k = 0; k < n; k++) {
-      const m = this.#dust[this.#dustNext = (this.#dustNext + 1) % this.#dust.length];
-      m.visible = true;
-      m.position.set(x + (Math.random() - 0.5) * 0.4, y + (Math.random() - 0.5) * 0.5, z + (Math.random() - 0.5) * 0.4);
-      const s = 0.5 + Math.random() * 0.7;
-      m.scale.setScalar(s);
-      m.userData.vel.set((Math.random() - 0.5) * 2.4, 0.6 + Math.random() * 2.2, (Math.random() - 0.5) * 2.4);
-      m.userData.spin.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14);
-      m.userData.maxLife = 0.4 + Math.random() * 0.35;
-      m.userData.life = m.userData.maxLife;
-      m.userData.s0 = s;
+      const d = this.#dust[this.#dustNext = (this.#dustNext + 1) % this.#dust.length];
+      d.active = true;
+      d.px = x + (Math.random() - 0.5) * 0.4;
+      d.py = y + (Math.random() - 0.5) * 0.5;
+      d.pz = z + (Math.random() - 0.5) * 0.4;
+      d.rx = 0; d.ry = 0; d.rz = 0;
+      d.s0 = 0.5 + Math.random() * 0.7;
+      d.vel.set((Math.random() - 0.5) * 2.4, 0.6 + Math.random() * 2.2, (Math.random() - 0.5) * 2.4);
+      d.spin.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14);
+      d.maxLife = 0.4 + Math.random() * 0.35;
+      d.life = d.maxLife;
     }
   }
 
@@ -136,18 +152,27 @@ export class BarrierFxSystem extends System {
       }
     }
 
-    // sawdust motes
-    for (const m of this.#dust) {
-      if (!m.visible) continue;
-      const u = m.userData;
-      u.life -= dt;
-      if (u.life <= 0) { m.visible = false; continue; }
-      u.vel.y -= 9 * dt;                                             // gravity
-      m.position.x += u.vel.x * dt;
-      m.position.y += u.vel.y * dt;
-      m.position.z += u.vel.z * dt;
-      m.rotation.x += u.spin.x * dt; m.rotation.y += u.spin.y * dt; m.rotation.z += u.spin.z * dt;
-      m.scale.setScalar(u.s0 * (u.life / u.maxLife));               // shrink as it settles
+    // sawdust motes — integrate, then recompose the instance matrices for the
+    // live ones (one buffer upload for the whole pool).
+    let count = 0;
+    for (const d of this.#dust) {
+      if (!d.active) continue;
+      d.life -= dt;
+      if (d.life <= 0) { d.active = false; continue; }
+      d.vel.y -= 9 * dt;                                             // gravity
+      d.px += d.vel.x * dt; d.py += d.vel.y * dt; d.pz += d.vel.z * dt;
+      d.rx += d.spin.x * dt; d.ry += d.spin.y * dt; d.rz += d.spin.z * dt;
+      const s = d.s0 * (d.life / d.maxLife);                         // shrink as it settles
+      this.#me.set(d.rx, d.ry, d.rz);
+      this.#mq.setFromEuler(this.#me);
+      this.#mp.set(d.px, d.py, d.pz);
+      this.#ms.set(s, s, s);
+      this.#m4.compose(this.#mp, this.#mq, this.#ms);
+      this.#dustMesh.setMatrixAt(count++, this.#m4);
+    }
+    if (this.#dustMesh && (count > 0 || this.#dustMesh.count > 0)) {
+      this.#dustMesh.count = count;
+      this.#dustMesh.instanceMatrix.needsUpdate = true;
     }
   }
 
@@ -158,4 +183,9 @@ export class BarrierFxSystem extends System {
   }
 
   #easeOutBack(t) { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2; }
+
+  dispose() {
+    if (this.#dustMesh) { this.#dustMesh.removeFromParent(); this.#dustMesh.dispose(); this.#dustMesh = null; }
+    this.#dustGeo?.dispose();
+  }
 }
