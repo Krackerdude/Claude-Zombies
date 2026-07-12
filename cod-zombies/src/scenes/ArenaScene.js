@@ -33,6 +33,7 @@ import { PlayerTag, Transform } from '../ecs/components/index.js';
 import { brickWall, plankWood, concreteFloor, sharedNormalMaps } from '../rendering/materials/surfaces.js';
 import { prewarmZombieCosmetics } from './zombieAssets.js';
 import { autoTagNoAO } from '../rendering/aoMask.js';
+import { mergeStatic } from '../util/mergeStatic.js';
 import { MenuSystem } from './MenuSystem.js';
 import { AtmosphereSystem } from '../rendering/AtmosphereSystem.js';
 import { AmbientParticles } from '../rendering/AmbientParticles.js';
@@ -222,6 +223,11 @@ export function buildArena(engine) {
       if (alongX) group.rotation.z = tilt; else group.rotation.x = tilt;
       group.userData.homeY = group.position.y;
       group.userData.homeRot = group.rotation.clone();
+      // Collapse the board + its four nails into two merged meshes (one per
+      // material). BarrierFxSystem only ever moves/rotates/scales/toggles the
+      // GROUP as a whole — nothing inside a plank animates on its own — so the
+      // merge is lossless and the group stays the handle it drives.
+      mergeStatic(group);
       scene.add(group);
       planks.push(group);
     }
