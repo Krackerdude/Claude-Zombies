@@ -25,10 +25,15 @@ export const defaultSettings = {
     // The Post FX options tab binds straight to these; SettingsStore pushes them
     // into PostFXConfig live. Defaults mirror PostFXConfig (the authored look).
     postfx: true, // master switch for the whole composer
+    // lighting effects (shown under Graphics ▸ Lighting, not Post FX — they're
+    // light transport, not a camera/film pass)
     bloom: true, bloomIntensity: 1.0,
-    dof: true, dofBlur: 1.0,
     godRays: true, godRaysIntensity: 1.0,
     ssao: true, ssaoIntensity: 1.55,
+    volumetric: true, volumetricIntensity: 1.0, // ray-marched god-ray fog / shafts
+    lensFlare: true, lensFlareStrength: 0.9,     // the moon's flare (moon-only)
+    // camera / lens post
+    dof: true, dofBlur: 1.0,
     outline: true, outlineStrength: 0.9,
     motionBlur: true, motionBlurStrength: 0.35,
     heatHaze: true,

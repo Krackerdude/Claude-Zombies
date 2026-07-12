@@ -156,6 +156,7 @@ export class OptionsMenu {
     const g = this.#settings.graphics;
     const set = (k, v) => this.#settings.set('graphics', k, v);
     const p = this.#panel;
+    const dec = (v) => v.toFixed(2);
 
     p.appendChild(sectionTitle('Rendering'));
     p.appendChild(segmented({
@@ -174,6 +175,20 @@ export class OptionsMenu {
       label: 'Texture Filtering', options: [1, 2, 4, 8, 16], value: g.anisotropy,
       format: (v) => (v === 1 ? 'Bilinear' : `${v}× Aniso`), onChange: (v) => set('anisotropy', v),
     }));
+
+    // Lighting — light-transport effects (occlusion, glow, shafts, flare). These
+    // are NOT camera/film post, so they live with the rest of the lighting.
+    p.appendChild(sectionTitle('Lighting'));
+    p.appendChild(toggle({ label: 'Ambient Occlusion', sublabel: 'Sinks corners + contact shadows into the dark', value: g.ssao !== false, onChange: (v) => set('ssao', v) }));
+    p.appendChild(slider({ label: 'AO Intensity', min: 0, max: 2.5, step: 0.05, value: g.ssaoIntensity, format: dec, onChange: (v) => set('ssaoIntensity', v) }));
+    p.appendChild(toggle({ label: 'Bloom', sublabel: 'Glow on lights, neon and muzzle flash', value: g.bloom !== false, onChange: (v) => set('bloom', v) }));
+    p.appendChild(slider({ label: 'Bloom Intensity', min: 0, max: 2, step: 0.05, value: g.bloomIntensity, format: dec, onChange: (v) => set('bloomIntensity', v) }));
+    p.appendChild(toggle({ label: 'Volumetric Lighting', sublabel: 'Ray-marched fog + light shafts pouring from the moon and lamps', value: g.volumetric !== false, onChange: (v) => set('volumetric', v) }));
+    p.appendChild(slider({ label: 'Volumetric Intensity', min: 0, max: 2, step: 0.05, value: g.volumetricIntensity ?? 1, format: dec, onChange: (v) => set('volumetricIntensity', v) }));
+    p.appendChild(toggle({ label: 'God Rays', sublabel: 'Screen-space shafts from the moon past the rooftops', value: g.godRays !== false, onChange: (v) => set('godRays', v) }));
+    p.appendChild(slider({ label: 'God Ray Intensity', min: 0, max: 1.5, step: 0.05, value: g.godRaysIntensity, format: dec, onChange: (v) => set('godRaysIntensity', v) }));
+    p.appendChild(toggle({ label: 'Lens Flare', sublabel: 'Anamorphic flare — from the moon only', value: g.lensFlare !== false, onChange: (v) => set('lensFlare', v) }));
+    p.appendChild(slider({ label: 'Lens Flare Strength', min: 0, max: 1.5, step: 0.05, value: g.lensFlareStrength ?? 0.9, format: dec, onChange: (v) => set('lensFlareStrength', v) }));
 
     p.appendChild(sectionTitle('Atmosphere'));
     p.appendChild(toggle({
@@ -217,15 +232,13 @@ export class OptionsMenu {
       value: g.postfx !== false, onChange: (v) => set('postfx', v),
     }));
 
-    p.appendChild(sectionTitle('Lighting & Depth'));
-    p.appendChild(toggle({ label: 'Bloom', sublabel: 'Glow on lights, neon and muzzle flash', value: g.bloom !== false, onChange: (v) => set('bloom', v) }));
-    p.appendChild(slider({ label: 'Bloom Intensity', min: 0, max: 2, step: 0.05, value: g.bloomIntensity, format: dec, onChange: (v) => set('bloomIntensity', v) }));
+    // (Bloom, God Rays, Ambient Occlusion, Volumetric + Lens Flare are lighting
+    // effects — they live under Graphics ▸ Lighting. This tab is camera/film post.)
+    p.appendChild(sectionTitle('Camera & Lens'));
     p.appendChild(toggle({ label: 'Depth of Field', sublabel: 'Soft focus falloff into the murk', value: g.dof !== false, onChange: (v) => set('dof', v) }));
     p.appendChild(slider({ label: 'DOF Blur', min: 0, max: 1, step: 0.05, value: g.dofBlur, format: pct, onChange: (v) => set('dofBlur', v) }));
-    p.appendChild(toggle({ label: 'God Rays', sublabel: 'Light shafts from the moon past the rooftops', value: g.godRays !== false, onChange: (v) => set('godRays', v) }));
-    p.appendChild(slider({ label: 'God Ray Intensity', min: 0, max: 1.5, step: 0.05, value: g.godRaysIntensity, format: dec, onChange: (v) => set('godRaysIntensity', v) }));
-    p.appendChild(toggle({ label: 'Ambient Occlusion', sublabel: 'Sinks corners + contact shadows into the dark', value: g.ssao !== false, onChange: (v) => set('ssao', v) }));
-    p.appendChild(slider({ label: 'AO Intensity', min: 0, max: 2.5, step: 0.05, value: g.ssaoIntensity, format: dec, onChange: (v) => set('ssaoIntensity', v) }));
+    p.appendChild(toggle({ label: 'Motion Blur', sublabel: 'Camera smear on fast turns / sprint', value: g.motionBlur !== false, onChange: (v) => set('motionBlur', v) }));
+    p.appendChild(slider({ label: 'Motion Blur Strength', min: 0, max: 1, step: 0.05, value: g.motionBlurStrength, format: pct, onChange: (v) => set('motionBlurStrength', v) }));
 
     p.appendChild(sectionTitle('Colour Grade'));
     p.appendChild(toggle({ label: 'Colour Grade', sublabel: 'Persona split-tone + contrast (off = raw render)', value: g.grade !== false, onChange: (v) => set('grade', v) }));
@@ -244,9 +257,7 @@ export class OptionsMenu {
     p.appendChild(toggle({ label: 'Vertex Snapping', sublabel: 'PS1-style geometry wobble (quantized vertices)', value: g.vertexSnap !== false, onChange: (v) => set('vertexSnap', v) }));
     p.appendChild(slider({ label: 'Vertex Snap Amount', sublabel: 'Higher = chunkier wobble', min: 0, max: 1, step: 0.05, value: g.vertexSnapAmount ?? 0.75, format: pct, onChange: (v) => set('vertexSnapAmount', v) }));
 
-    p.appendChild(sectionTitle('Motion'));
-    p.appendChild(toggle({ label: 'Motion Blur', sublabel: 'Camera smear on fast turns / sprint', value: g.motionBlur !== false, onChange: (v) => set('motionBlur', v) }));
-    p.appendChild(slider({ label: 'Motion Blur Strength', min: 0, max: 1, step: 0.05, value: g.motionBlurStrength, format: pct, onChange: (v) => set('motionBlurStrength', v) }));
+    p.appendChild(sectionTitle('Motion FX'));
     p.appendChild(toggle({ label: 'Speed Lines', sublabel: 'Persona kinetic burst on sprint / slide / kills', value: g.speedLines !== false, onChange: (v) => set('speedLines', v) }));
     p.appendChild(toggle({ label: 'Heat Haze', sublabel: 'Refraction ripples around fire / explosions', value: g.heatHaze !== false, onChange: (v) => set('heatHaze', v) }));
 

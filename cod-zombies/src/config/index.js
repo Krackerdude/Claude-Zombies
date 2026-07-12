@@ -10,12 +10,12 @@ export const RenderConfig = {
   preferWebGPU: false,
   forceWebGL: false,
   maxPixelRatio: 2,
-  // Tier 5 — internal render scale. The whole PostFX chain (world render + every
-  // effect) runs at this fraction of the display, then the final composite
-  // upscales to the canvas. 1.0 = native; lower trades a little sharpness for a
-  // big, flat fill-rate win (every pass shrinks together). The film-grain + PS1
-  // look hides the upscale well. HUD is DOM, so it stays pixel-crisp regardless.
-  renderScale: 0.85,
+  // Internal render-scale multiplier applied to the PostFX chain on top of the
+  // renderer's pixel ratio. Kept at 1.0 (neutral): the user-facing "Render Scale"
+  // lives in Display settings (display.renderScale → pixel-ratio cap), so this
+  // stays 1.0 to avoid double-scaling. The setRenderScale() hook it drives is
+  // retained for a future adaptive/dynamic-resolution pass.
+  renderScale: 1.0,
   antialias: true,
   shadows: true,
   fov: 75, // degrees — gameplay camera (tweens with sprint/slide)
