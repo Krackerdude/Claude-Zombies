@@ -101,6 +101,7 @@ export function buildArena(engine) {
   const lamp = (x, z, color = 0xffae5c, intensity = 6, dist = 16, flicker = null, cone = false, shadow = false) => {
     const l = new THREE.PointLight(color, intensity, dist, 2); // omni fill (room lighting)
     l.position.set(x, 3.2, z);
+    l.userData.baseIntensity = intensity; // remembered so the power gate can restore it
     if (flicker) { l.userData.flicker = flicker; flickerLights.push(l); }
     scene.add(l);
     poweredLights.push(l);
@@ -111,6 +112,7 @@ export function buildArena(engine) {
     if (shadow) {
       const sp = new THREE.SpotLight(color, intensity * 0.9, dist, 1.15, 0.5, 2);
       sp.position.set(x, 3.2, z);
+      sp.userData.baseIntensity = intensity * 0.9; // remembered for the power gate
       const tgt = new THREE.Object3D(); tgt.position.set(x, 0, z); scene.add(tgt); sp.target = tgt;
       sp.castShadow = true;
       sp.shadow.mapSize.set(1024, 1024);
@@ -263,10 +265,22 @@ export function buildArena(engine) {
   // ceiling — a dark slab so the annex reads as an enclosed interior (the main
   // hall is open to the aurora; this room is roofed).
   const ceilMat = new THREE.MeshStandardMaterial({ color: 0x14171d, roughness: 1 });
-  const ceil = new THREE.Mesh(new THREE.BoxGeometry(room.maxX - room.minX, 0.3, room.maxZ - room.minZ), ceilMat);
-  ceil.position.set((room.minX + room.maxX) / 2, room.wallH + 0.15, (room.minZ + room.maxZ) / 2);
+  // Oversize the slab and dip its underside just below the 3.2 wall tops so every
+  // wall→ceiling seam OVERLAPS (no hairline sky-leaks), and run it north past the
+  // 3.0-tall building wall so you can't see the open arena sky over it from inside.
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(room.maxX - room.minX + 1.0, 0.4, (room.maxZ - room.minZ) + 1.3), ceilMat);
+  ceil.position.set(0, room.wallH + 0.1, ((room.minZ + room.maxZ) / 2) + 0.35); // underside 3.1; z spans ~-18.3..-9.55
   ceil.receiveShadow = true;
   scene.add(ceil);
+  // north header beam: the building's south wall only rises to 3.0, leaving a
+  // 0.1 slot of arena sky between it and the 3.1 ceiling along the WHOLE north
+  // side (and a taller gap over the door). This beam fills that slot across the
+  // full room width and doubles as the door lintel. Visual only — no collider/nav,
+  // so the player and zombies still pass under it through the doorway.
+  const header = new THREE.Mesh(new THREE.BoxGeometry(room.maxX - room.minX + 1.0, 0.6, 1.3), wallMat);
+  header.position.set(0, 3.2, -10.15); // underside 2.9 (seals to the door top), up to 3.5 (into the ceiling)
+  header.castShadow = true; header.receiveShadow = true;
+  scene.add(header);
   // roof lamp inside the annex (collected as a powered light → off until power)
   lamp(0, -14, 0xffae5c, 5, 12, guttering, true, true);
 
