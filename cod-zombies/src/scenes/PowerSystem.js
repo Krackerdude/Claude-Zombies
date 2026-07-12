@@ -42,10 +42,11 @@ export class PowerSystem extends System {
     // remember the door block's shape so a fresh run can re-seal it
     this.#blockDesc = { x: this.#door.position.x, z: this.#door.position.z };
 
-    // ethereal blue crackle light for the door buy (off until then)
+    // ethereal blue crackle light for the door buy. It stays a PERMANENT scene
+    // light (intensity 0 until the buy) so the scene's light count never changes
+    // — flipping .visible would recompile every material and freeze on purchase.
     this.#flash = new THREE.PointLight(0x9fe0ff, 0, 9, 2);
     this.#flash.position.set(this.#door.position.x, 1.5, this.#door.position.z);
-    this.#flash.visible = false;
     this.#scene.add(this.#flash);
 
     this.#applyLights(false); // start dark
@@ -58,7 +59,18 @@ export class PowerSystem extends System {
   /** Read by EconomySystem / PerkSystem / PaPSystem to gate their machines. */
   get isPowered() { return this.#power.on; }
 
-  #applyLights(on) { for (const l of this.#lights) if (l) l.visible = on; }
+  // Gate the map practicals by INTENSITY, never by .visible — every powered light
+  // stays a permanent scene contributor so the light count (and thus compiled
+  // shader set) is fixed. Flicker lights + dust cones are driven by
+  // AtmosphereSystem, which reads the same `powerOn` flag; non-flicker lights we
+  // scale here directly.
+  #applyLights(on) {
+    for (const l of this.#lights) {
+      if (!l) continue;
+      l.userData.powerOn = on;
+      if (l.isLight) l.intensity = on ? (l.userData.baseIntensity ?? l.intensity) : 0;
+    }
+  }
 
   #openDoor() {
     if (this.#door.open) return;
@@ -66,8 +78,7 @@ export class PowerSystem extends System {
     this.#door.barrier.boards = 0;                 // nav gate opens (zombies can follow you in)
     if (this.#door.block) { this.#physics.removeBody(this.#door.block); this.#door.block = null; }
     this.#doorAnim = 0;
-    this.#flashT = FLASH_TIME;
-    this.#flash.visible = true;
+    this.#flashT = FLASH_TIME; // the permanent flash light pulses up via intensity
     this.#events.emit('nav:changed', { barrier: 'door_s' });
   }
 
@@ -95,7 +106,7 @@ export class PowerSystem extends System {
     if (!this.#door.block) {
       this.#door.block = this.#physics.createStaticBox({ x: this.#blockDesc.x, y: 1.4, z: this.#blockDesc.z }, { x: 1, y: 1.4, z: 0.5 });
     }
-    this.#doorAnim = -1; this.#flashT = 0; this.#flash.visible = false;
+    this.#doorAnim = -1; this.#flashT = 0; this.#flash.intensity = 0;
     // power
     this.#power.on = false;
     this.#switchAnim = -1;
@@ -111,10 +122,8 @@ export class PowerSystem extends System {
   }
 
   update(dt) {
-    // hold every built practical dark while unpowered. Re-asserted each frame
-    // because AtmosphereSystem re-shows the dust cones (and drives intensities)
-    // every tick; PowerSystem runs after it, so this wins.
-    if (!this.#power.on) this.#applyLights(false);
+    // (No per-frame light re-assert needed: AtmosphereSystem reads the same
+    // `powerOn` flag we set in #applyLights, so the cones/flicker stay gated.)
 
     // door swing (into the room, with a little overshoot)
     if (this.#doorAnim >= 0) {
@@ -127,7 +136,7 @@ export class PowerSystem extends System {
       this.#flashT -= dt;
       const k = Math.max(0, this.#flashT / FLASH_TIME);
       this.#flash.intensity = k * 7 * (0.55 + Math.random() * 0.45);
-      if (this.#flashT <= 0) { this.#flash.intensity = 0; this.#flash.visible = false; }
+      if (this.#flashT <= 0) this.#flash.intensity = 0; // stays a permanent (0-intensity) light
     }
     // switch throw: the red lever (and the hand) swing down
     if (this.#switchAnim >= 0) {

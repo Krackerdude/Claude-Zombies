@@ -37,9 +37,15 @@ export class AtmosphereSystem extends System {
   }
 
   update(dt) {
+    // Practicals gated behind the map power switch carry `userData.powerOn=false`
+    // until it's thrown. We scale their intensity (and hide their beams) rather
+    // than toggling `.visible`, so the scene's light COUNT never changes and no
+    // shader recompile (freeze) happens when power flips on. Ungated lights have
+    // powerOn === undefined → gate 1.
+    const gate = (o) => (o.userData.powerOn === false ? 0 : 1);
     if (!this.#cfg.enabled) {
       if (this.#wasEnabled) { // settle every light back to its authored value once
-        for (const e of this.#lights) e.light.intensity = e.base;
+        for (const e of this.#lights) e.light.intensity = e.base * gate(e.light);
         this.#wasEnabled = false;
       }
       for (const c of this.#cones) c.visible = false;
@@ -48,11 +54,11 @@ export class AtmosphereSystem extends System {
     this.#wasEnabled = true;
     this.#t += dt;
 
-    // volumetric beams: gate on the config flag, advance their shimmer time
+    // volumetric beams: gate on the config flag + power, advance their shimmer time
     const conesOn = this.#cfg.lightCones !== false;
     for (const c of this.#cones) {
-      c.visible = conesOn;
-      if (conesOn) c.userData.coneMat.uniforms.uTime.value = this.#t;
+      c.visible = conesOn && c.userData.powerOn !== false;
+      if (c.visible) c.userData.coneMat.uniforms.uTime.value = this.#t;
     }
 
     const gSpeed = this.#cfg.flickerSpeed;
