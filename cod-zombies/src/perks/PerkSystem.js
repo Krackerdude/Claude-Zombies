@@ -21,6 +21,7 @@ const _v = new THREE.Vector3();
 
 export class PerkSystem extends System {
   #events; #gameState; #camera; #scene; #physics;
+  #powered = true; // maps with a power switch flip this off until thrown (Quick Revive exempt)
   #owned = new Set();
   #machines = [];
   #drinking = false; #drinkTimer = 0; #pending = null;
@@ -52,6 +53,13 @@ export class PerkSystem extends System {
     this.#camera = s.get(Service.Render).camera;
     this.#scene = s.get(Service.Scene).scene;
     this.#physics = s.get(Service.Physics);
+
+    // power gating: dark + unusable until the switch is thrown (Quick Revive is
+    // exempt — it works before power, per zombies). Maps with no power switch
+    // stay powered from the start.
+    const econ = s.has(Service.Economy) ? s.get(Service.Economy) : null;
+    if (econ?.power) this.#powered = false;
+    this.#events.on('power:changed', ({ on } = {}) => { this.#powered = !!on; });
 
     for (const [id, x, z] of PLACEMENT) {
       const def = PERKS[id];
@@ -108,6 +116,7 @@ export class PerkSystem extends System {
   /** Attempt a purchase (called by EconomySystem on interact). */
   tryBuy(id, player) {
     if (this.#drinking || this.#downed) return false;
+    if (!this.#powered && id !== 'quickRevive') { this.#events.emit('buy:denied', {}); return false; } // dead until power
     if (this.#owned.has(id) || this.#owned.size >= MAX_PERKS) return false;
     const def = PERKS[id];
     if (player.points < def.cost) { this.#events.emit('buy:denied', {}); return false; }
@@ -125,11 +134,13 @@ export class PerkSystem extends System {
     const pulse = 0.7 + Math.sin(now * 4) * 0.3;
     for (const m of this.#machines) {
       const u = m.rig.userData;
-      if (u.signMat) u.signMat.color.setHex(m.def.color).multiplyScalar(pulse + 0.4);
-      if (u.chamberMat) u.chamberMat.color.setHex(m.def.color).multiplyScalar(0.8 + Math.sin(now * 3 + m.x) * 0.25);
-      if (u.spin) u.spin.rotation.z = now * 0.7;
-      if (u.light) u.light.intensity = 0.6 + Math.sin(now * 5 + m.z) * 0.12;
-      if (u.anim) u.anim(now);
+      // unpowered machines sit dead: near-black signage, no glow, no spin/anim.
+      // Quick Revive is exempt (lit + usable before power).
+      const dark = !this.#powered && m.id !== 'quickRevive';
+      if (u.signMat) u.signMat.color.setHex(m.def.color).multiplyScalar(dark ? 0.05 : pulse + 0.4);
+      if (u.chamberMat) u.chamberMat.color.setHex(m.def.color).multiplyScalar(dark ? 0.05 : 0.8 + Math.sin(now * 3 + m.x) * 0.25);
+      if (u.light) u.light.intensity = dark ? 0 : 0.6 + Math.sin(now * 5 + m.z) * 0.12;
+      if (!dark) { if (u.spin) u.spin.rotation.z = now * 0.7; if (u.anim) u.anim(now); }
     }
     if (!this.#gameState.isPlaying) return;
 
