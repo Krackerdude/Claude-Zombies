@@ -18,12 +18,14 @@ export class RenderSystem extends System {
   #render;
   #sceneMgr;
   #gameState;
+  #cull;
   #inScene = new Map(); // entityId -> Object3D currently parented in the scene
 
   init() {
     this.#render = this.world.services.get(Service.Render);
     this.#sceneMgr = this.world.services.get(Service.Scene);
     this.#gameState = this.world.services.has(Service.GameState) ? this.world.services.get(Service.GameState) : null;
+    this.#cull = this.world.services.has(Service.Cull) ? this.world.services.get(Service.Cull) : null;
   }
 
   /** Attach new renderables and detach ones whose entity was destroyed. */
@@ -82,6 +84,9 @@ export class RenderSystem extends System {
     // F2 freeze the live gameplay frame and overlay on top of it, so they keep
     // rendering the arena
     const useMenu = this.#sceneMgr.menuScene && this.#gameState && this.#gameState.current === AppState.MENU;
+    // Group-level frustum culling on the arena, using the exact camera we're
+    // about to render with (no one-frame lag). The menu scene is its own graph.
+    if (!useMenu) this.#cull?.apply(this.#render.camera);
     this.#render.render(useMenu ? this.#sceneMgr.menuScene : this.#sceneMgr.scene);
   }
 }
