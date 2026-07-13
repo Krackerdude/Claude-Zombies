@@ -53,22 +53,36 @@ export class PowerSystem extends System {
 
     this.#events.on('door:open', () => this.#openDoor());
     this.#events.on('power:on', () => this.#throwSwitch());
-    this.#events.on('state:change', ({ state } = {}) => { if (state === 'playing') this.#reset(); });
+    // Reset the annex (re-seal door, cut power) only on a GENUINE new run —
+    // entering play from the menu. Pausing, the scoreboard, and the F2 dev menu
+    // all return to 'playing' too, and must NOT re-close the door or kill power.
+    this.#events.on('state:change', ({ prev, state } = {}) => {
+      if (state === 'playing' && (prev === 'menu' || prev === 'dying')) this.#reset();
+    });
   }
 
   /** Read by EconomySystem / PerkSystem / PaPSystem to gate their machines. */
   get isPowered() { return this.#power.on; }
 
-  // Gate the map practicals by INTENSITY, never by .visible — every powered light
-  // stays a permanent scene contributor so the light count (and thus compiled
-  // shader set) is fixed. Flicker lights + dust cones are driven by
-  // AtmosphereSystem, which reads the same `powerOn` flag; non-flicker lights we
-  // scale here directly.
+  // Toggle the map practicals' real visibility. An OFF lamp must leave the scene
+  // entirely so it drops out of every material's fragment light loop — keeping ~14
+  // dead lamps/spots permanently "on" (intensity 0) made the enclosed room, whose
+  // whole screen is close-up wall pixels, fragment-bound and tanked the frame.
+  //
+  // This does NOT reintroduce the power-on/door freeze: the load-time prewarm
+  // renders one frame with every light visible, so the "all lights on" shader
+  // combination is already compiled. Power-on just lands back on it — no recompile.
+  // (Only the door flash stays a permanent contributor, so buying the door never
+  // changes the light count either.) Flicker intensity + dust cones are still
+  // driven by AtmosphereSystem via the shared `powerOn` flag.
   #applyLights(on) {
     for (const l of this.#lights) {
       if (!l) continue;
       l.userData.powerOn = on;
-      if (l.isLight) l.intensity = on ? (l.userData.baseIntensity ?? l.intensity) : 0;
+      if (l.isLight) {
+        l.visible = on;
+        if (!l.userData.flicker) l.intensity = on ? (l.userData.baseIntensity ?? l.intensity) : 0;
+      }
     }
   }
 
