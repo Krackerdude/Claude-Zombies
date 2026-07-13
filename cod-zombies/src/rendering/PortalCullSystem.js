@@ -65,15 +65,17 @@ export class PortalCullSystem extends System {
   #prime() {
     this.#primed = true;
     const box = new THREE.Box3(); const sph = new THREE.Sphere();
+    const roomZ = this.#portal.z + 0.5; // anything on the room side of the doorway is never culled
     for (const obj of this.#scene.children) {
       if (!obj.visible) continue;                 // pooled/dynamic things start hidden — never cull them
       if (obj.isLight || obj.isCamera) continue;  // culling lights would change the lighting
       if (obj.userData?.cell === 'room') continue; // the room's own props
       if (obj.userData?.isPlayer || obj.userData?.viewmodel) continue;
+      obj.getWorldPosition(_wp);
+      if (_wp.z < roomZ) continue;                 // room walls/ceiling/header/floor live here — NEVER cull them
       box.setFromObject(obj);
       if (box.isEmpty()) continue;
       box.getBoundingSphere(sph);
-      obj.getWorldPosition(_wp);
       const r = sph.radius + _wp.distanceTo(sph.center); // conservative from the object's origin
       if (r > 11) continue;                        // skip the big merged arena shell/floor (cheap + would look broken)
       this.#items.push({ obj, r });
