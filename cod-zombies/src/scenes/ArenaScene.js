@@ -46,7 +46,6 @@ import { SkySystem } from './SkySystem.js';
 import { buildLightCone } from '../rendering/lightCone.js';
 import { EffectsDirector } from '../rendering/EffectsDirector.js';
 import { WeatherSystem } from '../rendering/WeatherSystem.js';
-import { PortalCullSystem } from '../rendering/PortalCullSystem.js';
 import { AtmosphereConfig } from '../config/index.js';
 
 const B = 10; // building half-extent
@@ -345,13 +344,6 @@ export function buildArena(engine) {
   engine.world.registerSystem(new EffectsDirector());
   // rain, lightning + ground mist (Silent Hill weather)
   engine.world.registerSystem(new WeatherSystem());
-  // portal cull: inside the annex, clip the arena's static decor to the doorway
-  // aperture (the scene is draw-call bound, so looking out otherwise draws the
-  // whole map). Shadow-safe: freezes the sun bake while active. See the system.
-  engine.world.registerSystem(new PortalCullSystem({
-    room: { minX: room.minX, maxX: room.maxX, minZ: room.minZ, maxZ: room.maxZ },
-    portal: { minX: -WH, maxX: WH, minY: 0.1, maxY: 3.1, z: -10 },
-  }));
 
   // --- exterior spawn points (outside the building) ---
   // south approach is sealed by the power room, so zombies come from N / E / W
