@@ -27,6 +27,7 @@ const REPLAN_JITTER = 0.4;        // ±20% on the interval (0.8..1.2×) to desyn
 const REPLAN_FAR_DIST = 18;       // metres — beyond this, replan less often
 const REPLAN_FAR_MULT = 1.7;      // interval multiplier for distant zombies
 const NAV_DIRTY_SPREAD = 0.4;     // seconds to spread a nav-change replan burst over
+const REPLAN_FAIL_BACKOFF = 1.5;  // seconds to wait before retrying an UNREACHABLE goal
 
 /**
  * Per-zombie brain + the player's combat hooks. Runs only while playing.
@@ -176,12 +177,21 @@ export class ZombieSystem extends System {
         // offset so the whole horde doesn't A* on the same frame (see below)
         if (this.#navDirty) z.replan = Math.min(z.replan, Math.random() * NAV_DIRTY_SPREAD);
         z.replan -= dt;
-        if (z.replan <= 0 || !z.path) {
-          this.#plan(z, t, goalCell);
+        // NB: the trigger is the timer ALONE — never `!z.path`. When the goal is
+        // unreachable (the player has ducked into the sealed power room), A* has
+        // to exhaust the entire nav grid before it can return null, so z.path
+        // stays null. Gating on `!z.path` re-ran that full-grid search for every
+        // zombie EVERY tick (a 150× CPU spike that tanked the frame the moment
+        // you stood in the room). A null path already falls back to a direct
+        // chase in #followPath, so we simply retry on the timer like everyone
+        // else — and back off harder when the goal proved unreachable.
+        if (z.replan <= 0) {
+          const found = this.#plan(z, t, goalCell);
           // desync + distance-scale the next replan so the horde's path work
           // trickles across frames instead of spiking in lockstep
           const far = this.#flatDist(t.position, playerPos) > REPLAN_FAR_DIST;
-          const base = ZombieConfig.replanInterval * (far ? REPLAN_FAR_MULT : 1);
+          let base = ZombieConfig.replanInterval * (far ? REPLAN_FAR_MULT : 1);
+          if (!found) base = Math.max(base, REPLAN_FAIL_BACKOFF); // unreachable → retry rarely
           z.replan = base * (1 - REPLAN_JITTER / 2 + Math.random() * REPLAN_JITTER);
         }
         if (this.#flatDist(t.position, playerPos) <= ZombieConfig.attackRange) {
@@ -293,10 +303,11 @@ export class ZombieSystem extends System {
     if (path && path.length > 1) {
       z.path = this.#nav.toWorld(path);
       z.pathIndex = 1; // [0] is the cell we're already on
-    } else {
-      z.path = null; // fall back to direct chase
-      z.pathIndex = 0;
+      return true;
     }
+    z.path = null; // fall back to direct chase
+    z.pathIndex = 0;
+    return false; // goal unreachable (or already on it) — caller backs off
   }
 
   #followPath(z, t, playerPos, dt) {
