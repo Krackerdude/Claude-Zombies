@@ -82,22 +82,28 @@ export class ShadowSystem extends System {
     // corner spots: awake only while a caster (player or a zombie) is in range,
     // plus a trailing frame to erase a departed caster's shadow
     let zombies = 0;
-    // pre-test the player against every spot, then fold in zombies
+    // A spot only needs a re-render when a MOVING caster is inside its cone — a
+    // caster standing perfectly still casts the same shadow, so re-drawing its
+    // depth map every frame (the old behaviour) was pure waste. It fired nonstop
+    // while you simply stood in the small power room, always inside its lamp's
+    // cone — a full extra geometry pass every frame for an unchanging shadow.
+    // Gate on movement instead: the player counts only when it actually moved,
+    // and zombies (effectively always moving toward you) always count.
     for (const s of this.#spots) {
       const dx = px - s.x, dz = pz - s.z;
-      s._hit = (dx * dx + dz * dz) <= s.r2;
+      s._moving = playerMoved && (dx * dx + dz * dz) <= s.r2;
     }
     for (const id of this.world.query(ZombieTag, Transform)) {
       zombies++;
       const zp = this.world.get(id, Transform).position;
       for (const s of this.#spots) {
-        if (s._hit) continue;
+        if (s._moving) continue;
         const dx = zp.x - s.x, dz = zp.z - s.z;
-        if ((dx * dx + dz * dz) <= s.r2) s._hit = true;
+        if ((dx * dx + dz * dz) <= s.r2) s._moving = true;
       }
     }
     for (const s of this.#spots) {
-      if (warming || s._hit) { s.light.shadow.needsUpdate = true; s.occ = TRAIL; }
+      if (warming || s._moving) { s.light.shadow.needsUpdate = true; s.occ = TRAIL; }
       else if (s.occ > 0) { s.light.shadow.needsUpdate = true; s.occ--; } // trailing clear
     }
 
