@@ -418,6 +418,7 @@ async function main() {
         tag ? `grounded  ${tag.grounded}` : '',
         t ? `pos       ${t.position.x.toFixed(1)}, ${t.position.y.toFixed(1)}, ${t.position.z.toFixed(1)}` : '',
         input.pointerLocked ? `cursor    locked` : `cursor    free (click to lock)`,
+        window.__diagOff ? `» F8 KILLED: ${window.__diagOff}` : '',
       ].filter(Boolean).join('\n');
     }, 500);
 
@@ -437,6 +438,28 @@ async function main() {
     // F1 toggles the developer debug overlay (hidden by default)
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F1') { e.preventDefault(); debug.classList.toggle('show'); }
+      // F8 — render-pass A/B probe. Cycles through KILLING one heavy render pass at
+      // a time so a real GPU shows which one reclaims frames (this dev env is
+      // software-rendered and can't measure it). Watch the fps line while cycling.
+      if (e.code === 'F8') {
+        e.preventDefault();
+        const settings = engine.services.get(Service.Settings);
+        window.__diagI = ((window.__diagI ?? 0) + 1) % 6;
+        const off = ['(all on)', 'volumetric', 'godRays', 'bloom', 'ambient occlusion', 'shadows'][window.__diagI];
+        window.__diagOff = window.__diagI === 0 ? '' : off;
+        // restore everything, then kill only the selected pass
+        settings.set('graphics', 'volumetric', true);
+        settings.set('graphics', 'godRays', true);
+        settings.set('graphics', 'bloom', true);
+        settings.set('graphics', 'ssao', true);
+        settings.set('graphics', 'shadows', 'high');
+        if (off === 'volumetric') settings.set('graphics', 'volumetric', false);
+        else if (off === 'godRays') settings.set('graphics', 'godRays', false);
+        else if (off === 'bloom') settings.set('graphics', 'bloom', false);
+        else if (off === 'ambient occlusion') settings.set('graphics', 'ssao', false);
+        else if (off === 'shadows') settings.set('graphics', 'shadows', 'off');
+        debug.classList.add('show'); // make sure the fps line is visible
+      }
     });
 
     // Expose for console poking during development.
