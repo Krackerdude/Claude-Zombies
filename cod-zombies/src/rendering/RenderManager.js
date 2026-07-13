@@ -254,7 +254,36 @@ export class RenderManager {
     return this.#sunInfo;
   }
 
+  /** GPU frame time (ms) from an EXT_disjoint_timer_query, read one frame late.
+   *  0 when unsupported (software backends). */
+  gpuMs = 0;
+  #gpuExt = undefined; #gpuQ = null; #gpuInFlight = null;
+
+  #gpuBegin() {
+    const gl = this.renderer?.getContext?.();
+    if (!gl || typeof WebGL2RenderingContext === 'undefined' || !(gl instanceof WebGL2RenderingContext)) { this.#gpuExt = null; return; }
+    if (this.#gpuExt === undefined) this.#gpuExt = gl.getExtension('EXT_disjoint_timer_query_webgl2') || null;
+    if (!this.#gpuExt) return;
+    // read a previously-finished query
+    if (this.#gpuInFlight) {
+      const avail = gl.getQueryParameter(this.#gpuInFlight, gl.QUERY_RESULT_AVAILABLE);
+      const disjoint = gl.getParameter(this.#gpuExt.GPU_DISJOINT_EXT);
+      if (avail && !disjoint) { this.gpuMs = gl.getQueryParameter(this.#gpuInFlight, gl.QUERY_RESULT) / 1e6; gl.deleteQuery(this.#gpuInFlight); this.#gpuInFlight = null; }
+    }
+    if (!this.#gpuInFlight) { this.#gpuQ = gl.createQuery(); gl.beginQuery(this.#gpuExt.TIME_ELAPSED_EXT, this.#gpuQ); this.#gpuActive = true; }
+  }
+  #gpuEnd() {
+    const gl = this.renderer?.getContext?.();
+    if (this.#gpuExt && this.#gpuActive) { gl.endQuery(this.#gpuExt.TIME_ELAPSED_EXT); this.#gpuInFlight = this.#gpuQ; this.#gpuActive = false; }
+  }
+  #gpuActive = false;
+
   render(scene, camera = this.camera) {
+    this.#gpuBegin();
+    try { return this.#renderInner(scene, camera); } finally { this.#gpuEnd(); }
+  }
+
+  #renderInner(scene, camera = this.camera) {
     // Stylized path: the composer renders the world, grades it, then composites
     // the viewmodel sharp on top (see PostFX). A master toggle or any non-WebGL
     // backend transparently falls through to the direct path below.

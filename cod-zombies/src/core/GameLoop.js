@@ -73,6 +73,7 @@ export class GameLoop {
 
     // Fixed simulation steps. Clamp the number of catch-up steps so a long
     // stall doesn't trigger a death-spiral of physics ticks.
+    const _tStart = performance.now();
     this.#accumulator += time.deltaTime;
     let steps = 0;
     const maxSteps = Math.ceil(TimeConfig.maxFrameDelta / step) + 1;
@@ -84,7 +85,15 @@ export class GameLoop {
 
     time.alpha = step > 0 ? this.#accumulator / step : 0;
 
+    // CPU phase timing (ms) for the perf HUD — where the frame's JS time goes.
+    const _tFix = performance.now();
     this.#update(time.deltaTime);
+    const _tUpd = performance.now();
     this.#render(time.alpha);
+    const _tRen = performance.now();
+    time.cpuFixed = _tFix - _tStart;
+    time.cpuUpdate = _tUpd - _tFix;
+    time.cpuRender = _tRen - _tUpd;   // JS cost of issuing draws (NOT the GPU's work)
+    time.cpuFrame = _tRen - _tStart;
   };
 }

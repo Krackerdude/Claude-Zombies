@@ -409,10 +409,17 @@ async function main() {
       fps = Math.round(frames / (acc || 1));
       acc = 0; frames = 0;
 
+      const ms = (v) => (v == null ? '—' : v.toFixed(1));
+      const cpuFrame = time.cpuFrame ?? 0;
+      const gpu = render.gpuMs ?? 0;
+      const bound = gpu > cpuFrame * 1.15 ? 'GPU-bound' : (cpuFrame > gpu * 1.15 ? 'CPU-bound' : 'balanced');
       debug.textContent = [
         `NECROPOLIS · engine sandbox`,
         `backend   ${render.backend}`,
         `fps       ${fps}`,
+        `cpu       ${ms(cpuFrame)} ms  [fix ${ms(time.cpuFixed)} · upd ${ms(time.cpuUpdate)} · rndr ${ms(time.cpuRender)}]`,
+        `gpu       ${gpu > 0 ? ms(gpu) + ' ms' : 'n/a (software)'}   → ${gpu > 0 ? bound : ''}`,
+        `draws     ${render.renderer?.info?.render?.calls ?? '—'}  tris ${render.renderer?.info?.render?.triangles ?? '—'}`,
         tag ? `state     ${tag.state} (${tag.stance})` : '',
         tag ? `speed     ${Math.hypot(tag.velocity.x, tag.velocity.z).toFixed(2)} m/s` : '',
         tag ? `grounded  ${tag.grounded}` : '',
