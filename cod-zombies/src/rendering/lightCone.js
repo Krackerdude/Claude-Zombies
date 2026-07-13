@@ -24,6 +24,7 @@ const CONE_FRAG = /* glsl */ `
     float radial = 1.0 - clamp(length(vLocal.xz) / uRadius, 0.0, 1.0);
     float flick = 0.9 + 0.1 * sin(uTime * 7.0 + vLocal.y * 3.0);
     float a = pow(h, 0.7) * radial * radial * uStrength * flick;
+    if (a < 0.004) discard;   // skip the near-invisible outer skirt — pure blend/fill savings
     gl_FragColor = vec4(uColor * a, a);
   }
 `;
@@ -47,6 +48,8 @@ export function buildLightCone({ color = 0xffae5c, radius = 1.2, height = 3.0, s
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.userData.coneMat = mat;
+  mesh.userData.coneStrength = strength; // authored strength (AtmosphereSystem fades from this near the camera)
+  mesh.userData.coneRadius = radius;
   mesh.renderOrder = 3;
   mesh.raycast = () => {};
   return mesh;
