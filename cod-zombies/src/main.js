@@ -390,41 +390,6 @@ async function main() {
     engine.services.get(Service.Render).prewarm(sceneMgr.scene);
     if (sceneMgr.menuScene) engine.services.get(Service.Render).prewarm(sceneMgr.menuScene); // compile the menu backdrop too
 
-    // Power-room entry warm-up. The generic prewarm above forces every object
-    // visible (a different active-light count), so the room's props (PaP, power
-    // switch) and the perk machines framed by its doorway still compile their real
-    // shader variants ON DEMAND the first time you physically walk in — that's the
-    // "enter the room and it freezes, then micro-stutters" hitch (~50 programs
-    // compiling as you look around). Render a handful of frames from INSIDE the
-    // room in the true gameplay state (unforced visibility, just unculled) so those
-    // exact variants are compiled now, under the loader. Both power states, since
-    // throwing the switch flips the map's light count too.
-    try {
-      const R = engine.services.get(Service.Render);
-      const cam = R.camera;
-      const sp = cam.position.clone(), sq = cam.quaternion.clone();
-      const unculled = [];
-      sceneMgr.scene.traverse((o) => { if (o.frustumCulled) { unculled.push(o); o.frustumCulled = false; } });
-      const econ = engine.services.has(Service.Economy) ? engine.services.get(Service.Economy) : null;
-      const lamps = econ ? (econ.poweredLights || []).filter((l) => l?.isLight) : [];
-      const lampVis = lamps.map((l) => l.visible);
-      // A few stances across the room (near the door and deep by the PaP/switch),
-      // each looking out the doorway and at the two wall props — enough to compile
-      // the room's own materials + the doorway slices before you ever walk in.
-      const spots = [[0, -12], [0, -16], [3.5, -14], [-3.5, -14]];
-      const renderRoom = () => {
-        for (const [x, z] of spots) {
-          cam.position.set(x, 1.6, z);
-          for (const yaw of [Math.PI, Math.PI / 2, -Math.PI / 2]) { cam.rotation.set(0, yaw, 0); cam.updateMatrixWorld(true); R.render(sceneMgr.scene, cam); }
-        }
-      };
-      renderRoom();                                   // power OFF (how you first enter)
-      for (const l of lamps) l.visible = true; renderRoom(); // power ON light count
-      lamps.forEach((l, i) => { l.visible = lampVis[i]; });
-      for (const o of unculled) o.frustumCulled = true;
-      cam.position.copy(sp); cam.quaternion.copy(sq); cam.updateMatrixWorld(true);
-    } catch { /* headless / non-WebGL */ }
-
     // Fade out the loader once the first frame is up, then run the cold-open intro.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { loader.classList.add('hidden'); ui.playIntro(); });
