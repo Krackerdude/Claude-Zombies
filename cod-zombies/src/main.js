@@ -390,6 +390,26 @@ async function main() {
     engine.services.get(Service.Render).prewarm(sceneMgr.scene);
     if (sceneMgr.menuScene) engine.services.get(Service.Render).prewarm(sceneMgr.menuScene); // compile the menu backdrop too
 
+    // Compile the "power ON" light configuration under the loader. Throwing the
+    // switch turns ~9 practical lamps visible at once, which changes the scene's
+    // active light count — and three.js keys shader programs by light count, so
+    // every material would otherwise recompile on the spot: the power-on freeze.
+    // Render one frame with the powered lamps on (all objects unculled) so those
+    // variants are compiled now.
+    try {
+      const R = engine.services.get(Service.Render);
+      const lamps = [];
+      const unculled = [];
+      sceneMgr.scene.traverse((o) => {
+        if (o.isLight && !o.visible) { lamps.push(o); o.visible = true; } // every practical, perk + PaP light on
+        if (o.frustumCulled) { unculled.push(o); o.frustumCulled = false; }
+      });
+      try { R.renderer.compile?.(sceneMgr.scene, R.camera); } catch { /* ignore */ }
+      R.render(sceneMgr.scene, R.camera);
+      for (const l of lamps) l.visible = false; // restore (they were all off/gated at load)
+      for (const o of unculled) o.frustumCulled = true;
+    } catch { /* headless / non-WebGL */ }
+
     // Fade out the loader once the first frame is up, then run the cold-open intro.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { loader.classList.add('hidden'); ui.playIntro(); });
