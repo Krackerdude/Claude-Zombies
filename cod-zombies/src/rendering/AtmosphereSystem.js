@@ -1,4 +1,5 @@
 import { System } from '../ecs/System.js';
+import { Service } from '../core/ServiceLocator.js';
 import { AtmosphereConfig } from '../config/index.js';
 
 /**
@@ -18,6 +19,7 @@ export class AtmosphereSystem extends System {
   #cfg;
   #t = 0;
   #wasEnabled = true;
+  #camera = null;
 
   constructor(lights = [], cfg = AtmosphereConfig, cones = []) {
     super();
@@ -34,6 +36,11 @@ export class AtmosphereSystem extends System {
         seed: f.seed ?? i * 13.37 + 0.5,
       };
     });
+  }
+
+  init() {
+    const s = this.world.services;
+    if (s.has(Service.Render)) this.#camera = s.get(Service.Render).camera;
   }
 
   update(dt) {
@@ -54,10 +61,25 @@ export class AtmosphereSystem extends System {
     this.#wasEnabled = true;
     this.#t += dt;
 
-    // volumetric beams: gate on the config flag + power, advance their shimmer time
+    // volumetric beams: gate on the config flag + power, advance their shimmer time.
+    // Also fade each beam out as the CAMERA enters it and stop drawing it entirely
+    // once you're inside — a cone you're standing in fills the screen with additive
+    // transparent overdraw (fill-rate death) for a beam you can barely perceive from
+    // within. This is what made simply standing under a lamp tank the frame.
     const conesOn = this.#cfg.lightCones !== false;
+    const cam = this.#camera;
     for (const c of this.#cones) {
-      c.visible = conesOn && c.userData.powerOn !== false;
+      let vis = conesOn && c.userData.powerOn !== false;
+      if (vis && cam) {
+        const dx = cam.position.x - c.position.x, dz = cam.position.z - c.position.z;
+        const d = Math.sqrt(dx * dx + dz * dz);
+        const r = c.userData.coneRadius ?? 1.2;
+        const near = r - 0.2, far = r + 1.4;                 // gone by the axis, full past the rim + a margin
+        const k = Math.max(0, Math.min(1, (d - near) / (far - near)));
+        c.userData.coneMat.uniforms.uStrength.value = (c.userData.coneStrength ?? 0.5) * k;
+        if (k <= 0.02) vis = false;                          // fully inside → skip the draw (kills the overdraw)
+      }
+      c.visible = vis;
       if (c.visible) c.userData.coneMat.uniforms.uTime.value = this.#t;
     }
 
