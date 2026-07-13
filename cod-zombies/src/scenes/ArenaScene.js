@@ -282,8 +282,13 @@ export function buildArena(engine) {
   header.position.set(0, 3.2, -10.15); // underside 2.9 (seals to the door top), up to 3.5 (into the ceiling)
   header.castShadow = true; header.receiveShadow = true;
   scene.add(header);
-  // roof lamp inside the annex (collected as a powered light → off until power)
-  lamp(0, -14, 0xffae5c, 5, 12, guttering, true, true);
+  // roof lamp inside the annex (collected as a powered light → off until power).
+  // NON-shadow-casting on purpose: a shadow-casting spot re-renders a fixed 1024²
+  // depth map every frame you're inside the small room (its cone covers the whole
+  // floor), which is a per-frame fill cost that doesn't shrink with render scale —
+  // the room's since-day-one "chug while standing in it". The point light + dust
+  // cone still light it; it just doesn't cast dynamic floor shadows in here.
+  lamp(0, -14, 0xffae5c, 6, 12, guttering, true, false);
 
   // door barrier: blocks the player + nav until the door is bought open. It is a
   // Barrier (non-teardownable) so zombies never tear it; buying flips it open.
