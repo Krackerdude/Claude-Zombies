@@ -46,6 +46,7 @@ import { SkySystem } from './SkySystem.js';
 import { buildLightCone } from '../rendering/lightCone.js';
 import { EffectsDirector } from '../rendering/EffectsDirector.js';
 import { WeatherSystem } from '../rendering/WeatherSystem.js';
+import { PortalCullSystem } from '../rendering/PortalCullSystem.js';
 import { AtmosphereConfig } from '../config/index.js';
 
 const B = 10; // building half-extent
@@ -309,6 +310,7 @@ export function buildArena(engine) {
   const handle = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.02, 8, 16), doorIron);
   handle.position.set(2 * WH - 0.2, 1.4, 0.09); doorPivot.add(handle);
   mergeStatic(doorPivot); // the pivot stays the swing handle; innards merge
+  doorPivot.userData.cell = 'room';
   scene.add(doorPivot);
 
   // planks rise out of the ground and snap into place when repaired
@@ -338,6 +340,13 @@ export function buildArena(engine) {
   engine.world.registerSystem(new EffectsDirector());
   // rain, lightning + ground mist (Silent Hill weather)
   engine.world.registerSystem(new WeatherSystem());
+  // portal cull: inside the annex, clip the arena's static decor to the doorway
+  // aperture (the scene is draw-call bound, so looking out otherwise draws the
+  // whole map). Shadow-safe: freezes the sun bake while active. See the system.
+  engine.world.registerSystem(new PortalCullSystem({
+    room: { minX: room.minX, maxX: room.maxX, minZ: room.minZ, maxZ: room.maxZ },
+    portal: { minX: -WH, maxX: WH, minY: 0.1, maxY: 3.1, z: -10 },
+  }));
 
   // --- exterior spawn points (outside the building) ---
   // south approach is sealed by the power room, so zombies come from N / E / W
@@ -395,6 +404,7 @@ export function buildArena(engine) {
   const papRig = buildPaP();
   papRig.position.copy(papPos);
   papRig.rotation.y = Math.PI / 2; // face +x (into the room)
+  papRig.userData.cell = 'room';   // never portal-culled while you stand in the room
   scene.add(papRig);
   physics.createStaticBox({ x: papPos.x, y: 1.0, z: papPos.z }, { x: 0.6, y: 1.3, z: 0.85 });
 
@@ -402,6 +412,7 @@ export function buildArena(engine) {
   const powerRig = buildPowerSwitch();
   const powerPos = new THREE.Vector3(4.86, 1.45, -14);
   powerRig.position.copy(powerPos);
+  powerRig.userData.cell = 'room';
   scene.add(powerRig);
 
   // NOTE: frustum culling of the static props was removed. Toggling a prop's
